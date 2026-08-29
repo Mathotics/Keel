@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keel"
+version = "0.1.0"
+description = "Keel FastAPI web application"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "UNLICENSED" }
+authors = [{ name = "Keel" }]
+dependencies = [
+    "fastapi==0.116.1",
+    "uvicorn[standard]==0.35.0",
+    "pydantic-settings==2.10.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff==0.12.10",
+    "pytest==8.4.1",
+    "httpx==0.28.1",
+    "poethepoet==0.48.0",
+    "pre-commit==4.6.2",
+]
+
+[project.scripts]
+keel = "keel.cli:main"
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+src = ["src", "tests"]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "unit: isolated tests of a single module or function",
+    "integration: tests across components without an external process",
+    "system: end-to-end tests against a running application",
+]
+
+[tool.poe.tasks.serve]
+help = "Run the FastAPI app"
+cmd = "keel serve"
+
+[tool.poe.tasks.lint]
+help = "Lint with Ruff"
+cmd = "ruff check ."
+
+[tool.poe.tasks.format]
+help = "Format with Ruff"
+cmd = "ruff format ."
+
+[tool.poe.tasks.format-check]
+help = "Check formatting with Ruff"
+cmd = "ruff format --check ."
+
+[tool.poe.tasks.test]
+help = "Run all pytest suites"
+cmd = "pytest"
+
+[tool.poe.tasks.test-unit]
+help = "Run unit tests"
+cmd = "pytest tests/unit -m unit"
+
+[tool.poe.tasks.test-integration]
+help = "Run integration tests"
+cmd = "pytest tests/integration -m integration"
+
+[tool.poe.tasks.test-system]
+help = "Run system tests"
+cmd = "pytest tests/system -m system"
+
+[tool.poe.tasks.hooks]
+help = "Install git pre-commit hooks and download hook environments"
+cmd = "pre-commit install --install-hooks"
+
+[tool.poe.tasks.pre-commit]
+help = "Run pre-commit on all files"
+cmd = "pre-commit run --all-files"
+
+[tool.poe.tasks.check]
+help = "Run pre-commit hooks and tests"
+sequence = ["pre-commit", "test"]
+

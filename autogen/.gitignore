@@ -1,0 +1,4 @@
+# Ignore all files in the autogen directory
+*
+# Except the gitignore file
+!.gitignore
