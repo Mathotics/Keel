@@ -16,3 +16,4 @@ def test_root(client: TestClient) -> None:
     assert "Keel" in response.text
     assert "/assets/favicon.ico" in response.text
     assert __version__ in response.text
+    assert "keel-topbar" in response.text

@@ -1,0 +1,59 @@
+/* Brand tokens sampled from logos.png. Documented in docs/brand-colors.md */
+
+:root {
+  --keel-blue: #0068b0;
+  --keel-blue-deep: #0062ab;
+  --keel-white: #ffffff;
+  --keel-sheet: #ebf0f3;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-family: system-ui, sans-serif;
+}
+
+.keel-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 3.5rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--keel-blue);
+}
+
+.keel-topbar__home {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--keel-white);
+}
+
+.keel-topbar__home:focus-visible {
+  outline: 2px solid var(--keel-white);
+  outline-offset: 3px;
+}
+
+.keel-topbar__home img {
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.keel-main {
+  padding: 1.25rem;
+}
