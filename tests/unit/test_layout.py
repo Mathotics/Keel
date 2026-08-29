@@ -1,3 +1,4 @@
+from keel.version import package_version
 from keel.web.layout import html_page
 
 
@@ -10,3 +11,11 @@ def test_html_page_puts_icon_first_in_the_bar() -> None:
     assert "<title>T</title>" in html
     assert "<p>body</p>" in html
     assert "brand.css" in html
+
+
+def test_html_page_footer_shows_package_version() -> None:
+    html = html_page(title="T", main="<p>body</p>")
+    footer = html.split("<footer", 1)[1].split("</footer>", 1)[0]
+    assert 'class="keel-footer"' in html
+    assert f"Keel {package_version()}" in footer
+    assert footer.find("keel-footer__version") < footer.find(package_version())

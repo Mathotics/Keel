@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from keel.api import health, routes
 from keel.paths import asset_path, assets_dir
 from keel.settings import KeelSettings, get_settings
+from keel.version import package_version
 
 
 def create_app(settings: KeelSettings | None = None) -> FastAPI:
@@ -14,7 +15,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
 
     application = FastAPI(
         title="Keel",
-        version="0.1.0",
+        version=package_version(),
         docs_url=None,
         redoc_url=None,
     )

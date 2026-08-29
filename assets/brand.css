@@ -56,4 +56,22 @@ body {
 
 .keel-main {
   padding: 1.25rem;
+  padding-bottom: 4.5rem;
+}
+
+.keel-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 3.5rem;
+  padding: 0.35rem 0.75rem;
+  background: var(--keel-blue);
+  color: var(--keel-white);
+}
+
+.keel-footer__version {
+  margin: 0;
 }

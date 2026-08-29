@@ -1,0 +1,15 @@
+---
+description: Package version lives only in pyproject.toml; never hardcode it.
+alwaysApply: true
+---
+
+# Version source of truth
+
+The Keel version number is defined **only** in `pyproject.toml` under `[project].version`.
+
+- Read it at runtime with `keel.version.package_version()` (installed distribution metadata).
+- Do not write the version as a string in Python, HTML, tests, ADRs, or README.
+- Tests must assert against `package_version()`, not a copied version number.
+- After changing `pyproject.toml` version, reinstall (`pip install -e ".[dev]"`) so metadata updates.
+
+See `docs/version.md` and ADR 002.

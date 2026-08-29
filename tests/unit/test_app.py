@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from keel.app import app, create_app
 from keel.settings import KeelSettings
+from keel.version import package_version
 
 
 def test_create_app_uses_provided_settings() -> None:
@@ -9,10 +10,12 @@ def test_create_app_uses_provided_settings() -> None:
     application = create_app(settings)
     assert application.state.settings is settings
     assert application.title == "Keel"
+    assert application.version == package_version()
 
 
 def test_module_app_is_fastapi() -> None:
     assert app.title == "Keel"
+    assert app.version == package_version()
 
 
 def test_docs_and_favicon_routes() -> None:

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from keel import __version__
+from keel.version import package_version
 
 
 def test_health(client: TestClient) -> None:
@@ -15,5 +15,6 @@ def test_root(client: TestClient) -> None:
     assert "text/html" in response.headers["content-type"]
     assert "Keel" in response.text
     assert "/assets/favicon.ico" in response.text
-    assert __version__ in response.text
+    assert f"Keel {package_version()}" in response.text
     assert "keel-topbar" in response.text
+    assert "keel-footer" in response.text

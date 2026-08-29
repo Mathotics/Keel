@@ -1,3 +1,5 @@
 """Keel FastAPI application."""
 
-__version__ = "0.1.0"
+from keel.version import package_version
+
+__version__ = package_version()

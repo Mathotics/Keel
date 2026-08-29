@@ -1,5 +1,9 @@
+from keel.version import package_version
+
+
 def html_page(*, title: str, main: str) -> str:
-    """Keel HTML chrome: sticky top bar with home icon, then page content."""
+    """Keel HTML chrome: sticky top bar, content, sticky footer with version."""
+    version_label = f"Keel {package_version()}"
     return f"""\
 <!DOCTYPE html>
 <html lang="en">
@@ -20,6 +24,9 @@ def html_page(*, title: str, main: str) -> str:
     <main class="keel-main">
 {main}
     </main>
+    <footer class="keel-footer">
+      <p class="keel-footer__version">{version_label}</p>
+    </footer>
   </body>
 </html>
 """
