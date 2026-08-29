@@ -12,4 +12,7 @@ def test_health(client: TestClient) -> None:
 def test_root(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"name": "keel", "version": __version__}
+    assert "text/html" in response.headers["content-type"]
+    assert "Keel" in response.text
+    assert "/assets/favicon.ico" in response.text
+    assert __version__ in response.text

@@ -51,7 +51,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/` and `http://127.0.0.1:8000/health`.
+Then open `http://127.0.0.1:8000/` (HTML home page with the favicon) and `http://127.0.0.1:8000/health`.
 
 ## Lint and test
 
