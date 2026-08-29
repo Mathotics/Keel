@@ -15,6 +15,7 @@ def test_root_uses_shared_chrome(client: TestClient) -> None:
     assert "/assets/brand.css" in html
     assert "position: sticky" not in html
     assert f"Keel {package_version()}" in html
+    assert 'href="/license"' in html
 
 
 def test_health_has_no_menu_bar(client: TestClient) -> None:
@@ -34,6 +35,13 @@ def test_docs_has_no_keel_menu_bar(client: TestClient) -> None:
 def test_brand_assets(client: TestClient) -> None:
     css = client.get("/assets/brand.css")
     assert css.status_code == 200
-    assert "--keel-blue: #0068b0" in css.text.lower()
+    text = css.text.lower()
+    assert "--keel-blue: #0068b0" in text
+    assert "min-height: 100vh" in text
+    footer_block = text.split(".keel-footer {", 1)[1].split("}", 1)[0]
+    topbar_block = text.split(".keel-topbar {", 1)[1].split("}", 1)[0]
+    assert "var(--keel-sheet)" in footer_block
+    assert "var(--keel-blue)" in topbar_block
+    assert "var(--keel-sheet)" not in topbar_block
     icon = client.get("/assets/small_icon.png")
     assert icon.status_code == 200

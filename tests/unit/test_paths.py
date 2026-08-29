@@ -1,6 +1,6 @@
 import pytest
 
-from keel.paths import asset_path, assets_dir
+from keel.paths import asset_path, assets_dir, copyright_notice, license_path, license_text
 
 
 def test_assets_dir_contains_favicon() -> None:
@@ -22,3 +22,15 @@ def test_assets_dir_missing_raises(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pathlib.Path.is_dir", lambda self: False)
     with pytest.raises(FileNotFoundError, match="assets directory not found"):
         assets_dir()
+
+
+def test_copyright_notice_comes_from_license_file() -> None:
+    notice = copyright_notice()
+    assert notice == license_text().splitlines()[0].strip()
+    assert "copyright" in notice.lower()
+
+
+def test_license_missing_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pathlib.Path.is_file", lambda self: False)
+    with pytest.raises(FileNotFoundError, match="LICENSE not found"):
+        license_path()

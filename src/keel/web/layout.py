@@ -1,9 +1,13 @@
+from html import escape
+
+from keel.paths import copyright_notice
 from keel.version import package_version
 
 
 def html_page(*, title: str, main: str) -> str:
     """Keel HTML chrome: sticky top bar, content, sticky footer with version."""
     version_label = f"Keel {package_version()}"
+    notice = escape(copyright_notice())
     return f"""\
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +29,7 @@ def html_page(*, title: str, main: str) -> str:
 {main}
     </main>
     <footer class="keel-footer">
+      <a class="keel-footer__copyright" href="/license">{notice}</a>
       <p class="keel-footer__version">{version_label}</p>
     </footer>
   </body>

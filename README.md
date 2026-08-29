@@ -76,5 +76,5 @@ Individual tasks: `poe lint`, `poe format`, `poe format-check`, `poe isort`, `po
 
 ## License
 
-This is not an open-source project. Copyright (c) 2026 Jacob Hootman. All rights reserved. See [LICENSE](LICENSE).
+This is not an open-source project. See [LICENSE](LICENSE) or the in-app page at `/license`.
 
