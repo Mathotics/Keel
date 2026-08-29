@@ -23,6 +23,9 @@ dev = [
     "httpx==0.28.1",
     "poethepoet==0.48.0",
     "pre-commit==4.6.2",
+    "mypy==2.3.1",
+    "isort==9.0.1",
+    "pytest-cov==6.2.1",
 ]
 
 [project.scripts]
@@ -54,6 +57,33 @@ markers = [
     "system: end-to-end tests against a running application",
 ]
 
+[tool.isort]
+profile = "black"
+line_length = 88
+src_paths = ["src", "tests"]
+known_first_party = ["keel"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+files = ["src", "tests"]
+explicit_package_bases = true
+strict = true
+plugins = ["pydantic.mypy"]
+
+[tool.coverage.run]
+branch = true
+source = ["keel"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_empty = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+]
+
 [tool.poe.tasks.serve]
 help = "Run the FastAPI app"
 cmd = "keel serve"
@@ -70,13 +100,25 @@ cmd = "ruff format ."
 help = "Check formatting with Ruff"
 cmd = "ruff format --check ."
 
+[tool.poe.tasks.isort]
+help = "Sort imports with isort"
+cmd = "isort src tests"
+
+[tool.poe.tasks.isort-check]
+help = "Check import order with isort"
+cmd = "isort --check-only --diff src tests"
+
+[tool.poe.tasks.mypy]
+help = "Type-check with mypy"
+cmd = "mypy"
+
 [tool.poe.tasks.test]
 help = "Run all pytest suites"
 cmd = "pytest"
 
 [tool.poe.tasks.test-unit]
-help = "Run unit tests"
-cmd = "pytest tests/unit -m unit"
+help = "Run unit tests with 90% coverage required"
+cmd = "pytest tests/unit -m unit --cov=keel --cov-report=term-missing --cov-fail-under=90"
 
 [tool.poe.tasks.test-integration]
 help = "Run integration tests"

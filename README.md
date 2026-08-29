@@ -6,7 +6,7 @@ Requires **Python 3.12**.
 
 ## Setup
 
-Onboarding scripts create `.venv`, install the package in editable mode with the `dev` extra from [`pyproject.toml`](pyproject.toml), verify Poe tasks, install git pre-commit hooks and their environments (`poe hooks`), and copy [`.env.example`](.env.example) to `.env` if it is missing. They require **Python 3.12+** (override with the `PYTHON` environment variable).
+Onboarding scripts create `.venv`, install the package in editable mode with the `dev` extra from [`pyproject.toml`](pyproject.toml), verify Poe tasks, install git pre-commit hooks and their environments (`poe hooks`), run `poe isort-check` and `poe mypy`, and copy [`.env.example`](.env.example) to `.env` if it is missing. They require **Python 3.12+** (override with the `PYTHON` environment variable).
 
 ```powershell
 .\scripts\onboard.ps1
@@ -59,17 +59,17 @@ Then open `http://127.0.0.1:8000/` (HTML home page with the favicon) and `http:/
 poe check
 ```
 
-That runs [pre-commit](https://pre-commit.com/) on all files, then pytest. Hooks also run on `git commit` after onboarding. Re-run `poe hooks` to reinstall git hooks and refresh hook environments.
+That runs [pre-commit](https://pre-commit.com/) on all files (including isort, mypy, and unit tests with 90% coverage), then pytest. Hooks also run on `git commit` after onboarding. Re-run `poe hooks` to reinstall git hooks and refresh hook environments.
 
 Tests are grouped under `tests/`:
 
 | Suite | Directory | Poe task |
 | --- | --- | --- |
-| Unit | `tests/unit/` | `poe test-unit` |
+| Unit | `tests/unit/` | `poe test-unit` (must pass; **90%** coverage of `keel`) |
 | Integration | `tests/integration/` | `poe test-integration` |
 | System | `tests/system/` | `poe test-system` |
 | All | `tests/` | `poe test` |
 
 Add further suites the same way (directory + pytest marker + `poe test-<name>` task). Markers are applied from the directory name (`unit`, `integration`, `system`).
 
-Individual tasks: `poe lint`, `poe format`, `poe format-check`, `poe pre-commit`, `poe test`. Run `poe` with no arguments to list them.
+Individual tasks: `poe lint`, `poe format`, `poe format-check`, `poe isort`, `poe isort-check`, `poe mypy`, `poe pre-commit`, `poe test`. Run `poe` with no arguments to list them.

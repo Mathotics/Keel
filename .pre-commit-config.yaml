@@ -15,3 +15,27 @@ repos:
       - id: ruff-check
         args: [--fix]
       - id: ruff-format
+  - repo: https://github.com/pycqa/isort
+    rev: 9.0.1
+    hooks:
+      - id: isort
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v2.3.1
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - fastapi==0.116.1
+          - pydantic-settings==2.10.1
+          - uvicorn[standard]==0.35.0
+          - httpx==0.28.1
+          - pytest==8.4.1
+        args: [src, tests]
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: pytest-unit-coverage
+        name: unit tests (90% coverage)
+        language: system
+        entry: pytest tests/unit -m unit --cov=keel --cov-report=term-missing --cov-fail-under=90
+        pass_filenames: false
+        always_run: true

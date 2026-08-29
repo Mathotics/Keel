@@ -99,6 +99,12 @@ echo Configuring pre-commit (git hooks and environments)...
 "%VENV_POE%" hooks
 if errorlevel 1 exit /b 1
 
+echo Checking isort and mypy...
+"%VENV_POE%" isort-check
+if errorlevel 1 exit /b 1
+"%VENV_POE%" mypy
+if errorlevel 1 exit /b 1
+
 if not exist ".env" if exist ".env.example" (
     copy /y ".env.example" ".env" >nul
     echo Created .env from .env.example

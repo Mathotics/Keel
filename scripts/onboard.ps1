@@ -86,6 +86,12 @@ Write-Host "Configuring pre-commit (git hooks and environments)..."
 & $VenvPoe hooks
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+Write-Host "Checking isort and mypy..."
+& $VenvPoe isort-check
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& $VenvPoe mypy
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
     Copy-Item ".env.example" ".env"
     Write-Host "Created .env from .env.example"

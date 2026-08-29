@@ -7,3 +7,6 @@ def test_html_page_puts_icon_first_in_the_bar() -> None:
     assert header.find("keel-topbar__home") < header.find("small_icon.png")
     assert 'href="/"' in header
     assert "<nav" not in header
+    assert "<title>T</title>" in html
+    assert "<p>body</p>" in html
+    assert "brand.css" in html
