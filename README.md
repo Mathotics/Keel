@@ -73,3 +73,8 @@ Tests are grouped under `tests/`:
 Add further suites the same way (directory + pytest marker + `poe test-<name>` task). Markers are applied from the directory name (`unit`, `integration`, `system`).
 
 Individual tasks: `poe lint`, `poe format`, `poe format-check`, `poe isort`, `poe isort-check`, `poe mypy`, `poe pre-commit`, `poe test`. Run `poe` with no arguments to list them.
+
+## License
+
+This is not an open-source project. Copyright (c) 2026 Jacob Hootman. All rights reserved. See [LICENSE](LICENSE).
+
