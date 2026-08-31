@@ -15,14 +15,14 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Backlog
 
-* **Rank the backlog.** A user views all of a project's unscheduled work as one ordered list and reorders it so the most important items are on top.
+* **Review the backlog.** A user views all of a project's unscheduled, unfinished work as one list in the order it was created. There is no manual ordering — see [ADR 013](../adr/ADR-013.md), which amends [ADR 005](../adr/ADR-005.md).
 * **Refine an item.** A user opens a backlog item to edit its description, estimate, assignee, or parent.
 
 ## Sprints
 
-* **Plan a sprint.** A user creates a time-boxed sprint and pulls ranked backlog items into it.
-* **Start a sprint.** A user starts the sprint; its issues become the active committed work.
-* **Complete a sprint.** A user completes the sprint; unfinished issues return to the backlog for re-ranking.
+* **Plan a sprint.** A user creates a time-boxed sprint and pulls backlog items into it.
+* **Start a sprint.** A user starts the sprint; its issues become the active committed work. Only one sprint per project may be active at a time.
+* **Complete a sprint.** A user completes the sprint; unfinished issues move into the next planned sprint, or return to the backlog if there is none.
 
 ## Kanban board
 
@@ -31,8 +31,8 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Ticket dependencies
 
-* **Link issues.** A user records that one issue *blocks* another, or that two issues merely *relate*.
-* **See what is blocked.** A user views an issue and sees what it is waiting on and what is waiting on it.
+* **Link issues.** A user records that one issue *blocks* another, or that two issues merely *relate*. The two issues may be in different projects — see [ADR 014](../adr/ADR-014.md).
+* **See what is blocked.** A user views an issue and sees what it is waiting on and what is waiting on it, and spots unresolved blockers at a glance from a marker on board cards and backlog rows.
 * **Avoid contradictions.** When a user tries to create a *blocks* link that would form a cycle, the system refuses it.
 
 ## Comments
@@ -50,3 +50,4 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * [Domain model](domain-model.md)
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
+* [UI design](../design/ui.md)

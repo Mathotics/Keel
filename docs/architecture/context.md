@@ -18,7 +18,7 @@ In v1 all users are trusted equals in a shared local/small-group context. There 
 Intentionally minimal. Keel talks only to:
 
 * The **local web browser** the owner and collaborators use.
-* The **local machine's durable storage**, where all projects, issues, sprints, boards, comments, and dependencies live. How that storage is realized is a component-level decision, left open here (see [domain model](domain-model.md)).
+* The **local machine's durable storage**, where all projects, issues, sprints, boards, comments, and dependencies live. How that storage is realized was left open here and is decided in [ADR 007](../adr/ADR-007.md).
 
 There are no external identity providers, email/notification services, webhooks, or cloud services in v1.
 
@@ -61,3 +61,4 @@ Keel is an existing repository, and these committed constraints are respected ra
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
 * [Glossary](glossary.md)
+* [Module layout](../design/module-layout.md)

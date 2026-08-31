@@ -1,0 +1,68 @@
+# UI design
+
+The pages Keel serves, the templates behind them, and the JavaScript that enhances the board. The rendering decision is recorded in [ADR 009](../adr/ADR-009.md).
+
+Every page is server-rendered with Jinja2 and works without JavaScript. Nothing is loaded from a remote origin, so the interface works offline.
+
+## Chrome
+
+`base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
+
+The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page — and, inside a project, links to that project's board, backlog, and sprints.
+
+## Pages
+
+| Path | Template | Contents |
+| --- | --- | --- |
+| `/` | `home.html` | Project list with a create form |
+| `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
+| `/projects/{key}/board` | `board.html` | Kanban columns, type filter, drag-and-drop |
+| `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
+| `/projects/{key}/sprints` | `sprints.html` | Sprints by state, create form |
+| `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
+| `/projects/{key}/issues/new` | `issue_form.html` | Create an issue |
+| `/issues/{key}-{number}` | `issue_detail.html` | Full issue view |
+| `/issues/{key}-{number}/edit` | `issue_form.html` | Edit an issue |
+| `/users` | `users.html` | Add, rename, and remove users |
+| `/license` | `license.html` | Existing license page |
+
+Web URLs address issues by key, as `/issues/KEEL-12`; the JSON API addresses them by internal identifier ([ADR 012](../adr/ADR-012.md)).
+
+## Board
+
+Five columns in workflow order — To Do, In Progress, In Review, Blocked, Done — generated from the status enumeration rather than stored ([ADR 013](../adr/ADR-013.md)).
+
+A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types appear by default; a filter above the board restricts which types are shown and is applied at query time, not by hiding cards.
+
+Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets a marker attribute on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run.
+
+## Backlog
+
+A flat table of the project's issues that have no sprint and are not Done, oldest first. There is no manual ordering: [ADR 013](../adr/ADR-013.md) removed backlog rank, so the backlog needs no drag-and-drop. Rows show the key, type, title, status, assignee, estimate, and the blocker marker, with a control to schedule an issue into a planned sprint.
+
+## Issue detail
+
+The issue's fields; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one.
+
+## JavaScript
+
+One script, `assets/js/board.js`, written against the browser's native HTML Drag and Drop API with no third-party dependency.
+
+It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
+
+The script is never required. It is loaded with `defer`, hides the fallback controls only once it has run, and no page or action is reachable through JavaScript alone.
+
+## Error presentation
+
+Web routes catch the same domain errors the JSON API returns and re-render the originating page with the message shown near the control that caused it — a refused cycle appears on the issue detail page, a refused sprint start on the sprint page. The user never sees a raw JSON error body or a stack trace.
+
+## Related documents
+
+* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](../adr/ADR-009.md)
+* [ADR 001: Persistent top menu bar](../adr/ADR-001.md)
+* [ADR 002: Persistent version footer](../adr/ADR-002.md)
+* [ADR 011: Ambient identity without authentication](../adr/ADR-011.md)
+* [ADR 013: Planning realization](../adr/ADR-013.md)
+* [API reference](api.md)
+* [Brand colors](../brand-colors.md)
+* [Use cases](../architecture/use-cases.md)

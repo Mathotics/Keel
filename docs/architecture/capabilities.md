@@ -15,7 +15,7 @@ flowchart LR
     a4[Comment on issues]
   end
   subgraph Plan["Planning"]
-    b1[Rank the backlog]
+    b1[Review the backlog]
     b2[Create sprint, set scope]
     b3[Start / complete sprint]
     b4[Estimate time, track remaining]
@@ -54,9 +54,9 @@ flowchart LR
 
 ## Planning
 
-* Maintain a per-project backlog as one ranked list and reorder it (see [ADR 005](../adr/ADR-005.md)).
+* Present a per-project backlog of unscheduled, unfinished issues in creation order (see [ADR 013](../adr/ADR-013.md), which amends [ADR 005](../adr/ADR-005.md)).
 * Create sprints, add issues to a sprint, and remove them.
-* Move a sprint through *planned → active → completed*; on completion, return unfinished issues to the backlog.
+* Move a sprint through *planned → active → completed*, with at most one sprint active per project; on completion, carry unfinished issues into the next planned sprint or back to the backlog.
 * Record a time-based estimate on an issue and update its remaining time as work progresses.
 * View estimated and remaining time aggregated from child issues.
 
@@ -68,13 +68,13 @@ flowchart LR
 
 ## Dependencies
 
-* Create and remove directed, typed links between issues — *blocks* and *relates-to* (see [ADR 006](../adr/ADR-006.md)).
-* Refuse a *blocks* link that would introduce a cycle.
-* Show, for a given issue, what it blocks / is blocked by and what it relates to.
+* Create and remove directed, typed links between issues — *blocks* and *relates-to* (see [ADR 006](../adr/ADR-006.md)), including between issues in different projects (see [ADR 014](../adr/ADR-014.md)).
+* Refuse a *blocks* link that would introduce a cycle anywhere in the blocking graph.
+* Show, for a given issue, what it blocks / is blocked by and what it relates to, and mark unresolved blockers on board cards and backlog rows.
 
 ## Platform
 
-* Durably persist all entities so work survives restarts (realization left open — see [domain model](domain-model.md)).
+* Durably persist all entities so work survives restarts (realized per [ADR 007](../adr/ADR-007.md); schema in the [data model](../design/data-model.md)).
 * Present the web UI within the existing shared chrome: sticky top menu bar ([ADR 001](../adr/ADR-001.md)) and version footer ([ADR 002](../adr/ADR-002.md)), using the recorded [brand colors](../brand-colors.md).
 * Continue to expose the JSON API and the `keel` CLI as the existing platform does.
 
@@ -84,3 +84,4 @@ flowchart LR
 * [Use cases](use-cases.md)
 * [Domain model](domain-model.md)
 * [v1 scope](v1-scope.md)
+* [Implementation plan](../design/implementation-plan.md)

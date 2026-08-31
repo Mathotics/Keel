@@ -74,6 +74,19 @@ Add further suites the same way (directory + pytest marker + `poe test-<name>` t
 
 Individual tasks: `poe lint`, `poe format`, `poe format-check`, `poe isort`, `poe isort-check`, `poe mypy`, `poe pre-commit`, `poe test`. Run `poe` with no arguments to list them.
 
+## Documentation
+
+Keel is an issue tracker for one owner plus up to two collaborators. What it is and why is described in the architecture package; how it is built is described in the design package and the decision records.
+
+| Area | Documents |
+| --- | --- |
+| Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
+| Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [implementation plan](docs/design/implementation-plan.md) |
+| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 014 the implementation |
+| Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
+
+The [implementation plan](docs/design/implementation-plan.md) is the build order; v1 is not yet implemented.
+
 ## License
 
 This is not an open-source project. See [LICENSE](LICENSE) or the in-app page at `/license`.

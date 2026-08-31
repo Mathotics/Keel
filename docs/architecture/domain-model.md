@@ -1,8 +1,8 @@
 # Domain model
 
-A conceptual entity–relationship model for Keel v1. It names the domain entities, their meaningful attributes in domain terms, and how they relate. It is deliberately **conceptual**: no tables, columns, data types, keys, or indexes. How these entities are stored is left open (see *Persistence* below).
+A conceptual entity–relationship model for Keel v1. It names the domain entities, their meaningful attributes in domain terms, and how they relate. It is deliberately **conceptual**: no tables, columns, data types, keys, or indexes. The physical realization is documented separately in the [data model](../design/data-model.md).
 
-Terms are defined in the [glossary](glossary.md). The modeling decisions behind this diagram are recorded in [ADR 003](../adr/ADR-003.md), [ADR 004](../adr/ADR-004.md), [ADR 005](../adr/ADR-005.md), and [ADR 006](../adr/ADR-006.md).
+Terms are defined in the [glossary](glossary.md). The modeling decisions behind this diagram are recorded in [ADR 003](../adr/ADR-003.md), [ADR 004](../adr/ADR-004.md), [ADR 005](../adr/ADR-005.md), and [ADR 006](../adr/ADR-006.md). Their implementation-level realization is recorded in [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), and [ADR 014](../adr/ADR-014.md).
 
 ## Entity–relationship diagram
 
@@ -40,19 +40,20 @@ The owner or a collaborator. In v1 there are no roles and no authentication.
 ### Project
 A first-class container that scopes a body of work. Multiple projects coexist.
 * Name; short description.
-* Relationships: contains many issues; has many boards; has many sprints. Its **backlog** is not a separate entity — it is the ordered set of the project's issues not scheduled in an active sprint (see [ADR 005](../adr/ADR-005.md)).
+* Key — a short identifier that prefixes the project's issue numbers (see [ADR 012](../adr/ADR-012.md)).
+* Relationships: contains many issues; has many boards; has many sprints. Its **backlog** is not a separate entity — it is a derived view over the project's issues (see Backlog below).
 
 ### Issue
 The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtask; the parent relationship forms the Epic → Story → Subtask hierarchy. Modeled as one entity per [ADR 003](../adr/ADR-003.md).
 * Title; description.
 * Type — one of *Epic*, *Story*, *Subtask*.
+* Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
-* Backlog rank — the item's order within its project's backlog.
 * Estimated time; time remaining — time-based effort tracking for the issue.
 * Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; classified by one status; reported by one user; optionally assigned to one user; carries many comments; participates in many dependencies as source and as target.
 
 ### Status
-A state in the shared, fixed workflow (for example *To Do*, *In Progress*, *Done*). The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md).
+A state in the shared, fixed workflow. The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md). The concrete set is *To Do*, *In Progress*, *In Review*, *Blocked*, and *Done*, with *Done* terminal; because it is fixed, it is realized as an enumeration in code rather than as stored records (see [ADR 013](../adr/ADR-013.md)).
 * Name; ordinal position in the workflow.
 * Relationships: classifies many issues; surfaced by many board columns.
 
@@ -85,11 +86,13 @@ A note attached to an issue, capturing discussion and context over time.
 
 ## Backlog (a view, not an entity)
 
-The backlog is the ordered list of a project's issues that are **not scheduled in an active sprint**, sorted by each issue's backlog rank. It is derived from Issue attributes rather than stored as its own entity. This keeps a single source of truth for every issue regardless of whether it is being viewed on the board, in a sprint, or in the backlog — see [ADR 005](../adr/ADR-005.md).
+The backlog is the list of a project's issues that have **no sprint assigned** and are **not yet done**, ordered by when they were created, oldest first. It is derived from Issue attributes rather than stored as its own entity. This keeps a single source of truth for every issue regardless of whether it is being viewed on the board, in a sprint, or in the backlog — see [ADR 005](../adr/ADR-005.md).
+
+[ADR 013](../adr/ADR-013.md) amends [ADR 005](../adr/ADR-005.md) here: the backlog carries no manual rank, and membership is defined by having no sprint at all rather than by not being in an *active* sprint, so pulling an issue into a planned sprint removes it from the backlog immediately.
 
 ## Persistence
 
-Every entity above must be **durably stored** so that projects, issues, sprints, boards, comments, and dependencies survive restarts. **How** persistence is realized — storage engine, schema, and access approach — is a low-level concern deliberately left open at the system level, to be resolved at the component/blueprint stage or in its own future ADR. This document specifies *that* entities persist, not *how*.
+Every entity above must be **durably stored** so that projects, issues, sprints, boards, comments, and dependencies survive restarts. **How** persistence is realized was deliberately left open at the system level and is now decided in [ADR 007](../adr/ADR-007.md), with the concrete schema in the [data model](../design/data-model.md). This document specifies *that* entities persist, not *how*.
 
 ## Related documents
 
@@ -98,3 +101,4 @@ Every entity above must be **durably stored** so that projects, issues, sprints,
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
 * [Glossary](glossary.md)
+* [Data model (physical schema)](../design/data-model.md)
