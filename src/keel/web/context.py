@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -32,7 +33,29 @@ __all__ = [
 def get_templates() -> Jinja2Templates:
     templates = Jinja2Templates(directory=str(templates_dir()))
     templates.env.filters["label"] = label
+    templates.env.filters["when"] = format_when
+    templates.env.filters["datetime_local"] = datetime_local
     return templates
+
+
+def format_when(value: datetime | None) -> str:
+    """UTC timestamps as they appear on issue pages."""
+    if value is None:
+        return "None"
+    return _as_naive_utc(value).strftime("%Y-%m-%d %H:%M UTC")
+
+
+def datetime_local(value: datetime | None) -> str:
+    """Value for an HTML datetime-local input."""
+    if value is None:
+        return ""
+    return _as_naive_utc(value).strftime("%Y-%m-%dT%H:%M")
+
+
+def _as_naive_utc(value: datetime) -> datetime:
+    if value.tzinfo is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
 
 
 @dataclass(frozen=True)

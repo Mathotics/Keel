@@ -60,6 +60,7 @@ def create_issue(
         parent_id=payload.parent_id,
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
+        due_at=payload.due_at,
     )
     return _read(session, issue)
 
@@ -95,6 +96,7 @@ def update_issue(
         assignee_id=(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),
+        due_at=payload.due_at if "due_at" in supplied else issue_service.UNSET,
     )
     return _read(session, issue)
 

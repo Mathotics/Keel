@@ -130,3 +130,34 @@ def test_deleting_a_leaf_returns_to_the_project(
 
 def test_an_unknown_issue_page_is_not_found(client: TestClient) -> None:
     assert client.get("/issues/KEEL-99").status_code == 404
+
+
+def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) -> None:
+    submit_issue(client, project, title="Ready", due_at="2026-09-15T17:00")
+
+    page = client.get("/issues/KEEL-1")
+    assert "Created on" in page.text
+    assert "Updated on" in page.text
+    assert "Due date" in page.text
+    assert "2026-09-15 17:00 UTC" in page.text
+    assert "Reporter" in page.text
+
+
+def test_created_on_is_not_editable(client: TestClient, project: Json) -> None:
+    submit_issue(client, project, title="Ready")
+
+    form = client.get("/issues/KEEL-1/edit")
+    assert 'name="due_at"' in form.text
+    assert "Created on" in form.text
+    assert 'name="created_at"' not in form.text
+    assert 'name="updated_at"' not in form.text
+
+
+def test_the_project_list_shows_due_and_created(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    page = client.get("/projects/KEEL")
+    assert "Due date" in page.text
+    assert "Created on" in page.text

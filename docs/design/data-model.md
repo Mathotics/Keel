@@ -100,6 +100,7 @@ Indexes and constraints:
 | `assignee_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |
 | `estimate_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `remaining_minutes` | INTEGER | nullable, `CHECK` not negative |
+| `due_at` | TIMESTAMP | nullable |
 | `created_at` | TIMESTAMP | not null |
 | `updated_at` | TIMESTAMP | not null |
 

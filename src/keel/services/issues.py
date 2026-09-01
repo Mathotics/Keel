@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -99,6 +100,7 @@ def create_issue(
     parent_id: int | None = None,
     reporter_id: int | None = None,
     assignee_id: int | None = None,
+    due_at: datetime | None = None,
 ) -> Issue:
     project = project_service.get_project(session, project_id)
     issue = Issue(
@@ -110,6 +112,7 @@ def create_issue(
         status=status,
         reporter_id=reporter_id,
         assignee_id=assignee_id,
+        due_at=due_at,
     )
     _assign_parent(session, issue, parent_id)
     session.add(issue)
@@ -127,8 +130,9 @@ def update_issue(
     status: IssueStatus | None = None,
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
+    due_at: datetime | None | object = UNSET,
 ) -> Issue:
-    """`parent_id` and `assignee_id` accept None as "clear it", so they use UNSET."""
+    """Nullable fields accept None as "clear it", so they use UNSET."""
     issue = get_issue(session, issue_id)
 
     if type is not None and type is not issue.type:
@@ -146,6 +150,8 @@ def update_issue(
         _assign_parent(session, issue, parent_id)  # type: ignore[arg-type]
     if assignee_id is not UNSET:
         issue.assignee_id = assignee_id  # type: ignore[assignment]
+    if due_at is not UNSET:
+        issue.due_at = due_at  # type: ignore[assignment]
 
     session.flush()
     return issue
@@ -205,6 +211,20 @@ def _apply_filters(
     if filters.parent_id is not None:
         query = query.where(Issue.parent_id == filters.parent_id)
     return query
+
+
+def parse_due_at(raw: str) -> datetime | None:
+    """Read a datetime-local or ISO string. Blank means no due date."""
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    try:
+        parsed = datetime.fromisoformat(cleaned)
+    except ValueError as exc:
+        raise InvalidIssueError("Due date could not be read.") from exc
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone(UTC).replace(tzinfo=None)
+    return parsed
 
 
 def _clean_title(title: str) -> str:

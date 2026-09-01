@@ -13,6 +13,7 @@ class IssueCreate(BaseModel):
     status: IssueStatus = INITIAL_STATUS
     parent_id: int | None = None
     assignee_id: int | None = None
+    due_at: datetime | None = None
 
 
 class IssueUpdate(BaseModel):
@@ -29,6 +30,7 @@ class IssueUpdate(BaseModel):
     status: IssueStatus | None = None
     parent_id: int | None = None
     assignee_id: int | None = None
+    due_at: datetime | None = None
 
 
 class IssueRead(BaseModel):
@@ -47,6 +49,7 @@ class IssueRead(BaseModel):
     assignee_id: int | None
     estimate_minutes: int | None
     remaining_minutes: int | None
+    due_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -66,6 +69,7 @@ class IssueRead(BaseModel):
             assignee_id=issue.assignee_id,
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
+            due_at=issue.due_at,
             created_at=issue.created_at,
             updated_at=issue.updated_at,
         )

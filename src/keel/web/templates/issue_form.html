@@ -56,9 +56,22 @@
             {% endfor %}
           </select>
         </p>
+        <p>
+          <label for="issue-due">Due date</label>
+          <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local if issue else '' }}"/>
+        </p>
         {% if not issue and current_user %}
         <input type="hidden" name="reporter_id" value="{{ current_user.id }}"/>
         {% endif %}
         <p><button type="submit">{% if issue %}Save{% else %}Create issue{% endif %}</button></p>
       </form>
+      {% if issue %}
+      <h2>Metadata</h2>
+      <dl class="keel-facts">
+        <dt>Key</dt><dd>{{ issue_key }}</dd>
+        <dt>Reporter</dt><dd>{{ reporter }}</dd>
+        <dt>Created on</dt><dd>{{ issue.created_at | when }}</dd>
+        <dt>Updated on</dt><dd>{{ issue.updated_at | when }}</dd>
+      </dl>
+      {% endif %}
 {% endblock %}

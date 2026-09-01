@@ -73,6 +73,7 @@ class Issue(Base):
     )
     estimate_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
     remaining_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,

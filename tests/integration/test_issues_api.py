@@ -204,3 +204,32 @@ def test_a_referenced_user_cannot_be_deleted(
     response = client.delete(f"/api/v1/users/{ada['id']}")
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "user.in_use"
+
+
+def test_a_due_date_round_trips_over_json(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(
+        client,
+        project_id,
+        due_at="2026-09-15T17:00:00",
+    )
+    assert issue["due_at"].startswith("2026-09-15T17:00:00")
+    assert issue["created_at"]
+    assert issue["updated_at"]
+
+    cleared = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"due_at": None},
+    ).json()
+    assert cleared["due_at"] is None
+
+
+def test_created_at_cannot_be_patched(client: TestClient, project_id: int) -> None:
+    issue = create_issue(client, project_id)
+    response = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"created_at": "2020-01-01T00:00:00"},
+    )
+    assert response.status_code == 422

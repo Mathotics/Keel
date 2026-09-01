@@ -39,6 +39,7 @@ def project_page(
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
     issues = issue_service.list_issues(session, project.id)
+    names = {user.id: user.display_name for user in user_service.list_users(session)}
     return get_templates().TemplateResponse(
         request,
         "project.html",
@@ -47,6 +48,7 @@ def project_page(
             chrome,
             project=project,
             issues=issues,
+            names=names,
             counts=issue_service.count_by_status(session, project.id),
             statuses=statuses_in_workflow_order(),
             error=error,

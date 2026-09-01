@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from sqlalchemy.orm import Session
 
@@ -270,3 +272,30 @@ def test_deleting_a_project_takes_its_issues(
 
     with pytest.raises(NotFoundError):
         issue_service.get_issue(session, issue_id)
+
+
+def test_a_due_date_round_trips(session: Session, project: Project) -> None:
+    due = datetime(2026, 9, 15, 17, 0)
+    issue = issue_service.get_issue(
+        session,
+        make(session, project, due_at=due),
+    )
+    assert issue.due_at == due
+
+    cleared = issue_service.update_issue(session, issue.id, due_at=None)
+    assert cleared.due_at is None
+
+
+def test_created_at_is_set_on_insert(session: Session, project: Project) -> None:
+    issue = issue_service.get_issue(session, make(session, project))
+    assert issue.created_at is not None
+    assert issue.updated_at is not None
+
+
+def test_a_malformed_due_date_is_refused() -> None:
+    with pytest.raises(InvalidIssueError):
+        issue_service.parse_due_at("next tuesday")
+
+
+def test_a_blank_due_date_is_absent() -> None:
+    assert issue_service.parse_due_at("  ") is None

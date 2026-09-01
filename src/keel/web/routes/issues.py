@@ -39,8 +39,8 @@ def issue_page(
             issue_key=issue_service.issue_key(issue, project),
             parent=parent,
             children=issue_service.list_children(session, issue.id),
-            assignee=_named(session, issue.assignee_id),
-            reporter=_named(session, issue.reporter_id),
+            assignee=_named(session, issue.assignee_id, empty="Unassigned"),
+            reporter=_named(session, issue.reporter_id, empty="None"),
             error=error,
         ),
     )
@@ -72,12 +72,13 @@ def edit_issue_page(
             issue_key=issue_service.issue_key(issue, project),
             parents=candidates,
             assignees=user_service.list_users(session),
+            reporter=_named(session, issue.reporter_id, empty="None"),
             error=error,
         ),
     )
 
 
-def _named(session: Session, user_id: int | None) -> str:
+def _named(session: Session, user_id: int | None, empty: str) -> str:
     if user_id is None:
-        return "Unassigned"
+        return empty
     return user_service.get_user(session, user_id).display_name

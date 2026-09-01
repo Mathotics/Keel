@@ -7,6 +7,7 @@
       {% endif %}
 
       <dl class="keel-facts">
+        <dt>Key</dt><dd>{{ issue_key }}</dd>
         <dt>Project</dt><dd><a href="/projects/{{ project.key }}">{{ project.key }}</a></dd>
         <dt>Type</dt><dd>{{ issue.type | label }}</dd>
         <dt>Status</dt><dd>{{ issue.status | label }}</dd>
@@ -20,6 +21,9 @@
           None
           {% endif %}
         </dd>
+        <dt>Due date</dt><dd>{{ issue.due_at | when }}</dd>
+        <dt>Created on</dt><dd>{{ issue.created_at | when }}</dd>
+        <dt>Updated on</dt><dd>{{ issue.updated_at | when }}</dd>
       </dl>
 
       {% if issue.description %}

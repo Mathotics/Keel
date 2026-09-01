@@ -57,7 +57,8 @@ Create body:
   "parent_id": null,
   "sprint_id": null,
   "assignee_id": 2,
-  "estimate_minutes": 180
+  "estimate_minutes": 180,
+  "due_at": "2026-09-15T17:00:00Z"
 }
 ```
 
@@ -79,6 +80,7 @@ Response body, with the fields the interface needs added:
   "assignee_id": 2,
   "estimate_minutes": 180,
   "remaining_minutes": 180,
+  "due_at": "2026-09-15T17:00:00Z",
   "rollup": {
     "estimate_minutes": 420,
     "remaining_minutes": 300,

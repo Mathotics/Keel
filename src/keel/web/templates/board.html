@@ -35,6 +35,9 @@
                 <span>{{ card.issue.type | label }}</span>
                 <span>{{ card.assignee_name or "Unassigned" }}</span>
               </p>
+              {% if card.issue.due_at %}
+              <p class="keel-card__meta">Due {{ card.issue.due_at | when }}</p>
+              {% endif %}
               <form class="keel-form keel-card__fallback" method="post" action="/web/issues/{{ card.issue.id }}/status">
                 <input type="hidden" name="next" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"/>
                 <label>
