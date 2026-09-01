@@ -8,7 +8,7 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 `base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
-Beside the logo, a nav element holds the top-level section links, Projects and Users. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page — and, inside a project, links to that project's board, backlog, and sprints.
+Beside the logo, a nav element holds the top-level section links, Projects and Users. Inside a project the same nav also links to that project's board, and later its backlog and sprints. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
 Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The form's Switch button remains in the markup and is hidden by the same document-root marker the board uses, so the picker still works when the script does not run.
 
@@ -50,6 +50,7 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/users` | The users page |
 | `POST` | `/web/users/{user_id}/rename` | The users page |
 | `POST` | `/web/users/{user_id}/delete` | The users page |
+| `POST` | `/web/issues/{issue_id}/status` | A board card's fallback status form |
 
 ## Board
 
@@ -57,7 +58,7 @@ Five columns in workflow order — To Do, In Progress, In Review, Blocked, Done 
 
 A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types appear by default; a filter above the board restricts which types are shown and is applied at query time, not by hiding cards.
 
-Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets a marker attribute on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run.
+Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker script uses its own marker (`data-keel-js`) for the same reason: it loads on every page, and must not hide a board fallback it did not enable.
 
 ## Backlog
 
@@ -69,7 +70,7 @@ The issue's fields; its parent and children with the children's statuses; rolled
 
 ## JavaScript
 
-Two scripts, both vanilla and with no third-party dependency. Each sets `data-keel-js` on the document root, which is what CSS keys on to hide the fallback controls.
+Two scripts, both vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker, `data-keel-board` for the board.
 
 `assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button.
 

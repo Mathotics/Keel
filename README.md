@@ -67,7 +67,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/`, which redirects to `/projects` (the project list, with a create form). Also `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL` and an issue at `/issues/KEEL-1`.
+Then open `http://127.0.0.1:8000/`, which redirects to `/projects` (the project list, with a create form). Also `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, and an issue at `/issues/KEEL-1`.
 
 ## Lint and test
 
@@ -101,7 +101,7 @@ Keel is an issue tracker for one owner plus up to two collaborators. What it is 
 | Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 014 the implementation |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
-The [implementation plan](docs/design/implementation-plan.md) is the build order. Phase 0 (foundation, templates, users) and Phase 1 (projects and issues) are in place; the board is next.
+The [implementation plan](docs/design/implementation-plan.md) is the build order. Phases 0 through 2 (foundation, projects and issues, board) are in place; sprints are next.
 
 ## License
 

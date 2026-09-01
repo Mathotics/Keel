@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-ASSETS = ("/assets/brand.css", "/assets/js/userpicker.js")
+ASSETS = ("/assets/brand.css", "/assets/js/userpicker.js", "/assets/js/board.js")
 
 
 @pytest.mark.parametrize("url", ASSETS)

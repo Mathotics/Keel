@@ -172,6 +172,24 @@ def update_issue(
     return _back(here)
 
 
+@router.post("/issues/{issue_id}/status")
+def move_issue_status(
+    session: SessionDep,
+    issue_id: int,
+    status: Annotated[IssueStatus, Form()],
+    return_to: Annotated[str, Form(alias="next")] = "",
+) -> RedirectResponse:
+    issue = issue_service.get_issue(session, issue_id)
+    project = project_service.get_project(session, issue.project_id)
+    board = f"/projects/{project.key}/board"
+    try:
+        issue_service.update_issue(session, issue_id, status=status)
+    except DomainError as exc:
+        session.rollback()
+        return _back(return_to or board, exc.message)
+    return _back(return_to or board)
+
+
 @router.post("/issues/{issue_id}/delete")
 def delete_issue(session: SessionDep, issue_id: int) -> RedirectResponse:
     issue = issue_service.get_issue(session, issue_id)

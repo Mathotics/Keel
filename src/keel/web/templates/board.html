@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ project.key }} board{% endblock %}
+{% block scripts %}
+    {{ super() }}
+    <script src="/assets/js/board.js" defer></script>
+{% endblock %}
+{% block main %}
+      <h1>{{ project.key }} board</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <form class="keel-form keel-board__filter" method="get" action="/projects/{{ project.key }}/board">
+        <span>Show</span>
+        {% for issue_type in issue_types %}
+        <label>
+          <input type="checkbox" name="type" value="{{ issue_type.value }}"{% if not selected_types or issue_type in selected_types %} checked{% endif %}/>
+          {{ issue_type | label }}
+        </label>
+        {% endfor %}
+        <button type="submit">Apply</button>
+      </form>
+
+      <div class="keel-board" data-keel-board-root>
+        <p class="keel-error" data-keel-board-error hidden></p>
+        {% for column in board.columns %}
+        <section class="keel-board__column" data-status="{{ column.status.value }}">
+          <h2 class="keel-board__heading">{{ column.status | label }} <span class="keel-board__count" data-keel-count>{{ column.cards | length }}</span></h2>
+          <div class="keel-board__cards" data-keel-cards>
+            {% for card in column.cards %}
+            <article class="keel-card" data-issue-id="{{ card.issue.id }}">
+              <p class="keel-card__key"><a href="/issues/{{ card.key }}">{{ card.key }}</a></p>
+              <p class="keel-card__title">{{ card.issue.title }}</p>
+              <p class="keel-card__meta">
+                <span>{{ card.issue.type | label }}</span>
+                <span>{{ card.assignee_name or "Unassigned" }}</span>
+              </p>
+              <form class="keel-form keel-card__fallback" method="post" action="/web/issues/{{ card.issue.id }}/status">
+                <input type="hidden" name="next" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"/>
+                <label>
+                  <span class="keel-visually-hidden">Status for {{ card.key }}</span>
+                  <select name="status">
+                    {% for column_status in board.columns %}
+                    <option value="{{ column_status.status.value }}"{% if card.issue.status == column_status.status %} selected{% endif %}>{{ column_status.status | label }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <button type="submit">Move</button>
+              </form>
+            </article>
+            {% endfor %}
+          </div>
+        </section>
+        {% endfor %}
+      </div>
+{% endblock %}

@@ -48,6 +48,8 @@ Done when projects and a full Epic, Story, and Subtask hierarchy can be created 
 
 ## Phase 2 — Board
 
+**Status: done.**
+
 * Board projection service grouping a project's issues by status, with the type filter applied in the query.
 * Board page rendering columns from the status enumeration.
 * Fallback status form on every card, posting to `/web/issues/{id}/status`.

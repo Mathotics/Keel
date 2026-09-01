@@ -26,6 +26,7 @@ UNSET = object()
 @dataclass(frozen=True)
 class IssueFilters:
     type: IssueType | None = None
+    types: tuple[IssueType, ...] = ()
     status: IssueStatus | None = None
     assignee_id: int | None = None
     parent_id: int | None = None
@@ -191,7 +192,11 @@ def _apply_filters(
     query: Select[tuple[Issue]],
     filters: IssueFilters,
 ) -> Select[tuple[Issue]]:
-    if filters.type is not None:
+    if filters.types:
+        chosen = set(filters.types)
+        if chosen != set(IssueType):
+            query = query.where(Issue.type.in_(filters.types))
+    elif filters.type is not None:
         query = query.where(Issue.type == filters.type)
     if filters.status is not None:
         query = query.where(Issue.status == filters.status)
