@@ -1,27 +1,51 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from keel.api import health, routes
+from keel.api import health
+from keel.api import v1 as api_v1
+from keel.api.errors import register_error_handlers
+from keel.db.engine import create_db_engine, create_session_factory
 from keel.paths import asset_path, assets_dir
+from keel.services.users import ensure_default_user
 from keel.settings import KeelSettings, get_settings
 from keel.version import package_version
+from keel.web import routes as web_routes
 
 
 def create_app(settings: KeelSettings | None = None) -> FastAPI:
     if settings is None:
         settings = get_settings()
 
+    engine = create_db_engine(settings.resolved_database_url())
+    session_factory = create_session_factory(engine)
+    default_user = settings.default_user
+
+    @asynccontextmanager
+    async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
+        with session_factory() as session:
+            ensure_default_user(session, default_user)
+            session.commit()
+        yield
+
     application = FastAPI(
         title="Keel",
         version=package_version(),
         docs_url=None,
         redoc_url=None,
+        lifespan=lifespan,
     )
     application.state.settings = settings
+    application.state.engine = engine
+    application.state.session_factory = session_factory
     application.include_router(health.router)
-    application.include_router(routes.router)
+    application.include_router(api_v1.router)
+    application.include_router(web_routes.router)
+    register_error_handlers(application)
     _register_docs(application)
     application.mount(
         "/assets",

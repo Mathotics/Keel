@@ -175,10 +175,12 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `dependency.self_link` | 409 | Source and target are the same issue |
 | `dependency.duplicate` | 409 | An identical link already exists |
 | `user.in_use` | 409 | Deleting a user still referenced anywhere |
+| `user.duplicate_name` | 409 | A display name is already taken |
+| `user.invalid_name` | 422 | A display name is blank or over 100 characters |
 
 ## Form routes
 
-Non-JavaScript fallbacks post to `/web` routes that redirect rather than returning JSON, since a browser form cannot consume a JSON response ([ADR 009](../adr/ADR-009.md)). They accept form encoding, call the same services, and redirect to the originating page; on a domain error they re-render it with the message attached.
+Non-JavaScript fallbacks post to `/web` routes that redirect rather than returning JSON, since a browser form cannot consume a JSON response ([ADR 009](../adr/ADR-009.md)). They accept form encoding, call the same services, and redirect to the originating page; on a domain error they redirect to that page with the message in an `error` query parameter, so a refresh never resubmits.
 
 | Method | Path | Purpose |
 | --- | --- | --- |

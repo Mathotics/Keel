@@ -141,7 +141,7 @@ flowchart TD
 
 `keel/settings.py` gains `database_url` and `default_user`, read as `KEEL_DATABASE_URL` and `KEEL_DEFAULT_USER`.
 
-`keel/app.py` mounts the v1 router, registers the exception handlers and template environment, verifies the schema revision, and seeds the default user.
+`keel/app.py` mounts the v1 router, registers the exception handlers and template environment, and seeds the default user on startup. The schema revision is verified by `keel serve` before the server starts, so a stale schema is reported on the command line rather than as a failed request.
 
 `keel/cli.py` gains a `db` subcommand group with `upgrade` and `revision`.
 
@@ -149,7 +149,7 @@ flowchart TD
 
 ## Tests
 
-The suites in `tests/` keep their current shape and markers. Unit tests cover `keel.domain` directly and services against an in-memory SQLite database per test, holding the 90% coverage gate. Integration tests drive routes through httpx. System tests run against a live server. The board's JavaScript is not executed by the test suite; its endpoints and its non-JavaScript fallback routes are covered instead, and dragging is verified by hand ([ADR 009](../adr/ADR-009.md)).
+The suites in `tests/` keep their current shape and markers. Unit tests cover `keel.domain` directly and services against a temporary SQLite database per test, holding the 90% coverage gate. Integration tests drive routes through httpx. System tests run against a live server. The board's JavaScript is not executed by the test suite; its endpoints and its non-JavaScript fallback routes are covered instead, and dragging is verified by hand ([ADR 009](../adr/ADR-009.md)).
 
 ## Related documents
 

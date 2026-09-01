@@ -10,6 +10,10 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page — and, inside a project, links to that project's board, backlog, and sprints.
 
+Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The form's Switch button remains in the markup and is hidden by the same document-root marker the board uses, so the picker still works when the script does not run.
+
+Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. The home icon keeps its own circular treatment as the brand mark.
+
 ## Pages
 
 | Path | Template | Contents |
@@ -46,11 +50,13 @@ The issue's fields; its parent and children with the children's statuses; rolled
 
 ## JavaScript
 
-One script, `assets/js/board.js`, written against the browser's native HTML Drag and Drop API with no third-party dependency.
+Two scripts, both vanilla and with no third-party dependency. Each sets `data-keel-js` on the document root, which is what CSS keys on to hide the fallback controls.
 
-It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
+`assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button.
 
-The script is never required. It is loaded with `defer`, hides the fallback controls only once it has run, and no page or action is reachable through JavaScript alone.
+`assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
+
+Neither script is required. Both are loaded with `defer`, hide their fallback controls only once they have run, and no page or action is reachable through JavaScript alone.
 
 ## Error presentation
 

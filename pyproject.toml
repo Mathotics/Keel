@@ -14,6 +14,11 @@ dependencies = [
     "fastapi==0.116.1",
     "uvicorn[standard]==0.35.0",
     "pydantic-settings==2.10.1",
+    "sqlalchemy==2.0.52",
+    "alembic==1.19.1",
+    "jinja2==3.1.6",
+    "platformdirs==4.11.5",
+    "python-multipart==0.0.32",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +41,9 @@ keel = "keel.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+keel = ["web/templates/*.html"]
 
 [tool.ruff]
 target-version = "py312"

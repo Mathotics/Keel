@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>{% block title %}Keel{% endblock %}</title>
+    <link rel="icon" href="/assets/favicon.ico" type="image/x-icon"/>
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon"/>
+    <link rel="stylesheet" href="/assets/brand.css"/>
+    <script src="/assets/js/userpicker.js" defer></script>
+  </head>
+  <body>
+    <header class="keel-topbar">
+      <a class="keel-topbar__home" href="/" aria-label="Keel home">
+        <img src="/assets/small_icon.png" alt=""/>
+      </a>
+      <nav class="keel-topbar__nav" aria-label="Sections">
+        <a class="keel-topbar__control" href="/users">Users</a>
+      </nav>
+      <div class="keel-topbar__right">
+        {% if users %}
+        <form class="keel-userpicker" method="post" action="/web/user">
+          <input type="hidden" name="next" value="{{ request.url.path }}"/>
+          <label class="keel-userpicker__label" for="keel-user">Acting as</label>
+          <select class="keel-topbar__control" id="keel-user" name="user">
+            {% for user in users %}
+            <option value="{{ user.id }}"{% if current_user and user.id == current_user.id %} selected{% endif %}>{{ user.display_name }}</option>
+            {% endfor %}
+          </select>
+          <button class="keel-topbar__control keel-userpicker__fallback" type="submit">Switch</button>
+        </form>
+        {% endif %}
+      </div>
+    </header>
+    <main class="keel-main">
+{% block main %}{% endblock %}
+    </main>
+    <footer class="keel-footer">
+      <a class="keel-footer__copyright" href="/license">{{ copyright_notice }}</a>
+      <p class="keel-footer__version">Keel {{ version }}</p>
+    </footer>
+  </body>
+</html>

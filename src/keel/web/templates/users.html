@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Users{% endblock %}
+{% block main %}
+      <h1>Users</h1>
+      <p class="keel-note">Keel has no login. Identity is declared, not verified.</p>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      <form class="keel-form" method="post" action="/web/users">
+        <label for="new-user">Add someone</label>
+        <input id="new-user" name="display_name" type="text" maxlength="100" required/>
+        <button type="submit">Add</button>
+      </form>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Name</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr>
+            <td>
+              <form class="keel-form keel-form--inline" method="post" action="/web/users/{{ user.id }}/rename">
+                <label class="keel-visually-hidden" for="rename-{{ user.id }}">Rename {{ user.display_name }}</label>
+                <input id="rename-{{ user.id }}" name="display_name" type="text" maxlength="100" value="{{ user.display_name }}" required/>
+                <button type="submit">Rename</button>
+              </form>
+            </td>
+            <td>
+              <form class="keel-form keel-form--inline" method="post" action="/web/users/{{ user.id }}/delete">
+                <button type="submit">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="2">Nobody yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+{% endblock %}

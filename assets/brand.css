@@ -5,6 +5,10 @@
   --keel-blue-deep: #0062ab;
   --keel-white: #ffffff;
   --keel-sheet: #ebf0f3;
+  /* One height and one text size for every control in the top bar, so centred
+     boxes also share an edge and a baseline. */
+  --keel-control-height: 1.75rem;
+  --keel-control-font-size: 0.875rem;
 }
 
 *,
@@ -62,9 +66,132 @@ body {
   height: 2.5rem;
 }
 
+/* Section links sit beside the logo; the picker is pushed to the far end. */
+.keel-topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.75rem;
+}
+
+.keel-topbar__right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+/* Every interactive thing in the top bar wears this, so a link, a button and a
+   select are indistinguishable apart from their content. */
+.keel-topbar__control {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  height: var(--keel-control-height);
+  margin: 0;
+  padding: 0 0.5rem;
+  border: 1px solid var(--keel-white);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.keel-topbar__control:hover {
+  background: var(--keel-sheet);
+}
+
+.keel-topbar__control:focus-visible {
+  outline: 2px solid var(--keel-white);
+  outline-offset: 2px;
+}
+
+.keel-userpicker {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+/* The dropdown submits itself once the script runs, so the button is only
+   needed when it did not. */
+[data-keel-js] .keel-userpicker__fallback {
+  display: none;
+}
+
+.keel-userpicker__label {
+  display: inline-flex;
+  align-items: center;
+  height: var(--keel-control-height);
+  color: var(--keel-white);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+}
+
 .keel-main {
   flex: 1 0 auto;
   padding: 1.25rem;
+}
+
+.keel-note {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+.keel-error {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--keel-blue);
+  background: var(--keel-sheet);
+  font-size: 0.875rem;
+}
+
+.keel-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.keel-form--inline {
+  margin: 0;
+}
+
+.keel-form input,
+.keel-form button {
+  font: inherit;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+}
+
+.keel-form button {
+  cursor: pointer;
+}
+
+.keel-table {
+  border-collapse: collapse;
+}
+
+.keel-table th,
+.keel-table td {
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--keel-sheet);
+  text-align: left;
+}
+
+.keel-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .keel-footer {

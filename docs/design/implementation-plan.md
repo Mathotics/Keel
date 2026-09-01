@@ -16,6 +16,8 @@ flowchart LR
 
 ## Phase 0 — Foundation
 
+**Status: done.**
+
 Everything later phases stand on, plus the first entity end to end so the plumbing is proven rather than assumed.
 
 * Add the SQLAlchemy, Alembic, Jinja2, and `platformdirs` dependencies to `pyproject.toml`, pinned exactly, with a `package-data` entry for templates.
@@ -78,7 +80,7 @@ Done when comments can be added and read, effort round-trips through the shortha
 
 ## Phase 6 — Polish
 
-* README: the new settings, the `keel db` commands, where the database file lives, and the note that identity is declared rather than verified.
+* README: keep the settings table, the `keel db` commands, and the database location current as later phases add to them (Phase 0 wrote the first version).
 * Cross-link the architecture and design documents where implementation revealed gaps.
 * Close any coverage shortfall and review every generated Alembic revision one final time.
 

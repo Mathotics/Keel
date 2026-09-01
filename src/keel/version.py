@@ -1,4 +1,4 @@
-"""Runtime version is always the installed distribution, which is defined in pyproject.toml."""
+"""Runtime version is the installed distribution, which pyproject.toml defines."""
 
 from importlib.metadata import version
 

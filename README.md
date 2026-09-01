@@ -32,6 +32,22 @@ Settings are read from the environment with the `KEEL_` prefix.
 | `KEEL_PORT` | `8000` | Bind port |
 | `KEEL_RELOAD` | `false` | Uvicorn auto-reload |
 | `KEEL_LOG_LEVEL` | `info` | Uvicorn log level |
+| `KEEL_DATABASE_URL` | SQLite in the user data directory | Where Keel stores its data |
+| `KEEL_DEFAULT_USER` | OS username | Who the app acts as before a picker choice |
+
+## Database
+
+Keel keeps a SQLite file outside the repository, in the OS user data directory (`%LOCALAPPDATA%\Keel\keel.db` on Windows). Create or update its schema before serving:
+
+```powershell
+keel db upgrade
+```
+
+`keel serve` refuses to start against a missing or out-of-date schema and tells you to run that command. After changing a model, generate a migration and review it before committing:
+
+```powershell
+keel db revision -m "describe the change"
+```
 
 ## Run
 
@@ -51,7 +67,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/` (HTML home page with the favicon) and `http://127.0.0.1:8000/health`.
+Then open `http://127.0.0.1:8000/` (HTML home page with the favicon), `http://127.0.0.1:8000/users` (manage who Keel knows about), and `http://127.0.0.1:8000/health`.
 
 ## Lint and test
 
@@ -85,7 +101,7 @@ Keel is an issue tracker for one owner plus up to two collaborators. What it is 
 | Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 014 the implementation |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
-The [implementation plan](docs/design/implementation-plan.md) is the build order; v1 is not yet implemented.
+The [implementation plan](docs/design/implementation-plan.md) is the build order. Phase 0 (foundation, templates, users) is in place; projects and issues are next.
 
 ## License
 

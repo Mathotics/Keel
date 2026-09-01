@@ -6,6 +6,11 @@ import pytest
 from keel.cli import main, serve
 
 
+@pytest.fixture(autouse=True)
+def current_schema(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("keel.cli.schema_is_stale", lambda settings: False)
+
+
 def test_serve_passes_overrides_to_uvicorn(monkeypatch: pytest.MonkeyPatch) -> None:
     run = MagicMock()
     monkeypatch.setattr("keel.cli.uvicorn.run", run)
@@ -40,6 +45,19 @@ def test_serve_uses_settings_when_flags_omitted(
     assert kwargs["port"] == 8000
     assert kwargs["reload"] is False
     assert kwargs["log_level"] == "info"
+
+
+def test_serve_refuses_a_stale_schema(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run = MagicMock()
+    monkeypatch.setattr("keel.cli.uvicorn.run", run)
+    monkeypatch.setattr("keel.cli.schema_is_stale", lambda settings: True)
+    args = argparse.Namespace(host=None, port=None, reload=False, log_level=None)
+    assert serve(args) == 1
+    run.assert_not_called()
+    assert "keel db upgrade" in capsys.readouterr().err
 
 
 def test_unknown_command_exits() -> None:

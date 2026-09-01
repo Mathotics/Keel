@@ -1,9 +1,12 @@
-import pytest
-from fastapi.testclient import TestClient
+from collections.abc import Iterator
 
-from keel.app import create_app
+import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app())
+def client(app: FastAPI) -> Iterator[TestClient]:
+    """Enters the lifespan, so the default user is seeded as it is in production."""
+    with TestClient(app) as client:
+        yield client
