@@ -9,33 +9,30 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import User
 from keel.db.session import get_session
+from keel.domain.enums import label
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
+from keel.services.identity import USER_COOKIE, USER_HEADER, resolve_current_user
 from keel.version import package_version
 
-USER_COOKIE = "keel_user"
-USER_HEADER = "X-Keel-User"
+__all__ = [
+    "USER_COOKIE",
+    "USER_HEADER",
+    "Chrome",
+    "ChromeDep",
+    "SessionDep",
+    "get_chrome",
+    "get_templates",
+    "page_context",
+    "resolve_current_user",
+]
 
 
 @lru_cache
 def get_templates() -> Jinja2Templates:
-    return Jinja2Templates(directory=str(templates_dir()))
-
-
-def resolve_current_user(
-    session: Session,
-    *,
-    header: str | None,
-    cookie: str | None,
-    configured: str | None,
-) -> User | None:
-    """Identity is declared, not verified: header, cookie, setting, then seed."""
-    for token in (header, cookie, configured):
-        if token:
-            found = user_service.find_user(session, token)
-            if found is not None:
-                return found
-    return user_service.first_user(session)
+    templates = Jinja2Templates(directory=str(templates_dir()))
+    templates.env.filters["label"] = label
+    return templates
 
 
 @dataclass(frozen=True)
@@ -50,14 +47,13 @@ def get_chrome(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> Chrome:
-    configured = request.app.state.settings.default_user
     return Chrome(
         users=user_service.list_users(session),
         current_user=resolve_current_user(
             session,
             header=request.headers.get(USER_HEADER),
             cookie=request.cookies.get(USER_COOKIE),
-            configured=configured,
+            configured=request.app.state.settings.default_user,
         ),
     )
 

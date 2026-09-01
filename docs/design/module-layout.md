@@ -45,6 +45,7 @@ src/keel/
 
   services/
     __init__.py
+    identity.py         acting-user resolution shared by both transports
     users.py
     projects.py
     issues.py
@@ -70,6 +71,7 @@ src/keel/
     errors.py           exception handlers producing coded responses
     v1/
       __init__.py       aggregating router mounted at /api/v1
+      deps.py           session and acting-user dependencies
       users.py
       projects.py
       issues.py
@@ -80,7 +82,7 @@ src/keel/
 
   web/
     __init__.py
-    context.py          current-user resolution, shared template context
+    context.py          shared template context and chrome dependency
     routes/
       __init__.py
       pages.py          home, license

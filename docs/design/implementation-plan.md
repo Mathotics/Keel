@@ -2,7 +2,9 @@
 
 The order in which Keel v1 is built. Phases are vertical slices: each one ends with something usable through the browser, the JSON API, and the test suite, rather than a layer that cannot yet be exercised.
 
-Every phase ends green on `poe check`, which runs pre-commit — including isort, mypy, and unit tests at 90% coverage — and then the full pytest run.
+Every phase ends green on `poe check`, which runs pre-commit — including isort, mypy, and the full pytest run at 90% coverage.
+
+Coverage is measured across every suite rather than the unit tests alone. The routers and form handlers are thin translations between HTTP and the services, and they cannot be reached without an application and a database, so holding them to a unit-only figure would either exempt them or force integration tests to masquerade as unit tests.
 
 ```mermaid
 flowchart LR
@@ -33,7 +35,9 @@ Done when a fresh database is created by `keel db upgrade`, `keel serve` starts,
 
 ## Phase 1 — Projects and issues
 
-* Project model, service, schemas, JSON routes, list and detail pages, with the key validated and the board row created alongside.
+**Status: done.**
+
+* Project model, service, schemas, JSON routes, list and detail pages, with the key validated and the board row created alongside. The list sits at `/projects` beside `/users`, and `/` redirects to it ([UI design](ui.md)).
 * Issue model with per-project numbering drawn from the project counter inside the insert transaction.
 * Hierarchy rules in `keel/domain/hierarchy.py` — type-specific parents, same-project parenthood, ancestor cycle prevention — enforced in the issue service.
 * The status enumeration, with issues created in the first status.

@@ -121,12 +121,12 @@ help = "Type-check with mypy"
 cmd = "mypy"
 
 [tool.poe.tasks.test]
-help = "Run all pytest suites"
-cmd = "pytest"
+help = "Run all pytest suites with 90% coverage required"
+cmd = "pytest --cov=keel --cov-report=term-missing --cov-fail-under=90"
 
 [tool.poe.tasks.test-unit]
-help = "Run unit tests with 90% coverage required"
-cmd = "pytest tests/unit -m unit --cov=keel --cov-report=term-missing --cov-fail-under=90"
+help = "Run unit tests"
+cmd = "pytest tests/unit -m unit"
 
 [tool.poe.tasks.test-integration]
 help = "Run integration tests"
@@ -145,6 +145,6 @@ help = "Run pre-commit on all files"
 cmd = "pre-commit run --all-files"
 
 [tool.poe.tasks.check]
-help = "Run pre-commit hooks and tests"
-sequence = ["pre-commit", "test"]
+help = "Run pre-commit hooks, which include the full test suite"
+sequence = ["pre-commit"]
 

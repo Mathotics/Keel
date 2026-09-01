@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ project.key }}{% endblock %}
+{% block main %}
+      <h1>{{ project.key }} — {{ project.name }}</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <ul class="keel-counts">
+        {% for status in statuses %}
+        <li><span class="keel-counts__label">{{ status | label }}</span> {{ counts[status] }}</li>
+        {% endfor %}
+      </ul>
+
+      <p><a class="keel-action" href="/projects/{{ project.key }}/issues/new">New issue</a></p>
+
+      <table class="keel-table">
+        <thead>
+          <tr><th>Key</th><th>Type</th><th>Title</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for issue in issues %}
+          <tr>
+            <td><a href="/issues/{{ project.key }}-{{ issue.number }}">{{ project.key }}-{{ issue.number }}</a></td>
+            <td>{{ issue.type | label }}</td>
+            <td>{{ issue.title }}</td>
+            <td>{{ issue.status | label }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No issues yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h2>Project settings</h2>
+      <form class="keel-form" method="post" action="/web/projects/{{ project.id }}/update">
+        <label for="project-name">Name</label>
+        <input id="project-name" name="name" type="text" maxlength="200" value="{{ project.name }}" required/>
+        <label for="project-description">Description</label>
+        <input id="project-description" name="description" type="text" value="{{ project.description }}"/>
+        <button type="submit">Save</button>
+      </form>
+      <form class="keel-form" method="post" action="/web/projects/{{ project.id }}/delete"
+            onsubmit="return confirm('Delete {{ project.key }} and every issue, sprint, comment, and dependency link in it? This cannot be undone.');">
+        <button type="submit">Delete project</button>
+      </form>
+{% endblock %}

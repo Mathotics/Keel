@@ -34,3 +34,47 @@ class DomainError(KeelError):
 
 class DuplicateUserNameError(DomainError):
     code = "user.duplicate_name"
+
+
+class InvalidUserNameError(DomainError):
+    code = "user.invalid_name"
+    status_code = 422
+
+
+class UserInUseError(DomainError):
+    code = "user.in_use"
+
+
+class DuplicateProjectKeyError(DomainError):
+    code = "project.duplicate_key"
+
+
+class InvalidProjectKeyError(DomainError):
+    code = "project.invalid_key"
+    status_code = 422
+
+
+class InvalidProjectNameError(DomainError):
+    code = "project.invalid_name"
+    status_code = 422
+
+
+class InvalidIssueError(DomainError):
+    code = "issue.invalid"
+    status_code = 422
+
+
+class InvalidParentTypeError(DomainError):
+    code = "issue.invalid_parent_type"
+
+
+class InvalidParentError(DomainError):
+    code = "issue.invalid_parent"
+
+
+class ParentCycleError(DomainError):
+    code = "issue.parent_cycle"
+
+
+class IssueHasChildrenError(DomainError):
+    code = "issue.has_children"

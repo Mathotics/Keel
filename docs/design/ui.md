@@ -8,7 +8,7 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 `base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
-The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page — and, inside a project, links to that project's board, backlog, and sprints.
+Beside the logo, a nav element holds the top-level section links, Projects and Users. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page — and, inside a project, links to that project's board, backlog, and sprints.
 
 Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The form's Switch button remains in the markup and is hidden by the same document-root marker the board uses, so the picker still works when the script does not run.
 
@@ -18,7 +18,8 @@ Every interactive element in the bar — link, button, and select alike — carr
 
 | Path | Template | Contents |
 | --- | --- | --- |
-| `/` | `home.html` | Project list with a create form |
+| `/` | — | The entry point; redirects to `/projects` |
+| `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
 | `/projects/{key}/board` | `board.html` | Kanban columns, type filter, drag-and-drop |
 | `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
@@ -31,6 +32,24 @@ Every interactive element in the bar — link, button, and select alike — carr
 | `/license` | `license.html` | Existing license page |
 
 Web URLs address issues by key, as `/issues/KEEL-12`; the JSON API addresses them by internal identifier ([ADR 012](../adr/ADR-012.md)).
+
+Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. That keeps what the application opens on separate from what it lists: `/` is only an entry point, and it redirects. The redirect is temporary rather than permanent so that browsers do not cache it beyond the day `/` has something of its own to show, such as a dashboard. Nothing in [v1 scope](../architecture/v1-scope.md) requires one, and an empty placeholder would be worse than a redirect.
+
+## Creation and editing forms
+
+The ordinary forms post to `/web` routes that call the same services as the JSON API and redirect afterwards, so a refresh never resubmits ([API reference](api.md)).
+
+| Method | Path | Posted from |
+| --- | --- | --- |
+| `POST` | `/web/projects` | The project list's create form |
+| `POST` | `/web/projects/{project_id}/update` | The project page's settings form |
+| `POST` | `/web/projects/{project_id}/delete` | The project page, behind a confirmation naming what goes |
+| `POST` | `/web/projects/{project_id}/issues` | The new issue form |
+| `POST` | `/web/issues/{issue_id}/update` | The edit issue form |
+| `POST` | `/web/issues/{issue_id}/delete` | The issue detail page |
+| `POST` | `/web/users` | The users page |
+| `POST` | `/web/users/{user_id}/rename` | The users page |
+| `POST` | `/web/users/{user_id}/delete` | The users page |
 
 ## Board
 

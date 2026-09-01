@@ -1,9 +1,19 @@
+import os
+
 import pytest
 
 from keel.paths import database_path
 from keel.settings import KeelSettings, get_settings
 
 
+@pytest.fixture
+def unconfigured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`_env_file=None` ignores the .env file but not the shell it runs in."""
+    for name in [name for name in os.environ if name.startswith("KEEL_")]:
+        monkeypatch.delenv(name)
+
+
+@pytest.mark.usefixtures("unconfigured")
 def test_default_settings() -> None:
     settings = KeelSettings(_env_file=None)
     assert settings.host == "127.0.0.1"
@@ -14,6 +24,7 @@ def test_default_settings() -> None:
     assert settings.default_user is None
 
 
+@pytest.mark.usefixtures("unconfigured")
 def test_database_url_defaults_to_the_user_data_directory() -> None:
     settings = KeelSettings(_env_file=None)
     url = settings.resolved_database_url()

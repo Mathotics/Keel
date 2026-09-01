@@ -163,6 +163,9 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | Code | Status | Raised when |
 | --- | --- | --- |
 | `project.duplicate_key` | 409 | A project key is already taken |
+| `project.invalid_key` | 422 | A project key is not two to ten letters and digits starting with a letter |
+| `project.invalid_name` | 422 | A project name is blank |
+| `issue.invalid` | 422 | An issue title is blank |
 | `issue.invalid_parent_type` | 409 | The parent's type is illegal for the child's type |
 | `issue.invalid_parent` | 409 | The parent is in a different project |
 | `issue.parent_cycle` | 409 | The assignment would make an issue its own ancestor |

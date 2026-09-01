@@ -1,3 +1,4 @@
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -5,6 +6,8 @@ from fastapi import FastAPI
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
+from starlette.types import Scope
 
 from keel.api import health
 from keel.api import v1 as api_v1
@@ -15,6 +18,27 @@ from keel.services.users import ensure_default_user
 from keel.settings import KeelSettings, get_settings
 from keel.version import package_version
 from keel.web import routes as web_routes
+
+
+class RevalidatedStaticFiles(StaticFiles):
+    """Serve assets with `Cache-Control: no-cache`.
+
+    Starlette sends an ETag and Last-Modified but no Cache-Control, which
+    leaves browsers free to cache heuristically and serve a stale stylesheet
+    without ever asking whether it changed. `no-cache` still allows caching;
+    it only requires revalidation, which costs a 304.
+    """
+
+    def file_response(
+        self,
+        full_path: str | os.PathLike[str],
+        stat_result: os.stat_result,
+        scope: Scope,
+        status_code: int = 200,
+    ) -> Response:
+        response = super().file_response(full_path, stat_result, scope, status_code)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
 
 
 def create_app(settings: KeelSettings | None = None) -> FastAPI:
@@ -49,7 +73,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
     _register_docs(application)
     application.mount(
         "/assets",
-        StaticFiles(directory=assets_dir()),
+        RevalidatedStaticFiles(directory=assets_dir()),
         name="assets",
     )
     return application

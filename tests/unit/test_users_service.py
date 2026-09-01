@@ -1,9 +1,12 @@
 import pytest
 from sqlalchemy.orm import Session
 
-from keel.domain.errors import DuplicateUserNameError, NotFoundError
+from keel.domain.errors import (
+    DuplicateUserNameError,
+    InvalidUserNameError,
+    NotFoundError,
+)
 from keel.services import users as user_service
-from keel.services.users import InvalidUserNameError
 
 
 def test_create_and_list_users(session: Session) -> None:

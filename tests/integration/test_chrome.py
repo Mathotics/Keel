@@ -57,8 +57,13 @@ def test_topbar_controls_share_one_look(client: TestClient) -> None:
     assert "border-radius" in control
 
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
-    assert header.count("keel-topbar__control") == 3
+    interactive = (
+        header.count("<a ") + header.count("<select") + header.count("<button")
+    )
+    brand = 1  # the home icon keeps its own circular treatment
+    assert header.count("keel-topbar__control") == interactive - brand
     assert '<a class="keel-topbar__control" href="/users">' in header
+    assert '<a class="keel-topbar__control" href="/projects">' in header
 
 
 def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
@@ -70,6 +75,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
         < header.index("keel-userpicker")
     )
     nav = header.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
+    assert 'href="/projects"' in nav
     assert 'href="/users"' in nav
 
 

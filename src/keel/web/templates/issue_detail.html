@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ issue_key }}{% endblock %}
+{% block main %}
+      <h1>{{ issue_key }} — {{ issue.title }}</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <dl class="keel-facts">
+        <dt>Project</dt><dd><a href="/projects/{{ project.key }}">{{ project.key }}</a></dd>
+        <dt>Type</dt><dd>{{ issue.type | label }}</dd>
+        <dt>Status</dt><dd>{{ issue.status | label }}</dd>
+        <dt>Reporter</dt><dd>{{ reporter }}</dd>
+        <dt>Assignee</dt><dd>{{ assignee }}</dd>
+        <dt>Parent</dt>
+        <dd>
+          {% if parent %}
+          <a href="/issues/{{ project.key }}-{{ parent.number }}">{{ project.key }}-{{ parent.number }}</a> {{ parent.title }}
+          {% else %}
+          None
+          {% endif %}
+        </dd>
+      </dl>
+
+      {% if issue.description %}
+      <h2>Description</h2>
+      <p class="keel-description">{{ issue.description }}</p>
+      {% endif %}
+
+      <h2>Children</h2>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Key</th><th>Type</th><th>Title</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for child in children %}
+          <tr>
+            <td><a href="/issues/{{ project.key }}-{{ child.number }}">{{ project.key }}-{{ child.number }}</a></td>
+            <td>{{ child.type | label }}</td>
+            <td>{{ child.title }}</td>
+            <td>{{ child.status | label }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">No children.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <p>
+        <a class="keel-action" href="/issues/{{ issue_key }}/edit">Edit</a>
+      </p>
+      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/delete"
+            onsubmit="return confirm('Delete {{ issue_key }}?');">
+        <button type="submit">Delete issue</button>
+      </form>
+{% endblock %}

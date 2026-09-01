@@ -67,7 +67,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/` (HTML home page with the favicon), `http://127.0.0.1:8000/users` (manage who Keel knows about), and `http://127.0.0.1:8000/health`.
+Then open `http://127.0.0.1:8000/`, which redirects to `/projects` (the project list, with a create form). Also `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL` and an issue at `/issues/KEEL-1`.
 
 ## Lint and test
 
@@ -75,16 +75,16 @@ Then open `http://127.0.0.1:8000/` (HTML home page with the favicon), `http://12
 poe check
 ```
 
-That runs [pre-commit](https://pre-commit.com/) on all files (including isort, mypy, and unit tests with 90% coverage), then pytest. Hooks also run on `git commit` after onboarding. Re-run `poe hooks` to reinstall git hooks and refresh hook environments.
+That runs [pre-commit](https://pre-commit.com/) on all files, including isort, mypy, and the full pytest run with 90% coverage. Hooks also run on `git commit` after onboarding. Re-run `poe hooks` to reinstall git hooks and refresh hook environments.
 
 Tests are grouped under `tests/`:
 
 | Suite | Directory | Poe task |
 | --- | --- | --- |
-| Unit | `tests/unit/` | `poe test-unit` (must pass; **90%** coverage of `keel`) |
+| Unit | `tests/unit/` | `poe test-unit` |
 | Integration | `tests/integration/` | `poe test-integration` |
 | System | `tests/system/` | `poe test-system` |
-| All | `tests/` | `poe test` |
+| All | `tests/` | `poe test` (must pass; **90%** coverage of `keel`) |
 
 Add further suites the same way (directory + pytest marker + `poe test-<name>` task). Markers are applied from the directory name (`unit`, `integration`, `system`).
 
@@ -101,7 +101,7 @@ Keel is an issue tracker for one owner plus up to two collaborators. What it is 
 | Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 014 the implementation |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
-The [implementation plan](docs/design/implementation-plan.md) is the build order. Phase 0 (foundation, templates, users) is in place; projects and issues are next.
+The [implementation plan](docs/design/implementation-plan.md) is the build order. Phase 0 (foundation, templates, users) and Phase 1 (projects and issues) are in place; the board is next.
 
 ## License
 

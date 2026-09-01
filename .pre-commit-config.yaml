@@ -38,9 +38,9 @@ repos:
         pass_filenames: false
   - repo: local
     hooks:
-      - id: pytest-unit-coverage
-        name: unit tests (90% coverage)
+      - id: pytest-coverage
+        name: tests (90% coverage)
         language: system
-        entry: pytest tests/unit -m unit --cov=keel --cov-report=term-missing --cov-fail-under=90
+        entry: pytest --cov=keel --cov-report=term-missing --cov-fail-under=90
         pass_filenames: false
         always_run: true

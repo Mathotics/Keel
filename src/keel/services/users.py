@@ -4,15 +4,15 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import User
-from keel.domain.errors import DomainError, DuplicateUserNameError, NotFoundError
+from keel.db.models import Issue, User
+from keel.domain.errors import (
+    DuplicateUserNameError,
+    InvalidUserNameError,
+    NotFoundError,
+    UserInUseError,
+)
 
 MAX_NAME_LENGTH = 100
-
-
-class InvalidUserNameError(DomainError):
-    code = "user.invalid_name"
-    status_code = 422
 
 
 def list_users(session: Session) -> Sequence[User]:
@@ -59,8 +59,25 @@ def rename_user(session: Session, user_id: int, display_name: str) -> User:
 
 
 def delete_user(session: Session, user_id: int) -> None:
-    session.delete(get_user(session, user_id))
+    user = get_user(session, user_id)
+    _reject_while_referenced(session, user)
+    session.delete(user)
     session.flush()
+
+
+def _reject_while_referenced(session: Session, user: User) -> None:
+    """A tool with no undo must not quietly orphan an issue's reporter."""
+    referencing = session.scalars(
+        select(Issue).where(
+            (Issue.reporter_id == user.id) | (Issue.assignee_id == user.id),
+        ),
+    ).all()
+    if referencing:
+        raise UserInUseError(
+            f"{user.display_name} is still named on {len(referencing)} issue(s).",
+            user_id=user.id,
+            issues=len(referencing),
+        )
 
 
 def ensure_default_user(session: Session, preferred: str | None) -> User:

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{% if issue %}Edit {{ issue_key }}{% else %}New issue{% endif %}{% endblock %}
+{% block main %}
+      {% if issue %}
+      <h1>Edit {{ issue_key }}</h1>
+      {% set action = "/web/issues/" ~ issue.id ~ "/update" %}
+      {% else %}
+      <h1>New issue in {{ project.key }}</h1>
+      {% set action = "/web/projects/" ~ project.id ~ "/issues" %}
+      {% endif %}
+
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <form class="keel-form keel-form--stacked" method="post" action="{{ action }}">
+        <p>
+          <label for="issue-type">Type</label>
+          <select id="issue-type" name="type">
+            {% for value in ["epic", "story", "subtask"] %}
+            <option value="{{ value }}"{% if issue and issue.type.value == value %} selected{% endif %}>{{ value | label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="issue-title">Title</label>
+          <input id="issue-title" name="title" type="text" maxlength="300" value="{{ issue.title if issue else '' }}" required/>
+        </p>
+        <p>
+          <label for="issue-description">Description</label>
+          <textarea id="issue-description" name="description" rows="4">{{ issue.description if issue else '' }}</textarea>
+        </p>
+        <p>
+          <label for="issue-status">Status</label>
+          <select id="issue-status" name="status">
+            {% for value in ["todo", "in_progress", "in_review", "blocked", "done"] %}
+            <option value="{{ value }}"{% if issue and issue.status.value == value %} selected{% endif %}>{{ value | label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="issue-parent">Parent</label>
+          <select id="issue-parent" name="parent_id">
+            <option value="">No parent</option>
+            {% for candidate in parents %}
+            <option value="{{ candidate.id }}"{% if issue and issue.parent_id == candidate.id %} selected{% endif %}>{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="issue-assignee">Assignee</label>
+          <select id="issue-assignee" name="assignee_id">
+            <option value="">Unassigned</option>
+            {% for person in assignees %}
+            <option value="{{ person.id }}"{% if issue and issue.assignee_id == person.id %} selected{% endif %}>{{ person.display_name }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        {% if not issue and current_user %}
+        <input type="hidden" name="reporter_id" value="{{ current_user.id }}"/>
+        {% endif %}
+        <p><button type="submit">{% if issue %}Save{% else %}Create issue{% endif %}</button></p>
+      </form>
+{% endblock %}

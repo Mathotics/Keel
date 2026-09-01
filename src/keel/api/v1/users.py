@@ -1,15 +1,10 @@
-from typing import Annotated
+from fastapi import APIRouter, status
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy.orm import Session
-
-from keel.db.session import get_session
+from keel.api.v1.deps import SessionDep
 from keel.schemas.user import UserCreate, UserRead, UserUpdate
 from keel.services import users as user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
-
-SessionDep = Annotated[Session, Depends(get_session)]
 
 
 @router.get("", response_model=list[UserRead])

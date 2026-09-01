@@ -174,6 +174,85 @@ body {
   cursor: pointer;
 }
 
+.keel-form--stacked {
+  display: block;
+  max-width: 40rem;
+}
+
+.keel-form--stacked p {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.6rem;
+}
+
+.keel-form--stacked label {
+  flex: 0 0 6rem;
+}
+
+.keel-form--stacked input,
+.keel-form--stacked select,
+.keel-form--stacked textarea {
+  flex: 1 1 auto;
+  font: inherit;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  color: var(--keel-blue-deep);
+}
+
+.keel-action {
+  display: inline-flex;
+  align-items: center;
+  height: var(--keel-control-height);
+  padding: 0 0.5rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.keel-action:hover {
+  background: var(--keel-sheet);
+}
+
+.keel-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.keel-counts__label {
+  font-weight: 600;
+}
+
+.keel-facts {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0 0 1rem;
+  font-size: 0.9375rem;
+}
+
+.keel-facts dt {
+  font-weight: 600;
+}
+
+.keel-facts dd {
+  margin: 0;
+}
+
+.keel-description {
+  max-width: 48rem;
+  white-space: pre-wrap;
+}
+
 .keel-table {
   border-collapse: collapse;
 }
