@@ -92,6 +92,7 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert 'addEventListener("change"' in script.text
     assert "data-keel-js" in script.text
     assert "data-keel-autosubmit" in script.text
+    assert "data-keel-range" in script.text
 
     css = client.get("/assets/brand.css").text
     hidden = _rule(css, "[data-keel-js] .keel-userpicker__fallback")

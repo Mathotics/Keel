@@ -177,7 +177,10 @@ def test_read_sprint_includes_its_issues(client: TestClient, project_id: int) ->
     assert [item["id"] for item in detail["issues"]] == [issue["id"]]
 
 
-def test_a_malformed_end_date_is_refused(client: TestClient, project_id: int) -> None:
+def test_an_end_before_the_start_is_refused(
+    client: TestClient,
+    project_id: int,
+) -> None:
     response = client.post(
         f"/api/v1/projects/{project_id}/sprints",
         json={"name": "Sprint 1", "starts_on": "2026-09-10", "ends_on": "2026-09-01"},

@@ -1,7 +1,8 @@
 // Submits the user picker and any `[data-keel-autosubmit]` form as soon as a
 // control changes. Fallback submit buttons stay in the markup and are hidden
 // by CSS once this marker is set, so the forms still work when this script
-// does not run.
+// does not run. Paired `[data-keel-range]` date fields keep min/max in sync so
+// a sprint cannot pick an end before its start.
 (() => {
   document.documentElement.setAttribute("data-keel-js", "on");
 
@@ -18,5 +19,20 @@
 
   for (const form of document.querySelectorAll("[data-keel-autosubmit]")) {
     listen(form);
+  }
+
+  for (const form of document.querySelectorAll("form")) {
+    const start = form.querySelector("[data-keel-range='start']");
+    const end = form.querySelector("[data-keel-range='end']");
+    if (!start || !end) {
+      continue;
+    }
+    const sync = () => {
+      end.min = start.value;
+      start.max = end.value;
+    };
+    start.addEventListener("input", sync);
+    end.addEventListener("input", sync);
+    sync();
   }
 })();

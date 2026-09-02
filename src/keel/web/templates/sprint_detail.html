@@ -59,11 +59,15 @@
         </p>
         <p>
           <label for="sprint-starts">Starts</label>
-          <input id="sprint-starts" name="starts_on" type="date" value="{{ sprint.starts_on.isoformat() if sprint.starts_on else '' }}"/>
+          <input id="sprint-starts" name="starts_on" type="date" data-keel-range="start"
+                 {% if sprint.ends_on %}max="{{ sprint.ends_on.isoformat() }}"{% endif %}
+                 value="{{ sprint.starts_on.isoformat() if sprint.starts_on else '' }}"/>
         </p>
         <p>
           <label for="sprint-ends">Ends</label>
-          <input id="sprint-ends" name="ends_on" type="date" value="{{ sprint.ends_on.isoformat() if sprint.ends_on else '' }}"/>
+          <input id="sprint-ends" name="ends_on" type="date" data-keel-range="end"
+                 {% if sprint.starts_on %}min="{{ sprint.starts_on.isoformat() }}"{% endif %}
+                 value="{{ sprint.ends_on.isoformat() if sprint.ends_on else '' }}"/>
         </p>
         <p><button type="submit">Save</button></p>
       </form>

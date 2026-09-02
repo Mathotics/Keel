@@ -15,6 +15,57 @@ def project(client: TestClient) -> Json:
     return created
 
 
+def test_an_end_before_the_start_returns_to_the_form_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get("/projects/KEEL/sprints")
+    assert 'data-keel-range="start"' in page.text
+    assert 'data-keel-range="end"' in page.text
+
+    created = client.post(
+        f"/web/projects/{project['id']}/sprints",
+        data={
+            "name": "Sprint 1",
+            "starts_on": "2026-09-10",
+            "ends_on": "2026-09-01",
+        },
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    location = created.headers["location"]
+    assert location.startswith("/projects/KEEL/sprints?error=")
+    assert "cannot end before it starts" in client.get(location).text
+
+
+def test_saving_an_end_before_the_start_returns_to_the_sprint(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1", "starts_on": "2026-09-10"},
+    ).json()
+
+    page = client.get(f"/projects/KEEL/sprints/{sprint['id']}")
+    assert 'min="2026-09-10"' in page.text
+
+    saved = client.post(
+        f"/web/sprints/{sprint['id']}/update",
+        data={
+            "name": "Sprint 1",
+            "starts_on": "2026-09-10",
+            "ends_on": "2026-09-01",
+        },
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    location = saved.headers["location"]
+    assert location.startswith(f"/projects/KEEL/sprints/{sprint['id']}?error=")
+    assert "cannot end before it starts" in client.get(location).text
+    assert client.get(f"/api/v1/sprints/{sprint['id']}").json()["ends_on"] is None
+
+
 def test_the_sprints_page_creates_and_lists_a_sprint(
     client: TestClient,
     project: Json,

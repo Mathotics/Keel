@@ -53,12 +53,46 @@ def test_an_end_before_the_start_is_refused(
     session: Session,
     project: Project,
 ) -> None:
-    with pytest.raises(InvalidSprintError):
+    with pytest.raises(InvalidSprintError) as caught:
         sprint_service.create_sprint(
             session,
             project.id,
             "Sprint 1",
             starts_on=date(2026, 9, 10),
+            ends_on=date(2026, 9, 1),
+        )
+    assert caught.value.code == "sprint.invalid"
+    assert "cannot end before it starts" in caught.value.message
+
+
+def test_a_sprint_may_start_and_end_on_the_same_day(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Sprint 1",
+        starts_on=date(2026, 9, 10),
+        ends_on=date(2026, 9, 10),
+    )
+    assert sprint.starts_on == sprint.ends_on == date(2026, 9, 10)
+
+
+def test_updating_the_end_before_the_start_is_refused(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Sprint 1",
+        starts_on=date(2026, 9, 10),
+    )
+    with pytest.raises(InvalidSprintError):
+        sprint_service.update_sprint(
+            session,
+            sprint.id,
             ends_on=date(2026, 9, 1),
         )
 
