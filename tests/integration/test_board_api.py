@@ -104,5 +104,34 @@ def test_an_assignee_parameter_filters_the_board(
     assert titles(open_only) == ["Open"]
 
 
+def test_a_sprint_parameter_filters_the_board(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project_id}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    create_issue(client, project_id, title="In sprint", sprint_id=sprint["id"])
+    create_issue(client, project_id, title="Waiting")
+
+    scheduled = client.get(
+        f"/api/v1/projects/{project_id}/board",
+        params={"sprint": sprint["id"]},
+    ).json()
+    waiting = client.get(
+        f"/api/v1/projects/{project_id}/board",
+        params={"sprint": "unscheduled"},
+    ).json()
+
+    def titles(board: Json) -> list[str]:
+        return [
+            issue["title"] for column in board["columns"] for issue in column["issues"]
+        ]
+
+    assert titles(scheduled) == ["In sprint"]
+    assert titles(waiting) == ["Waiting"]
+
+
 def test_an_unknown_project_board_is_not_found(client: TestClient) -> None:
     assert client.get("/api/v1/projects/404/board").status_code == 404

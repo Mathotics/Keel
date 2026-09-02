@@ -28,6 +28,16 @@
             {% endfor %}
           </select>
         </label>
+        <label>
+          Sprint
+          <select name="sprint">
+            <option value=""{% if not selected_sprint %} selected{% endif %}>Any sprint</option>
+            <option value="unscheduled"{% if selected_sprint == "unscheduled" %} selected{% endif %}>Unscheduled</option>
+            {% for sprint in sprints %}
+            <option value="{{ sprint.id }}"{% if selected_sprint == sprint.id|string %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
+            {% endfor %}
+          </select>
+        </label>
         <button class="keel-autosubmit__fallback" type="submit">Apply</button>
       </form>
 

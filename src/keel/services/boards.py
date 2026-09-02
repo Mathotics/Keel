@@ -37,14 +37,32 @@ def parse_assignee_filter(raw: str | None) -> tuple[int | None, bool]:
     Empty means every assignee. `unassigned` means no assignee. Otherwise a
     user identifier.
     """
+    return _parse_id_filter(raw, none_token="unassigned", kind="assignee")
+
+
+def parse_sprint_filter(raw: str | None) -> tuple[int | None, bool]:
+    """Read the board's `sprint` query value.
+
+    Empty means every sprint. `unscheduled` means no sprint. Otherwise a
+    sprint identifier.
+    """
+    return _parse_id_filter(raw, none_token="unscheduled", kind="sprint")
+
+
+def _parse_id_filter(
+    raw: str | None,
+    *,
+    none_token: str,
+    kind: str,
+) -> tuple[int | None, bool]:
     if raw is None or not raw.strip():
         return None, False
     cleaned = raw.strip()
-    if cleaned == "unassigned":
+    if cleaned == none_token:
         return None, True
     if cleaned.isdigit():
         return int(cleaned), False
-    raise InvalidIssueError(f"{cleaned} is not an assignee filter.")
+    raise InvalidIssueError(f"{cleaned} is not a valid {kind} filter.")
 
 
 def project_board(
@@ -54,12 +72,14 @@ def project_board(
     *,
     assignee_id: int | None = None,
     unassigned: bool = False,
+    sprint_id: int | None = None,
+    unscheduled: bool = False,
 ) -> Board:
     """Group a project's issues by status in workflow order.
 
-    Type and assignee filters are applied in the query so hidden cards are
-    never loaded. Empty `types` means every type; omitting assignee means
-    every assignee. Both match the board's default.
+    Type, assignee, and sprint filters are applied in the query so hidden
+    cards are never loaded. Empty `types` means every type; omitting
+    assignee or sprint means every value. That matches the board's default.
     """
     project = project_service.get_project(session, project_id)
     found = issue_service.list_issues(
@@ -69,6 +89,8 @@ def project_board(
             types=tuple(types),
             assignee_id=assignee_id,
             unassigned=unassigned,
+            sprint_id=sprint_id,
+            unscheduled=unscheduled,
         ),
     )
     names = {user.id: user.display_name for user in user_service.list_users(session)}

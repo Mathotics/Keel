@@ -17,14 +17,18 @@ def read_board(
     session: SessionDep,
     types: list[IssueType] = Query(default=[], alias="type"),
     assignee: str | None = Query(default=None),
+    sprint: str | None = Query(default=None),
 ) -> BoardRead:
     assignee_id, unassigned = board_service.parse_assignee_filter(assignee)
+    sprint_id, unscheduled = board_service.parse_sprint_filter(sprint)
     board = board_service.project_board(
         session,
         project_id,
         types,
         assignee_id=assignee_id,
         unassigned=unassigned,
+        sprint_id=sprint_id,
+        unscheduled=unscheduled,
     )
     return BoardRead(
         project_id=board.project.id,

@@ -7,6 +7,7 @@ from keel.domain.errors import InvalidIssueError
 from keel.services import boards as board_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
+from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 
 
@@ -22,6 +23,7 @@ def _issue(
     type: IssueType = IssueType.STORY,
     status: IssueStatus = IssueStatus.TODO,
     assignee_id: int | None = None,
+    sprint_id: int | None = None,
 ) -> None:
     issue = issue_service.create_issue(
         session,
@@ -29,6 +31,7 @@ def _issue(
         type=type,
         title=title,
         assignee_id=assignee_id,
+        sprint_id=sprint_id,
     )
     if status is not IssueStatus.TODO:
         issue_service.update_issue(session, issue.id, status=status)
@@ -132,6 +135,66 @@ def test_type_and_assignee_filters_combine(
     assert titles == ["Ada epic"]
 
 
+def test_the_sprint_filter_is_applied_before_grouping(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    _issue(session, project, "In sprint", sprint_id=sprint.id)
+    _issue(session, project, "Waiting")
+
+    board = board_service.project_board(session, project.id, sprint_id=sprint.id)
+    titles = [card.issue.title for column in board.columns for card in column.cards]
+
+    assert titles == ["In sprint"]
+
+
+def test_the_unscheduled_filter_keeps_only_backlog_cards(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    _issue(session, project, "In sprint", sprint_id=sprint.id)
+    _issue(session, project, "Waiting")
+
+    board = board_service.project_board(session, project.id, unscheduled=True)
+    titles = [card.issue.title for column in board.columns for card in column.cards]
+
+    assert titles == ["Waiting"]
+
+
+def test_type_and_sprint_filters_combine(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    _issue(
+        session,
+        project,
+        "Sprint epic",
+        type=IssueType.EPIC,
+        sprint_id=sprint.id,
+    )
+    _issue(
+        session,
+        project,
+        "Sprint story",
+        type=IssueType.STORY,
+        sprint_id=sprint.id,
+    )
+    _issue(session, project, "Open epic", type=IssueType.EPIC)
+
+    board = board_service.project_board(
+        session,
+        project.id,
+        types=[IssueType.EPIC],
+        sprint_id=sprint.id,
+    )
+    titles = [card.issue.title for column in board.columns for card in column.cards]
+
+    assert titles == ["Sprint epic"]
+
+
 def test_cards_carry_the_readable_key_and_assignee(
     session: Session,
     project: Project,
@@ -167,3 +230,25 @@ def test_parse_assignee_filter_accepts_the_board_query_values(
 def test_parse_assignee_filter_rejects_an_unknown_value() -> None:
     with pytest.raises(InvalidIssueError):
         board_service.parse_assignee_filter("Ada")
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, (None, False)),
+        ("", (None, False)),
+        ("  ", (None, False)),
+        ("unscheduled", (None, True)),
+        ("12", (12, False)),
+    ],
+)
+def test_parse_sprint_filter_accepts_the_board_query_values(
+    raw: str | None,
+    expected: tuple[int | None, bool],
+) -> None:
+    assert board_service.parse_sprint_filter(raw) == expected
+
+
+def test_parse_sprint_filter_rejects_an_unknown_value() -> None:
+    with pytest.raises(InvalidIssueError):
+        board_service.parse_sprint_filter("Sprint 1")

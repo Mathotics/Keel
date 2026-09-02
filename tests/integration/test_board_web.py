@@ -88,6 +88,44 @@ def test_the_assignee_filter_changes_what_the_board_queries(
     assert 'name="assignee"' in client.get("/projects/KEEL/board").text
 
 
+def test_the_sprint_filter_changes_what_the_board_queries(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting"},
+    )
+
+    scheduled = client.get("/projects/KEEL/board", params={"sprint": sprint["id"]})
+    waiting = client.get("/projects/KEEL/board", params={"sprint": "unscheduled"})
+
+    assert scheduled.status_code == 200
+    assert "In sprint" in scheduled.text
+    assert "Waiting" not in scheduled.text
+    assert f'value="{sprint["id"]}" selected' in scheduled.text or (
+        f'value="{sprint["id"]}"selected' in scheduled.text
+    )
+
+    assert "Waiting" in waiting.text
+    assert "In sprint" not in waiting.text
+    assert 'value="unscheduled" selected' in waiting.text or (
+        'value="unscheduled"selected' in waiting.text
+    )
+    page = client.get("/projects/KEEL/board")
+    assert 'name="sprint"' in page.text
+    assert "Any sprint" in page.text
+    assert "Sprint 1" in page.text
+
+
 def test_the_board_filter_keeps_apply_without_javascript(
     client: TestClient,
     project: Json,

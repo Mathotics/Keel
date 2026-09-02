@@ -102,7 +102,7 @@ Response body, with the fields the interface needs added:
 | `GET` | `/api/v1/projects/{project_id}/board` | Columns in workflow order, each with its issues |
 | `GET` | `/api/v1/projects/{project_id}/backlog` | Unscheduled, unfinished issues, oldest first |
 
-The board accepts a repeated `type` parameter to filter card types, and an `assignee` parameter (`unassigned` or a user id) to filter by assignee. Both include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)).
+The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, and a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint. All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)).
 
 ## Sprints
 
