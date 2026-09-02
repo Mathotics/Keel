@@ -38,6 +38,31 @@ def test_blank_name_shows_a_message_on_the_page(client: TestClient) -> None:
     assert "needs a display name" in refused.text
 
 
+def test_renaming_to_a_taken_name_shows_a_message(client: TestClient) -> None:
+    client.post("/web/users", data={"display_name": "Ada"})
+    tester = _id_of(client, "Tester")
+    refused = client.post(
+        f"/web/users/{tester}/rename",
+        data={"display_name": "Ada"},
+    )
+    assert "already taken" in refused.text
+
+
+def test_deleting_a_user_still_named_on_an_issue_shows_a_message(
+    client: TestClient,
+) -> None:
+    project = client.post(
+        "/api/v1/projects", json={"key": "KEEL", "name": "Keel"}
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Work"},
+    )
+    tester = _id_of(client, "Tester")
+    refused = client.post(f"/web/users/{tester}/delete")
+    assert "still named" in refused.text
+
+
 def test_deleting_someone_who_is_gone_shows_no_crash(client: TestClient) -> None:
     assert client.post("/web/users/404/delete").status_code == 404
 

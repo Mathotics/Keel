@@ -87,3 +87,5 @@ flowchart LR
 * [Domain model](domain-model.md)
 * [v1 scope](v1-scope.md)
 * [Implementation plan](../design/implementation-plan.md)
+* [API reference](../design/api.md)
+* [UI design](../design/ui.md)

@@ -1,7 +1,7 @@
+import pytest
+
 from keel.domain.duration import format_minutes, parse_duration
 from keel.domain.errors import InvalidDurationError
-
-import pytest
 
 
 @pytest.mark.parametrize(

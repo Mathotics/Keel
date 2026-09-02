@@ -216,6 +216,8 @@ Ordinary creation and editing forms post to the resource's own web route and are
 
 * [ADR 010: One versioned JSON API with coded domain errors](../adr/ADR-010.md)
 * [ADR 011: Ambient identity without authentication](../adr/ADR-011.md)
+* [ADR 012: Issue realization](../adr/ADR-012.md)
+* [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
 * [Data model](data-model.md)
 * [UI design](ui.md)
 * [Module layout](module-layout.md)

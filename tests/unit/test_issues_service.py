@@ -393,3 +393,9 @@ def test_a_malformed_due_date_is_refused() -> None:
 
 def test_a_blank_due_date_is_absent() -> None:
     assert issue_service.parse_due_at("  ") is None
+
+
+def test_a_due_date_with_a_timezone_is_stored_naive_utc() -> None:
+    parsed = issue_service.parse_due_at("2026-09-15T13:00:00-04:00")
+    assert parsed == datetime(2026, 9, 15, 17, 0)
+    assert parsed.tzinfo is None

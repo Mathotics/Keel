@@ -88,6 +88,21 @@ def test_a_project_is_renamed_from_the_form(
     assert "Keel Tracker" in page.text
 
 
+def test_a_blank_name_on_update_returns_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    response = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={"name": "  ", "description": ""},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location.startswith("/projects/KEEL?error=")
+    assert "needs a name" in client.get(location).text
+
+
 def test_a_project_is_deleted_from_the_form(
     client: TestClient,
     project: Json,

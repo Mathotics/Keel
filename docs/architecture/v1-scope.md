@@ -49,3 +49,5 @@ The persistence technology choice was deferred here as "a low-level detail below
 * [Capabilities](capabilities.md)
 * [Glossary](glossary.md)
 * [Implementation plan](../design/implementation-plan.md)
+* [API reference](../design/api.md)
+* [UI design](../design/ui.md)

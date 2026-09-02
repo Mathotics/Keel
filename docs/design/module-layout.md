@@ -57,13 +57,13 @@ src/keel/
 
   schemas/
     __init__.py
-    common.py           shared response fragments, error bodies
     user.py
     project.py
     issue.py
     sprint.py
     dependency.py
     comment.py
+    board.py
 
   api/
     __init__.py
@@ -135,19 +135,19 @@ flowchart TD
   db --> domain
 ```
 
-## Existing modules that change
+## What the layout absorbed
 
-`keel/web/layout.py` is retired; the chrome it emits moves into `base.html` ([ADR 009](../adr/ADR-009.md)).
+`keel/web/layout.py` was retired; the chrome it emitted moved into `base.html` ([ADR 009](../adr/ADR-009.md)).
 
-`keel/paths.py` gains `templates_dir()`, following its existing repository-root-then-package fallback, and `data_dir()` resolving the user-data directory through `platformdirs`.
+`keel/paths.py` gained `templates_dir()`, following its existing repository-root-then-package fallback, and `data_dir()` resolving the user-data directory through `platformdirs`.
 
-`keel/settings.py` gains `database_url` and `default_user`, read as `KEEL_DATABASE_URL` and `KEEL_DEFAULT_USER`.
+`keel/settings.py` gained `database_url` and `default_user`, read as `KEEL_DATABASE_URL` and `KEEL_DEFAULT_USER`.
 
 `keel/app.py` mounts the v1 router, registers the exception handlers and template environment, and seeds the default user on startup. The schema revision is verified by `keel serve` before the server starts, so a stale schema is reported on the command line rather than as a failed request.
 
-`keel/cli.py` gains a `db` subcommand group with `upgrade` and `revision`.
+`keel/cli.py` has a `db` subcommand group with `upgrade` and `revision`.
 
-`pyproject.toml` gains the SQLAlchemy, Alembic, Jinja2, and `platformdirs` runtime dependencies, pinned exactly as the existing entries are, and a `package-data` entry so templates survive installation.
+`pyproject.toml` holds the SQLAlchemy, Alembic, Jinja2, and `platformdirs` runtime dependencies, pinned exactly as the existing entries are, and a `package-data` entry so templates survive installation.
 
 ## Tests
 

@@ -139,6 +139,88 @@ def test_starting_a_second_sprint_returns_to_the_page_with_the_message(
     assert "already has an active sprint" in page.text
 
 
+def test_a_sprint_from_another_project_is_not_found(
+    client: TestClient,
+    project: Json,
+) -> None:
+    other = client.post("/api/v1/projects", json={"key": "SITE", "name": "Site"}).json()
+    foreign = client.post(
+        f"/api/v1/projects/{other['id']}/sprints",
+        json={"name": "Site sprint"},
+    ).json()
+
+    assert (
+        client.get(f"/projects/{project['key']}/sprints/{foreign['id']}").status_code
+        == 404
+    )
+
+
+def test_completing_a_planned_sprint_returns_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Waiting"},
+    ).json()
+
+    response = client.post(
+        f"/web/sprints/{sprint['id']}/complete",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert "error=" in response.headers["location"]
+    page = client.get(response.headers["location"])
+    assert "Only an active sprint can be completed." in page.text
+
+
+def test_completing_an_empty_sprint_reports_nothing_to_carry(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Now"},
+    ).json()
+    client.post(f"/api/v1/sprints/{sprint['id']}/start")
+
+    response = client.post(
+        f"/web/sprints/{sprint['id']}/complete",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert "notice=" in response.headers["location"]
+    page = client.get(response.headers["location"])
+    assert "No unfinished issues to carry." in page.text
+
+
+def test_completing_with_unfinished_work_returns_them_to_the_backlog(
+    client: TestClient,
+    project: Json,
+) -> None:
+    current = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Now"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "One", "sprint_id": current["id"]},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Two", "sprint_id": current["id"]},
+    )
+    client.post(f"/api/v1/sprints/{current['id']}/start")
+
+    response = client.post(
+        f"/web/sprints/{current['id']}/complete",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    page = client.get(response.headers["location"])
+    assert "2 unfinished issues returned to the backlog." in page.text
+
+
 def test_completing_a_sprint_reports_the_carry_over(
     client: TestClient,
     project: Json,

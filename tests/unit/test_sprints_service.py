@@ -7,6 +7,7 @@ from keel.db.models import Project
 from keel.domain.enums import IssueStatus, IssueType, SprintState
 from keel.domain.errors import (
     InvalidSprintError,
+    NotFoundError,
     SprintAlreadyActiveError,
     SprintInvalidTransitionError,
     SprintProjectMismatchError,
@@ -77,6 +78,23 @@ def test_a_sprint_may_start_and_end_on_the_same_day(
         ends_on=date(2026, 9, 10),
     )
     assert sprint.starts_on == sprint.ends_on == date(2026, 9, 10)
+
+
+def test_a_missing_sprint_is_not_found(session: Session) -> None:
+    with pytest.raises(NotFoundError):
+        sprint_service.get_sprint(session, 404)
+
+
+def test_updating_dates_is_kept(session: Session, project: Project) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    updated = sprint_service.update_sprint(
+        session,
+        sprint.id,
+        starts_on=date(2026, 9, 1),
+        ends_on=date(2026, 9, 14),
+    )
+    assert updated.starts_on == date(2026, 9, 1)
+    assert updated.ends_on == date(2026, 9, 14)
 
 
 def test_updating_the_end_before_the_start_is_refused(

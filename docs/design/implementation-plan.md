@@ -92,6 +92,8 @@ Done when comments can be added and read, effort round-trips through the shortha
 
 ## Phase 6 — Polish
 
+**Status: done.**
+
 * README: keep the settings table, the `keel db` commands, and the database location current as later phases add to them (Phase 0 wrote the first version).
 * Cross-link the architecture and design documents where implementation revealed gaps.
 * Close any coverage shortfall and review every generated Alembic revision one final time.

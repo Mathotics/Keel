@@ -32,3 +32,4 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * [Domain model](domain-model.md)
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
+* [Data model](../design/data-model.md)

@@ -177,6 +177,28 @@ def test_read_sprint_includes_its_issues(client: TestClient, project_id: int) ->
     assert [item["id"] for item in detail["issues"]] == [issue["id"]]
 
 
+def test_a_sprint_can_be_renamed_and_dated(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    sprint = create_sprint(client, project_id)
+
+    updated = client.patch(
+        f"/api/v1/sprints/{sprint['id']}",
+        json={
+            "name": "Sprint 1a",
+            "starts_on": "2026-09-01",
+            "ends_on": "2026-09-14",
+        },
+    )
+
+    assert updated.status_code == 200, updated.text
+    body: Json = updated.json()
+    assert body["name"] == "Sprint 1a"
+    assert body["starts_on"] == "2026-09-01"
+    assert body["ends_on"] == "2026-09-14"
+
+
 def test_an_end_before_the_start_is_refused(
     client: TestClient,
     project_id: int,

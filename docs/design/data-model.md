@@ -166,7 +166,16 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 
 ## Migrations
 
-Alembic revisions live in `migrations/`. The initial revision creates the whole schema above. Every generated revision is reviewed by hand, because autogenerate does not reliably detect `CHECK` constraint changes, and SQLite column alterations use Alembic's batch operations. Migrations are applied only by `keel db upgrade`; `keel serve` verifies the revision and refuses to start when the database is behind ([ADR 007](../adr/ADR-007.md)).
+Alembic revisions live in `migrations/`. They were written by hand and reviewed against the models, because autogenerate does not reliably detect `CHECK` constraint changes, and SQLite column alterations use Alembic's batch operations. Migrations are applied only by `keel db upgrade`; `keel serve` verifies the revision and refuses to start when the database is behind ([ADR 007](../adr/ADR-007.md)).
+
+| Revision | Adds |
+| --- | --- |
+| `0001` | `users` |
+| `0002` | `projects`, `boards`, `issues` |
+| `0003` | `issues.due_at` |
+| `0004` | `sprints` and `issues.sprint_id` |
+| `0005` | `dependencies` |
+| `0006` | `comments` |
 
 ## Related documents
 

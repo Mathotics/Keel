@@ -371,6 +371,32 @@ def test_effort_round_trips_through_shorthand(
     )
     assert refused.headers["location"].startswith("/issues/KEEL-1?error=")
 
+    remaining_refused = client.post(
+        f"/web/issues/{issue_id}/remaining",
+        data={"remaining": "1h30"},
+        follow_redirects=False,
+    )
+    assert remaining_refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["remaining_minutes"] == 45
+
+
+def test_a_blank_title_returns_to_the_issue_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Keep me")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    refused = client.post(
+        f"/web/issues/{issue_id}/title",
+        data={"title": "  "},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    page = client.get(refused.headers["location"])
+    assert "needs a title" in page.text
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["title"] == "Keep me"
+
 
 def test_an_epic_page_shows_subtree_progress(
     client: TestClient,

@@ -53,3 +53,4 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
 * [UI design](../design/ui.md)
+* [API reference](../design/api.md)
