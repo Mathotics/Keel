@@ -423,13 +423,19 @@ def test_type_and_description_can_be_changed_from_the_issue_page(
     assert typed.headers["location"] == "/issues/KEEL-1"
     described = client.post(
         f"/web/issues/{issue_id}/description",
-        data={"description": "A longer note."},
+        data={"description": "A **longer** note."},
         follow_redirects=False,
     )
     assert described.headers["location"] == "/issues/KEEL-1"
     stored = client.get(f"/api/v1/issues/{issue_id}").json()
     assert stored["type"] == "epic"
-    assert stored["description"] == "A longer note."
+    assert stored["description"] == "A **longer** note."
+    page = client.get("/issues/KEEL-1")
+    assert page.status_code == 200
+    assert '<div class="keel-markdown">' in page.text
+    assert "<strong>longer</strong>" in page.text
+    assert "Edit description" in page.text
+    assert ">Add a description<" not in page.text
 
 
 def test_parent_can_be_changed_from_the_issue_page(

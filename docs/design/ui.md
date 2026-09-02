@@ -92,7 +92,7 @@ The find field submits GET `/search?q=…`, and `project` when the current page 
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. Comments, children, and dependency links are added afterwards, because they need an id. Adding a comment is an ordinary submit, not an autosubmit field.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. Comments, children, and dependency links are added afterwards, because they need an id. Adding a comment is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 
@@ -120,6 +120,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 013: Planning realization](../adr/ADR-013.md)
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
 * [ADR 016: Find from the top bar by name](../adr/ADR-016.md)
+* [ADR 017: Render issue descriptions and comments as Markdown](../adr/ADR-017.md)
 * [API reference](api.md)
 * [Brand colors](../brand-colors.md)
 * [Use cases](../architecture/use-cases.md)

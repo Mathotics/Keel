@@ -32,6 +32,10 @@ repos:
           - jinja2==3.1.6
           - platformdirs==4.11.5
           - python-multipart==0.0.32
+          - markdown==3.10.3
+          - bleach==6.4.0
+          - types-bleach==6.4.0.20260728
+          - types-Markdown==3.10.2.20260712
           - httpx==0.28.1
           - pytest==8.4.1
         args: [src, tests]

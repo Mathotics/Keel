@@ -41,7 +41,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Comments
 
-* **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread.
+* **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/ADR-017.md)).
 
 ## Time estimates
 

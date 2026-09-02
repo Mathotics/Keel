@@ -16,6 +16,7 @@ from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE, USER_HEADER, resolve_current_user
 from keel.version import package_version
+from keel.web.markdown import render_markdown
 from keel.web.nav import NAV_COOKIE, links_for, parse_order
 
 __all__ = [
@@ -39,6 +40,7 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["datetime_local"] = datetime_local
     templates.env.filters["day"] = format_day
     templates.env.filters["duration"] = format_duration
+    templates.env.filters["markdown"] = render_markdown
     return templates
 
 

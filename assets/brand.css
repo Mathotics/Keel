@@ -457,6 +457,105 @@ body {
   white-space: pre-wrap;
 }
 
+.keel-markdown {
+  max-width: 48rem;
+  margin: 0 0 0.75rem;
+  line-height: 1.45;
+}
+
+.keel-markdown > :first-child {
+  margin-top: 0;
+}
+
+.keel-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.keel-markdown h1,
+.keel-markdown h2,
+.keel-markdown h3,
+.keel-markdown h4,
+.keel-markdown h5,
+.keel-markdown h6 {
+  margin: 1rem 0 0.4rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-markdown p {
+  margin: 0.4rem 0;
+}
+
+.keel-markdown ul,
+.keel-markdown ol {
+  margin: 0.4rem 0;
+  padding-left: 1.4rem;
+}
+
+.keel-markdown blockquote {
+  margin: 0.5rem 0;
+  padding: 0 0.75rem;
+  border-left: 3px solid var(--keel-blue);
+}
+
+.keel-markdown hr {
+  margin: 0.75rem 0;
+  border: 0;
+  border-top: 1px solid var(--keel-sheet);
+}
+
+.keel-markdown table {
+  margin: 0.5rem 0;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.keel-markdown th,
+.keel-markdown td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--keel-sheet);
+  text-align: left;
+}
+
+.keel-markdown th {
+  background: var(--keel-sheet);
+  font-weight: 650;
+}
+
+.keel-markdown pre {
+  margin: 0.5rem 0;
+  padding: 0.6rem 0.75rem;
+  overflow: auto;
+  border: 1px solid var(--keel-sheet);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+}
+
+.keel-markdown code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.875em;
+}
+
+.keel-markdown-edit {
+  max-width: 48rem;
+  margin: 0 0 1rem;
+}
+
+.keel-markdown-edit summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--keel-blue);
+}
+
+.keel-markdown-edit summary:hover,
+.keel-markdown-edit summary:focus-visible {
+  color: var(--keel-blue-deep);
+}
+
+.keel-markdown-edit .keel-form {
+  margin-top: 0.6rem;
+}
+
 .keel-table {
   width: 100%;
   border-collapse: collapse;

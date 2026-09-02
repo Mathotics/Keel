@@ -26,13 +26,14 @@ def test_the_issue_page_lists_comments(client: TestClient) -> None:
     issue = _issue(client, _project(client))
     client.post(
         f"/api/v1/issues/{issue['id']}/comments",
-        json={"body": "A decision"},
+        json={"body": "A **decision**"},
     )
 
     page = client.get("/issues/KEEL-1")
     assert page.status_code == 200
     assert "Comments" in page.text
-    assert "A decision" in page.text
+    assert "<strong>decision</strong>" in page.text
+    assert "A **decision**" not in page.text.split("Comments", 1)[1]
     assert ">Add comment<" in page.text
     assert (
         "data-keel-autosubmit"

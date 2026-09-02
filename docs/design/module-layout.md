@@ -84,6 +84,7 @@ src/keel/
   web/
     __init__.py
     context.py          shared template context and chrome dependency
+    markdown.py         Markdown to sanitized HTML for issue notes
     nav.py              top-bar section order (cookie, not a user row)
     routes/
       __init__.py

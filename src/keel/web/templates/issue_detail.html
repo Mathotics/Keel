@@ -112,13 +112,19 @@
       </dl>
 
       <h2>Description</h2>
-      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit>
-        <p>
-          <label class="keel-visually-hidden" for="issue-description">Description</label>
-          <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ issue.description }}</textarea>
-        </p>
-        <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
-      </form>
+      {% if issue.description %}
+      <div class="keel-markdown">{{ issue.description | markdown }}</div>
+      {% endif %}
+      <details class="keel-markdown-edit"{% if not issue.description %} open{% endif %}>
+        <summary>{% if issue.description %}Edit description{% else %}Add a description{% endif %}</summary>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit>
+          <p>
+            <label class="keel-visually-hidden" for="issue-description">Description</label>
+            <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ issue.description }}</textarea>
+          </p>
+          <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
+        </form>
+      </details>
 
       <h2>Children</h2>
       <table class="keel-table">
@@ -246,7 +252,7 @@
       {% for comment in comments %}
       <article class="keel-comment">
         <p class="keel-comment__meta">{{ comment.author_name }} · {{ comment.created_at | when }}</p>
-        <p class="keel-comment__body">{{ comment.body }}</p>
+        <div class="keel-comment__body keel-markdown">{{ comment.body | markdown }}</div>
         <form class="keel-form keel-form--inline" method="post" action="/web/comments/{{ comment.id }}/delete">
           <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
           <button type="submit">Remove</button>

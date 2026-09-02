@@ -19,6 +19,8 @@ dependencies = [
     "jinja2==3.1.6",
     "platformdirs==4.11.5",
     "python-multipart==0.0.32",
+    "markdown==3.10.3",
+    "bleach==6.4.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +31,8 @@ dev = [
     "poethepoet==0.48.0",
     "pre-commit==4.6.2",
     "mypy==2.3.1",
+    "types-bleach==6.4.0.20260728",
+    "types-Markdown==3.10.2.20260712",
     "isort==9.0.1",
     "pytest-cov==6.2.1",
 ]

@@ -50,7 +50,7 @@ flowchart LR
 * Roll up child progress and effort to parent issues.
 * Assign an issue to a user and set its reporter.
 * Set and change an issue's status within the shared workflow (see [ADR 004](../adr/ADR-004.md)).
-* Add and read comments on an issue.
+* Add and read comments on an issue. Issue descriptions and comment bodies render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
 
 ## Planning
 
