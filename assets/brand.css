@@ -324,6 +324,19 @@ body {
   padding-bottom: 0.5rem;
 }
 
+.keel-board__lane {
+  margin: 0 0 1.5rem;
+}
+
+.keel-board__lane:last-of-type {
+  margin-bottom: 0;
+}
+
+.keel-board__lane-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
 .keel-board__filter {
   flex-wrap: wrap;
 }

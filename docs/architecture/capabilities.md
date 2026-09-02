@@ -65,6 +65,7 @@ flowchart LR
 * Present a project's issues on a Kanban board.
 * Derive board columns from the shared workflow statuses.
 * Restrict the board to chosen issue types, to a chosen assignee, and to a chosen sprint.
+* Separate the board into a row of columns per sprint.
 * Change an issue's status by moving its card between columns.
 
 ## Dependencies

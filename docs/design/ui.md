@@ -21,7 +21,7 @@ Every interactive element in the bar — link, button, and select alike — carr
 | `/` | — | The entry point; redirects to `/projects` |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
-| `/projects/{key}/board` | `board.html` | Kanban columns, type, assignee, and sprint filters, drag-and-drop |
+| `/projects/{key}/board` | `board.html` | Kanban columns, type, assignee, and sprint filters, optional rows per sprint, drag-and-drop |
 | `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
@@ -63,7 +63,7 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 
 Five columns in workflow order — To Do, In Progress, In Review, Blocked, Done — generated from the status enumeration rather than stored ([ADR 013](../adr/ADR-013.md)).
 
-A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types, every assignee, and every sprint appear by default. Filters above the board restrict which types, which assignee, and which sprint are shown; they are applied at query time, not by hiding cards. The assignee filter offers Anyone, Unassigned, or a specific person. The sprint filter offers Any sprint, Unscheduled, or a specific sprint. Changing a filter submits the form immediately once `userpicker.js` has run; an Apply button remains for when it has not.
+A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types, every assignee, and every sprint appear by default. Filters above the board restrict which types, which assignee, and which sprint are shown; they are applied at query time, not by hiding cards. The assignee filter offers Anyone, Unassigned, or a specific person. The sprint filter offers Any sprint, Unscheduled, or a specific sprint. Separate by sprint stacks a five-column row per sprint, plus Unscheduled; dropping a card onto another sprint's row also schedules it there. Changing a filter submits the form immediately once `userpicker.js` has run; an Apply button remains for when it has not.
 
 Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker script uses its own marker (`data-keel-js`) for the same reason: it loads on every page, and must not hide a board fallback it did not enable.
 
@@ -85,7 +85,7 @@ Two scripts, both vanilla and with no third-party dependency. Each sets a marker
 
 `assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button. It also submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons. Paired sprint date fields marked `data-keel-range` keep `min` and `max` in sync so the calendar cannot offer an end before the start.
 
-`assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
+`assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status, and the sprint when the board is stacked by sprint. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
 
 Neither script is required. Both are loaded with `defer`, hide their fallback controls only once they have run, and no page or action is reachable through JavaScript alone.
 

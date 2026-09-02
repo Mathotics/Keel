@@ -195,6 +195,50 @@ def test_type_and_sprint_filters_combine(
     assert titles == ["Sprint epic"]
 
 
+def test_lanes_group_cards_by_sprint(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    _issue(session, project, "In sprint", sprint_id=sprint.id)
+    _issue(session, project, "Waiting")
+
+    board = board_service.project_board(session, project.id)
+
+    assert [lane.name for lane in board.lanes] == ["Sprint 1", "Unscheduled"]
+    assert [card.issue.title for card in board.lanes[0].columns[0].cards] == [
+        "In sprint",
+    ]
+    assert [card.issue.title for card in board.lanes[1].columns[0].cards] == [
+        "Waiting",
+    ]
+
+
+def test_a_completed_sprint_without_cards_is_not_a_lane(
+    session: Session,
+    project: Project,
+) -> None:
+    current = sprint_service.create_sprint(session, project.id, "Now")
+    later = sprint_service.create_sprint(session, project.id, "Later")
+    sprint_service.start_sprint(session, current.id)
+    sprint_service.complete_sprint(session, current.id)
+
+    board = board_service.project_board(session, project.id)
+    assert [lane.name for lane in board.lanes] == [later.name, "Unscheduled"]
+
+
+def test_the_sprint_filter_narrows_lanes(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    _issue(session, project, "In sprint", sprint_id=sprint.id)
+    _issue(session, project, "Waiting")
+
+    board = board_service.project_board(session, project.id, sprint_id=sprint.id)
+    assert [lane.name for lane in board.lanes] == ["Sprint 1"]
+
+
 def test_cards_carry_the_readable_key_and_assignee(
     session: Session,
     project: Project,
@@ -252,3 +296,14 @@ def test_parse_sprint_filter_accepts_the_board_query_values(
 def test_parse_sprint_filter_rejects_an_unknown_value() -> None:
     with pytest.raises(InvalidIssueError):
         board_service.parse_sprint_filter("Sprint 1")
+
+
+def test_parse_board_grouping_accepts_sprint_or_nothing() -> None:
+    assert board_service.parse_board_grouping(None) is None
+    assert board_service.parse_board_grouping("") is None
+    assert board_service.parse_board_grouping("sprint") == "sprint"
+
+
+def test_parse_board_grouping_rejects_an_unknown_value() -> None:
+    with pytest.raises(InvalidIssueError):
+        board_service.parse_board_grouping("assignee")

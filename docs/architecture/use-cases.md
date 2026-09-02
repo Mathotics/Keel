@@ -28,6 +28,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 * **Work the board.** A user views a project's issues as cards in columns drawn from the shared workflow statuses.
 * **Filter the board.** A user restricts the board to chosen issue types, to a chosen assignee including unassigned, and to a chosen sprint including unscheduled.
+* **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to.
 * **Advance an issue.** A user moves a card from one column to the next, which changes the issue's status.
 
 ## Ticket dependencies

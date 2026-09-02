@@ -19,11 +19,13 @@ def board_page(
     types: list[IssueType] = Query(default=[], alias="type"),
     assignee: str | None = Query(default=None),
     sprint: str | None = Query(default=None),
+    by: str | None = Query(default=None),
     error: str | None = None,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
     assignee_id, unassigned = board_service.parse_assignee_filter(assignee)
     sprint_id, unscheduled = board_service.parse_sprint_filter(sprint)
+    grouping = board_service.parse_board_grouping(by)
     board = board_service.project_board(
         session,
         project.id,
@@ -46,6 +48,7 @@ def board_page(
             selected_types=selected,
             selected_assignee=assignee.strip() if assignee else "",
             selected_sprint=sprint.strip() if sprint else "",
+            separate_by_sprint=grouping == "sprint",
             sprints=sprint_service.list_sprints(session, project.id),
             error=error,
         ),

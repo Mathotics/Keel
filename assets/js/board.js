@@ -84,10 +84,16 @@
       const destination = column.querySelector("[data-keel-cards]");
       destination.appendChild(card);
       try {
+        const payload = { status: column.dataset.status };
+        if (column.dataset.sprintId !== undefined) {
+          payload.sprint_id = column.dataset.sprintId
+            ? Number(column.dataset.sprintId)
+            : null;
+        }
         const response = await fetch(`/api/v1/issues/${issueId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: column.dataset.status }),
+          body: JSON.stringify(payload),
         });
         if (!response.ok) {
           throw new Error(await messageFrom(response));

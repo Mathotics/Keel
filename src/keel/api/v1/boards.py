@@ -1,12 +1,15 @@
+from collections.abc import Sequence
+
 from fastapi import APIRouter, Query
 
 from keel.api.v1.deps import SessionDep
 from keel.domain.enums import IssueType, label
-from keel.schemas.board import BoardColumnRead, BoardRead
+from keel.schemas.board import BoardColumnRead, BoardLaneRead, BoardRead
 from keel.schemas.issue import IssueRead
 from keel.services import backlog as backlog_service
 from keel.services import boards as board_service
 from keel.services import projects as project_service
+from keel.services.boards import Board, BoardColumn
 
 router = APIRouter(tags=["boards"])
 
@@ -32,17 +35,32 @@ def read_board(
     )
     return BoardRead(
         project_id=board.project.id,
-        columns=[
-            BoardColumnRead(
-                status=column.status,
-                label=label(column.status),
-                issues=[
-                    IssueRead.of(card.issue, board.project) for card in column.cards
-                ],
+        columns=_column_reads(board),
+        lanes=[
+            BoardLaneRead(
+                sprint_id=lane.sprint_id,
+                name=lane.name,
+                state=lane.state,
+                columns=_column_reads(board, lane.columns),
             )
-            for column in board.columns
+            for lane in board.lanes
         ],
     )
+
+
+def _column_reads(
+    board: Board,
+    columns: Sequence[BoardColumn] | None = None,
+) -> list[BoardColumnRead]:
+    chosen = board.columns if columns is None else columns
+    return [
+        BoardColumnRead(
+            status=column.status,
+            label=label(column.status),
+            issues=[IssueRead.of(card.issue, board.project) for card in column.cards],
+        )
+        for column in chosen
+    ]
 
 
 @router.get("/projects/{project_id}/backlog", response_model=list[IssueRead])

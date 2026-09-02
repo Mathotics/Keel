@@ -126,6 +126,50 @@ def test_the_sprint_filter_changes_what_the_board_queries(
     assert "Sprint 1" in page.text
 
 
+def test_separating_by_sprint_puts_cards_in_lanes(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting"},
+    )
+
+    page = client.get("/projects/KEEL/board", params={"by": "sprint"})
+    assert page.status_code == 200
+    assert "Separate by sprint" in page.text
+    assert 'name="by" value="sprint" checked' in page.text or (
+        'name="by" value="sprint"checked' in page.text
+    )
+    assert 'class="keel-board__lane-title"' in page.text
+    assert 'data-sprint-id="' in page.text
+
+    first, rest = page.text.split("keel-board__lane-title", 1)[1].split(
+        "keel-board__lane-title",
+        1,
+    )
+    assert "Sprint 1" in first
+    assert "In sprint" in first
+    assert "Waiting" not in first
+    assert "Unscheduled" in rest
+    assert "Waiting" in rest
+    assert "In sprint" not in rest
+
+    together = client.get("/projects/KEEL/board")
+    assert "keel-board__lane-title" not in together.text
+    assert "data-sprint-id" not in together.text
+    assert "In sprint" in together.text
+    assert "Waiting" in together.text
+
+
 def test_the_board_filter_keeps_apply_without_javascript(
     client: TestClient,
     project: Json,
@@ -207,6 +251,7 @@ def test_board_script_hides_only_its_own_fallback(client: TestClient) -> None:
     assert 'addEventListener("drop"' in script.text
     assert "data-keel-board" in script.text
     assert "/api/v1/issues/" in script.text
+    assert "sprint_id" in script.text
 
     css = client.get("/assets/brand.css").text
     hidden = css.split("[data-keel-board] .keel-card__fallback", 1)[1].split(

@@ -133,5 +133,32 @@ def test_a_sprint_parameter_filters_the_board(
     assert titles(waiting) == ["Waiting"]
 
 
+def test_the_board_lists_sprint_lanes(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project_id}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    create_issue(client, project_id, title="In sprint", sprint_id=sprint["id"])
+    create_issue(client, project_id, title="Waiting")
+
+    board = client.get(f"/api/v1/projects/{project_id}/board").json()
+    assert [lane["name"] for lane in board["lanes"]] == ["Sprint 1", "Unscheduled"]
+    scheduled = [
+        issue["title"]
+        for column in board["lanes"][0]["columns"]
+        for issue in column["issues"]
+    ]
+    waiting = [
+        issue["title"]
+        for column in board["lanes"][1]["columns"]
+        for issue in column["issues"]
+    ]
+    assert scheduled == ["In sprint"]
+    assert waiting == ["Waiting"]
+
+
 def test_an_unknown_project_board_is_not_found(client: TestClient) -> None:
     assert client.get("/api/v1/projects/404/board").status_code == 404

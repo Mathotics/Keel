@@ -27,7 +27,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 | Deferred item | Reasoning |
 | --- | --- |
 | **Authentication & identity** | v1 assumes a trusted local/small-group context. No login, roles, permission matrices, or SSO. Users are still recorded for attribution, with identity declared rather than verified ([ADR 011](../adr/ADR-011.md)). To be designed in a later version. |
-| **Configurable / per-project workflows** | A fixed shared workflow is proportional to a personal tool ([ADR 004](../adr/ADR-004.md)). Custom statuses, transitions, and swimlanes are deferred. |
+| **Configurable / per-project workflows** | A fixed shared workflow is proportional to a personal tool ([ADR 004](../adr/ADR-004.md)). Custom statuses, transitions, and swimlanes other than sprint are deferred. |
 | **Labels, components, releases/versions** | Extra classification beyond the Epic/Story/Subtask hierarchy is not needed for 1–3 users yet. |
 | **Attachments** | File handling adds storage and lifecycle concerns beyond v1's core. |
 | **Burndown / velocity / reporting** | Time estimates are captured in v1, but charts and analytics on top of them are deferred. |
