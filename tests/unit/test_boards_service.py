@@ -2,9 +2,10 @@ import pytest
 from sqlalchemy.orm import Session
 
 from keel.db.models import Project
-from keel.domain.enums import IssueStatus, IssueType
+from keel.domain.enums import DependencyKind, IssueStatus, IssueType
 from keel.domain.errors import InvalidIssueError
 from keel.services import boards as board_service
+from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -252,6 +253,37 @@ def test_cards_carry_the_readable_key_and_assignee(
     assert cards[0].key == "KEEL-1"
     assert cards[0].assignee_name == "Ada"
     assert cards[1].assignee_name is None
+
+
+def test_cards_carry_unresolved_blocker_counts(
+    session: Session,
+    project: Project,
+) -> None:
+    blocker = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Blocker",
+    )
+    waiting = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Waiting",
+    )
+    dependency_service.create_dependency(
+        session,
+        blocker.id,
+        waiting.id,
+        DependencyKind.BLOCKS,
+    )
+
+    cards = {
+        card.issue.title: card
+        for card in board_service.project_board(session, project.id).columns[0].cards
+    }
+    assert cards["Waiting"].unresolved_blockers == 1
+    assert cards["Blocker"].unresolved_blockers == 0
 
 
 @pytest.mark.parametrize(

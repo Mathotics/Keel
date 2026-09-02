@@ -202,6 +202,8 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/sprints/{sprint_id}/delete` | Delete a sprint; its issues return to the backlog |
 | `POST` | `/web/sprints/{sprint_id}/start` | Start a sprint |
 | `POST` | `/web/sprints/{sprint_id}/complete` | Complete a sprint |
+| `POST` | `/web/issues/{issue_id}/dependencies` | Add a blocks, blocked-by, or relates-to link |
+| `POST` | `/web/dependencies/{dependency_id}/delete` | Remove a link |
 
 Ordinary creation and editing forms post to the resource's own web route and are listed in the [UI design](ui.md).
 

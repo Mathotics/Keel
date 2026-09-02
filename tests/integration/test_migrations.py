@@ -61,6 +61,16 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "created_at",
         "completed_at",
     }
+    dependencies = {
+        column["name"] for column in inspect(engine).get_columns("dependencies")
+    }
+    assert dependencies == {
+        "id",
+        "source_id",
+        "target_id",
+        "kind",
+        "created_at",
+    }
 
 
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:

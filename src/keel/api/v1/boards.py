@@ -57,7 +57,10 @@ def _column_reads(
         BoardColumnRead(
             status=column.status,
             label=label(column.status),
-            issues=[IssueRead.of(card.issue, board.project) for card in column.cards],
+            issues=[
+                IssueRead.of(card.issue, board.project, card.unresolved_blockers)
+                for card in column.cards
+            ],
         )
         for column in chosen
     ]
@@ -67,6 +70,6 @@ def _column_reads(
 def read_backlog(project_id: int, session: SessionDep) -> list[IssueRead]:
     project = project_service.get_project(session, project_id)
     return [
-        IssueRead.of(issue, project)
-        for issue in backlog_service.project_backlog(session, project.id)
+        IssueRead.of(item.issue, project, item.unresolved_blockers)
+        for item in backlog_service.project_backlog(session, project.id)
     ]

@@ -75,6 +75,15 @@ def list_issues(
     return session.scalars(query.order_by(Issue.number)).all()
 
 
+def list_issues_globally(session: Session) -> Sequence[Issue]:
+    """Every issue, for pickers that may cross projects."""
+    return session.scalars(
+        select(Issue)
+        .join(Project, Issue.project_id == Project.id)
+        .order_by(Project.key, Issue.number),
+    ).all()
+
+
 def count_by_status(session: Session, project_id: int) -> dict[IssueStatus, int]:
     """Every status appears, including the ones with nothing in them."""
     counts = dict.fromkeys(statuses_in_workflow_order(), 0)

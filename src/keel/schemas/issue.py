@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -53,11 +54,17 @@ class IssueRead(BaseModel):
     estimate_minutes: int | None
     remaining_minutes: int | None
     due_at: datetime | None
+    unresolved_blockers: int
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def of(cls, issue: Issue, project: Project) -> "IssueRead":
+    def of(
+        cls,
+        issue: Issue,
+        project: Project,
+        unresolved_blockers: int = 0,
+    ) -> "IssueRead":
         return cls(
             id=issue.id,
             key=f"{project.key}-{issue.number}",
@@ -74,6 +81,18 @@ class IssueRead(BaseModel):
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
             due_at=issue.due_at,
+            unresolved_blockers=unresolved_blockers,
             created_at=issue.created_at,
             updated_at=issue.updated_at,
         )
+
+    @classmethod
+    def many(
+        cls,
+        issues: Sequence[Issue],
+        project: Project,
+        blocker_counts: Mapping[int, int],
+    ) -> list["IssueRead"]:
+        return [
+            cls.of(issue, project, blocker_counts.get(issue.id, 0)) for issue in issues
+        ]

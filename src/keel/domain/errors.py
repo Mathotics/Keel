@@ -95,3 +95,15 @@ class SprintInvalidTransitionError(DomainError):
 
 class SprintProjectMismatchError(DomainError):
     code = "sprint.project_mismatch"
+
+
+class DependencyCycleError(DomainError):
+    code = "dependency.cycle"
+
+
+class DependencySelfLinkError(DomainError):
+    code = "dependency.self_link"
+
+
+class DependencyDuplicateError(DomainError):
+    code = "dependency.duplicate"

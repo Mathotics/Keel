@@ -4,8 +4,9 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
 
-from keel.domain.enums import IssueStatus, IssueType
+from keel.domain.enums import DependencyKind, IssueStatus, IssueType
 from keel.domain.errors import DomainError
+from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -296,6 +297,59 @@ def delete_issue(session: SessionDep, issue_id: int) -> RedirectResponse:
         session.rollback()
         return _back(here, exc.message)
     return _back(f"/projects/{project.key}")
+
+
+def _dependency_ends(
+    issue_id: int,
+    other_id: int,
+    relation: str,
+) -> tuple[int, int, DependencyKind] | None:
+    if relation == "blocks":
+        return issue_id, other_id, DependencyKind.BLOCKS
+    if relation == "blocked_by":
+        return other_id, issue_id, DependencyKind.BLOCKS
+    if relation == "relates_to":
+        return issue_id, other_id, DependencyKind.RELATES_TO
+    return None
+
+
+@router.post("/issues/{issue_id}/dependencies")
+def create_issue_dependency(
+    session: SessionDep,
+    issue_id: int,
+    other_id: Annotated[str, Form()] = "",
+    relation: Annotated[str, Form()] = "blocks",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    chosen = _optional_id(other_id)
+    if chosen is None:
+        return _back(here, "Choose an issue to link.")
+    ends = _dependency_ends(issue_id, chosen, relation)
+    if ends is None:
+        return _back(here, "That is not a valid dependency kind.")
+    source_id, target_id, kind = ends
+    try:
+        dependency_service.create_dependency(session, source_id, target_id, kind)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/dependencies/{dependency_id}/delete")
+def delete_issue_dependency(
+    session: SessionDep,
+    dependency_id: int,
+    return_to: Annotated[str, Form(alias="next")] = "",
+) -> RedirectResponse:
+    dependency = dependency_service.get_dependency(session, dependency_id)
+    here = return_to or _issue_here(session, dependency.source_id)
+    try:
+        dependency_service.delete_dependency(session, dependency_id)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
 
 
 def _sprint_page(session: SessionDep, sprint_id: int) -> str:

@@ -123,6 +123,109 @@
         </tbody>
       </table>
 
+      <h2>Dependencies</h2>
+      <h3>Blocks</h3>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Key</th><th>Title</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for link in dependencies.blocks %}
+          <tr>
+            <td>
+              <a href="/issues/{{ link.key }}">{{ link.key }}</a>
+              {% if link.project_key != project.key %}({{ link.project_key }}){% endif %}
+            </td>
+            <td>{{ link.issue.title }}</td>
+            <td>
+              <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
+                <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+                <button type="submit">Remove</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <h3>Blocked by</h3>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Key</th><th>Title</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for link in dependencies.blocked_by %}
+          <tr>
+            <td>
+              <a href="/issues/{{ link.key }}">{{ link.key }}</a>
+              {% if link.project_key != project.key %}({{ link.project_key }}){% endif %}
+            </td>
+            <td>{{ link.issue.title }}</td>
+            <td>
+              <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
+                <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+                <button type="submit">Remove</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <h3>Relates to</h3>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Key</th><th>Title</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for link in dependencies.relates_to %}
+          <tr>
+            <td>
+              <a href="/issues/{{ link.key }}">{{ link.key }}</a>
+              {% if link.project_key != project.key %}({{ link.project_key }}){% endif %}
+            </td>
+            <td>{{ link.issue.title }}</td>
+            <td>
+              <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
+                <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+                <button type="submit">Remove</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if candidates %}
+      <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dependencies">
+        <p>This issue</p>
+        <label>
+          <span class="keel-visually-hidden">Relation</span>
+          <select name="relation">
+            <option value="blocks">blocks</option>
+            <option value="blocked_by">is blocked by</option>
+            <option value="relates_to">relates to</option>
+          </select>
+        </label>
+        <label>
+          <span class="keel-visually-hidden">Issue</span>
+          <select name="other_id" required>
+            <option value="">Choose an issue</option>
+            {% for candidate in candidates %}
+            <option value="{{ candidate.id }}">{{ candidate.key }} — {{ candidate.title }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit">Add</button>
+      </form>
+      {% else %}
+      <p>No other issues to link.</p>
+      {% endif %}
+
       <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?');">
         <button type="submit">Delete issue</button>

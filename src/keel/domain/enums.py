@@ -25,6 +25,11 @@ class SprintState(StrEnum):
     COMPLETED = "completed"
 
 
+class DependencyKind(StrEnum):
+    BLOCKS = "blocks"
+    RELATES_TO = "relates_to"
+
+
 INITIAL_STATUS = IssueStatus.TODO
 TERMINAL_STATUS = IssueStatus.DONE
 
@@ -40,9 +45,11 @@ _LABELS = {
     SprintState.PLANNED: "Planned",
     SprintState.ACTIVE: "Active",
     SprintState.COMPLETED: "Completed",
+    DependencyKind.BLOCKS: "Blocks",
+    DependencyKind.RELATES_TO: "Relates to",
 }
 
-Labeled = IssueType | IssueStatus | SprintState
+Labeled = IssueType | IssueStatus | SprintState | DependencyKind
 
 
 def label(value: Labeled) -> str:

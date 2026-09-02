@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from keel.domain.enums import statuses_in_workflow_order, types_in_hierarchy_order
+from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -22,6 +23,16 @@ def issue_page(
 ) -> HTMLResponse:
     issue = issue_service.get_issue_by_key(session, key)
     project = project_service.get_project(session, issue.project_id)
+    projects = {item.id: item for item in project_service.list_projects(session)}
+    candidates = [
+        {
+            "id": other.id,
+            "key": issue_service.issue_key(other, projects[other.project_id]),
+            "title": other.title,
+        }
+        for other in issue_service.list_issues_globally(session)
+        if other.id != issue.id
+    ]
     return get_templates().TemplateResponse(
         request,
         "issue_detail.html",
@@ -32,6 +43,8 @@ def issue_page(
             issue=issue,
             issue_key=issue_service.issue_key(issue, project),
             children=issue_service.list_children(session, issue.id),
+            dependencies=dependency_service.list_for_issue(session, issue.id),
+            candidates=candidates,
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
             issue_types=types_in_hierarchy_order(),

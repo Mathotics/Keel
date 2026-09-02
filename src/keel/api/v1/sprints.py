@@ -13,6 +13,7 @@ from keel.schemas.sprint import (
     SprintStateRead,
     SprintUpdate,
 )
+from keel.services import dependencies as dependency_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 
@@ -22,9 +23,13 @@ router = APIRouter(tags=["sprints"])
 def _detail(session: Session, sprint: Sprint) -> SprintDetailRead:
     project = project_service.get_project(session, sprint.project_id)
     issues = sprint_service.list_sprint_issues(session, sprint.id)
+    counts = dependency_service.unresolved_blocker_counts(
+        session,
+        [issue.id for issue in issues],
+    )
     return SprintDetailRead(
         **SprintRead.of(sprint).model_dump(),
-        issues=[IssueRead.of(issue, project) for issue in issues],
+        issues=IssueRead.many(issues, project, counts),
     )
 
 

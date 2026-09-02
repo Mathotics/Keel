@@ -1,10 +1,13 @@
+from collections.abc import Sequence
+
 from fastapi import APIRouter, Query, status
 from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
-from keel.db.models import Issue
+from keel.db.models import Issue, Project
 from keel.domain.enums import IssueStatus, IssueType
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
+from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services.issues import IssueFilters
@@ -13,7 +16,21 @@ router = APIRouter(tags=["issues"])
 
 
 def _read(session: Session, issue: Issue) -> IssueRead:
-    return IssueRead.of(issue, project_service.get_project(session, issue.project_id))
+    project = project_service.get_project(session, issue.project_id)
+    counts = dependency_service.unresolved_blocker_counts(session, (issue.id,))
+    return IssueRead.of(issue, project, counts.get(issue.id, 0))
+
+
+def _reads(
+    session: Session,
+    issues: Sequence[Issue],
+    project: Project,
+) -> list[IssueRead]:
+    counts = dependency_service.unresolved_blocker_counts(
+        session,
+        [issue.id for issue in issues],
+    )
+    return IssueRead.many(issues, project, counts)
 
 
 @router.get("/projects/{project_id}/issues", response_model=list[IssueRead])
@@ -40,7 +57,7 @@ def list_issues(
             unscheduled=unscheduled,
         ),
     )
-    return [IssueRead.of(issue, project) for issue in found]
+    return _reads(session, found, project)
 
 
 @router.post(
@@ -80,7 +97,7 @@ def read_children(issue_id: int, session: SessionDep) -> list[IssueRead]:
     issue = issue_service.get_issue(session, issue_id)
     project = project_service.get_project(session, issue.project_id)
     children = issue_service.list_children(session, issue.id)
-    return [IssueRead.of(child, project) for child in children]
+    return _reads(session, children, project)
 
 
 @router.patch("/issues/{issue_id}", response_model=IssueRead)

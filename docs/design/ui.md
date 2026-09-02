@@ -58,6 +58,8 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/projects/{project_id}/sprints` | The sprints page create form |
 | `POST` | `/web/sprints/{sprint_id}/update` | The sprint page's settings form |
 | `POST` | `/web/sprints/{sprint_id}/delete` | The sprint page |
+| `POST` | `/web/issues/{issue_id}/dependencies` | The issue page's add-link form |
+| `POST` | `/web/dependencies/{dependency_id}/delete` | A Remove control on the issue page |
 
 ## Board
 

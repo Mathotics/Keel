@@ -70,6 +70,8 @@ Done when a sprint can be planned, filled from the backlog, started, and complet
 
 ## Phase 4 — Dependencies
 
+**Status: done.**
+
 * Dependency model with its uniqueness and self-link constraints.
 * Cycle detection in `keel/domain/graph.py` as a pure function, with the service performing the check and insert in one transaction.
 * Dependency JSON routes and the grouped section on the issue detail page, naming the project of any cross-project link.

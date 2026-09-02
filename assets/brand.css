@@ -409,6 +409,20 @@ body {
   opacity: 0.8;
 }
 
+.keel-card__blockers {
+  margin: 0 0 0.35rem;
+}
+
+.keel-blockers {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--keel-blue-deep);
+}
+
 .keel-card__fallback {
   margin-top: 0.35rem;
 }

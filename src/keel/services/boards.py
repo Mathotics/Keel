@@ -11,6 +11,7 @@ from keel.domain.enums import (
     statuses_in_workflow_order,
 )
 from keel.domain.errors import InvalidIssueError
+from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -23,6 +24,7 @@ class BoardCard:
     issue: Issue
     key: str
     assignee_name: str | None
+    unresolved_blockers: int
 
 
 @dataclass(frozen=True)
@@ -124,11 +126,16 @@ def project_board(
         ),
     )
     names = {user.id: user.display_name for user in user_service.list_users(session)}
+    counts = dependency_service.unresolved_blocker_counts(
+        session,
+        [issue.id for issue in found],
+    )
     cards = tuple(
         BoardCard(
             issue=issue,
             key=issue_service.issue_key(issue, project),
             assignee_name=(names.get(issue.assignee_id) if issue.assignee_id else None),
+            unresolved_blockers=counts.get(issue.id, 0),
         )
         for issue in found
     )
