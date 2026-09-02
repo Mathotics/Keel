@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 from keel.domain.duration import parse_duration
 from keel.domain.enums import DependencyKind, IssueStatus, IssueType
 from keel.domain.errors import DomainError
+from keel.domain.hierarchy import child_type_of
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
@@ -301,6 +302,35 @@ def update_issue_description(
     here = _issue_here(session, issue_id)
     try:
         issue_service.update_issue(session, issue_id, description=description)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/children")
+def create_child_issue(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    title: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    parent = issue_service.get_issue(session, issue_id)
+    here = _issue_here(session, issue_id)
+    child_type = child_type_of(parent.type)
+    if child_type is None:
+        return _back(here, "A subtask cannot have children.")
+    try:
+        issue_service.create_issue(
+            session,
+            parent.project_id,
+            type=child_type,
+            title=title,
+            parent_id=parent.id,
+            reporter_id=(
+                None if chrome.current_user is None else chrome.current_user.id
+            ),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)

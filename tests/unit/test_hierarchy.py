@@ -6,7 +6,7 @@ from keel.domain.errors import (
     InvalidParentTypeError,
     ParentCycleError,
 )
-from keel.domain.hierarchy import IssueRef, check_children, check_parent
+from keel.domain.hierarchy import IssueRef, check_children, check_parent, child_type_of
 
 EPIC = IssueType.EPIC
 STORY = IssueType.STORY
@@ -77,6 +77,12 @@ def test_an_unsaved_issue_has_no_cycle_to_close() -> None:
 def test_a_type_change_is_refused_by_existing_children() -> None:
     with pytest.raises(InvalidParentTypeError):
         check_children(EPIC, [SUBTASK])
+
+
+def test_child_type_follows_the_parent_rules() -> None:
+    assert child_type_of(EPIC) is STORY
+    assert child_type_of(STORY) is SUBTASK
+    assert child_type_of(SUBTASK) is None
 
 
 def test_a_type_change_its_children_allow_is_accepted() -> None:

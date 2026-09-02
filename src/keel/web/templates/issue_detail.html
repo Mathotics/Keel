@@ -144,6 +144,13 @@
           {% endfor %}
         </tbody>
       </table>
+      {% if child_type %}
+      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/children">
+        <label class="keel-visually-hidden" for="issue-child-title">{{ child_type | label }} title</label>
+        <input id="issue-child-title" name="title" type="text" maxlength="300" required placeholder="What needs doing?"/>
+        <button class="keel-primary" type="submit">Add {{ child_type | label }}</button>
+      </form>
+      {% endif %}
 
       <h2>Dependencies</h2>
       <h3>Blocks</h3>

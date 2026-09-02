@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from keel.domain.enums import statuses_in_workflow_order, types_in_hierarchy_order
+from keel.domain.hierarchy import child_type_of
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
@@ -51,6 +52,7 @@ def issue_page(
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
             issue_types=types_in_hierarchy_order(),
+            child_type=child_type_of(issue.type),
             parents=[
                 candidate
                 for candidate in issue_service.list_issues(session, project.id)

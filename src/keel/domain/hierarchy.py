@@ -68,6 +68,14 @@ def check_parent(
         )
 
 
+def child_type_of(parent_type: IssueType) -> IssueType | None:
+    """The type that may sit directly under this parent, or none if none may."""
+    for child, parent in PARENT_TYPE.items():
+        if parent is parent_type:
+            return child
+    return None
+
+
 def check_children(new_type: IssueType, child_types: Iterable[IssueType]) -> None:
     """Guard a type change against the children the issue already has."""
     for child_type in child_types:

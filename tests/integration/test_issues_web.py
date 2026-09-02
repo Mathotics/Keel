@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from fastapi.testclient import TestClient
@@ -178,6 +179,112 @@ def test_the_issue_page_shows_its_children(
     page = client.get("/issues/KEEL-1")
     assert "KEEL-2" in page.text
     assert "Story" in page.text
+
+
+def test_a_child_can_be_created_from_an_epic_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    page = client.get("/issues/KEEL-1")
+    assert ">Add Story<" in page.text
+    assert "/web/issues/" in page.text and "/children" in page.text
+    assert ">Add Subtask<" not in page.text
+
+    created = client.post(
+        f"/web/issues/{epic_id}/children",
+        data={"title": "First story"},
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    assert created.headers["location"] == "/issues/KEEL-1"
+    parent = client.get("/issues/KEEL-1")
+    assert "KEEL-2" in parent.text
+    assert "First story" in parent.text
+    issues = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    child = next(item for item in issues if item["title"] == "First story")
+    assert child["type"] == "story"
+    assert child["parent_id"] == epic_id
+
+
+def test_a_child_can_be_created_from_a_story_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    submit_issue(client, project, title="Story", parent_id=str(epic_id))
+    story_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[1]["id"]
+
+    page = client.get("/issues/KEEL-2")
+    assert ">Add Subtask<" in page.text
+    assert ">Add Story<" not in page.text
+
+    created = client.post(
+        f"/web/issues/{story_id}/children",
+        data={"title": "A cut"},
+        follow_redirects=False,
+    )
+    assert created.headers["location"] == "/issues/KEEL-2"
+    issues = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    child = next(item for item in issues if item["title"] == "A cut")
+    assert child["type"] == "subtask"
+    assert child["parent_id"] == story_id
+    assert "A cut" in client.get("/issues/KEEL-2").text
+
+
+def test_a_subtask_page_has_no_child_form(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    submit_issue(client, project, title="Story", parent_id=str(epic_id))
+    story_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[1]["id"]
+    submit_issue(
+        client,
+        project,
+        type="subtask",
+        title="Cut",
+        parent_id=str(story_id),
+    )
+    subtask_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[2]["id"]
+
+    page = client.get("/issues/KEEL-3")
+    assert "/children" not in page.text
+    assert ">Add Story<" not in page.text
+    assert ">Add Subtask<" not in page.text
+
+    refused = client.post(
+        f"/web/issues/{subtask_id}/children",
+        data={"title": "Too deep"},
+        follow_redirects=False,
+    )
+    assert refused.status_code == 303
+    message = parse_qs(urlparse(refused.headers["location"]).query)["error"][0]
+    assert "cannot have children" in message
+    remaining = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    assert remaining[-1]["title"] == "Cut"
+    assert all(item["title"] != "Too deep" for item in remaining)
+
+
+def test_a_blank_child_title_returns_to_the_issue(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    response = client.post(
+        f"/web/issues/{epic_id}/children",
+        data={"title": "  "},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    message = parse_qs(urlparse(response.headers["location"]).query)["error"][0]
+    assert "title" in message.lower()
+    assert len(client.get(f"/api/v1/projects/{project['id']}/issues").json()) == 1
 
 
 def test_an_illegal_parent_returns_to_the_form_with_the_message(
