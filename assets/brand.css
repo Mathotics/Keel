@@ -388,7 +388,8 @@ body {
 
 .keel-card__key,
 .keel-card__title,
-.keel-card__meta {
+.keel-card__meta,
+.keel-card__estimate {
   margin: 0 0 0.35rem;
 }
 
@@ -406,6 +407,32 @@ body {
   justify-content: space-between;
   gap: 0.5rem;
   font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.keel-card__estimate {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.keel-rollup {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+}
+
+.keel-comment {
+  margin: 0 0 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--keel-blue);
+}
+
+.keel-comment__meta,
+.keel-comment__body {
+  margin: 0 0 0.35rem;
+}
+
+.keel-comment__meta {
+  font-size: 0.8125rem;
   opacity: 0.8;
 }
 

@@ -63,6 +63,14 @@
           <label for="issue-due">Due date</label>
           <input id="issue-due" name="due_at" type="datetime-local"/>
         </p>
+        <p>
+          <label for="issue-estimate">Estimate</label>
+          <input id="issue-estimate" name="estimate" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
+        </p>
+        <p>
+          <label for="issue-remaining">Remaining</label>
+          <input id="issue-remaining" name="remaining" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
+        </p>
         {% if current_user %}
         <input type="hidden" name="reporter_id" value="{{ current_user.id }}"/>
         {% endif %}

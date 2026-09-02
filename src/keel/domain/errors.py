@@ -64,6 +64,16 @@ class InvalidIssueError(DomainError):
     status_code = 422
 
 
+class InvalidDurationError(DomainError):
+    code = "issue.invalid_duration"
+    status_code = 422
+
+
+class InvalidCommentError(DomainError):
+    code = "comment.invalid"
+    status_code = 422
+
+
 class InvalidParentTypeError(DomainError):
     code = "issue.invalid_parent_type"
 

@@ -227,6 +227,80 @@ def test_an_unreferenced_user_can_still_be_deleted(session: Session) -> None:
         user_service.get_user(session, user.id)
 
 
+def test_effort_is_stored_as_minutes(session: Session, project: Project) -> None:
+    issue = issue_service.get_issue(
+        session,
+        make(session, project, estimate_minutes=90),
+    )
+    assert issue.estimate_minutes == 90
+    assert issue.remaining_minutes == 90
+
+    updated = issue_service.update_issue(
+        session,
+        issue.id,
+        remaining_minutes=45,
+        estimate_minutes=120,
+    )
+    assert updated.estimate_minutes == 120
+    assert updated.remaining_minutes == 45
+
+    cleared = issue_service.update_issue(session, issue.id, estimate_minutes=None)
+    assert cleared.estimate_minutes is None
+    assert cleared.remaining_minutes == 45
+
+
+def test_remaining_stays_unset_when_there_is_no_estimate(
+    session: Session,
+    project: Project,
+) -> None:
+    issue = issue_service.get_issue(session, make(session, project))
+    assert issue.estimate_minutes is None
+    assert issue.remaining_minutes is None
+
+
+def test_negative_effort_is_refused(session: Session, project: Project) -> None:
+    with pytest.raises(InvalidIssueError):
+        make(session, project, estimate_minutes=-1)
+
+
+def test_rollup_covers_the_issue_and_its_descendants(
+    session: Session,
+    project: Project,
+) -> None:
+    epic = make(session, project, IssueType.EPIC, "Epic", estimate_minutes=120)
+    story = make(
+        session,
+        project,
+        IssueType.STORY,
+        "Story",
+        parent_id=epic,
+        estimate_minutes=60,
+        remaining_minutes=30,
+    )
+    make(
+        session,
+        project,
+        IssueType.SUBTASK,
+        "Done",
+        parent_id=story,
+        estimate_minutes=30,
+        remaining_minutes=0,
+    )
+    issue_service.update_issue(
+        session,
+        issue_service.list_children(session, story)[0].id,
+        status=IssueStatus.DONE,
+    )
+
+    rollup = issue_service.issue_rollup(session, epic)
+    assert rollup.estimate_minutes == 210
+    assert rollup.remaining_minutes == 150
+    assert rollup.descendants == 2
+    assert rollup.descendants_done == 1
+    own = issue_service.get_issue(session, epic)
+    assert own.estimate_minutes == 120
+
+
 def test_filters_narrow_the_list(session: Session, project: Project) -> None:
     epic = make(session, project, IssueType.EPIC, "Epic")
     story = make(session, project, IssueType.STORY, "Story", parent_id=epic)

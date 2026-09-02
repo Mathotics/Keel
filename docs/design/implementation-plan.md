@@ -81,6 +81,8 @@ Done when links can be created and removed across projects, a link that would cl
 
 ## Phase 5 — Comments, effort, and rollups
 
+**Status: done.**
+
 * Comment model, service, JSON routes, and the thread with its form on the issue detail page, authored by the acting user.
 * Duration parsing and formatting in `keel/domain/duration.py` for the `2h`, `90m`, `1h 30m`, and `1d` forms.
 * Estimate and remaining fields on the issue forms, stored as minutes.

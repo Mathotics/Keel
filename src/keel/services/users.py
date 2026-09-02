@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Issue, User
+from keel.db.models import Comment, Issue, User
 from keel.domain.errors import (
     DuplicateUserNameError,
     InvalidUserNameError,
@@ -67,17 +67,27 @@ def delete_user(session: Session, user_id: int) -> None:
 
 def _reject_while_referenced(session: Session, user: User) -> None:
     """A tool with no undo must not quietly orphan an issue's reporter."""
-    referencing = session.scalars(
+    issues = session.scalars(
         select(Issue).where(
             (Issue.reporter_id == user.id) | (Issue.assignee_id == user.id),
         ),
     ).all()
-    if referencing:
-        raise UserInUseError(
-            f"{user.display_name} is still named on {len(referencing)} issue(s).",
-            user_id=user.id,
-            issues=len(referencing),
-        )
+    comments = session.scalars(
+        select(Comment).where(Comment.author_id == user.id),
+    ).all()
+    if not issues and not comments:
+        return
+    named = []
+    if issues:
+        named.append(f"{len(issues)} issue(s)")
+    if comments:
+        named.append(f"{len(comments)} comment(s)")
+    raise UserInUseError(
+        f"{user.display_name} is still named on {' and '.join(named)}.",
+        user_id=user.id,
+        issues=len(issues),
+        comments=len(comments),
+    )
 
 
 def ensure_default_user(session: Session, preferred: str | None) -> User:

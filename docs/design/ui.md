@@ -50,6 +50,10 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/issues/{issue_id}/parent` | The issue page's parent |
 | `POST` | `/web/issues/{issue_id}/due` | The issue detail page's due date |
 | `POST` | `/web/issues/{issue_id}/assignee` | The issue detail page's assignee |
+| `POST` | `/web/issues/{issue_id}/estimate` | The issue page's estimate |
+| `POST` | `/web/issues/{issue_id}/remaining` | The issue page's remaining time |
+| `POST` | `/web/issues/{issue_id}/comments` | The issue page's add-comment form |
+| `POST` | `/web/comments/{comment_id}/delete` | A Remove control on a comment |
 | `POST` | `/web/issues/{issue_id}/delete` | The issue detail page |
 | `POST` | `/web/users` | The users page |
 | `POST` | `/web/users/{user_id}/rename` | The users page |
@@ -79,7 +83,7 @@ The sprints page lists a project's sprints grouped by state, with a form to plan
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are still created on a dedicated form.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are still created on a dedicated form. Adding a comment is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 

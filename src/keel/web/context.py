@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import User
 from keel.db.session import get_session
+from keel.domain.duration import format_minutes
 from keel.domain.enums import label
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
@@ -36,7 +37,15 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["when"] = format_when
     templates.env.filters["datetime_local"] = datetime_local
     templates.env.filters["day"] = format_day
+    templates.env.filters["duration"] = format_duration
     return templates
+
+
+def format_duration(value: int | None) -> str:
+    """Shorthand effort for templates; unset stays blank."""
+    if value is None:
+        return ""
+    return format_minutes(value)
 
 
 def format_when(value: datetime | None) -> str:

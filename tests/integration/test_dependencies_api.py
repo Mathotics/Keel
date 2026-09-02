@@ -175,9 +175,9 @@ def test_the_board_and_issue_report_unresolved_blockers(
     }
     assert by_title["Waiting"] == 1
     assert by_title["Blocker"] == 0
-    assert client.get(f"/api/v1/issues/{waiting['id']}").json()[
-        "unresolved_blockers"
-    ] == 1
+    assert (
+        client.get(f"/api/v1/issues/{waiting['id']}").json()["unresolved_blockers"] == 1
+    )
 
     client.patch(f"/api/v1/issues/{blocker['id']}", json={"status": "done"})
     backlog = client.get(f"/api/v1/projects/{project_id}/backlog").json()

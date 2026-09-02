@@ -18,7 +18,12 @@ router = APIRouter(tags=["issues"])
 def _read(session: Session, issue: Issue) -> IssueRead:
     project = project_service.get_project(session, issue.project_id)
     counts = dependency_service.unresolved_blocker_counts(session, (issue.id,))
-    return IssueRead.of(issue, project, counts.get(issue.id, 0))
+    return IssueRead.of(
+        issue,
+        project,
+        counts.get(issue.id, 0),
+        issue_service.issue_rollup(session, issue.id),
+    )
 
 
 def _reads(
@@ -83,6 +88,8 @@ def create_issue(
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
         due_at=payload.due_at,
+        estimate_minutes=payload.estimate_minutes,
+        remaining_minutes=payload.remaining_minutes,
     )
     return _read(session, issue)
 
@@ -120,6 +127,16 @@ def update_issue(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),
         due_at=payload.due_at if "due_at" in supplied else issue_service.UNSET,
+        estimate_minutes=(
+            payload.estimate_minutes
+            if "estimate_minutes" in supplied
+            else issue_service.UNSET
+        ),
+        remaining_minutes=(
+            payload.remaining_minutes
+            if "remaining_minutes" in supplied
+            else issue_service.UNSET
+        ),
     )
     return _read(session, issue)
 

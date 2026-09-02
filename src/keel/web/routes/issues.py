@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from keel.domain.enums import statuses_in_workflow_order, types_in_hierarchy_order
+from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
@@ -44,6 +45,8 @@ def issue_page(
             issue_key=issue_service.issue_key(issue, project),
             children=issue_service.list_children(session, issue.id),
             dependencies=dependency_service.list_for_issue(session, issue.id),
+            comments=_comment_views(session, issue.id),
+            rollup=issue_service.issue_rollup(session, issue.id),
             candidates=candidates,
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
@@ -63,6 +66,23 @@ def issue_page(
 def edit_issue_page(key: str) -> RedirectResponse:
     """Editing happens on the issue page; keep old /edit URLs working."""
     return RedirectResponse(url=f"/issues/{key}", status_code=303)
+
+
+def _comment_views(session: Session, issue_id: int) -> list[dict[str, object]]:
+    names = {
+        person.id: person.display_name for person in user_service.list_users(session)
+    }
+    return [
+        {
+            "id": comment.id,
+            "body": comment.body,
+            "created_at": comment.created_at,
+            "author_name": names.get(comment.author_id, "None")
+            if comment.author_id is not None
+            else "None",
+        }
+        for comment in comment_service.list_comments(session, issue_id)
+    ]
 
 
 def _named(session: Session, user_id: int | None, empty: str) -> str:

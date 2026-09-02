@@ -173,6 +173,7 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `issue.parent_cycle` | 409 | The assignment would make an issue its own ancestor |
 | `issue.has_children` | 409 | Deleting an issue that still has children |
 | `issue.invalid_duration` | 422 | Effort shorthand could not be parsed |
+| `comment.invalid` | 422 | A comment body is blank |
 | `sprint.already_active` | 409 | Starting a sprint while another is active in the project |
 | `sprint.invalid_transition` | 409 | A state change other than planned to active or active to completed |
 | `sprint.project_mismatch` | 409 | Scheduling an issue into another project's sprint |
@@ -204,6 +205,10 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/sprints/{sprint_id}/complete` | Complete a sprint |
 | `POST` | `/web/issues/{issue_id}/dependencies` | Add a blocks, blocked-by, or relates-to link |
 | `POST` | `/web/dependencies/{dependency_id}/delete` | Remove a link |
+| `POST` | `/web/issues/{issue_id}/estimate` | The issue page's estimate |
+| `POST` | `/web/issues/{issue_id}/remaining` | The issue page's remaining time |
+| `POST` | `/web/issues/{issue_id}/comments` | Add a comment |
+| `POST` | `/web/comments/{comment_id}/delete` | Remove a comment |
 
 Ordinary creation and editing forms post to the resource's own web route and are listed in the [UI design](ui.md).
 

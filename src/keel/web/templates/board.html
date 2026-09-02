@@ -17,6 +17,9 @@
                     <span>{{ card.issue.type | label }}</span>
                     <span>{{ card.assignee_name or "Unassigned" }}</span>
                   </p>
+                  {% if card.issue.estimate_minutes is not none %}
+                  <p class="keel-card__estimate">{{ card.issue.estimate_minutes | duration }}</p>
+                  {% endif %}
                   {% if card.unresolved_blockers %}
                   <p class="keel-card__blockers keel-blockers" title="{{ card.unresolved_blockers }} unresolved blocker{% if card.unresolved_blockers != 1 %}s{% endif %}">{{ card.unresolved_blockers }} blocker{% if card.unresolved_blockers != 1 %}s{% endif %}</p>
                   {% endif %}

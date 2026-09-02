@@ -218,6 +218,19 @@ def test_a_move_survives_a_reload(client: TestClient, project: Json) -> None:
     assert "Ready" in blocked
 
 
+def test_the_board_shows_an_issue_own_estimate(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Sized", "estimate_minutes": 90},
+    )
+    page = client.get("/projects/KEEL/board")
+    assert "1h 30m" in page.text
+    assert "keel-card__estimate" in page.text
+
+
 def test_the_project_page_links_to_the_board(
     client: TestClient,
     project: Json,

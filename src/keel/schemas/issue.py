@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from keel.db.models import Issue, Project
 from keel.domain.enums import INITIAL_STATUS, IssueStatus, IssueType
+from keel.domain.rollup import Rollup
 
 
 class IssueCreate(BaseModel):
@@ -15,6 +16,8 @@ class IssueCreate(BaseModel):
     parent_id: int | None = None
     sprint_id: int | None = None
     assignee_id: int | None = None
+    estimate_minutes: int | None = Field(default=None, ge=0)
+    remaining_minutes: int | None = Field(default=None, ge=0)
     due_at: datetime | None = None
 
 
@@ -33,7 +36,25 @@ class IssueUpdate(BaseModel):
     parent_id: int | None = None
     sprint_id: int | None = None
     assignee_id: int | None = None
+    estimate_minutes: int | None = Field(default=None, ge=0)
+    remaining_minutes: int | None = Field(default=None, ge=0)
     due_at: datetime | None = None
+
+
+class RollupRead(BaseModel):
+    estimate_minutes: int | None
+    remaining_minutes: int | None
+    descendants: int
+    descendants_done: int
+
+    @classmethod
+    def of(cls, rollup: Rollup) -> "RollupRead":
+        return cls(
+            estimate_minutes=rollup.estimate_minutes,
+            remaining_minutes=rollup.remaining_minutes,
+            descendants=rollup.descendants,
+            descendants_done=rollup.descendants_done,
+        )
 
 
 class IssueRead(BaseModel):
@@ -55,6 +76,7 @@ class IssueRead(BaseModel):
     remaining_minutes: int | None
     due_at: datetime | None
     unresolved_blockers: int
+    rollup: RollupRead | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -64,6 +86,7 @@ class IssueRead(BaseModel):
         issue: Issue,
         project: Project,
         unresolved_blockers: int = 0,
+        rollup: Rollup | None = None,
     ) -> "IssueRead":
         return cls(
             id=issue.id,
@@ -82,6 +105,7 @@ class IssueRead(BaseModel):
             remaining_minutes=issue.remaining_minutes,
             due_at=issue.due_at,
             unresolved_blockers=unresolved_blockers,
+            rollup=None if rollup is None else RollupRead.of(rollup),
             created_at=issue.created_at,
             updated_at=issue.updated_at,
         )

@@ -175,6 +175,8 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert 'value="todo" selected' in page.text or 'value="todo"selected' in page.text
     assert 'name="assignee_id"' in page.text
     assert 'name="sprint_id"' in page.text
+    assert 'name="estimate"' in page.text
+    assert 'name="remaining"' in page.text
     assert "data-keel-autosubmit" in page.text
     assert "keel-autosubmit__fallback" in page.text
 
@@ -341,3 +343,52 @@ def test_the_project_list_shows_due_and_created(
     page = client.get("/projects/KEEL")
     assert "Due date" in page.text
     assert "Created on" in page.text
+
+
+def test_effort_round_trips_through_shorthand(
+    client: TestClient,
+    project: Json,
+) -> None:
+    location = submit_issue(client, project, title="Sized", estimate="1h 30m")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    page = client.get(location)
+    assert 'value="1h 30m"' in page.text
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["estimate_minutes"] == 90
+
+    saved = client.post(
+        f"/web/issues/{issue_id}/remaining",
+        data={"remaining": "45m"},
+        follow_redirects=False,
+    )
+    assert saved.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["remaining_minutes"] == 45
+    assert 'value="45m"' in client.get("/issues/KEEL-1").text
+
+    refused = client.post(
+        f"/web/issues/{issue_id}/estimate",
+        data={"estimate": "1h30"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/issues/KEEL-1?error=")
+
+
+def test_an_epic_page_shows_subtree_progress(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic", estimate="2h")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    submit_issue(
+        client,
+        project,
+        type="story",
+        title="Story",
+        parent_id=str(epic_id),
+        estimate="1h",
+    )
+    story_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[1]["id"]
+    client.patch(f"/api/v1/issues/{story_id}", json={"status": "done"})
+
+    page = client.get("/issues/KEEL-1")
+    assert "Including descendants: 3h estimate, 3h remaining. 1 of 1 done." in page.text
+    assert 'value="2h"' in page.text

@@ -71,6 +71,14 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "kind",
         "created_at",
     }
+    comments = {column["name"] for column in inspect(engine).get_columns("comments")}
+    assert comments == {
+        "id",
+        "issue_id",
+        "author_id",
+        "body",
+        "created_at",
+    }
 
 
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:

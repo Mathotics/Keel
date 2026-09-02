@@ -4,15 +4,17 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
 
+from keel.domain.duration import parse_duration
 from keel.domain.enums import DependencyKind, IssueStatus, IssueType
 from keel.domain.errors import DomainError
+from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE
-from keel.web.context import SessionDep
+from keel.web.context import ChromeDep, SessionDep
 
 router = APIRouter(prefix="/web")
 
@@ -134,6 +136,8 @@ def create_issue(
     reporter_id: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
     sprint_id: Annotated[str, Form()] = "",
+    estimate: Annotated[str, Form()] = "",
+    remaining: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     key = project_service.get_project(session, project_id).key
     try:
@@ -149,6 +153,8 @@ def create_issue(
             assignee_id=_optional_id(assignee_id),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
+            estimate_minutes=parse_duration(estimate),
+            remaining_minutes=parse_duration(remaining),
         )
     except DomainError as exc:
         session.rollback()
@@ -219,6 +225,44 @@ def update_issue_parent(
             session,
             issue_id,
             parent_id=_optional_id(parent_id),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/estimate")
+def update_issue_estimate(
+    session: SessionDep,
+    issue_id: int,
+    estimate: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            estimate_minutes=parse_duration(estimate),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/remaining")
+def update_issue_remaining(
+    session: SessionDep,
+    issue_id: int,
+    remaining: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            remaining_minutes=parse_duration(remaining),
         )
     except DomainError as exc:
         session.rollback()
@@ -346,6 +390,43 @@ def delete_issue_dependency(
     here = return_to or _issue_here(session, dependency.source_id)
     try:
         dependency_service.delete_dependency(session, dependency_id)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/comments")
+def create_issue_comment(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    body: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        comment_service.create_comment(
+            session,
+            issue_id,
+            body,
+            author_id=None if chrome.current_user is None else chrome.current_user.id,
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/comments/{comment_id}/delete")
+def delete_issue_comment(
+    session: SessionDep,
+    comment_id: int,
+    return_to: Annotated[str, Form(alias="next")] = "",
+) -> RedirectResponse:
+    comment = comment_service.get_comment(session, comment_id)
+    here = return_to or _issue_here(session, comment.issue_id)
+    try:
+        comment_service.delete_comment(session, comment_id)
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)

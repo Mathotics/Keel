@@ -91,6 +91,25 @@
             <button class="keel-autosubmit__fallback" type="submit">Save</button>
           </form>
         </dd>
+        <dt>Estimate</dt>
+        <dd>
+          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit>
+            <label class="keel-visually-hidden" for="issue-estimate">Estimate</label>
+            <input id="issue-estimate" name="estimate" type="text" value="{{ issue.estimate_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+            <button class="keel-autosubmit__fallback" type="submit">Save</button>
+          </form>
+        </dd>
+        <dt>Remaining</dt>
+        <dd>
+          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit>
+            <label class="keel-visually-hidden" for="issue-remaining">Remaining</label>
+            <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+            <button class="keel-autosubmit__fallback" type="submit">Save</button>
+          </form>
+          {% if rollup.descendants %}
+          <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.descendants_done }} of {{ rollup.descendants }} done.</p>
+          {% endif %}
+        </dd>
         <dt>Created on</dt><dd>{{ issue.created_at | when }}</dd>
         <dt>Updated on</dt><dd>{{ issue.updated_at | when }}</dd>
       </dl>
@@ -225,6 +244,27 @@
       {% else %}
       <p>No other issues to link.</p>
       {% endif %}
+
+      <h2>Comments</h2>
+      {% for comment in comments %}
+      <article class="keel-comment">
+        <p class="keel-comment__meta">{{ comment.author_name }} · {{ comment.created_at | when }}</p>
+        <p class="keel-comment__body">{{ comment.body }}</p>
+        <form class="keel-form keel-form--inline" method="post" action="/web/comments/{{ comment.id }}/delete">
+          <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+          <button type="submit">Remove</button>
+        </form>
+      </article>
+      {% else %}
+      <p>No comments yet.</p>
+      {% endfor %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
+        <p>
+          <label for="issue-comment">Comment</label>
+          <textarea id="issue-comment" name="body" rows="3" required></textarea>
+        </p>
+        <p><button type="submit">Add comment</button></p>
+      </form>
 
       <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?');">

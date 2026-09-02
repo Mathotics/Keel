@@ -49,10 +49,13 @@ def test_the_issue_page_lists_grouped_dependencies(
     assert "Foreign" in page.text
     assert ">Add<" in page.text
     assert 'name="relation"' in page.text
-    assert "data-keel-autosubmit" not in page.text.split("Dependencies", 1)[1].split(
-        "Delete issue",
-        1,
-    )[0]
+    assert (
+        "data-keel-autosubmit"
+        not in page.text.split("Dependencies", 1)[1].split(
+            "Delete issue",
+            1,
+        )[0]
+    )
 
 
 def test_a_blocks_link_can_be_added_from_the_issue_page(
@@ -105,9 +108,10 @@ def test_an_empty_choice_returns_to_the_issue_with_the_message(
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert "Choose an issue" in parse_qs(urlparse(response.headers["location"]).query)[
-        "error"
-    ][0]
+    assert (
+        "Choose an issue"
+        in parse_qs(urlparse(response.headers["location"]).query)["error"][0]
+    )
 
 
 def test_an_unknown_relation_returns_to_the_issue_with_the_message(
@@ -123,9 +127,12 @@ def test_an_unknown_relation_returns_to_the_issue_with_the_message(
         follow_redirects=False,
     )
     assert response.status_code == 303
-    assert "not a valid dependency kind" in parse_qs(
-        urlparse(response.headers["location"]).query,
-    )["error"][0]
+    assert (
+        "not a valid dependency kind"
+        in parse_qs(
+            urlparse(response.headers["location"]).query,
+        )["error"][0]
+    )
 
 
 def test_a_cycle_returns_to_the_issue_with_the_message(

@@ -19,6 +19,7 @@ from keel.domain.errors import (
     SprintProjectMismatchError,
 )
 from keel.domain.hierarchy import IssueRef, check_children, check_parent
+from keel.domain.rollup import EffortNode, Rollup, compute_rollup
 from keel.services import projects as project_service
 
 MAX_TITLE_LENGTH = 300
@@ -115,8 +116,14 @@ def create_issue(
     assignee_id: int | None = None,
     due_at: datetime | None = None,
     sprint_id: int | None = None,
+    estimate_minutes: int | None = None,
+    remaining_minutes: int | None = None,
 ) -> Issue:
     project = project_service.get_project(session, project_id)
+    _check_minutes(estimate_minutes)
+    _check_minutes(remaining_minutes)
+    if remaining_minutes is None:
+        remaining_minutes = estimate_minutes
     issue = Issue(
         project_id=project.id,
         number=project_service.next_issue_number(session, project),
@@ -127,6 +134,8 @@ def create_issue(
         reporter_id=reporter_id,
         assignee_id=assignee_id,
         due_at=due_at,
+        estimate_minutes=estimate_minutes,
+        remaining_minutes=remaining_minutes,
     )
     _assign_parent(session, issue, parent_id)
     _assign_sprint(session, issue, sprint_id)
@@ -147,6 +156,8 @@ def update_issue(
     assignee_id: int | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
     sprint_id: int | None | object = UNSET,
+    estimate_minutes: int | None | object = UNSET,
+    remaining_minutes: int | None | object = UNSET,
 ) -> Issue:
     """Nullable fields accept None as "clear it", so they use UNSET."""
     issue = get_issue(session, issue_id)
@@ -170,6 +181,12 @@ def update_issue(
         issue.due_at = due_at  # type: ignore[assignment]
     if sprint_id is not UNSET:
         _assign_sprint(session, issue, sprint_id)  # type: ignore[arg-type]
+    if estimate_minutes is not UNSET:
+        _check_minutes(estimate_minutes)  # type: ignore[arg-type]
+        issue.estimate_minutes = estimate_minutes  # type: ignore[assignment]
+    if remaining_minutes is not UNSET:
+        _check_minutes(remaining_minutes)  # type: ignore[arg-type]
+        issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
 
     session.flush()
     return issue
@@ -186,6 +203,21 @@ def delete_issue(session: Session, issue_id: int) -> None:
         )
     session.delete(issue)
     session.flush()
+
+
+def issue_rollup(session: Session, issue_id: int) -> Rollup:
+    """Subtree totals for one issue, loaded with a recursive parent walk."""
+    issue = get_issue(session, issue_id)
+    nodes = [
+        EffortNode(
+            id=item.id,
+            estimate_minutes=item.estimate_minutes,
+            remaining_minutes=item.remaining_minutes,
+            status=item.status,
+        )
+        for item in _load_subtree(session, issue.id)
+    ]
+    return compute_rollup(issue.id, nodes)
 
 
 def ancestor_ids(session: Session, issue_id: int) -> list[int]:
@@ -253,6 +285,21 @@ def _apply_filters(
     return query
 
 
+def _load_subtree(session: Session, root_id: int) -> Sequence[Issue]:
+    tree = (
+        select(Issue.id)
+        .where(Issue.id == root_id)
+        .cte(
+            name="issue_tree",
+            recursive=True,
+        )
+    )
+    tree = tree.union_all(select(Issue.id).where(Issue.parent_id == tree.c.id))
+    return session.scalars(
+        select(Issue).where(Issue.id.in_(select(tree.c.id))).order_by(Issue.id),
+    ).all()
+
+
 def parse_due_at(raw: str) -> datetime | None:
     """Read a datetime-local or ISO string. Blank means no due date."""
     cleaned = raw.strip()
@@ -272,3 +319,8 @@ def _clean_title(title: str) -> str:
     if not cleaned:
         raise InvalidIssueError("An issue needs a title.")
     return cleaned[:MAX_TITLE_LENGTH]
+
+
+def _check_minutes(value: int | None) -> None:
+    if value is not None and value < 0:
+        raise InvalidIssueError("Effort cannot be negative.")

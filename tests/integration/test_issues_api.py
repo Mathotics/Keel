@@ -226,6 +226,69 @@ def test_a_due_date_round_trips_over_json(
     assert cleared["due_at"] is None
 
 
+def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> None:
+    issue = create_issue(client, project_id, estimate_minutes=90)
+    assert issue["estimate_minutes"] == 90
+    assert issue["remaining_minutes"] == 90
+    assert issue["rollup"]["estimate_minutes"] == 90
+    assert issue["rollup"]["descendants"] == 0
+
+    listed = client.get(f"/api/v1/projects/{project_id}/issues").json()
+    assert listed[0]["rollup"] is None
+
+    updated = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"remaining_minutes": 30},
+    ).json()
+    assert updated["remaining_minutes"] == 30
+    assert updated["estimate_minutes"] == 90
+
+    cleared = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"estimate_minutes": None},
+    ).json()
+    assert cleared["estimate_minutes"] is None
+
+
+def test_an_epic_reports_subtree_rollup(client: TestClient, project_id: int) -> None:
+    epic = create_issue(
+        client,
+        project_id,
+        type="epic",
+        title="Epic",
+        estimate_minutes=120,
+    )
+    story = create_issue(
+        client,
+        project_id,
+        type="story",
+        title="Story",
+        parent_id=epic["id"],
+        estimate_minutes=60,
+        remaining_minutes=30,
+    )
+    create_issue(
+        client,
+        project_id,
+        type="subtask",
+        title="Done",
+        parent_id=story["id"],
+        estimate_minutes=30,
+        remaining_minutes=0,
+    )
+    subtask = client.get(f"/api/v1/issues/{story['id']}/children").json()[0]
+    client.patch(f"/api/v1/issues/{subtask['id']}", json={"status": "done"})
+
+    body = client.get(f"/api/v1/issues/{epic['id']}").json()
+    assert body["estimate_minutes"] == 120
+    assert body["rollup"] == {
+        "estimate_minutes": 210,
+        "remaining_minutes": 150,
+        "descendants": 2,
+        "descendants_done": 1,
+    }
+
+
 def test_created_at_cannot_be_patched(client: TestClient, project_id: int) -> None:
     issue = create_issue(client, project_id)
     response = client.patch(
