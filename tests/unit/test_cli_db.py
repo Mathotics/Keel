@@ -104,3 +104,129 @@ def test_db_help_exits_zero() -> None:
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["db", "--help"])
     assert excinfo.value.code == 0
+
+
+def test_backup_copies_the_live_file_and_prints_paths(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cli.db_upgrade()
+    dest = tmp_path / "copy.db"
+    assert cli.main(["db", "backup", str(dest)]) == 0
+    out = capsys.readouterr().out
+    live = tmp_path / "cli.db"
+    assert str(live) in out
+    assert str(dest) in out
+    assert dest.is_file()
+
+
+def test_backup_default_is_a_timestamped_sibling(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+) -> None:
+    cli.db_upgrade()
+    assert cli.main(["db", "backup"]) == 0
+    copies = list(tmp_path.glob("cli-*.db"))
+    assert len(copies) == 1
+    assert copies[0].name.startswith("cli-")
+
+
+def test_backup_refuses_when_the_live_file_is_missing(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert cli.main(["db", "backup"]) == 1
+    err = capsys.readouterr().err
+    assert "No database at" in err
+    assert str(tmp_path / "cli.db") in err
+
+
+def test_backup_refuses_an_existing_destination_without_yes(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cli.db_upgrade()
+    dest = tmp_path / "copy.db"
+    assert cli.main(["db", "backup", str(dest)]) == 0
+    capsys.readouterr()
+    assert cli.main(["db", "backup", str(dest)]) == 1
+    assert "--yes" in capsys.readouterr().err
+    assert cli.main(["db", "backup", "-y", str(dest)]) == 0
+
+
+def test_backup_refuses_a_non_file_url(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    settings = KeelSettings(_env_file=None, database_url="sqlite://")
+    monkeypatch.setattr("keel.cli.get_settings", lambda: settings)
+    assert cli.main(["db", "backup"]) == 1
+    assert "only to a SQLite file" in capsys.readouterr().err
+
+
+def test_restore_puts_the_copy_back(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cli.db_upgrade()
+    dest = tmp_path / "copy.db"
+    assert cli.main(["db", "backup", str(dest)]) == 0
+    capsys.readouterr()
+    assert cli.main(["db", "restore", "--yes", str(dest)]) == 0
+    out = capsys.readouterr().out
+    assert str(dest) in out
+    assert str(tmp_path / "cli.db") in out
+
+
+def test_restore_without_a_live_file_does_not_need_yes(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+) -> None:
+    cli.db_upgrade()
+    dest = tmp_path / "copy.db"
+    assert cli.main(["db", "backup", str(dest)]) == 0
+    (tmp_path / "cli.db").unlink()
+    assert cli.main(["db", "restore", str(dest)]) == 0
+    assert (tmp_path / "cli.db").is_file()
+
+
+def test_restore_refuses_an_existing_live_file_without_yes(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    cli.db_upgrade()
+    dest = tmp_path / "copy.db"
+    assert cli.main(["db", "backup", str(dest)]) == 0
+    capsys.readouterr()
+    assert cli.main(["db", "restore", str(dest)]) == 1
+    err = capsys.readouterr().err
+    assert "--yes" in err
+    assert str(tmp_path / "cli.db") in err
+
+
+def test_restore_refuses_a_missing_source(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing = tmp_path / "missing.db"
+    assert cli.main(["db", "restore", str(missing)]) == 1
+    err = capsys.readouterr().err
+    assert "No backup at" in err
+    assert str(missing) in err
+
+
+def test_restore_refuses_a_non_sqlite_source(
+    db_settings: KeelSettings,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    junk = tmp_path / "junk.db"
+    junk.write_text("not a database", encoding="utf-8")
+    assert cli.main(["db", "restore", str(junk)]) == 1
+    assert "Not a SQLite database" in capsys.readouterr().err

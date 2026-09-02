@@ -49,6 +49,15 @@ keel db upgrade
 keel db revision -m "describe the change"
 ```
 
+Copy the live database to a timestamped file next to it (or to a path you name). Restore a chosen file over the live database; `--yes` is required when that would overwrite an existing file. Both commands may run while `keel serve` is up; restart serve after a restore so it is not holding the old file.
+
+```powershell
+keel db backup
+keel db backup path/to/copy.db
+keel db restore path/to/copy.db
+keel db restore --yes path/to/copy.db
+```
+
 ## Run
 
 ```powershell
@@ -98,7 +107,7 @@ Keel is an issue tracker for one owner plus up to two collaborators. What it is 
 | --- | --- |
 | Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [implementation plan](docs/design/implementation-plan.md) |
-| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 014 the implementation |
+| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 015 the implementation |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The [implementation plan](docs/design/implementation-plan.md) is the build order. All six v1 phases are in place.

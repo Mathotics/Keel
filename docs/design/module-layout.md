@@ -146,7 +146,7 @@ flowchart TD
 
 `keel/app.py` mounts the v1 router, registers the exception handlers and template environment, and seeds the default user on startup. The schema revision is verified by `keel serve` before the server starts, so a stale schema is reported on the command line rather than as a failed request.
 
-`keel/cli.py` has a `db` subcommand group with `upgrade` and `revision`.
+`keel/cli.py` has a `db` subcommand group with `upgrade`, `revision`, `backup`, and `restore`.
 
 `pyproject.toml` holds the SQLAlchemy, Alembic, Jinja2, and `platformdirs` runtime dependencies, pinned exactly as the existing entries are, and a `package-data` entry so templates survive installation.
 
