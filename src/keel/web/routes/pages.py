@@ -1,9 +1,16 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from keel.domain.enums import IssueType, types_in_hierarchy_order
+from keel.domain.enums import (
+    IssueStatus,
+    IssueType,
+    statuses_in_workflow_order,
+    types_in_hierarchy_order,
+)
 from keel.paths import license_text
+from keel.services import issues as issue_service
 from keel.services import projects as project_service
+from keel.services import sprints as sprint_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 
 router = APIRouter()
@@ -33,6 +40,11 @@ def create_page(
         chosen = project_service.get_project_by_key(session, project)
     elif len(projects) == 1:
         chosen = projects[0]
+    parents = []
+    sprints = []
+    if chosen is not None:
+        parents = list(issue_service.list_issues(session, chosen.id))
+        sprints = list(sprint_service.list_sprints(session, chosen.id))
     return get_templates().TemplateResponse(
         request,
         "create.html",
@@ -43,6 +55,10 @@ def create_page(
             project=chosen,
             issue_types=types_in_hierarchy_order(),
             default_type=IssueType.STORY,
+            statuses=statuses_in_workflow_order(),
+            default_status=IssueStatus.TODO,
+            parents=parents,
+            sprints=sprints,
             error=error,
         ),
     )

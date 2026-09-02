@@ -36,9 +36,17 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     page = client.get(f"/create?project={project['key']}")
     assert page.status_code == 200
     assert 'name="title"' in page.text
+    assert 'name="project"' in page.text
     assert 'name="project_id"' in page.text
     assert "Epic" in page.text
-    assert 'name="description"' not in page.text
+    assert 'name="description"' in page.text
+    assert 'name="status"' in page.text
+    assert 'name="assignee_id"' in page.text
+    assert 'name="parent_id"' in page.text
+    assert 'name="sprint_id"' in page.text
+    assert 'name="due_at"' in page.text
+    assert 'name="estimate"' in page.text
+    assert 'name="remaining"' in page.text
 
 
 def test_an_issue_is_created_and_lands_on_its_page(
@@ -58,7 +66,8 @@ def test_create_from_the_menu_needs_only_a_title(
     project: Json,
 ) -> None:
     page = client.get(f"/create?project={project['key']}")
-    assert f'value="{project["id"]}" selected' in page.text
+    assert f'value="{project["key"]}" selected' in page.text
+    assert f'name="project_id" value="{project["id"]}"' in page.text
 
     created = client.post(
         "/web/issues",
@@ -79,6 +88,58 @@ def test_create_from_the_menu_needs_only_a_title(
     assert blank.headers["location"].startswith(
         f"/create?project={project['key']}&error=",
     )
+
+
+def test_create_can_set_the_other_fields_at_birth(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        "/web/issues",
+        data={"project_id": str(project["id"]), "type": "epic", "title": "Parent"},
+        follow_redirects=False,
+    )
+    parent_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    tester = client.get("/api/v1/users").json()[0]["id"]
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "One"},
+    ).json()
+
+    created = client.post(
+        "/web/issues",
+        data={
+            "project_id": str(project["id"]),
+            "type": "story",
+            "title": "Full",
+            "description": "Body text",
+            "status": "in_progress",
+            "parent_id": str(parent_id),
+            "assignee_id": str(tester),
+            "sprint_id": str(sprint["id"]),
+            "due_at": "2026-11-02T08:15",
+            "estimate": "2h",
+            "remaining": "90m",
+        },
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    assert created.headers["location"] == "/issues/KEEL-2"
+    page = client.get("/issues/KEEL-2")
+    html = page.text
+    assert "Full" in html
+    assert "Body text" in html
+    assert "In Progress" in html
+    assert 'value="2026-11-02T08:15"' in html
+    assert f'value="{tester}" selected' in html or f'value="{tester}"selected' in html
+    assert f'value="{parent_id}" selected' in html or (
+        f'value="{parent_id}"selected' in html
+    )
+    assert f'value="{sprint["id"]}" selected' in html or (
+        f'value="{sprint["id"]}"selected' in html
+    )
+    assert 'value="2h"' in html
+    assert 'value="1h 30m"' in html or 'value="90m"' in html
 
 
 def test_create_without_a_project_asks_for_one(client: TestClient) -> None:

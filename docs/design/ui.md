@@ -19,7 +19,7 @@ Every interactive element in the bar — link, button, and select alike — carr
 | Path | Template | Contents |
 | --- | --- | --- |
 | `/` | — | The entry point; redirects to `/projects` |
-| `/create` | `create.html` | Project, type, and title; everything else is filled in on the issue page |
+| `/create` | `create.html` | Project, type, title, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
 | `/projects/{key}/board` | `board.html` | Kanban columns, type, assignee, and sprint filters, optional rows per sprint, drag-and-drop |
@@ -87,7 +87,7 @@ The sprints page lists a project's sprints grouped by state, with a form to plan
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu, which asks only for project, type, and title so the rest can be filled in on the issue page. Adding a comment is an ordinary submit, not an autosubmit field.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. Comments, children, and dependency links are added afterwards, because they need an id. Adding a comment is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 

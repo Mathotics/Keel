@@ -231,6 +231,10 @@ body {
   margin-bottom: 0;
 }
 
+.keel-panel .keel-form + .keel-form {
+  margin-top: 1rem;
+}
+
 .keel-note {
   margin: 0 0 1rem;
   font-size: 0.875rem;

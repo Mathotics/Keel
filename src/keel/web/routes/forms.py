@@ -179,6 +179,14 @@ def create_issue_from_page(
     project_id: Annotated[str, Form()] = "",
     type: Annotated[IssueType, Form()] = IssueType.STORY,
     title: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
+    parent_id: Annotated[str, Form()] = "",
+    assignee_id: Annotated[str, Form()] = "",
+    due_at: Annotated[str, Form()] = "",
+    sprint_id: Annotated[str, Form()] = "",
+    estimate: Annotated[str, Form()] = "",
+    remaining: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     chosen = _optional_id(project_id)
     if chosen is None:
@@ -191,9 +199,17 @@ def create_issue_from_page(
             project.id,
             type=type,
             title=title,
+            description=description,
+            status=status,
+            parent_id=_optional_id(parent_id),
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
+            assignee_id=_optional_id(assignee_id),
+            due_at=issue_service.parse_due_at(due_at),
+            sprint_id=_optional_id(sprint_id),
+            estimate_minutes=parse_duration(estimate),
+            remaining_minutes=parse_duration(remaining),
         )
     except DomainError as exc:
         session.rollback()
