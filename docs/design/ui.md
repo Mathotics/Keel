@@ -10,7 +10,7 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 Beside the logo, a nav element holds the top-level section links, Projects and Users. Inside a project the same nav also links to that project's board, backlog, and sprints. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
-Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and the issue page's status, assignee, due date, and sprint — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
+Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and every editable field on the issue page — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
 Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. The home icon keeps its own circular treatment as the brand mark.
 
@@ -26,8 +26,7 @@ Every interactive element in the bar — link, button, and select alike — carr
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
 | `/projects/{key}/issues/new` | `issue_form.html` | Create an issue |
-| `/issues/{key}-{number}` | `issue_detail.html` | Full issue view |
-| `/issues/{key}-{number}/edit` | `issue_form.html` | Edit an issue |
+| `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
 | `/users` | `users.html` | Add, rename, and remove users |
 | `/license` | `license.html` | Existing license page |
 
@@ -45,7 +44,10 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/projects/{project_id}/update` | The project page's settings form |
 | `POST` | `/web/projects/{project_id}/delete` | The project page, behind a confirmation naming what goes |
 | `POST` | `/web/projects/{project_id}/issues` | The new issue form |
-| `POST` | `/web/issues/{issue_id}/update` | The edit issue form |
+| `POST` | `/web/issues/{issue_id}/title` | The issue page's title |
+| `POST` | `/web/issues/{issue_id}/type` | The issue page's type |
+| `POST` | `/web/issues/{issue_id}/description` | The issue page's description |
+| `POST` | `/web/issues/{issue_id}/parent` | The issue page's parent |
 | `POST` | `/web/issues/{issue_id}/due` | The issue detail page's due date |
 | `POST` | `/web/issues/{issue_id}/assignee` | The issue detail page's assignee |
 | `POST` | `/web/issues/{issue_id}/delete` | The issue detail page |
@@ -75,7 +77,7 @@ The sprints page lists a project's sprints grouped by state, with a form to plan
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Status, assignee, due date, and sprint are inputs on the issue page and on the create/edit form. On the issue page they submit as soon as they change, with a Save button only as the no-JavaScript fallback. Created-on and updated-on are metadata: they are shown, never offered as inputs.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are still created on a dedicated form.
 
 ## JavaScript
 

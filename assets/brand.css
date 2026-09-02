@@ -170,6 +170,7 @@ body {
 
 .keel-form input,
 .keel-form select,
+.keel-form textarea,
 .keel-form button {
   font: inherit;
   padding: 0.25rem 0.5rem;
@@ -177,6 +178,11 @@ body {
   border-radius: 0.25rem;
   background: var(--keel-white);
   color: var(--keel-blue-deep);
+}
+
+.keel-form--inline input[type="text"] {
+  min-width: 12rem;
+  flex: 1 1 12rem;
 }
 
 .keel-form button {

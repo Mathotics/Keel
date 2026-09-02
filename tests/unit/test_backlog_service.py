@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 
-from keel.db.models import Project
 from keel.domain.enums import IssueStatus, IssueType
 from keel.services import backlog as backlog_service
 from keel.services import issues as issue_service

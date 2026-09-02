@@ -191,7 +191,11 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/web/user` | Set the `keel_user` cookie from the top-bar picker |
-| `POST` | `/web/issues/{issue_id}/status` | The board's fallback status change |
+| `POST` | `/web/issues/{issue_id}/status` | The board's fallback status change, and the issue page |
+| `POST` | `/web/issues/{issue_id}/title` | The issue page's title |
+| `POST` | `/web/issues/{issue_id}/type` | The issue page's type |
+| `POST` | `/web/issues/{issue_id}/description` | The issue page's description |
+| `POST` | `/web/issues/{issue_id}/parent` | The issue page's parent |
 | `POST` | `/web/issues/{issue_id}/sprint` | Schedule or unschedule an issue |
 | `POST` | `/web/projects/{project_id}/sprints` | Create a sprint |
 | `POST` | `/web/sprints/{sprint_id}/update` | Update name, goal, or dates |

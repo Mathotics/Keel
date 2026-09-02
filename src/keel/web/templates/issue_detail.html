@@ -9,7 +9,26 @@
       <dl class="keel-facts">
         <dt>Key</dt><dd>{{ issue_key }}</dd>
         <dt>Project</dt><dd><a href="/projects/{{ project.key }}">{{ project.key }}</a></dd>
-        <dt>Type</dt><dd>{{ issue.type | label }}</dd>
+        <dt>Title</dt>
+        <dd>
+          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/title" data-keel-autosubmit>
+            <label class="keel-visually-hidden" for="issue-title">Title</label>
+            <input id="issue-title" name="title" type="text" maxlength="300" value="{{ issue.title }}" required/>
+            <button class="keel-autosubmit__fallback" type="submit">Save</button>
+          </form>
+        </dd>
+        <dt>Type</dt>
+        <dd>
+          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
+            <label class="keel-visually-hidden" for="issue-type">Type</label>
+            <select id="issue-type" name="type">
+              {% for value in issue_types %}
+              <option value="{{ value.value }}"{% if issue.type == value %} selected{% endif %}>{{ value | label }}</option>
+              {% endfor %}
+            </select>
+            <button class="keel-autosubmit__fallback" type="submit">Save</button>
+          </form>
+        </dd>
         <dt>Status</dt>
         <dd>
           <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/status" data-keel-autosubmit>
@@ -39,11 +58,16 @@
         </dd>
         <dt>Parent</dt>
         <dd>
-          {% if parent %}
-          <a href="/issues/{{ project.key }}-{{ parent.number }}">{{ project.key }}-{{ parent.number }}</a> {{ parent.title }}
-          {% else %}
-          None
-          {% endif %}
+          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/parent" data-keel-autosubmit>
+            <label class="keel-visually-hidden" for="issue-parent">Parent</label>
+            <select id="issue-parent" name="parent_id">
+              <option value=""{% if not issue.parent_id %} selected{% endif %}>No parent</option>
+              {% for candidate in parents %}
+              <option value="{{ candidate.id }}"{% if issue.parent_id == candidate.id %} selected{% endif %}>{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
+              {% endfor %}
+            </select>
+            <button class="keel-autosubmit__fallback" type="submit">Save</button>
+          </form>
         </dd>
         <dt>Sprint</dt>
         <dd>
@@ -71,10 +95,14 @@
         <dt>Updated on</dt><dd>{{ issue.updated_at | when }}</dd>
       </dl>
 
-      {% if issue.description %}
       <h2>Description</h2>
-      <p class="keel-description">{{ issue.description }}</p>
-      {% endif %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit>
+        <p>
+          <label class="keel-visually-hidden" for="issue-description">Description</label>
+          <textarea id="issue-description" name="description" rows="6">{{ issue.description }}</textarea>
+        </p>
+        <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
+      </form>
 
       <h2>Children</h2>
       <table class="keel-table">
@@ -95,9 +123,6 @@
         </tbody>
       </table>
 
-      <p>
-        <a class="keel-action" href="/issues/{{ issue_key }}/edit">Edit</a>
-      </p>
       <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?');">
         <button type="submit">Delete issue</button>

@@ -155,38 +155,73 @@ def create_issue(
     return _back(f"/issues/{key}-{issue.number}")
 
 
-@router.post("/issues/{issue_id}/update")
-def update_issue(
+def _issue_here(session: SessionDep, issue_id: int) -> str:
+    issue = issue_service.get_issue(session, issue_id)
+    key = project_service.get_project(session, issue.project_id).key
+    return f"/issues/{key}-{issue.number}"
+
+
+@router.post("/issues/{issue_id}/title")
+def update_issue_title(
+    session: SessionDep,
+    issue_id: int,
+    title: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(session, issue_id, title=title)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/type")
+def update_issue_type(
     session: SessionDep,
     issue_id: int,
     type: Annotated[IssueType, Form()],
-    title: Annotated[str, Form()],
-    status: Annotated[IssueStatus, Form()],
-    description: Annotated[str, Form()] = "",
-    parent_id: Annotated[str, Form()] = "",
-    assignee_id: Annotated[str, Form()] = "",
-    due_at: Annotated[str, Form()] = "",
-    sprint_id: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
-    issue = issue_service.get_issue(session, issue_id)
-    key = project_service.get_project(session, issue.project_id).key
-    here = f"/issues/{key}-{issue.number}"
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(session, issue_id, type=type)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/description")
+def update_issue_description(
+    session: SessionDep,
+    issue_id: int,
+    description: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(session, issue_id, description=description)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/parent")
+def update_issue_parent(
+    session: SessionDep,
+    issue_id: int,
+    parent_id: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
     try:
         issue_service.update_issue(
             session,
             issue_id,
-            type=type,
-            title=title,
-            description=description,
-            status=status,
             parent_id=_optional_id(parent_id),
-            assignee_id=_optional_id(assignee_id),
-            due_at=issue_service.parse_due_at(due_at),
-            sprint_id=_optional_id(sprint_id),
         )
     except DomainError as exc:
         session.rollback()
-        return _back(f"{here}/edit", exc.message)
+        return _back(here, exc.message)
     return _back(here)
 
 

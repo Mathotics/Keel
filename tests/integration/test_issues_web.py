@@ -78,29 +78,51 @@ def test_an_illegal_parent_returns_to_the_form_with_the_message(
     assert "never has a parent" in page.text or "may only sit under" in page.text
 
 
-def test_an_issue_is_edited_from_its_form(client: TestClient, project: Json) -> None:
+def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> None:
     submit_issue(client, project, title="Original")
     issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
 
-    form = client.get("/issues/KEEL-1/edit")
-    assert "Original" in form.text
+    page = client.get("/issues/KEEL-1")
+    assert "Original" in page.text
+    assert ">Edit<" not in page.text
+    assert 'name="title"' in page.text
+    assert 'name="type"' in page.text
+    assert 'name="description"' in page.text
+    assert 'name="parent_id"' in page.text
 
-    response = client.post(
-        f"/web/issues/{issue_id}/update",
-        data={
-            "type": "story",
-            "title": "Renamed",
-            "status": "in_progress",
-            "due_at": "2026-11-02T08:15",
-        },
+    renamed = client.post(
+        f"/web/issues/{issue_id}/title",
+        data={"title": "Renamed"},
         follow_redirects=False,
     )
+    assert renamed.headers["location"] == "/issues/KEEL-1"
+    assert "Renamed" in client.get("/issues/KEEL-1").text
 
-    assert response.headers["location"] == "/issues/KEEL-1"
+    moved = client.post(
+        f"/web/issues/{issue_id}/status",
+        data={"status": "in_progress", "next": "/issues/KEEL-1"},
+        follow_redirects=False,
+    )
+    assert moved.headers["location"] == "/issues/KEEL-1"
+    due = client.post(
+        f"/web/issues/{issue_id}/due",
+        data={"due_at": "2026-11-02T08:15"},
+        follow_redirects=False,
+    )
+    assert due.headers["location"] == "/issues/KEEL-1"
     page = client.get("/issues/KEEL-1")
-    assert "Renamed" in page.text
     assert "In Progress" in page.text
     assert 'value="2026-11-02T08:15"' in page.text
+
+
+def test_the_old_edit_url_redirects_to_the_issue(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    response = client.get("/issues/KEEL-1/edit", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/issues/KEEL-1"
 
 
 def test_deleting_a_parent_returns_the_coded_message(
@@ -255,11 +277,60 @@ def test_an_unreadable_due_date_returns_to_the_issue_page(
 def test_created_on_is_not_editable(client: TestClient, project: Json) -> None:
     submit_issue(client, project, title="Ready")
 
-    form = client.get("/issues/KEEL-1/edit")
-    assert 'name="due_at"' in form.text
-    assert "Created on" in form.text
-    assert 'name="created_at"' not in form.text
-    assert 'name="updated_at"' not in form.text
+    page = client.get("/issues/KEEL-1")
+    assert 'name="due_at"' in page.text
+    assert "Created on" in page.text
+    assert 'name="created_at"' not in page.text
+    assert 'name="updated_at"' not in page.text
+
+
+def test_type_and_description_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    typed = client.post(
+        f"/web/issues/{issue_id}/type",
+        data={"type": "epic"},
+        follow_redirects=False,
+    )
+    assert typed.headers["location"] == "/issues/KEEL-1"
+    described = client.post(
+        f"/web/issues/{issue_id}/description",
+        data={"description": "A longer note."},
+        follow_redirects=False,
+    )
+    assert described.headers["location"] == "/issues/KEEL-1"
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["type"] == "epic"
+    assert stored["description"] == "A longer note."
+
+
+def test_parent_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    submit_issue(client, project, title="Story")
+    story_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[1]["id"]
+
+    response = client.post(
+        f"/web/issues/{story_id}/parent",
+        data={"parent_id": str(epic_id)},
+        follow_redirects=False,
+    )
+    assert response.headers["location"] == "/issues/KEEL-2"
+    assert client.get(f"/api/v1/issues/{story_id}").json()["parent_id"] == epic_id
+
+    illegal = client.post(
+        f"/web/issues/{story_id}/type",
+        data={"type": "epic"},
+        follow_redirects=False,
+    )
+    assert illegal.headers["location"].startswith("/issues/KEEL-2?error=")
 
 
 def test_the_project_list_shows_due_and_created(
