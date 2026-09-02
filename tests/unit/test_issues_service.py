@@ -253,6 +253,26 @@ def test_filters_narrow_the_list(session: Session, project: Project) -> None:
     assert [i.id for i in by_parent] == [story]
 
 
+def test_assignee_filters_narrow_the_list(session: Session, project: Project) -> None:
+    ada = user_service.create_user(session, "Ada")
+    assigned = make(session, project, title="Assigned", assignee_id=ada.id)
+    open_id = make(session, project, title="Open")
+
+    by_person = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(assignee_id=ada.id),
+    )
+    unassigned = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(unassigned=True),
+    )
+
+    assert [i.id for i in by_person] == [assigned]
+    assert [i.id for i in unassigned] == [open_id]
+
+
 def test_counts_cover_every_status(session: Session, project: Project) -> None:
     make(session, project)
     counts = issue_service.count_by_status(session, project.id)

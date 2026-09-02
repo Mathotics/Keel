@@ -87,7 +87,12 @@ def test_an_issue_is_edited_from_its_form(client: TestClient, project: Json) -> 
 
     response = client.post(
         f"/web/issues/{issue_id}/update",
-        data={"type": "story", "title": "Renamed", "status": "in_progress"},
+        data={
+            "type": "story",
+            "title": "Renamed",
+            "status": "in_progress",
+            "due_at": "2026-11-02T08:15",
+        },
         follow_redirects=False,
     )
 
@@ -95,6 +100,7 @@ def test_an_issue_is_edited_from_its_form(client: TestClient, project: Json) -> 
     page = client.get("/issues/KEEL-1")
     assert "Renamed" in page.text
     assert "In Progress" in page.text
+    assert 'value="2026-11-02T08:15"' in page.text
 
 
 def test_deleting_a_parent_returns_the_coded_message(
@@ -139,8 +145,108 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert "Created on" in page.text
     assert "Updated on" in page.text
     assert "Due date" in page.text
-    assert "2026-09-15 17:00 UTC" in page.text
+    assert 'name="due_at"' in page.text
+    assert 'type="datetime-local"' in page.text
+    assert 'value="2026-09-15T17:00"' in page.text
     assert "Reporter" in page.text
+    assert 'name="status"' in page.text
+    assert 'value="todo" selected' in page.text or 'value="todo"selected' in page.text
+    assert 'name="assignee_id"' in page.text
+
+
+def test_assignee_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    person = client.get("/api/v1/users").json()[0]["id"]
+
+    response = client.post(
+        f"/web/issues/{issue_id}/assignee",
+        data={"assignee_id": str(person)},
+        follow_redirects=False,
+    )
+
+    assert response.headers["location"] == "/issues/KEEL-1"
+    page = client.get("/issues/KEEL-1")
+    assert f'value="{person}" selected' in page.text or (
+        f'value="{person}"selected' in page.text
+    )
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["assignee_id"] == person
+
+    cleared = client.post(
+        f"/web/issues/{issue_id}/assignee",
+        data={"assignee_id": ""},
+        follow_redirects=False,
+    )
+    assert cleared.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["assignee_id"] is None
+
+
+def test_status_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    response = client.post(
+        f"/web/issues/{issue_id}/status",
+        data={"status": "in_review", "next": "/issues/KEEL-1"},
+        follow_redirects=False,
+    )
+
+    assert response.headers["location"] == "/issues/KEEL-1"
+    page = client.get("/issues/KEEL-1")
+    assert 'value="in_review" selected' in page.text or (
+        'value="in_review"selected' in page.text
+    )
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["status"] == "in_review"
+
+
+def test_due_date_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    response = client.post(
+        f"/web/issues/{issue_id}/due",
+        data={"due_at": "2026-10-01T09:30"},
+        follow_redirects=False,
+    )
+
+    assert response.headers["location"] == "/issues/KEEL-1"
+    page = client.get("/issues/KEEL-1")
+    assert 'value="2026-10-01T09:30"' in page.text
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["due_at"].startswith("2026-10-01T09:30")
+
+    cleared = client.post(
+        f"/web/issues/{issue_id}/due",
+        data={"due_at": ""},
+        follow_redirects=False,
+    )
+    assert cleared.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["due_at"] is None
+
+
+def test_an_unreadable_due_date_returns_to_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    response = client.post(
+        f"/web/issues/{issue_id}/due",
+        data={"due_at": "next tuesday"},
+        follow_redirects=False,
+    )
+
+    assert response.headers["location"].startswith("/issues/KEEL-1?error=")
 
 
 def test_created_on_is_not_editable(client: TestClient, project: Json) -> None:

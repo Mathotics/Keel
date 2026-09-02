@@ -161,6 +161,7 @@ body {
 }
 
 .keel-form input,
+.keel-form select,
 .keel-form button {
   font: inherit;
   padding: 0.25rem 0.5rem;
@@ -187,7 +188,7 @@ body {
 }
 
 .keel-form--stacked label {
-  flex: 0 0 6rem;
+  flex: 0 0 8rem;
 }
 
 .keel-form--stacked input,

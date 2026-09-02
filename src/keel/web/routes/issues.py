@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from keel.domain.enums import statuses_in_workflow_order
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -39,8 +40,8 @@ def issue_page(
             issue_key=issue_service.issue_key(issue, project),
             parent=parent,
             children=issue_service.list_children(session, issue.id),
-            assignee=_named(session, issue.assignee_id, empty="Unassigned"),
             reporter=_named(session, issue.reporter_id, empty="None"),
+            statuses=statuses_in_workflow_order(),
             error=error,
         ),
     )

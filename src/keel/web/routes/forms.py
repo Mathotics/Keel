@@ -176,6 +176,48 @@ def update_issue(
     return _back(here)
 
 
+@router.post("/issues/{issue_id}/due")
+def update_issue_due(
+    session: SessionDep,
+    issue_id: int,
+    due_at: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    issue = issue_service.get_issue(session, issue_id)
+    key = project_service.get_project(session, issue.project_id).key
+    here = f"/issues/{key}-{issue.number}"
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            due_at=issue_service.parse_due_at(due_at),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/assignee")
+def update_issue_assignee(
+    session: SessionDep,
+    issue_id: int,
+    assignee_id: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    issue = issue_service.get_issue(session, issue_id)
+    key = project_service.get_project(session, issue.project_id).key
+    here = f"/issues/{key}-{issue.number}"
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            assignee_id=_optional_id(assignee_id),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
 @router.post("/issues/{issue_id}/status")
 def move_issue_status(
     session: SessionDep,

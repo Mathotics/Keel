@@ -18,6 +18,16 @@
           {{ issue_type | label }}
         </label>
         {% endfor %}
+        <label>
+          Assignee
+          <select name="assignee">
+            <option value=""{% if not selected_assignee %} selected{% endif %}>Anyone</option>
+            <option value="unassigned"{% if selected_assignee == "unassigned" %} selected{% endif %}>Unassigned</option>
+            {% for person in users %}
+            <option value="{{ person.id }}"{% if selected_assignee == person.id|string %} selected{% endif %}>{{ person.display_name }}</option>
+            {% endfor %}
+          </select>
+        </label>
         <button type="submit">Apply</button>
       </form>
 

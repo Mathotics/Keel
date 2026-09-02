@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project
 from keel.domain.enums import IssueStatus, IssueType, statuses_in_workflow_order
+from keel.domain.errors import InvalidIssueError
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -30,21 +31,45 @@ class Board:
     columns: tuple[BoardColumn, ...]
 
 
+def parse_assignee_filter(raw: str | None) -> tuple[int | None, bool]:
+    """Read the board's `assignee` query value.
+
+    Empty means every assignee. `unassigned` means no assignee. Otherwise a
+    user identifier.
+    """
+    if raw is None or not raw.strip():
+        return None, False
+    cleaned = raw.strip()
+    if cleaned == "unassigned":
+        return None, True
+    if cleaned.isdigit():
+        return int(cleaned), False
+    raise InvalidIssueError(f"{cleaned} is not an assignee filter.")
+
+
 def project_board(
     session: Session,
     project_id: int,
     types: Sequence[IssueType] = (),
+    *,
+    assignee_id: int | None = None,
+    unassigned: bool = False,
 ) -> Board:
     """Group a project's issues by status in workflow order.
 
-    The type filter is applied in the query so hidden cards are never loaded.
-    Empty `types` means every type, matching the board's default.
+    Type and assignee filters are applied in the query so hidden cards are
+    never loaded. Empty `types` means every type; omitting assignee means
+    every assignee. Both match the board's default.
     """
     project = project_service.get_project(session, project_id)
     found = issue_service.list_issues(
         session,
         project.id,
-        IssueFilters(types=tuple(types)),
+        IssueFilters(
+            types=tuple(types),
+            assignee_id=assignee_id,
+            unassigned=unassigned,
+        ),
     )
     names = {user.id: user.display_name for user in user_service.list_users(session)}
     grouped: dict[IssueStatus, list[BoardCard]] = {

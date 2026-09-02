@@ -78,5 +78,31 @@ def test_a_repeated_type_parameter_filters_the_board(
     assert titles == ["Epic", "Subtask"]
 
 
+def test_an_assignee_parameter_filters_the_board(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    create_issue(client, project_id, title="Ada's", assignee_id=ada["id"])
+    create_issue(client, project_id, title="Open")
+
+    assigned = client.get(
+        f"/api/v1/projects/{project_id}/board",
+        params={"assignee": ada["id"]},
+    ).json()
+    open_only = client.get(
+        f"/api/v1/projects/{project_id}/board",
+        params={"assignee": "unassigned"},
+    ).json()
+
+    def titles(board: Json) -> list[str]:
+        return [
+            issue["title"] for column in board["columns"] for issue in column["issues"]
+        ]
+
+    assert titles(assigned) == ["Ada's"]
+    assert titles(open_only) == ["Open"]
+
+
 def test_an_unknown_project_board_is_not_found(client: TestClient) -> None:
     assert client.get("/api/v1/projects/404/board").status_code == 404

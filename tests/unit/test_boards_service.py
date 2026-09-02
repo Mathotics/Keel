@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Project
 from keel.domain.enums import IssueStatus, IssueType
+from keel.domain.errors import InvalidIssueError
 from keel.services import boards as board_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
@@ -83,6 +84,54 @@ def test_a_full_type_filter_is_the_same_as_no_filter(
     ]
 
 
+def test_the_assignee_filter_is_applied_before_grouping(
+    session: Session,
+    project: Project,
+) -> None:
+    ada = user_service.create_user(session, "Ada")
+    _issue(session, project, "Ada's", assignee_id=ada.id)
+    _issue(session, project, "Open")
+
+    board = board_service.project_board(session, project.id, assignee_id=ada.id)
+    titles = [card.issue.title for column in board.columns for card in column.cards]
+
+    assert titles == ["Ada's"]
+
+
+def test_the_unassigned_filter_keeps_only_open_cards(
+    session: Session,
+    project: Project,
+) -> None:
+    ada = user_service.create_user(session, "Ada")
+    _issue(session, project, "Ada's", assignee_id=ada.id)
+    _issue(session, project, "Open")
+
+    board = board_service.project_board(session, project.id, unassigned=True)
+    titles = [card.issue.title for column in board.columns for card in column.cards]
+
+    assert titles == ["Open"]
+
+
+def test_type_and_assignee_filters_combine(
+    session: Session,
+    project: Project,
+) -> None:
+    ada = user_service.create_user(session, "Ada")
+    _issue(session, project, "Ada epic", type=IssueType.EPIC, assignee_id=ada.id)
+    _issue(session, project, "Ada story", type=IssueType.STORY, assignee_id=ada.id)
+    _issue(session, project, "Open epic", type=IssueType.EPIC)
+
+    board = board_service.project_board(
+        session,
+        project.id,
+        types=[IssueType.EPIC],
+        assignee_id=ada.id,
+    )
+    titles = [card.issue.title for column in board.columns for card in column.cards]
+
+    assert titles == ["Ada epic"]
+
+
 def test_cards_carry_the_readable_key_and_assignee(
     session: Session,
     project: Project,
@@ -96,3 +145,25 @@ def test_cards_carry_the_readable_key_and_assignee(
     assert cards[0].key == "KEEL-1"
     assert cards[0].assignee_name == "Ada"
     assert cards[1].assignee_name is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, (None, False)),
+        ("", (None, False)),
+        ("  ", (None, False)),
+        ("unassigned", (None, True)),
+        ("12", (12, False)),
+    ],
+)
+def test_parse_assignee_filter_accepts_the_board_query_values(
+    raw: str | None,
+    expected: tuple[int | None, bool],
+) -> None:
+    assert board_service.parse_assignee_filter(raw) == expected
+
+
+def test_parse_assignee_filter_rejects_an_unknown_value() -> None:
+    with pytest.raises(InvalidIssueError):
+        board_service.parse_assignee_filter("Ada")

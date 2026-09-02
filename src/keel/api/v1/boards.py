@@ -14,8 +14,16 @@ def read_board(
     project_id: int,
     session: SessionDep,
     types: list[IssueType] = Query(default=[], alias="type"),
+    assignee: str | None = Query(default=None),
 ) -> BoardRead:
-    board = board_service.project_board(session, project_id, types)
+    assignee_id, unassigned = board_service.parse_assignee_filter(assignee)
+    board = board_service.project_board(
+        session,
+        project_id,
+        types,
+        assignee_id=assignee_id,
+        unassigned=unassigned,
+    )
     return BoardRead(
         project_id=board.project.id,
         columns=[

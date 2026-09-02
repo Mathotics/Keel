@@ -21,7 +21,7 @@ Every interactive element in the bar — link, button, and select alike — carr
 | `/` | — | The entry point; redirects to `/projects` |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
-| `/projects/{key}/board` | `board.html` | Kanban columns, type filter, drag-and-drop |
+| `/projects/{key}/board` | `board.html` | Kanban columns, type and assignee filters, drag-and-drop |
 | `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
@@ -46,17 +46,19 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/projects/{project_id}/delete` | The project page, behind a confirmation naming what goes |
 | `POST` | `/web/projects/{project_id}/issues` | The new issue form |
 | `POST` | `/web/issues/{issue_id}/update` | The edit issue form |
+| `POST` | `/web/issues/{issue_id}/due` | The issue detail page's due date |
+| `POST` | `/web/issues/{issue_id}/assignee` | The issue detail page's assignee |
 | `POST` | `/web/issues/{issue_id}/delete` | The issue detail page |
 | `POST` | `/web/users` | The users page |
 | `POST` | `/web/users/{user_id}/rename` | The users page |
 | `POST` | `/web/users/{user_id}/delete` | The users page |
-| `POST` | `/web/issues/{issue_id}/status` | A board card's fallback status form |
+| `POST` | `/web/issues/{issue_id}/status` | A board card's fallback status form, and the issue page |
 
 ## Board
 
 Five columns in workflow order — To Do, In Progress, In Review, Blocked, Done — generated from the status enumeration rather than stored ([ADR 013](../adr/ADR-013.md)).
 
-A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types appear by default; a filter above the board restricts which types are shown and is applied at query time, not by hiding cards.
+A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types and every assignee appear by default. Filters above the board restrict which types and which assignee are shown; both are applied at query time, not by hiding cards. The assignee filter offers Anyone, Unassigned, or a specific person.
 
 Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker script uses its own marker (`data-keel-js`) for the same reason: it loads on every page, and must not hide a board fallback it did not enable.
 
@@ -66,7 +68,7 @@ A flat table of the project's issues that have no sprint and are not Done, oldes
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Created-on and updated-on are metadata: they are shown, never offered as inputs.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Status, assignee, and due date are inputs on the issue page and on the create/edit form. Created-on and updated-on are metadata: they are shown, never offered as inputs.
 
 ## JavaScript
 

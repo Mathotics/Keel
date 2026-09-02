@@ -30,6 +30,7 @@ class IssueFilters:
     types: tuple[IssueType, ...] = ()
     status: IssueStatus | None = None
     assignee_id: int | None = None
+    unassigned: bool = False
     parent_id: int | None = None
 
 
@@ -206,7 +207,9 @@ def _apply_filters(
         query = query.where(Issue.type == filters.type)
     if filters.status is not None:
         query = query.where(Issue.status == filters.status)
-    if filters.assignee_id is not None:
+    if filters.unassigned:
+        query = query.where(Issue.assignee_id.is_(None))
+    elif filters.assignee_id is not None:
         query = query.where(Issue.assignee_id == filters.assignee_id)
     if filters.parent_id is not None:
         query = query.where(Issue.parent_id == filters.parent_id)

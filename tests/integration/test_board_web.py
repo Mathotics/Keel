@@ -56,6 +56,38 @@ def test_the_type_filter_changes_what_the_board_queries(
     assert 'value="epic" checked' in page.text or 'value="epic"checked' in page.text
 
 
+def test_the_assignee_filter_changes_what_the_board_queries(
+    client: TestClient,
+    project: Json,
+) -> None:
+    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Assigned to Ada", "assignee_id": ada["id"]},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Unassigned work"},
+    )
+
+    assigned = client.get("/projects/KEEL/board", params={"assignee": ada["id"]})
+    open_only = client.get("/projects/KEEL/board", params={"assignee": "unassigned"})
+
+    assert assigned.status_code == 200
+    assert "Assigned to Ada" in assigned.text
+    assert "Unassigned work" not in assigned.text
+    assert f'value="{ada["id"]}" selected' in assigned.text or (
+        f'value="{ada["id"]}"selected' in assigned.text
+    )
+
+    assert "Unassigned work" in open_only.text
+    assert "Assigned to Ada" not in open_only.text
+    assert 'value="unassigned" selected' in open_only.text or (
+        'value="unassigned"selected' in open_only.text
+    )
+    assert 'name="assignee"' in client.get("/projects/KEEL/board").text
+
+
 def test_the_fallback_form_moves_a_card(
     client: TestClient,
     project: Json,
