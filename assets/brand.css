@@ -705,10 +705,16 @@ body {
 }
 
 .keel-card {
+  position: relative;
   padding: 0.65rem 0.7rem 0.7rem;
   border: 1px solid color-mix(in srgb, var(--keel-blue) 35%, var(--keel-sheet));
   border-radius: 0.35rem;
   background: var(--keel-white);
+}
+
+.keel-card:hover,
+.keel-card:focus-within {
+  border-color: var(--keel-blue);
 }
 
 .keel-card.is-dragging {
@@ -727,12 +733,19 @@ body {
   font-weight: 650;
 }
 
-.keel-card__key a {
+.keel-card__link {
   text-decoration: none;
 }
 
-.keel-card__key a:hover,
-.keel-card__key a:focus-visible {
+.keel-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.keel-card__link:hover,
+.keel-card__link:focus-visible {
   text-decoration: underline;
 }
 
@@ -793,6 +806,8 @@ body {
 }
 
 .keel-card__fallback {
+  position: relative;
+  z-index: 1;
   margin-top: 0.35rem;
 }
 

@@ -15,6 +15,25 @@ def project(client: TestClient) -> Json:
     return created
 
 
+def test_a_board_card_links_to_the_issue(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Ready"},
+    )
+
+    page = client.get("/projects/KEEL/board")
+    card = page.text.split('class="keel-card"', 1)[1].split("</article>", 1)[0]
+    assert 'class="keel-card__link"' in card
+    assert 'href="/issues/KEEL-1"' in card
+    assert 'draggable="false"' in card
+    css = client.get("/assets/brand.css").text
+    assert ".keel-card__link::after" in css
+    assert "inset: 0" in css.split(".keel-card__link::after", 1)[1].split("}", 1)[0]
+
+
 def test_the_board_page_renders_every_column(
     client: TestClient,
     project: Json,
@@ -262,6 +281,7 @@ def test_board_script_hides_only_its_own_fallback(client: TestClient) -> None:
     script = client.get("/assets/js/board.js")
     assert script.status_code == 200
     assert 'addEventListener("drop"' in script.text
+    assert "keel-card__link" in script.text
     assert "data-keel-board" in script.text
     assert "/api/v1/issues/" in script.text
     assert "sprint_id" in script.text

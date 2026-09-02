@@ -11,7 +11,7 @@
               <div class="keel-board__cards" data-keel-cards>
                 {% for card in column.cards %}
                 <article class="keel-card" data-issue-id="{{ card.issue.id }}">
-                  <p class="keel-card__key"><a href="/issues/{{ card.key }}">{{ card.key }}</a></p>
+                  <p class="keel-card__key"><a class="keel-card__link" href="/issues/{{ card.key }}" draggable="false">{{ card.key }}</a></p>
                   <p class="keel-card__title">{{ card.issue.title }}</p>
                   <p class="keel-card__meta">
                     <span class="keel-chip">{{ card.issue.type | label }}</span>

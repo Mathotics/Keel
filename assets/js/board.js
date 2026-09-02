@@ -50,14 +50,27 @@
 
   for (const card of board.querySelectorAll("[data-issue-id]")) {
     card.setAttribute("draggable", "true");
+    let dragged = false;
     card.addEventListener("dragstart", (event) => {
       event.dataTransfer.setData("text/plain", card.dataset.issueId);
       event.dataTransfer.effectAllowed = "move";
       card.classList.add("is-dragging");
+      dragged = true;
     });
     card.addEventListener("dragend", () => {
       card.classList.remove("is-dragging");
+      window.setTimeout(() => {
+        dragged = false;
+      }, 0);
     });
+    const link = card.querySelector(".keel-card__link");
+    if (link) {
+      link.addEventListener("click", (event) => {
+        if (dragged) {
+          event.preventDefault();
+        }
+      });
+    }
   }
 
   for (const column of board.querySelectorAll("[data-status]")) {
