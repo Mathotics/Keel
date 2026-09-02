@@ -62,8 +62,8 @@ def test_topbar_controls_share_one_look(client: TestClient) -> None:
     )
     brand = 1  # the home icon keeps its own circular treatment
     assert header.count("keel-topbar__control") == interactive - brand
-    assert '<a class="keel-topbar__control" href="/users">' in header
-    assert '<a class="keel-topbar__control" href="/projects">' in header
+    assert 'class="keel-topbar__control" href="/users"' in header
+    assert 'class="keel-topbar__control" href="/projects"' in header
     assert "keel-topbar__create" in header
     assert 'href="/create"' in header
 
@@ -87,9 +87,19 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
         < header.index("keel-userpicker")
     )
     nav = header.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
+    assert (
+        nav.index('href="/projects"')
+        < nav.index('href="/create"')
+        < nav.index('href="/users"')
+    )
     assert 'href="/projects"' in nav
     assert 'href="/create"' in nav
     assert 'href="/users"' in nav
+    assert "keel-nav__fallback" in nav
+    assert 'action="/web/nav/move"' in nav
+    assert "Board" not in nav
+    assert "Up" in nav
+    assert "Down" in nav
 
 
 def test_picker_switches_on_change_but_keeps_a_button_without_js(
@@ -98,6 +108,7 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     """The dropdown submits itself; the button is the path when the script fails."""
     html = client.get("/").text
     assert '<script src="/assets/js/userpicker.js" defer></script>' in html
+    assert '<script src="/assets/js/nav.js" defer></script>' in html
     assert "keel-userpicker__fallback" in html
 
     script = client.get("/assets/js/userpicker.js")
@@ -112,6 +123,70 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert "display: none" in hidden
     autosubmit = _rule(css, "[data-keel-js] .keel-autosubmit__fallback")
     assert "display: none" in autosubmit
+    nav_fallback = _rule(css, "[data-keel-nav] .keel-nav__fallback")
+    assert "display: none" in nav_fallback
+
+
+def test_section_links_follow_the_nav_cookie(client: TestClient) -> None:
+    client.cookies.set("keel_nav", "users.create.projects")
+    nav = client.get("/projects").text.split("<nav", 1)[1].split("</nav>", 1)[0]
+    assert (
+        nav.index('href="/users"')
+        < nav.index('href="/create"')
+        < nav.index('href="/projects"')
+    )
+
+
+def test_moving_a_section_link_sets_the_cookie_and_returns(
+    client: TestClient,
+) -> None:
+    moved = client.post(
+        "/web/nav/move",
+        data={
+            "item": "create",
+            "direction": "up",
+            "visible": "projects,create,users",
+            "next": "/projects",
+        },
+        follow_redirects=False,
+    )
+    assert moved.status_code == 303
+    assert moved.headers["location"] == "/projects"
+    assert client.cookies["keel_nav"].split(".")[0] == "create"
+
+    nav = client.get("/projects").text.split("<nav", 1)[1].split("</nav>", 1)[0]
+    assert nav.index('href="/create"') < nav.index('href="/projects"')
+
+
+def test_reordering_visible_links_leaves_hidden_project_slots(
+    client: TestClient,
+) -> None:
+    client.post("/api/v1/projects", json={"key": "KEEL", "name": "Keel"})
+    client.post(
+        "/web/nav",
+        data={"order": "users,projects,create", "next": "/projects"},
+        follow_redirects=False,
+    )
+    nav = (
+        client.get("/projects/KEEL/board")
+        .text.split("<nav", 1)[1]
+        .split(
+            "</nav>",
+            1,
+        )[0]
+    )
+    assert nav.index('href="/users"') < nav.index('href="/projects/KEEL/board"')
+    assert nav.index('href="/projects/KEEL/board"') < nav.index('href="/create')
+    assert nav.index('href="/projects/KEEL/sprints"') < nav.index('href="/create')
+
+
+def test_nav_script_enables_drag_and_hides_the_fallback(client: TestClient) -> None:
+    script = client.get("/assets/js/nav.js")
+    assert script.status_code == 200
+    assert "data-keel-nav" in script.text
+    assert 'addEventListener("dragstart"' in script.text
+    assert 'fetch("/web/nav"' in script.text
+    assert "data-keel-autosubmit" not in script.text
 
 
 def test_topbar_label_matches_the_control_height(client: TestClient) -> None:

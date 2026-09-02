@@ -192,6 +192,8 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `POST` | `/web/user` | Set the `keel_user` cookie from the top-bar picker |
+| `POST` | `/web/nav` | Set the `keel_nav` cookie (section keys, dotted) from a dragged order |
+| `POST` | `/web/nav/move` | Swap one visible section with its neighbour (no-JavaScript) |
 | `POST` | `/web/issues` | The Create page |
 | `POST` | `/web/issues/{issue_id}/status` | The board's fallback status change, and the issue page |
 | `POST` | `/web/issues/{issue_id}/title` | The issue page's title |

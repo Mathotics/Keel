@@ -1,7 +1,7 @@
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 from keel.domain.duration import parse_duration
@@ -15,6 +15,14 @@ from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE
 from keel.web.context import ChromeDep, SessionDep
+from keel.web.nav import (
+    NAV_COOKIE,
+    NAV_COOKIE_MAX_AGE,
+    encode_order,
+    merge_visible,
+    move_item,
+    parse_order,
+)
 
 router = APIRouter(prefix="/web")
 
@@ -40,6 +48,20 @@ def _optional_id(raw: str) -> int | None:
     return int(raw) if raw.strip().isdigit() else None
 
 
+def _remember_nav(
+    response: RedirectResponse,
+    order: tuple[str, ...],
+) -> RedirectResponse:
+    response.set_cookie(
+        NAV_COOKIE,
+        encode_order(order),
+        max_age=NAV_COOKIE_MAX_AGE,
+        path="/",
+        samesite="lax",
+    )
+    return response
+
+
 @router.post("/user")
 def switch_user(
     user: Annotated[str, Form()],
@@ -48,6 +70,32 @@ def switch_user(
     response = _back(return_to or "/")
     response.set_cookie(USER_COOKIE, user, samesite="lax")
     return response
+
+
+@router.post("/nav")
+def save_nav_order(
+    request: Request,
+    order: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    merged = merge_visible(
+        parse_order(request.cookies.get(NAV_COOKIE)),
+        order.split(","),
+    )
+    return _remember_nav(_back(return_to or "/"), merged)
+
+
+@router.post("/nav/move")
+def move_nav_item(
+    request: Request,
+    item: Annotated[str, Form()],
+    direction: Annotated[str, Form()],
+    visible: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    moved = move_item(visible.split(","), item, direction)
+    merged = merge_visible(parse_order(request.cookies.get(NAV_COOKIE)), moved)
+    return _remember_nav(_back(return_to or "/"), merged)
 
 
 @router.post("/users")

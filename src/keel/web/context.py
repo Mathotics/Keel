@@ -16,6 +16,7 @@ from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE, USER_HEADER, resolve_current_user
 from keel.version import package_version
+from keel.web.nav import NAV_COOKIE, links_for, parse_order
 
 __all__ = [
     "USER_COOKIE",
@@ -105,11 +106,17 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 
 def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, Any]:
+    project = extra.get("project")
+    key = getattr(project, "key", None)
+    project_key = key if isinstance(key, str) else None
+    nav_items = links_for(parse_order(request.cookies.get(NAV_COOKIE)), project_key)
     return {
         "request": request,
         "version": package_version(),
         "copyright_notice": copyright_notice(),
         "users": chrome.users,
         "current_user": chrome.current_user,
+        "nav_items": nav_items,
+        "nav_keys": ",".join(item.key for item in nav_items),
         **extra,
     }

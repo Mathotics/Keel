@@ -1,6 +1,6 @@
 # UI design
 
-The pages Keel serves, the templates behind them, and the JavaScript that enhances the board. The rendering decision is recorded in [ADR 009](../adr/ADR-009.md).
+The pages Keel serves, the templates behind them, and the JavaScript that enhances the chrome and the board. The rendering decision is recorded in [ADR 009](../adr/ADR-009.md).
 
 Every page is server-rendered with Jinja2 and works without JavaScript. Nothing is loaded from a remote origin, so the interface works offline.
 
@@ -8,7 +8,7 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 `base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
-Beside the logo, a nav element holds the top-level section links, Projects, Create, and Users. Create is always reachable and opens a short form for a new issue. Inside a project the same nav also links to that project's board, backlog, and sprints, and Create preselects that project. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
+Beside the logo, a nav element holds the top-level section links, Projects, Create, and Users. Create is always reachable and opens a short form for a new issue. Inside a project the same nav also links to that project's board, backlog, and sprints, and Create preselects that project. Those section buttons can be reordered by dragging them, or with Up and Down when JavaScript has not run; the order is stored in a `keel_nav` cookie for this browser, the same regardless of who is selected in the picker. The home icon and the picker stay fixed. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
 Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and every editable field on the issue page — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
@@ -41,6 +41,8 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 
 | Method | Path | Posted from |
 | --- | --- | --- |
+| `POST` | `/web/nav` | A dragged section order in the top bar |
+| `POST` | `/web/nav/move` | An Up or Down control beside a section link |
 | `POST` | `/web/projects` | The project list's create form |
 | `POST` | `/web/projects/{project_id}/update` | The project page's settings form |
 | `POST` | `/web/projects/{project_id}/delete` | The project page, behind a confirmation naming what goes |
@@ -73,7 +75,7 @@ Five columns in workflow order — To Do, In Progress, In Review, Blocked, Done 
 
 A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types, every assignee, and every sprint appear by default. Filters above the board restrict which types, which assignee, and which sprint are shown; they are applied at query time, not by hiding cards. The assignee filter offers Anyone, Unassigned, or a specific person. The sprint filter offers Any sprint, Unscheduled, or a specific sprint. Separate by sprint stacks a five-column row per sprint, plus Unscheduled; dropping a card onto another sprint's row also schedules it there. Changing a filter submits the form immediately once `userpicker.js` has run; an Apply button remains for when it has not.
 
-Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker script uses its own marker (`data-keel-js`) for the same reason: it loads on every page, and must not hide a board fallback it did not enable.
+Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker and nav scripts use their own markers (`data-keel-js`, `data-keel-nav`) for the same reason: each loads on every page, and must not hide a fallback it did not enable.
 
 ## Backlog
 
@@ -89,13 +91,15 @@ The issue's fields, including due date, created-on, and updated-on; its parent a
 
 ## JavaScript
 
-Two scripts, both vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker, `data-keel-board` for the board.
+Three scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker, `data-keel-nav` for the section order, `data-keel-board` for the board.
 
 `assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button. It also submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons. Paired sprint date fields marked `data-keel-range` keep `min` and `max` in sync so the calendar cannot offer an end before the start.
 
+`assets/js/nav.js` is written against the browser's native HTML Drag and Drop API. It marks the section links draggable, reorders them in the bar on drop, and posts the visible order to `/web/nav`. Up and Down remain in the markup and are hidden only after the script has run. Reordering among the links that are on the page leaves hidden project-scoped slots (Board, Backlog, Sprints) where they were.
+
 `assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status, and the sprint when the board is stacked by sprint. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
 
-Neither script is required. Both are loaded with `defer`, hide their fallback controls only once they have run, and no page or action is reachable through JavaScript alone.
+None of the scripts is required. All are loaded with `defer`, hide their fallback controls only once they have run, and no page or action is reachable through JavaScript alone.
 
 ## Error presentation
 

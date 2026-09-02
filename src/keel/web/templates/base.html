@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/assets/brand.css"/>
     {% block scripts %}
     <script src="/assets/js/userpicker.js" defer></script>
+    <script src="/assets/js/nav.js" defer></script>
     {% endblock %}
   </head>
   <body>
@@ -16,15 +17,19 @@
       <a class="keel-topbar__home" href="/" aria-label="Keel home">
         <img src="/assets/small_icon.png" alt=""/>
       </a>
-      <nav class="keel-topbar__nav" aria-label="Sections">
-        <a class="keel-topbar__control" href="/projects">Projects</a>
-        <a class="keel-topbar__control keel-topbar__create" href="{% if project %}/create?project={{ project.key }}{% else %}/create{% endif %}">Create</a>
-        {% if project %}
-        <a class="keel-topbar__control" href="/projects/{{ project.key }}/board">Board</a>
-        <a class="keel-topbar__control" href="/projects/{{ project.key }}/backlog">Backlog</a>
-        <a class="keel-topbar__control" href="/projects/{{ project.key }}/sprints">Sprints</a>
-        {% endif %}
-        <a class="keel-topbar__control" href="/users">Users</a>
+      <nav class="keel-topbar__nav" aria-label="Sections" data-keel-nav-root>
+        {% for item in nav_items %}
+        <span class="keel-nav__item" data-keel-nav-item="{{ item.key }}">
+          <a class="keel-topbar__control{% if item.modifier %} {{ item.modifier }}{% endif %}" href="{{ item.href }}" data-keel-nav-handle>{{ item.label }}</a>
+          <form class="keel-nav__fallback" method="post" action="/web/nav/move">
+            <input type="hidden" name="item" value="{{ item.key }}"/>
+            <input type="hidden" name="visible" value="{{ nav_keys }}"/>
+            <input type="hidden" name="next" value="{{ request.url.path }}"/>
+            <button class="keel-topbar__control" name="direction" value="up">Up</button>
+            <button class="keel-topbar__control" name="direction" value="down">Down</button>
+          </form>
+        </span>
+        {% endfor %}
       </nav>
       <div class="keel-topbar__right">
         {% if users %}

@@ -70,8 +70,33 @@ body {
 .keel-topbar__nav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-left: 0.75rem;
+}
+
+.keel-nav__item,
+.keel-nav__fallback {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+[data-keel-nav] .keel-nav__fallback {
+  display: none;
+}
+
+[data-keel-nav] [data-keel-nav-handle] {
+  cursor: grab;
+}
+
+[data-keel-nav] .keel-nav__item.is-dragging {
+  opacity: 0.55;
+}
+
+[data-keel-nav] .keel-nav__item.is-drop-target {
+  outline: 2px solid var(--keel-white);
+  outline-offset: 2px;
 }
 
 .keel-topbar__right {
