@@ -169,7 +169,66 @@ body {
 
 .keel-main {
   flex: 1 0 auto;
-  padding: 1.25rem;
+  padding: 1.5rem 1.75rem 2rem;
+}
+
+.keel-main > h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.keel-main > h2 {
+  margin: 1.75rem 0 0.7rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-main > h3 {
+  margin: 1.15rem 0 0.45rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.keel-main a {
+  color: var(--keel-blue);
+}
+
+.keel-main a:hover,
+.keel-main a:focus-visible {
+  color: var(--keel-blue-deep);
+}
+
+.keel-lede {
+  margin: -0.25rem 0 1.15rem;
+  max-width: 40rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.keel-lede + .keel-lede {
+  margin-top: -0.85rem;
+}
+
+.keel-panel {
+  max-width: 40rem;
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.15rem 1.15rem;
+  border-radius: 0.4rem;
+  background: var(--keel-sheet);
+}
+
+.keel-panel > h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-panel .keel-form {
+  margin-bottom: 0;
 }
 
 .keel-note {
@@ -204,16 +263,44 @@ body {
   margin: 0;
 }
 
-.keel-form input,
+.keel-form input:not([type="checkbox"]),
 .keel-form select,
 .keel-form textarea,
 .keel-form button {
   font: inherit;
+  min-height: var(--keel-control-height);
   padding: 0.25rem 0.5rem;
   border: 1px solid var(--keel-blue);
   border-radius: 0.25rem;
   background: var(--keel-white);
   color: var(--keel-blue-deep);
+}
+
+.keel-form input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--keel-blue);
+}
+
+.keel-form .keel-primary {
+  background: var(--keel-blue);
+  color: var(--keel-white);
+  cursor: pointer;
+}
+
+.keel-form .keel-primary:hover {
+  background: var(--keel-blue-deep);
+}
+
+.keel-form--danger .keel-primary,
+.keel-form--danger button {
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+}
+
+.keel-form--danger button:hover {
+  background: var(--keel-sheet);
 }
 
 .keel-form--inline input[type="text"] {
@@ -232,24 +319,47 @@ body {
 
 .keel-form--stacked p {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.6rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  margin: 0 0 0.75rem;
+}
+
+.keel-form--stacked p:last-child {
+  margin-bottom: 0;
 }
 
 .keel-form--stacked label {
-  flex: 0 0 8rem;
+  flex: none;
+  font-size: 0.8125rem;
+  font-weight: 650;
 }
 
 .keel-form--stacked input,
 .keel-form--stacked select,
 .keel-form--stacked textarea {
   flex: 1 1 auto;
-  font: inherit;
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--keel-blue);
-  border-radius: 0.25rem;
-  color: var(--keel-blue-deep);
+  width: 100%;
+}
+
+.keel-form--stacked textarea {
+  min-height: 6.5rem;
+}
+
+.keel-form--stacked button {
+  align-self: flex-start;
+}
+
+.keel-title-field {
+  margin: 0 0 1.15rem;
+}
+
+.keel-title-field input {
+  width: 100%;
+  max-width: 48rem;
+  min-height: 2.35rem;
+  font-size: 1.2rem;
+  font-weight: 650;
 }
 
 .keel-action {
@@ -259,6 +369,7 @@ body {
   padding: 0 0.5rem;
   border: 1px solid var(--keel-blue);
   border-radius: 0.25rem;
+  background: var(--keel-white);
   color: var(--keel-blue-deep);
   font-size: var(--keel-control-font-size);
   line-height: 1;
@@ -267,6 +378,19 @@ body {
 
 .keel-action:hover {
   background: var(--keel-sheet);
+  color: var(--keel-blue-deep);
+}
+
+.keel-main a.keel-action {
+  color: var(--keel-blue-deep);
+  text-decoration: none;
+}
+
+.keel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.15rem;
 }
 
 .keel-counts {
@@ -274,7 +398,9 @@ body {
   flex-wrap: wrap;
   gap: 1rem;
   margin: 0 0 1rem;
-  padding: 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.4rem;
+  background: var(--keel-sheet);
   list-style: none;
   font-size: 0.875rem;
 }
@@ -285,34 +411,70 @@ body {
 
 .keel-facts {
   display: grid;
-  grid-template-columns: 8rem 1fr;
-  gap: 0.25rem 1rem;
-  margin: 0 0 1rem;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.45rem 1rem;
+  align-items: center;
+  max-width: 48rem;
+  margin: 0 0 0.5rem;
   font-size: 0.9375rem;
 }
 
 .keel-facts dt {
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 650;
 }
 
 .keel-facts dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.keel-facts .keel-form {
   margin: 0;
 }
 
 .keel-description {
   max-width: 48rem;
+  min-height: 8rem;
   white-space: pre-wrap;
 }
 
 .keel-table {
+  width: 100%;
   border-collapse: collapse;
+  font-size: 0.875rem;
 }
 
 .keel-table th,
 .keel-table td {
-  padding: 0.35rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--keel-sheet);
   text-align: left;
+  vertical-align: middle;
+}
+
+.keel-table th {
+  background: var(--keel-sheet);
+  font-weight: 650;
+}
+
+.keel-table tbody tr:hover {
+  background: color-mix(in srgb, var(--keel-sheet) 55%, var(--keel-white));
+}
+
+.keel-table a {
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.keel-table a:hover,
+.keel-table a:focus-visible {
+  text-decoration: underline;
+}
+
+.keel-empty {
+  margin: 0 0 1rem;
+  opacity: 0.75;
 }
 
 .keel-visually-hidden {
@@ -375,6 +537,16 @@ body {
 
 .keel-board__filter {
   flex-wrap: wrap;
+  row-gap: 0.55rem;
+  margin: 0 0 1.15rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.4rem;
+  background: var(--keel-sheet);
+}
+
+.keel-board__filter > span {
+  font-size: 0.8125rem;
+  font-weight: 650;
 }
 
 .keel-board__column {
@@ -412,9 +584,9 @@ body {
 }
 
 .keel-card {
-  padding: 0.6rem 0.7rem;
-  border: 1px solid var(--keel-blue);
-  border-radius: 0.25rem;
+  padding: 0.65rem 0.7rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--keel-blue) 35%, var(--keel-sheet));
+  border-radius: 0.35rem;
   background: var(--keel-white);
 }
 
@@ -426,24 +598,35 @@ body {
 .keel-card__title,
 .keel-card__meta,
 .keel-card__estimate {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.3rem;
 }
 
 .keel-card__key {
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.keel-card__key a {
+  text-decoration: none;
+}
+
+.keel-card__key a:hover,
+.keel-card__key a:focus-visible {
+  text-decoration: underline;
 }
 
 .keel-card__title {
   font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.3;
 }
 
 .keel-card__meta {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   font-size: 0.75rem;
-  opacity: 0.8;
 }
 
 .keel-card__estimate {
@@ -457,9 +640,10 @@ body {
 }
 
 .keel-comment {
-  margin: 0 0 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid var(--keel-blue);
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 0.35rem;
+  background: var(--keel-sheet);
 }
 
 .keel-comment__meta,
@@ -476,7 +660,8 @@ body {
   margin: 0 0 0.35rem;
 }
 
-.keel-blockers {
+.keel-blockers,
+.keel-chip {
   display: inline-block;
   padding: 0.05rem 0.4rem;
   border: 1px solid var(--keel-blue);

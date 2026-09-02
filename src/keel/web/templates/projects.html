@@ -5,13 +5,20 @@
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
-      <form class="keel-form" method="post" action="/web/projects">
-        <label for="new-key">Key</label>
-        <input id="new-key" name="key" type="text" size="8" maxlength="10" required/>
-        <label for="new-name">Name</label>
-        <input id="new-name" name="name" type="text" maxlength="200" required/>
-        <button type="submit">Create project</button>
-      </form>
+      <div class="keel-panel">
+        <h2>New project</h2>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/projects">
+          <p>
+            <label for="new-key">Key</label>
+            <input id="new-key" name="key" type="text" size="8" maxlength="10" required placeholder="KEEL"/>
+          </p>
+          <p>
+            <label for="new-name">Name</label>
+            <input id="new-name" name="name" type="text" maxlength="200" required/>
+          </p>
+          <p><button class="keel-primary" type="submit">Create project</button></p>
+        </form>
+      </div>
       <table class="keel-table">
         <thead>
           <tr><th>Key</th><th>Name</th><th>Description</th></tr>
@@ -24,7 +31,7 @@
             <td>{{ project.description }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="3">No projects yet.</td></tr>
+          <tr><td class="keel-empty" colspan="3">No projects yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

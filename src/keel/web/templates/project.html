@@ -12,7 +12,7 @@
         {% endfor %}
       </ul>
 
-      <p>
+      <p class="keel-actions">
         <a class="keel-action" href="/projects/{{ project.key }}/board">Board</a>
         <a class="keel-action" href="/projects/{{ project.key }}/backlog">Backlog</a>
         <a class="keel-action" href="/projects/{{ project.key }}/sprints">Sprints</a>
@@ -43,20 +43,26 @@
             <td>{{ issue.created_at | when }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="7">No issues yet.</td></tr>
+          <tr><td class="keel-empty" colspan="7">No issues yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
 
-      <h2>Project settings</h2>
-      <form class="keel-form" method="post" action="/web/projects/{{ project.id }}/update">
-        <label for="project-name">Name</label>
-        <input id="project-name" name="name" type="text" maxlength="200" value="{{ project.name }}" required/>
-        <label for="project-description">Description</label>
-        <input id="project-description" name="description" type="text" value="{{ project.description }}"/>
-        <button type="submit">Save</button>
-      </form>
-      <form class="keel-form" method="post" action="/web/projects/{{ project.id }}/delete"
+      <div class="keel-panel">
+        <h2>Project settings</h2>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/update">
+          <p>
+            <label for="project-name">Name</label>
+            <input id="project-name" name="name" type="text" maxlength="200" value="{{ project.name }}" required/>
+          </p>
+          <p>
+            <label for="project-description">Description</label>
+            <input id="project-description" name="description" type="text" value="{{ project.description }}"/>
+          </p>
+          <p><button class="keel-primary" type="submit">Save</button></p>
+        </form>
+      </div>
+      <form class="keel-form keel-form--danger" method="post" action="/web/projects/{{ project.id }}/delete"
             onsubmit="return confirm('Delete {{ project.key }} and every issue, sprint, comment, and dependency link in it? This cannot be undone.');">
         <button type="submit">Delete project</button>
       </form>

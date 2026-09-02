@@ -14,7 +14,7 @@
                   <p class="keel-card__key"><a href="/issues/{{ card.key }}">{{ card.key }}</a></p>
                   <p class="keel-card__title">{{ card.issue.title }}</p>
                   <p class="keel-card__meta">
-                    <span>{{ card.issue.type | label }}</span>
+                    <span class="keel-chip">{{ card.issue.type | label }}</span>
                     <span>{{ card.assignee_name or "Unassigned" }}</span>
                   </p>
                   {% if card.issue.estimate_minutes is not none %}

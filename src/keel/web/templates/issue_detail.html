@@ -1,22 +1,19 @@
 {% extends "base.html" %}
 {% block title %}{{ issue_key }}{% endblock %}
 {% block main %}
-      <h1>{{ issue_key }} — {{ issue.title }}</h1>
+      <h1>{{ issue_key }}</h1>
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
 
+      <form class="keel-form keel-form--inline keel-title-field" method="post" action="/web/issues/{{ issue.id }}/title" data-keel-autosubmit>
+        <label class="keel-visually-hidden" for="issue-title">Title</label>
+        <input id="issue-title" name="title" type="text" maxlength="300" value="{{ issue.title }}" required/>
+        <button class="keel-autosubmit__fallback" type="submit">Save</button>
+      </form>
+
       <dl class="keel-facts">
-        <dt>Key</dt><dd>{{ issue_key }}</dd>
         <dt>Project</dt><dd><a href="/projects/{{ project.key }}">{{ project.key }}</a></dd>
-        <dt>Title</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/title" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-title">Title</label>
-            <input id="issue-title" name="title" type="text" maxlength="300" value="{{ issue.title }}" required/>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
         <dt>Type</dt>
         <dd>
           <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
@@ -118,7 +115,7 @@
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit>
         <p>
           <label class="keel-visually-hidden" for="issue-description">Description</label>
-          <textarea id="issue-description" name="description" rows="6">{{ issue.description }}</textarea>
+          <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ issue.description }}</textarea>
         </p>
         <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
       </form>
@@ -137,7 +134,7 @@
             <td>{{ child.status | label }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="4">No children.</td></tr>
+          <tr><td class="keel-empty" colspan="4">No children.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -164,7 +161,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="3">None.</td></tr>
+          <tr><td class="keel-empty" colspan="3">None.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -189,7 +186,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="3">None.</td></tr>
+          <tr><td class="keel-empty" colspan="3">None.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -214,7 +211,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="3">None.</td></tr>
+          <tr><td class="keel-empty" colspan="3">None.</td></tr>
           {% endfor %}
         </tbody>
       </table>
@@ -239,7 +236,7 @@
             {% endfor %}
           </select>
         </label>
-        <button type="submit">Add</button>
+        <button class="keel-primary" type="submit">Add</button>
       </form>
       {% else %}
       <p>No other issues to link.</p>
@@ -256,17 +253,17 @@
         </form>
       </article>
       {% else %}
-      <p>No comments yet.</p>
+      <p class="keel-empty">No comments yet.</p>
       {% endfor %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
         <p>
           <label for="issue-comment">Comment</label>
           <textarea id="issue-comment" name="body" rows="3" required></textarea>
         </p>
-        <p><button type="submit">Add comment</button></p>
+        <p><button class="keel-primary" type="submit">Add comment</button></p>
       </form>
 
-      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/delete"
+      <form class="keel-form keel-form--danger" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?');">
         <button type="submit">Delete issue</button>
       </form>

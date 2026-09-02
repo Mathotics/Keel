@@ -29,14 +29,15 @@
             <td>{{ sprint.ends_on | day }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="4">None.</td></tr>
+          <tr><td class="keel-empty" colspan="4">None.</td></tr>
           {% endfor %}
         </tbody>
       </table>
       {% endfor %}
 
-      <h2>Plan a sprint</h2>
-      <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/sprints">
+      <div class="keel-panel">
+        <h2>Plan a sprint</h2>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/sprints">
         <p>
           <label for="sprint-name">Name</label>
           <input id="sprint-name" name="name" type="text" maxlength="200" required/>
@@ -53,6 +54,7 @@
           <label for="sprint-ends">Ends</label>
           <input id="sprint-ends" name="ends_on" type="date" data-keel-range="end"/>
         </p>
-        <p><button type="submit">Create sprint</button></p>
-      </form>
+          <p><button class="keel-primary" type="submit">Create sprint</button></p>
+        </form>
+      </div>
 {% endblock %}
