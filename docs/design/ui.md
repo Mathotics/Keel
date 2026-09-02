@@ -10,7 +10,7 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 Beside the logo, a nav element holds the top-level section links, Projects and Users. Inside a project the same nav also links to that project's board, and later its backlog and sprints. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
-Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The form's Switch button remains in the markup and is hidden by the same document-root marker the board uses, so the picker still works when the script does not run.
+Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters and the issue page's status, assignee, and due date — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
 Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. The home icon keeps its own circular treatment as the brand mark.
 
@@ -58,7 +58,7 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 
 Five columns in workflow order — To Do, In Progress, In Review, Blocked, Done — generated from the status enumeration rather than stored ([ADR 013](../adr/ADR-013.md)).
 
-A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types and every assignee appear by default. Filters above the board restrict which types and which assignee are shown; both are applied at query time, not by hiding cards. The assignee filter offers Anyone, Unassigned, or a specific person.
+A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). All three issue types and every assignee appear by default. Filters above the board restrict which types and which assignee are shown; both are applied at query time, not by hiding cards. The assignee filter offers Anyone, Unassigned, or a specific person. Changing a filter submits the form immediately once `userpicker.js` has run; an Apply button remains for when it has not.
 
 Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker script uses its own marker (`data-keel-js`) for the same reason: it loads on every page, and must not hide a board fallback it did not enable.
 
@@ -68,13 +68,13 @@ A flat table of the project's issues that have no sprint and are not Done, oldes
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Status, assignee, and due date are inputs on the issue page and on the create/edit form. Created-on and updated-on are metadata: they are shown, never offered as inputs.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Status, assignee, and due date are inputs on the issue page and on the create/edit form. On the issue page they submit as soon as they change, with a Save button only as the no-JavaScript fallback. Created-on and updated-on are metadata: they are shown, never offered as inputs.
 
 ## JavaScript
 
 Two scripts, both vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker, `data-keel-board` for the board.
 
-`assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button.
+`assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button. It also submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons.
 
 `assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
 

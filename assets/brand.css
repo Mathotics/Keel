@@ -115,9 +115,10 @@ body {
   gap: 0.35rem;
 }
 
-/* The dropdown submits itself once the script runs, so the button is only
+/* Marked forms submit themselves once the script runs, so the button is only
    needed when it did not. */
-[data-keel-js] .keel-userpicker__fallback {
+[data-keel-js] .keel-userpicker__fallback,
+[data-keel-js] .keel-autosubmit__fallback {
   display: none;
 }
 

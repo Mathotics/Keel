@@ -10,7 +10,7 @@
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
 
-      <form class="keel-form keel-board__filter" method="get" action="/projects/{{ project.key }}/board">
+      <form class="keel-form keel-board__filter" method="get" action="/projects/{{ project.key }}/board" data-keel-autosubmit>
         <span>Show</span>
         {% for issue_type in issue_types %}
         <label>
@@ -28,7 +28,7 @@
             {% endfor %}
           </select>
         </label>
-        <button type="submit">Apply</button>
+        <button class="keel-autosubmit__fallback" type="submit">Apply</button>
       </form>
 
       <div class="keel-board" data-keel-board-root>

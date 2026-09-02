@@ -88,6 +88,16 @@ def test_the_assignee_filter_changes_what_the_board_queries(
     assert 'name="assignee"' in client.get("/projects/KEEL/board").text
 
 
+def test_the_board_filter_keeps_apply_without_javascript(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get("/projects/KEEL/board")
+    assert "data-keel-autosubmit" in page.text
+    assert "keel-autosubmit__fallback" in page.text
+    assert ">Apply<" in page.text
+
+
 def test_the_fallback_form_moves_a_card(
     client: TestClient,
     project: Json,

@@ -91,10 +91,13 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert script.status_code == 200
     assert 'addEventListener("change"' in script.text
     assert "data-keel-js" in script.text
+    assert "data-keel-autosubmit" in script.text
 
     css = client.get("/assets/brand.css").text
     hidden = _rule(css, "[data-keel-js] .keel-userpicker__fallback")
     assert "display: none" in hidden
+    autosubmit = _rule(css, "[data-keel-js] .keel-autosubmit__fallback")
+    assert "display: none" in autosubmit
 
 
 def test_topbar_label_matches_the_control_height(client: TestClient) -> None:
