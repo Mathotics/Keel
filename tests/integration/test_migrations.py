@@ -43,11 +43,24 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     engine = create_db_engine(migrated.resolved_database_url())
     try:
         columns = {column["name"] for column in inspect(engine).get_columns("issues")}
+        sprints = {column["name"] for column in inspect(engine).get_columns("sprints")}
     finally:
         engine.dispose()
     assert "due_at" in columns
+    assert "sprint_id" in columns
     assert "created_at" in columns
     assert "updated_at" in columns
+    assert sprints >= {
+        "id",
+        "project_id",
+        "name",
+        "goal",
+        "state",
+        "starts_on",
+        "ends_on",
+        "created_at",
+        "completed_at",
+    }
 
 
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:

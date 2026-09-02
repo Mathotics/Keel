@@ -17,6 +17,14 @@ class IssueStatus(StrEnum):
     DONE = "done"
 
 
+class SprintState(StrEnum):
+    """Declaration order is the only allowed lifecycle."""
+
+    PLANNED = "planned"
+    ACTIVE = "active"
+    COMPLETED = "completed"
+
+
 INITIAL_STATUS = IssueStatus.TODO
 TERMINAL_STATUS = IssueStatus.DONE
 
@@ -29,10 +37,15 @@ _LABELS = {
     IssueStatus.IN_REVIEW: "In Review",
     IssueStatus.BLOCKED: "Blocked",
     IssueStatus.DONE: "Done",
+    SprintState.PLANNED: "Planned",
+    SprintState.ACTIVE: "Active",
+    SprintState.COMPLETED: "Completed",
 }
 
+Labeled = IssueType | IssueStatus | SprintState
 
-def label(value: IssueType | IssueStatus) -> str:
+
+def label(value: Labeled) -> str:
     return _LABELS[value]
 
 
@@ -42,3 +55,7 @@ def statuses_in_workflow_order() -> tuple[IssueStatus, ...]:
 
 def types_in_hierarchy_order() -> tuple[IssueType, ...]:
     return tuple(IssueType)
+
+
+def sprint_states_in_lifecycle_order() -> tuple[SprintState, ...]:
+    return tuple(SprintState)

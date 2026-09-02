@@ -150,6 +150,13 @@ body {
   font-size: 0.875rem;
 }
 
+.keel-notice {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--keel-blue);
+  font-size: 0.875rem;
+}
+
 .keel-form {
   display: flex;
   align-items: center;

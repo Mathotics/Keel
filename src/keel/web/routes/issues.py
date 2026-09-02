@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from keel.domain.enums import statuses_in_workflow_order
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
+from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 
@@ -42,6 +43,7 @@ def issue_page(
             children=issue_service.list_children(session, issue.id),
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
+            sprints=sprint_service.list_sprints(session, project.id),
             error=error,
         ),
     )
@@ -74,6 +76,7 @@ def edit_issue_page(
             parents=candidates,
             assignees=user_service.list_users(session),
             reporter=_named(session, issue.reporter_id, empty="None"),
+            sprints=sprint_service.list_sprints(session, project.id),
             error=error,
         ),
     )

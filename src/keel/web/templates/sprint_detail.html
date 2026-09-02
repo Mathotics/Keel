@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ sprint.name }}{% endblock %}
+{% block main %}
+      <h1>{{ sprint.name }}</h1>
+      <p>{{ sprint.state | label }}{% if sprint.goal %} — {{ sprint.goal }}{% endif %}</p>
+      <p>Starts {{ sprint.starts_on | day }} · Ends {{ sprint.ends_on | day }}</p>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% if notice %}
+      <p class="keel-notice" role="status">{{ notice }}</p>
+      {% endif %}
+
+      {% if sprint.state.value == "planned" %}
+      <form class="keel-form" method="post" action="/web/sprints/{{ sprint.id }}/start">
+        <button type="submit">Start sprint</button>
+      </form>
+      {% elif sprint.state.value == "active" %}
+      <form class="keel-form" method="post" action="/web/sprints/{{ sprint.id }}/complete"
+            onsubmit="return confirm('Complete this sprint? Unfinished issues move to the next planned sprint, or back to the backlog.');">
+        <button type="submit">Complete sprint</button>
+      </form>
+      {% endif %}
+
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Assignee</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in issues %}
+          <tr>
+            <td><a href="/issues/{{ project.key }}-{{ issue.number }}">{{ project.key }}-{{ issue.number }}</a></td>
+            <td>{{ issue.type | label }}</td>
+            <td>{{ issue.title }}</td>
+            <td>{{ issue.status | label }}</td>
+            <td>{% if issue.assignee_id %}{{ names.get(issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">No issues in this sprint.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h2>Sprint settings</h2>
+      <form class="keel-form keel-form--stacked" method="post" action="/web/sprints/{{ sprint.id }}/update">
+        <p>
+          <label for="sprint-name">Name</label>
+          <input id="sprint-name" name="name" type="text" maxlength="200" value="{{ sprint.name }}" required/>
+        </p>
+        <p>
+          <label for="sprint-goal">Goal</label>
+          <input id="sprint-goal" name="goal" type="text" value="{{ sprint.goal }}"/>
+        </p>
+        <p>
+          <label for="sprint-starts">Starts</label>
+          <input id="sprint-starts" name="starts_on" type="date" value="{{ sprint.starts_on.isoformat() if sprint.starts_on else '' }}"/>
+        </p>
+        <p>
+          <label for="sprint-ends">Ends</label>
+          <input id="sprint-ends" name="ends_on" type="date" value="{{ sprint.ends_on.isoformat() if sprint.ends_on else '' }}"/>
+        </p>
+        <p><button type="submit">Save</button></p>
+      </form>
+      <form class="keel-form" method="post" action="/web/sprints/{{ sprint.id }}/delete"
+            onsubmit="return confirm('Delete {{ sprint.name }}? Its issues return to the backlog. This cannot be undone.');">
+        <button type="submit">Delete sprint</button>
+      </form>
+{% endblock %}

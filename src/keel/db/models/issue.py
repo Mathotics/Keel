@@ -44,6 +44,7 @@ class Issue(Base):
         Index("ix_issues_project_status", "project_id", "status"),
         Index("ix_issues_project_created", "project_id", "created_at"),
         Index("ix_issues_parent_id", "parent_id"),
+        Index("ix_issues_sprint_id", "sprint_id"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -61,6 +62,10 @@ class Issue(Base):
     )
     parent_id: Mapped[int | None] = mapped_column(
         ForeignKey("issues.id", ondelete="RESTRICT"),
+        default=None,
+    )
+    sprint_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sprints.id", ondelete="SET NULL"),
         default=None,
     )
     reporter_id: Mapped[int | None] = mapped_column(

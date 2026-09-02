@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ project.key }} backlog{% endblock %}
+{% block main %}
+      <h1>{{ project.key }} backlog</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Assignee</th>
+            <th>Sprint</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for issue in issues %}
+          <tr>
+            <td><a href="/issues/{{ project.key }}-{{ issue.number }}">{{ project.key }}-{{ issue.number }}</a></td>
+            <td>{{ issue.type | label }}</td>
+            <td>{{ issue.title }}</td>
+            <td>{{ issue.status | label }}</td>
+            <td>{% if issue.assignee_id %}{{ names.get(issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
+            <td>
+              {% if planned %}
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/sprint" data-keel-autosubmit>
+                <input type="hidden" name="next" value="/projects/{{ project.key }}/backlog"/>
+                <label class="keel-visually-hidden" for="backlog-sprint-{{ issue.id }}">Sprint for {{ project.key }}-{{ issue.number }}</label>
+                <select id="backlog-sprint-{{ issue.id }}" name="sprint_id">
+                  <option value="" selected>Unscheduled</option>
+                  {% for sprint in planned %}
+                  <option value="{{ sprint.id }}">{{ sprint.name }}</option>
+                  {% endfor %}
+                </select>
+                <button class="keel-autosubmit__fallback" type="submit">Schedule</button>
+              </form>
+              {% else %}
+              No planned sprint
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6">Nothing in the backlog.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+{% endblock %}

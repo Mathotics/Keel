@@ -16,6 +16,7 @@ from keel.domain.errors import (
     InvalidIssueError,
     IssueHasChildrenError,
     NotFoundError,
+    SprintProjectMismatchError,
 )
 from keel.domain.hierarchy import IssueRef, check_children, check_parent
 from keel.services import projects as project_service
@@ -32,6 +33,8 @@ class IssueFilters:
     assignee_id: int | None = None
     unassigned: bool = False
     parent_id: int | None = None
+    sprint_id: int | None = None
+    unscheduled: bool = False
 
 
 def issue_key(issue: Issue, project: Project) -> str:
@@ -102,6 +105,7 @@ def create_issue(
     reporter_id: int | None = None,
     assignee_id: int | None = None,
     due_at: datetime | None = None,
+    sprint_id: int | None = None,
 ) -> Issue:
     project = project_service.get_project(session, project_id)
     issue = Issue(
@@ -116,6 +120,7 @@ def create_issue(
         due_at=due_at,
     )
     _assign_parent(session, issue, parent_id)
+    _assign_sprint(session, issue, sprint_id)
     session.add(issue)
     session.flush()
     return issue
@@ -132,6 +137,7 @@ def update_issue(
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
+    sprint_id: int | None | object = UNSET,
 ) -> Issue:
     """Nullable fields accept None as "clear it", so they use UNSET."""
     issue = get_issue(session, issue_id)
@@ -153,6 +159,8 @@ def update_issue(
         issue.assignee_id = assignee_id  # type: ignore[assignment]
     if due_at is not UNSET:
         issue.due_at = due_at  # type: ignore[assignment]
+    if sprint_id is not UNSET:
+        _assign_sprint(session, issue, sprint_id)  # type: ignore[arg-type]
 
     session.flush()
     return issue
@@ -195,6 +203,22 @@ def _assign_parent(session: Session, issue: Issue, parent_id: int | None) -> Non
     issue.parent_id = parent_id
 
 
+def _assign_sprint(session: Session, issue: Issue, sprint_id: int | None) -> None:
+    if sprint_id is None:
+        issue.sprint_id = None
+        return
+    from keel.services.sprints import get_sprint
+
+    sprint = get_sprint(session, sprint_id)
+    if sprint.project_id != issue.project_id:
+        raise SprintProjectMismatchError(
+            "An issue can only be scheduled in a sprint of the same project.",
+            issue_id=issue.id,
+            sprint_id=sprint.id,
+        )
+    issue.sprint_id = sprint_id
+
+
 def _apply_filters(
     query: Select[tuple[Issue]],
     filters: IssueFilters,
@@ -213,6 +237,10 @@ def _apply_filters(
         query = query.where(Issue.assignee_id == filters.assignee_id)
     if filters.parent_id is not None:
         query = query.where(Issue.parent_id == filters.parent_id)
+    if filters.unscheduled:
+        query = query.where(Issue.sprint_id.is_(None))
+    elif filters.sprint_id is not None:
+        query = query.where(Issue.sprint_id == filters.sprint_id)
     return query
 
 

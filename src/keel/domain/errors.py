@@ -78,3 +78,20 @@ class ParentCycleError(DomainError):
 
 class IssueHasChildrenError(DomainError):
     code = "issue.has_children"
+
+
+class InvalidSprintError(DomainError):
+    code = "sprint.invalid"
+    status_code = 422
+
+
+class SprintAlreadyActiveError(DomainError):
+    code = "sprint.already_active"
+
+
+class SprintInvalidTransitionError(DomainError):
+    code = "sprint.invalid_transition"
+
+
+class SprintProjectMismatchError(DomainError):
+    code = "sprint.project_mismatch"

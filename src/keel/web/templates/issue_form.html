@@ -57,6 +57,15 @@
           </select>
         </p>
         <p>
+          <label for="issue-sprint">Sprint</label>
+          <select id="issue-sprint" name="sprint_id">
+            <option value="">Unscheduled</option>
+            {% for sprint in sprints %}
+            <option value="{{ sprint.id }}"{% if issue and issue.sprint_id == sprint.id %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
           <label for="issue-due">Due date</label>
           <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local if issue else '' }}"/>
         </p>

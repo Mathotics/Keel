@@ -67,7 +67,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/`, which redirects to `/projects` (the project list, with a create form). Also `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, and an issue at `/issues/KEEL-1`.
+Then open `http://127.0.0.1:8000/`, which redirects to `/projects` (the project list, with a create form). Also `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, its backlog at `/projects/KEEL/backlog`, its sprints at `/projects/KEEL/sprints`, and an issue at `/issues/KEEL-1`.
 
 ## Lint and test
 
@@ -106,4 +106,3 @@ The [implementation plan](docs/design/implementation-plan.md) is the build order
 ## License
 
 This is not an open-source project. See [LICENSE](LICENSE) or the in-app page at `/license`.
-

@@ -152,6 +152,7 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert 'name="status"' in page.text
     assert 'value="todo" selected' in page.text or 'value="todo"selected' in page.text
     assert 'name="assignee_id"' in page.text
+    assert 'name="sprint_id"' in page.text
     assert "data-keel-autosubmit" in page.text
     assert "keel-autosubmit__fallback" in page.text
 

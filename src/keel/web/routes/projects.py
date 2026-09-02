@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 from keel.domain.enums import statuses_in_workflow_order
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
+from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 
@@ -75,6 +76,7 @@ def new_issue_page(
             issue=None,
             parents=issue_service.list_issues(session, project.id),
             assignees=user_service.list_users(session),
+            sprints=sprint_service.list_sprints(session, project.id),
             error=error,
         ),
     )

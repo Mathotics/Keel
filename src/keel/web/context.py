@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import lru_cache
 from typing import Annotated, Any
 
@@ -35,6 +35,7 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["label"] = label
     templates.env.filters["when"] = format_when
     templates.env.filters["datetime_local"] = datetime_local
+    templates.env.filters["day"] = format_day
     return templates
 
 
@@ -50,6 +51,15 @@ def datetime_local(value: datetime | None) -> str:
     if value is None:
         return ""
     return _as_naive_utc(value).strftime("%Y-%m-%dT%H:%M")
+
+
+def format_day(value: date | datetime | None) -> str:
+    """Calendar dates as they appear on sprint pages."""
+    if value is None:
+        return "None"
+    if isinstance(value, datetime):
+        return _as_naive_utc(value).date().isoformat()
+    return value.isoformat()
 
 
 def _as_naive_utc(value: datetime) -> datetime:

@@ -24,6 +24,8 @@ def list_issues(
     status_: IssueStatus | None = Query(default=None, alias="status"),
     assignee_id: int | None = Query(default=None),
     parent_id: int | None = Query(default=None),
+    sprint_id: int | None = Query(default=None),
+    unscheduled: bool = Query(default=False),
 ) -> list[IssueRead]:
     project = project_service.get_project(session, project_id)
     found = issue_service.list_issues(
@@ -34,6 +36,8 @@ def list_issues(
             status=status_,
             assignee_id=assignee_id,
             parent_id=parent_id,
+            sprint_id=sprint_id,
+            unscheduled=unscheduled,
         ),
     )
     return [IssueRead.of(issue, project) for issue in found]
@@ -58,6 +62,7 @@ def create_issue(
         description=payload.description,
         status=payload.status,
         parent_id=payload.parent_id,
+        sprint_id=payload.sprint_id,
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
         due_at=payload.due_at,
@@ -93,6 +98,7 @@ def update_issue(
         description=payload.description,
         status=payload.status,
         parent_id=payload.parent_id if "parent_id" in supplied else issue_service.UNSET,
+        sprint_id=payload.sprint_id if "sprint_id" in supplied else issue_service.UNSET,
         assignee_id=(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),

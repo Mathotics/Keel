@@ -59,6 +59,8 @@ Done when a card can be dragged between columns and the change survives a reload
 
 ## Phase 3 — Sprints
 
+**Status: done.**
+
 * Sprint model with the partial unique index enforcing one active sprint per project.
 * Lifecycle service: start with its active-sprint check, complete with carry-over into the earliest remaining planned sprint or back to the backlog.
 * Sprint list and detail pages, JSON routes, and the start and complete actions with their fallback forms.

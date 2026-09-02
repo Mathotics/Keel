@@ -157,6 +157,8 @@ def test_the_top_bar_names_the_board_inside_a_project(
         )[0]
     )
     assert 'href="/projects/KEEL/board"' in header
+    assert 'href="/projects/KEEL/backlog"' in header
+    assert 'href="/projects/KEEL/sprints"' in header
     assert "Board" in header
 
 

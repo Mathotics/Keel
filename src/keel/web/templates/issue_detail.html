@@ -45,6 +45,20 @@
           None
           {% endif %}
         </dd>
+        <dt>Sprint</dt>
+        <dd>
+          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/sprint" data-keel-autosubmit>
+            <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+            <label class="keel-visually-hidden" for="issue-sprint">Sprint</label>
+            <select id="issue-sprint" name="sprint_id">
+              <option value=""{% if not issue.sprint_id %} selected{% endif %}>Unscheduled</option>
+              {% for sprint in sprints %}
+              <option value="{{ sprint.id }}"{% if issue.sprint_id == sprint.id %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
+              {% endfor %}
+            </select>
+            <button class="keel-autosubmit__fallback" type="submit">Save</button>
+          </form>
+        </dd>
         <dt>Due date</dt>
         <dd>
           <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/due" data-keel-autosubmit>

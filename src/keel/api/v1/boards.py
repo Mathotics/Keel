@@ -4,7 +4,9 @@ from keel.api.v1.deps import SessionDep
 from keel.domain.enums import IssueType, label
 from keel.schemas.board import BoardColumnRead, BoardRead
 from keel.schemas.issue import IssueRead
+from keel.services import backlog as backlog_service
 from keel.services import boards as board_service
+from keel.services import projects as project_service
 
 router = APIRouter(tags=["boards"])
 
@@ -37,3 +39,12 @@ def read_board(
             for column in board.columns
         ],
     )
+
+
+@router.get("/projects/{project_id}/backlog", response_model=list[IssueRead])
+def read_backlog(project_id: int, session: SessionDep) -> list[IssueRead]:
+    project = project_service.get_project(session, project_id)
+    return [
+        IssueRead.of(issue, project)
+        for issue in backlog_service.project_backlog(session, project.id)
+    ]

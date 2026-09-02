@@ -8,9 +8,9 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 `base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
-Beside the logo, a nav element holds the top-level section links, Projects and Users. Inside a project the same nav also links to that project's board, and later its backlog and sprints. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
+Beside the logo, a nav element holds the top-level section links, Projects and Users. Inside a project the same nav also links to that project's board, backlog, and sprints. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
-Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters and the issue page's status, assignee, and due date — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
+Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and the issue page's status, assignee, due date, and sprint — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
 Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. The home icon keeps its own circular treatment as the brand mark.
 
@@ -53,6 +53,9 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/users/{user_id}/rename` | The users page |
 | `POST` | `/web/users/{user_id}/delete` | The users page |
 | `POST` | `/web/issues/{issue_id}/status` | A board card's fallback status form, and the issue page |
+| `POST` | `/web/projects/{project_id}/sprints` | The sprints page create form |
+| `POST` | `/web/sprints/{sprint_id}/update` | The sprint page's settings form |
+| `POST` | `/web/sprints/{sprint_id}/delete` | The sprint page |
 
 ## Board
 
@@ -64,11 +67,15 @@ Each card also carries a status select and a Move button inside a form posting t
 
 ## Backlog
 
-A flat table of the project's issues that have no sprint and are not Done, oldest first. There is no manual ordering: [ADR 013](../adr/ADR-013.md) removed backlog rank, so the backlog needs no drag-and-drop. Rows show the key, type, title, status, assignee, estimate, and the blocker marker, with a control to schedule an issue into a planned sprint.
+A flat table of the project's issues that have no sprint and are not Done, oldest first. There is no manual ordering: [ADR 013](../adr/ADR-013.md) removed backlog rank, so the backlog needs no drag-and-drop. Rows show the key, type, title, status, assignee, and a control to schedule an issue into a planned sprint. Changing that control submits immediately once `userpicker.js` has run; a Schedule button remains for when it has not.
+
+## Sprints
+
+The sprints page lists a project's sprints grouped by state, with a form to plan a new one. The detail page lists the sprint's issues and offers Start (when planned) or Complete (when active). Completing reports how many unfinished issues moved and where they went. Sprint settings — name, goal, dates — save with an ordinary button; Start and Complete are actions, not field updates.
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Status, assignee, and due date are inputs on the issue page and on the create/edit form. On the issue page they submit as soon as they change, with a Save button only as the no-JavaScript fallback. Created-on and updated-on are metadata: they are shown, never offered as inputs.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Status, assignee, due date, and sprint are inputs on the issue page and on the create/edit form. On the issue page they submit as soon as they change, with a Save button only as the no-JavaScript fallback. Created-on and updated-on are metadata: they are shown, never offered as inputs.
 
 ## JavaScript
 

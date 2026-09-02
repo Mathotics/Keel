@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ project.key }} sprints{% endblock %}
+{% block main %}
+      <h1>{{ project.key }} sprints</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% if notice %}
+      <p class="keel-notice" role="status">{{ notice }}</p>
+      {% endif %}
+
+      {% for state in states %}
+      <h2>{{ state | label }}</h2>
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Goal</th>
+            <th>Starts</th>
+            <th>Ends</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sprint in grouped[state.value] %}
+          <tr>
+            <td><a href="/projects/{{ project.key }}/sprints/{{ sprint.id }}">{{ sprint.name }}</a></td>
+            <td>{{ sprint.goal }}</td>
+            <td>{{ sprint.starts_on | day }}</td>
+            <td>{{ sprint.ends_on | day }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endfor %}
+
+      <h2>Plan a sprint</h2>
+      <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/sprints">
+        <p>
+          <label for="sprint-name">Name</label>
+          <input id="sprint-name" name="name" type="text" maxlength="200" required/>
+        </p>
+        <p>
+          <label for="sprint-goal">Goal</label>
+          <input id="sprint-goal" name="goal" type="text"/>
+        </p>
+        <p>
+          <label for="sprint-starts">Starts</label>
+          <input id="sprint-starts" name="starts_on" type="date"/>
+        </p>
+        <p>
+          <label for="sprint-ends">Ends</label>
+          <input id="sprint-ends" name="ends_on" type="date"/>
+        </p>
+        <p><button type="submit">Create sprint</button></p>
+      </form>
+{% endblock %}

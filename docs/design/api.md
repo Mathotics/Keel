@@ -176,6 +176,7 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `sprint.already_active` | 409 | Starting a sprint while another is active in the project |
 | `sprint.invalid_transition` | 409 | A state change other than planned to active or active to completed |
 | `sprint.project_mismatch` | 409 | Scheduling an issue into another project's sprint |
+| `sprint.invalid` | 422 | A sprint name is blank or its dates are out of order |
 | `dependency.cycle` | 409 | A `blocks` link would close a cycle |
 | `dependency.self_link` | 409 | Source and target are the same issue |
 | `dependency.duplicate` | 409 | An identical link already exists |
@@ -192,6 +193,9 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/user` | Set the `keel_user` cookie from the top-bar picker |
 | `POST` | `/web/issues/{issue_id}/status` | The board's fallback status change |
 | `POST` | `/web/issues/{issue_id}/sprint` | Schedule or unschedule an issue |
+| `POST` | `/web/projects/{project_id}/sprints` | Create a sprint |
+| `POST` | `/web/sprints/{sprint_id}/update` | Update name, goal, or dates |
+| `POST` | `/web/sprints/{sprint_id}/delete` | Delete a sprint; its issues return to the backlog |
 | `POST` | `/web/sprints/{sprint_id}/start` | Start a sprint |
 | `POST` | `/web/sprints/{sprint_id}/complete` | Complete a sprint |
 

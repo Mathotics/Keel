@@ -147,4 +147,3 @@ cmd = "pre-commit run --all-files"
 [tool.poe.tasks.check]
 help = "Run pre-commit hooks, which include the full test suite"
 sequence = ["pre-commit"]
-
