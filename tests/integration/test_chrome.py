@@ -58,7 +58,10 @@ def test_topbar_controls_share_one_look(client: TestClient) -> None:
 
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
     interactive = (
-        header.count("<a ") + header.count("<select") + header.count("<button")
+        header.count("<a ")
+        + header.count("<select")
+        + header.count("<button")
+        + header.count('<input class="keel-topbar__control"')
     )
     brand = 1  # the home icon keeps its own circular treatment
     assert header.count("keel-topbar__control") == interactive - brand
@@ -79,11 +82,12 @@ def test_create_stands_out_in_the_recorded_palette(client: TestClient) -> None:
 
 
 def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
-    """Sections read left to right from the logo; the picker stays at the far end."""
+    """Sections read left to right from the logo; find then the picker at the far end."""
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
     assert (
         header.index("keel-topbar__home")
         < header.index("keel-topbar__nav")
+        < header.index("keel-find")
         < header.index("keel-userpicker")
     )
     nav = header.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
@@ -100,6 +104,10 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
     assert "Board" not in nav
     assert "Up" in nav
     assert "Down" in nav
+    assert 'action="/search"' in header
+    assert 'name="q"' in header
+    assert "required" in header.split("keel-find", 1)[1]
+    assert "keel-find__fallback" in header
 
 
 def test_picker_switches_on_change_but_keeps_a_button_without_js(
@@ -123,6 +131,8 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert "display: none" in hidden
     autosubmit = _rule(css, "[data-keel-js] .keel-autosubmit__fallback")
     assert "display: none" in autosubmit
+    find_fallback = _rule(css, "[data-keel-js] .keel-find__fallback")
+    assert "display: none" in find_fallback
     nav_fallback = _rule(css, "[data-keel-nav] .keel-nav__fallback")
     assert "display: none" in nav_fallback
 

@@ -12,6 +12,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Group work under an Epic.** A user creates an Epic to represent a large body of work and sees its child Stories and rolled-up progress.
 * **Write a Story.** A user creates a Story (optionally under an Epic), gives it a description, assigns it to a person, sets a time estimate, and moves it through statuses.
 * **File an issue quickly.** A user opens Create from the menu, picks a project and type, types a title, and lands on the new issue to fill in the rest.
+* **Find work by name.** A user types an issue key, a title, or other text in the menu and jumps to that item, or sees a short list of matches, without scanning the board.
 * **Break a Story into Subtasks.** A user adds Subtasks under a Story; Subtask progress and time estimates roll up to the parent Story.
 
 ## Backlog

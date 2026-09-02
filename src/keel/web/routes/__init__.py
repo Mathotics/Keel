@@ -7,12 +7,14 @@ from keel.web.routes import (
     issues,
     pages,
     projects,
+    search,
     sprints,
     users,
 )
 
 router = APIRouter()
 router.include_router(pages.router)
+router.include_router(search.router)
 router.include_router(projects.router)
 router.include_router(board.router)
 router.include_router(backlog.router)

@@ -75,6 +75,14 @@ body {
   margin-left: 0.75rem;
 }
 
+.keel-find {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  margin-left: 0.75rem;
+}
+
 .keel-nav__item,
 .keel-nav__fallback {
   display: flex;
@@ -134,6 +142,11 @@ body {
   outline-offset: 2px;
 }
 
+.keel-find input.keel-topbar__control {
+  width: 12rem;
+  cursor: text;
+}
+
 /* Create is the primary action: a tint of the bar blue, mixed from the
    recorded tokens, so it stays on-palette but is not a white chip. */
 .keel-topbar__create {
@@ -154,6 +167,7 @@ body {
 /* Marked forms submit themselves once the script runs, so the button is only
    needed when it did not. */
 [data-keel-js] .keel-userpicker__fallback,
+[data-keel-js] .keel-find__fallback,
 [data-keel-js] .keel-autosubmit__fallback {
   display: none;
 }
@@ -478,6 +492,10 @@ body {
 
 .keel-empty {
   margin: 0 0 1rem;
+  opacity: 0.75;
+}
+
+.keel-muted {
   opacity: 0.75;
 }
 

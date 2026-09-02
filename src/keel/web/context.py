@@ -110,7 +110,7 @@ def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, An
     key = getattr(project, "key", None)
     project_key = key if isinstance(key, str) else None
     nav_items = links_for(parse_order(request.cookies.get(NAV_COOKIE)), project_key)
-    return {
+    context: dict[str, Any] = {
         "request": request,
         "version": package_version(),
         "copyright_notice": copyright_notice(),
@@ -120,3 +120,5 @@ def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, An
         "nav_keys": ",".join(item.key for item in nav_items),
         **extra,
     }
+    context.setdefault("find_query", "")
+    return context

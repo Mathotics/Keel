@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Find {{ results.query }}{% endblock %}
+{% block main %}
+      <h1>Find</h1>
+      <p class="keel-lede">Matches for “{{ results.query }}”{% if scoped and project %} in {{ project.key }}{% endif %}.</p>
+
+      <h2>Issues</h2>
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Title</th>
+            {% if not scoped %}<th>Project</th>{% endif %}
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hit in results.issues %}
+          <tr>
+            <td><a href="/issues/{{ hit.key }}">{{ hit.key }}</a></td>
+            <td>{{ hit.title }}</td>
+            {% if not scoped %}<td>{{ hit.project_key }}</td>{% endif %}
+            <td>{% if hit.snippet %}<span class="keel-muted">{{ hit.snippet }}</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td class="keel-empty" colspan="{% if scoped %}3{% else %}4{% endif %}">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.issues_more %}
+      <p class="keel-lede">More issues match. Narrow the query.</p>
+      {% endif %}
+
+      <h2>Projects</h2>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Key</th><th>Name</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for hit in results.projects %}
+          <tr>
+            <td><a href="/projects/{{ hit.key }}">{{ hit.key }}</a></td>
+            <td>{{ hit.name }}</td>
+            <td>{% if hit.snippet %}<span class="keel-muted">{{ hit.snippet }}</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td class="keel-empty" colspan="3">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.projects_more %}
+      <p class="keel-lede">More projects match. Narrow the query.</p>
+      {% endif %}
+
+      <h2>Sprints</h2>
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            {% if not scoped %}<th>Project</th>{% endif %}
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hit in results.sprints %}
+          <tr>
+            <td><a href="/projects/{{ hit.project_key }}/sprints/{{ hit.id }}">{{ hit.name }}</a></td>
+            {% if not scoped %}<td>{{ hit.project_key }}</td>{% endif %}
+            <td>{% if hit.snippet %}<span class="keel-muted">{{ hit.snippet }}</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td class="keel-empty" colspan="{% if scoped %}2{% else %}3{% endif %}">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.sprints_more %}
+      <p class="keel-lede">More sprints match. Narrow the query.</p>
+      {% endif %}
+
+      <h2>Users</h2>
+      <table class="keel-table">
+        <thead>
+          <tr><th>Name</th></tr>
+        </thead>
+        <tbody>
+          {% for hit in results.users %}
+          <tr>
+            <td><a href="/users">{{ hit.display_name }}</a></td>
+          </tr>
+          {% else %}
+          <tr><td class="keel-empty">None.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if results.users_more %}
+      <p class="keel-lede">More users match. Narrow the query.</p>
+      {% endif %}
+{% endblock %}

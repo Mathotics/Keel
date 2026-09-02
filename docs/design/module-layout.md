@@ -52,6 +52,7 @@ src/keel/
     boards.py
     backlog.py
     sprints.py
+    find.py
     dependencies.py
     comments.py
 
@@ -87,6 +88,7 @@ src/keel/
     routes/
       __init__.py
       pages.py          home, license
+      search.py         GET /search
       projects.py
       issues.py
       board.py

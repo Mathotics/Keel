@@ -8,11 +8,11 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 `base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
-Beside the logo, a nav element holds the top-level section links, Projects, Create, and Users. Create is always reachable and opens a short form for a new issue. Inside a project the same nav also links to that project's board, backlog, and sprints, and Create preselects that project. Those section buttons can be reordered by dragging them, or with Up and Down when JavaScript has not run; the order is stored in a `keel_nav` cookie for this browser, the same regardless of who is selected in the picker. The home icon and the picker stay fixed. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
+Beside the logo, a nav element holds the top-level section links, Projects, Create, and Users. Create is always reachable and opens a short form for a new issue. Inside a project the same nav also links to that project's board, backlog, and sprints, and Create preselects that project. Those section buttons can be reordered by dragging them, or with Up and Down when JavaScript has not run; the order is stored in a `keel_nav` cookie for this browser, the same regardless of who is selected in the picker. The home icon, the find field, and the picker stay fixed. Find sits between the section links and the picker: a GET form to `/search` with a required field, so an empty submit does not navigate and the same lookup works without JavaScript. Inside a project the form also posts that project's key so issue and sprint matches stay in that project; projects and users are always searched. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
 Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and every editable field on the issue page — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
-Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. Create is the exception in colour only: it tints the brand blue with white so it reads as the primary action, still using the [brand palette](../brand-colors.md). The home icon keeps its own circular treatment as the brand mark.
+Every interactive element in the bar — link, button, select, and the find field alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. Create is the exception in colour only: it tints the brand blue with white so it reads as the primary action, still using the [brand palette](../brand-colors.md). The home icon keeps its own circular treatment as the brand mark.
 
 ## Pages
 
@@ -28,6 +28,7 @@ Every interactive element in the bar — link, button, and select alike — carr
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
 | `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
 | `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
+| `/search` | `search.html` | Find results grouped by issues, projects, sprints, and users; exact keys and unique names jump instead |
 | `/users` | `users.html` | Add, rename, and remove users |
 | `/license` | `license.html` | Existing license page |
 
@@ -85,13 +86,17 @@ A flat table of the project's issues that have no sprint and are not Done, oldes
 
 The sprints page lists a project's sprints grouped by state, with a form to plan a new one. The detail page lists the sprint's issues and offers Start (when planned) or Complete (when active). Completing reports how many unfinished issues moved and where they went. Sprint settings — name, goal, dates — save with an ordinary button; Start and Complete are actions, not field updates. The start and end date inputs are paired so the picker cannot offer an end before the start; the service still refuses that combination if it is posted without the script.
 
+## Find
+
+The find field submits GET `/search?q=…`, and `project` when the current page has one. An exact issue key (`KEEL-12`) goes to that issue; otherwise an exact project key goes to that project; otherwise a unique user display name goes to `/users`; otherwise a unique sprint name in scope goes to that sprint. Anything else renders `search.html`: the query repeated, then issues, projects, sprints, and users, about ten of each, with a note when more exist, and a none message when nothing matched. Description, goal, and comment hits open the issue or sprint they belong to, not a comment-only view. Done issues and completed sprints are included. There is no query language and no saved filter.
+
 ## Issue detail
 
 The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. Comments, children, and dependency links are added afterwards, because they need an id. Adding a comment is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 
-Three scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker, `data-keel-nav` for the section order, `data-keel-board` for the board.
+Three scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker and the find submit button, `data-keel-nav` for the section order, `data-keel-board` for the board.
 
 `assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button. It also submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons. Paired sprint date fields marked `data-keel-range` keep `min` and `max` in sync so the calendar cannot offer an end before the start.
 
@@ -114,6 +119,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 012: Issue realization](../adr/ADR-012.md)
 * [ADR 013: Planning realization](../adr/ADR-013.md)
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
+* [ADR 016: Find from the top bar by name](../adr/ADR-016.md)
 * [API reference](api.md)
 * [Brand colors](../brand-colors.md)
 * [Use cases](../architecture/use-cases.md)

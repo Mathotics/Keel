@@ -31,6 +31,15 @@
         </span>
         {% endfor %}
       </nav>
+      <form class="keel-find" method="get" action="/search" role="search">
+        <label class="keel-visually-hidden" for="keel-find">Find</label>
+        <input class="keel-topbar__control" id="keel-find" name="q" type="search"
+               required placeholder="Find" value="{{ find_query }}"/>
+        {% if project %}
+        <input type="hidden" name="project" value="{{ project.key }}"/>
+        {% endif %}
+        <button class="keel-topbar__control keel-find__fallback" type="submit">Find</button>
+      </form>
       <div class="keel-topbar__right">
         {% if users %}
         <form class="keel-userpicker" method="post" action="/web/user">

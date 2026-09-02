@@ -78,6 +78,7 @@ flowchart LR
 
 * Durably persist all entities so work survives restarts (realized per [ADR 007](../adr/ADR-007.md); schema in the [data model](../design/data-model.md)).
 * Present the web UI within the existing shared chrome: sticky top menu bar ([ADR 001](../adr/ADR-001.md)) and version footer ([ADR 002](../adr/ADR-002.md)), using the recorded [brand colors](../brand-colors.md).
+* Find an issue, project, sprint, or user from the top bar by key or name ([ADR 016](../adr/ADR-016.md)).
 * Continue to expose the JSON API and the `keel` CLI as the existing platform does.
 
 ## Related documents

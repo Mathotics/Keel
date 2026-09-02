@@ -19,6 +19,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Users** — a minimal notion of people for assignee/reporter, with no authentication (see below).
 * **Comments** — notes on issues.
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
+* **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/ADR-016.md)).
 
 ## Deferred beyond v1
 
@@ -33,13 +34,13 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 | **Burndown / velocity / reporting** | Time estimates are captured in v1, but charts and analytics on top of them are deferred. |
 | **Notifications** | No email or external messaging; the tool is local and low-volume. |
 | **Activity history / audit log** | Not required for a small, trusted group in v1. |
-| **Advanced search & saved filters** | Basic per-project navigation suffices at this scale. |
+| **Advanced search & saved filters** | A find field in the bar covers lookup ([ADR 016](../adr/ADR-016.md)). Saved filters, operators, and a query language stay deferred. |
 | **Third-party integrations & webhooks** | Out of the personal-tool boundary described in [context](context.md). |
 | **Manual backlog ordering** | Removed rather than deferred. Ranking served a prioritization workflow the owner does not use, so the backlog is ordered by creation date ([ADR 013](../adr/ADR-013.md)). |
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 015](../adr/ADR-015.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 016](../adr/ADR-016.md).
 
 ## Related documents
 
