@@ -8,24 +8,25 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 `base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
-Beside the logo, a nav element holds the top-level section links, Projects and Users. Inside a project the same nav also links to that project's board, backlog, and sprints. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
+Beside the logo, a nav element holds the top-level section links, Projects, Create, and Users. Create is always reachable and opens a short form for a new issue. Inside a project the same nav also links to that project's board, backlog, and sprints, and Create preselects that project. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
 Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and every editable field on the issue page — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
-Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. The home icon keeps its own circular treatment as the brand mark.
+Every interactive element in the bar — link, button, and select alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. Create is the exception in colour only: it tints the brand blue with white so it reads as the primary action, still using the [brand palette](../brand-colors.md). The home icon keeps its own circular treatment as the brand mark.
 
 ## Pages
 
 | Path | Template | Contents |
 | --- | --- | --- |
 | `/` | — | The entry point; redirects to `/projects` |
+| `/create` | `create.html` | Project, type, and title; everything else is filled in on the issue page |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
 | `/projects/{key}/board` | `board.html` | Kanban columns, type, assignee, and sprint filters, optional rows per sprint, drag-and-drop |
 | `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
-| `/projects/{key}/issues/new` | `issue_form.html` | Create an issue |
+| `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
 | `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
 | `/users` | `users.html` | Add, rename, and remove users |
 | `/license` | `license.html` | Existing license page |
@@ -43,7 +44,8 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/projects` | The project list's create form |
 | `POST` | `/web/projects/{project_id}/update` | The project page's settings form |
 | `POST` | `/web/projects/{project_id}/delete` | The project page, behind a confirmation naming what goes |
-| `POST` | `/web/projects/{project_id}/issues` | The new issue form |
+| `POST` | `/web/issues` | The Create page |
+| `POST` | `/web/projects/{project_id}/issues` | The same create, when extra fields are posted |
 | `POST` | `/web/issues/{issue_id}/title` | The issue page's title |
 | `POST` | `/web/issues/{issue_id}/type` | The issue page's type |
 | `POST` | `/web/issues/{issue_id}/description` | The issue page's description |
@@ -83,7 +85,7 @@ The sprints page lists a project's sprints grouped by state, with a form to plan
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are still created on a dedicated form. Adding a comment is an ordinary submit, not an autosubmit field.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu, which asks only for project, type, and title so the rest can be filled in on the issue page. Adding a comment is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 

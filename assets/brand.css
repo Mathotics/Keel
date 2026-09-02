@@ -109,6 +109,17 @@ body {
   outline-offset: 2px;
 }
 
+/* Create is the primary action: a tint of the bar blue, mixed from the
+   recorded tokens, so it stays on-palette but is not a white chip. */
+.keel-topbar__create {
+  background: color-mix(in srgb, var(--keel-white) 50%, var(--keel-blue));
+  color: var(--keel-blue-deep);
+}
+
+.keel-topbar__create:hover {
+  background: var(--keel-white);
+}
+
 .keel-userpicker {
   display: flex;
   align-items: center;

@@ -18,6 +18,7 @@
       </a>
       <nav class="keel-topbar__nav" aria-label="Sections">
         <a class="keel-topbar__control" href="/projects">Projects</a>
+        <a class="keel-topbar__control keel-topbar__create" href="{% if project %}/create?project={{ project.key }}{% else %}/create{% endif %}">Create</a>
         {% if project %}
         <a class="keel-topbar__control" href="/projects/{{ project.key }}/board">Board</a>
         <a class="keel-topbar__control" href="/projects/{{ project.key }}/backlog">Backlog</a>

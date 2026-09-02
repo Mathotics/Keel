@@ -1,10 +1,11 @@
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from keel.domain.enums import statuses_in_workflow_order
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
-from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 
@@ -57,26 +58,10 @@ def project_page(
     )
 
 
-@router.get("/{key}/issues/new", response_class=HTMLResponse)
-def new_issue_page(
-    key: str,
-    request: Request,
-    chrome: ChromeDep,
-    session: SessionDep,
-    error: str | None = None,
-) -> HTMLResponse:
-    project = project_service.get_project_by_key(session, key)
-    return get_templates().TemplateResponse(
-        request,
-        "issue_form.html",
-        page_context(
-            request,
-            chrome,
-            project=project,
-            issue=None,
-            parents=issue_service.list_issues(session, project.id),
-            assignees=user_service.list_users(session),
-            sprints=sprint_service.list_sprints(session, project.id),
-            error=error,
-        ),
-    )
+@router.get("/{key}/issues/new")
+def new_issue_page(key: str, error: str | None = None) -> RedirectResponse:
+    """Creating happens on /create; keep the old per-project URL working."""
+    params = {"project": key}
+    if error:
+        params["error"] = error
+    return RedirectResponse(url=f"/create?{urlencode(params)}", status_code=303)

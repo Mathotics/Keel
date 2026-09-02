@@ -1,5 +1,5 @@
 from typing import Annotated
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Form
 from fastapi.responses import RedirectResponse
@@ -26,12 +26,13 @@ def _back(
     error: str | None = None,
     notice: str | None = None,
 ) -> RedirectResponse:
-    params: dict[str, str] = {}
+    parsed = urlparse(path)
+    params = dict(parse_qsl(parsed.query, keep_blank_values=True))
     if error:
         params["error"] = error
     if notice:
         params["notice"] = notice
-    target = path if not params else f"{path}?{urlencode(params)}"
+    target = urlunparse(parsed._replace(query=urlencode(params)))
     return RedirectResponse(url=target, status_code=SEE_OTHER)
 
 
@@ -123,6 +124,35 @@ def delete_project(session: SessionDep, project_id: int) -> RedirectResponse:
     return _back("/projects")
 
 
+@router.post("/issues")
+def create_issue_from_page(
+    session: SessionDep,
+    chrome: ChromeDep,
+    project_id: Annotated[str, Form()] = "",
+    type: Annotated[IssueType, Form()] = IssueType.STORY,
+    title: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    chosen = _optional_id(project_id)
+    if chosen is None:
+        return _back("/create", "Choose a project.")
+    project = project_service.get_project(session, chosen)
+    here = f"/create?project={project.key}"
+    try:
+        issue = issue_service.create_issue(
+            session,
+            project.id,
+            type=type,
+            title=title,
+            reporter_id=(
+                None if chrome.current_user is None else chrome.current_user.id
+            ),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(f"/issues/{project.key}-{issue.number}")
+
+
 @router.post("/projects/{project_id}/issues")
 def create_issue(
     session: SessionDep,
@@ -158,7 +188,7 @@ def create_issue(
         )
     except DomainError as exc:
         session.rollback()
-        return _back(f"/projects/{key}/issues/new", exc.message)
+        return _back(f"/create?project={key}", exc.message)
     return _back(f"/issues/{key}-{issue.number}")
 
 

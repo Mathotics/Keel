@@ -27,7 +27,7 @@ def test_chrome_carries_the_user_picker(client: TestClient) -> None:
 
 
 def test_every_page_shares_the_same_chrome(client: TestClient) -> None:
-    for path in ("/", "/license", "/users"):
+    for path in ("/", "/license", "/users", "/create"):
         html = client.get(path).text
         assert "keel-topbar" in html
         assert "keel-footer" in html
@@ -64,6 +64,18 @@ def test_topbar_controls_share_one_look(client: TestClient) -> None:
     assert header.count("keel-topbar__control") == interactive - brand
     assert '<a class="keel-topbar__control" href="/users">' in header
     assert '<a class="keel-topbar__control" href="/projects">' in header
+    assert "keel-topbar__create" in header
+    assert 'href="/create"' in header
+
+
+def test_create_stands_out_in_the_recorded_palette(client: TestClient) -> None:
+    css = client.get("/assets/brand.css").text
+    create = _rule(css, ".keel-topbar__create")
+    assert "color-mix" in create
+    assert "var(--keel-white)" in create
+    assert "var(--keel-blue)" in create
+    hover = _rule(css, ".keel-topbar__create:hover")
+    assert "var(--keel-white)" in hover
 
 
 def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
@@ -76,6 +88,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
     )
     nav = header.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
     assert 'href="/projects"' in nav
+    assert 'href="/create"' in nav
     assert 'href="/users"' in nav
 
 

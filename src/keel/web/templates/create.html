@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Create issue{% endblock %}
+{% block main %}
+      <h1>Create issue</h1>
+
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      {% if not projects %}
+      <p>Create a <a href="/projects">project</a> first, then come back to file issues.</p>
+      {% else %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues">
+        <p>
+          <label for="issue-project">Project</label>
+          <select id="issue-project" name="project_id" required>
+            {% if not project %}
+            <option value="" selected>Choose a project</option>
+            {% endif %}
+            {% for item in projects %}
+            <option value="{{ item.id }}"{% if project and item.id == project.id %} selected{% endif %}>{{ item.key }} — {{ item.name }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="issue-type">Type</label>
+          <select id="issue-type" name="type">
+            {% for value in issue_types %}
+            <option value="{{ value }}"{% if value == default_type %} selected{% endif %}>{{ value | label }}</option>
+            {% endfor %}
+          </select>
+        </p>
+        <p>
+          <label for="issue-title">Title</label>
+          <input id="issue-title" name="title" type="text" maxlength="300" required autofocus/>
+        </p>
+        <p><button type="submit">Create issue</button></p>
+      </form>
+      {% endif %}
+{% endblock %}

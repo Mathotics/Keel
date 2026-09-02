@@ -26,11 +26,19 @@ def submit_issue(client: TestClient, project: Json, **fields: str) -> str:
 
 
 def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
-    page = client.get("/projects/KEEL/issues/new")
+    redirected = client.get(
+        f"/projects/{project['key']}/issues/new",
+        follow_redirects=False,
+    )
+    assert redirected.status_code == 303
+    assert redirected.headers["location"] == f"/create?project={project['key']}"
 
+    page = client.get(f"/create?project={project['key']}")
     assert page.status_code == 200
     assert 'name="title"' in page.text
+    assert 'name="project_id"' in page.text
     assert "Epic" in page.text
+    assert 'name="description"' not in page.text
 
 
 def test_an_issue_is_created_and_lands_on_its_page(
@@ -43,6 +51,59 @@ def test_an_issue_is_created_and_lands_on_its_page(
     page = client.get(location)
     assert page.status_code == 200
     assert "Rework onboarding" in page.text
+
+
+def test_create_from_the_menu_needs_only_a_title(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get(f"/create?project={project['key']}")
+    assert f'value="{project["id"]}" selected' in page.text
+
+    created = client.post(
+        "/web/issues",
+        data={"project_id": str(project["id"]), "type": "story", "title": "Quick"},
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    assert created.headers["location"] == "/issues/KEEL-1"
+    detail = client.get("/issues/KEEL-1")
+    assert "Quick" in detail.text
+    assert "<dt>Reporter</dt><dd>Tester</dd>" in detail.text
+
+    blank = client.post(
+        "/web/issues",
+        data={"project_id": str(project["id"]), "type": "story", "title": "  "},
+        follow_redirects=False,
+    )
+    assert blank.headers["location"].startswith(
+        f"/create?project={project['key']}&error=",
+    )
+
+
+def test_create_without_a_project_asks_for_one(client: TestClient) -> None:
+    page = client.get("/create")
+    assert "Create a" in page.text
+    assert 'href="/projects"' in page.text
+
+    refused = client.post(
+        "/web/issues",
+        data={"type": "story", "title": "Nowhere"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/create?error=")
+
+
+def test_create_from_a_project_page_preselects_it(
+    client: TestClient,
+    project: Json,
+) -> None:
+    header = (
+        client.get(f"/projects/{project['key']}")
+        .text.split("<header", 1)[1]
+        .split("</header>", 1)[0]
+    )
+    assert f'href="/create?project={project["key"]}"' in header
 
 
 def test_the_issue_page_shows_its_children(
@@ -73,7 +134,7 @@ def test_an_illegal_parent_returns_to_the_form_with_the_message(
         parent_id=str(epic_id),
     )
 
-    assert location.startswith("/projects/KEEL/issues/new?error=")
+    assert location.startswith("/create?project=KEEL&error=")
     page = client.get(location)
     assert "never has a parent" in page.text or "may only sit under" in page.text
 
