@@ -1,6 +1,7 @@
+import asyncio
 import os
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
@@ -14,6 +15,7 @@ from keel.api import v1 as api_v1
 from keel.api.errors import register_error_handlers
 from keel.db.engine import create_db_engine, create_session_factory
 from keel.paths import asset_path, assets_dir
+from keel.services import auto_sprint
 from keel.services.users import ensure_default_user
 from keel.settings import KeelSettings, get_settings
 from keel.version import package_version
@@ -53,8 +55,28 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
     async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
         with session_factory() as session:
             ensure_default_user(session, default_user)
+            auto_sprint.advance_all(session)
             session.commit()
-        yield
+
+        async def poll() -> None:
+            while True:
+                await asyncio.sleep(auto_sprint.POLL_SECONDS)
+                try:
+                    with session_factory() as session:
+                        auto_sprint.advance_all(session)
+                        session.commit()
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    continue
+
+        task = asyncio.create_task(poll())
+        try:
+            yield
+        finally:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
 
     application = FastAPI(
         title="Keel",

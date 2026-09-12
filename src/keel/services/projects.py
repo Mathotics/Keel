@@ -1,10 +1,13 @@
 import re
 from collections.abc import Sequence
+from datetime import date
+from typing import cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Board, Project
+from keel.domain.enums import SprintCadence
 from keel.domain.errors import (
     DuplicateProjectKeyError,
     InvalidProjectKeyError,
@@ -14,6 +17,7 @@ from keel.domain.errors import (
 
 KEY_PATTERN = re.compile(r"^[A-Z][A-Z0-9]{1,9}$")
 MAX_NAME_LENGTH = 200
+UNSET = object()
 
 
 def list_projects(session: Session) -> Sequence[Project]:
@@ -62,6 +66,9 @@ def update_project(
     project_id: int,
     name: str | None = None,
     description: str | None = None,
+    sprint_cadence: SprintCadence | object = UNSET,
+    sprint_cadence_days: int | None | object = UNSET,
+    today: date | None = None,
 ) -> Project:
     """The key is immutable once issues carry it, so it is not updatable."""
     project = get_project(session, project_id)
@@ -69,7 +76,24 @@ def update_project(
         project.name = _clean_name(name)
     if description is not None:
         project.description = description.strip()
-    session.flush()
+    if sprint_cadence is UNSET:
+        session.flush()
+        return project
+    from keel.services import auto_sprint
+
+    assert isinstance(sprint_cadence, SprintCadence)
+    days = (
+        project.sprint_cadence_days
+        if sprint_cadence_days is UNSET
+        else cast(int | None, sprint_cadence_days)
+    )
+    auto_sprint.apply_cadence(
+        session,
+        project,
+        sprint_cadence,
+        days,
+        today,
+    )
     return project
 
 

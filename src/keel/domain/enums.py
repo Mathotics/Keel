@@ -25,6 +25,16 @@ class SprintState(StrEnum):
     COMPLETED = "completed"
 
 
+class SprintCadence(StrEnum):
+    """How often a project closes and opens sprints. Off is the default."""
+
+    OFF = "off"
+    WEEKLY = "weekly"
+    TWO_WEEKS = "two_weeks"
+    MONTHLY = "monthly"
+    EVERY_N_DAYS = "every_n_days"
+
+
 class DependencyKind(StrEnum):
     BLOCKS = "blocks"
     RELATES_TO = "relates_to"
@@ -45,11 +55,16 @@ _LABELS = {
     SprintState.PLANNED: "Planned",
     SprintState.ACTIVE: "Active",
     SprintState.COMPLETED: "Completed",
+    SprintCadence.OFF: "Off",
+    SprintCadence.WEEKLY: "Weekly",
+    SprintCadence.TWO_WEEKS: "Every 2 weeks",
+    SprintCadence.MONTHLY: "Monthly",
+    SprintCadence.EVERY_N_DAYS: "Every N days",
     DependencyKind.BLOCKS: "Blocks",
     DependencyKind.RELATES_TO: "Relates to",
 }
 
-Labeled = IssueType | IssueStatus | SprintState | DependencyKind
+Labeled = IssueType | IssueStatus | SprintState | SprintCadence | DependencyKind
 
 
 def label(value: Labeled) -> str:
@@ -66,3 +81,7 @@ def types_in_hierarchy_order() -> tuple[IssueType, ...]:
 
 def sprint_states_in_lifecycle_order() -> tuple[SprintState, ...]:
     return tuple(SprintState)
+
+
+def sprint_cadences_in_menu_order() -> tuple[SprintCadence, ...]:
+    return tuple(SprintCadence)

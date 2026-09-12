@@ -44,6 +44,15 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     try:
         columns = {column["name"] for column in inspect(engine).get_columns("issues")}
         sprints = {column["name"] for column in inspect(engine).get_columns("sprints")}
+        dependencies = {
+            column["name"] for column in inspect(engine).get_columns("dependencies")
+        }
+        comments = {
+            column["name"] for column in inspect(engine).get_columns("comments")
+        }
+        projects = {
+            column["name"] for column in inspect(engine).get_columns("projects")
+        }
     finally:
         engine.dispose()
     assert "due_at" in columns
@@ -61,9 +70,6 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "created_at",
         "completed_at",
     }
-    dependencies = {
-        column["name"] for column in inspect(engine).get_columns("dependencies")
-    }
     assert dependencies == {
         "id",
         "source_id",
@@ -71,13 +77,17 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "kind",
         "created_at",
     }
-    comments = {column["name"] for column in inspect(engine).get_columns("comments")}
     assert comments == {
         "id",
         "issue_id",
         "author_id",
         "body",
         "created_at",
+    }
+    assert projects >= {
+        "sprint_cadence",
+        "sprint_cadence_days",
+        "auto_sprint_notice",
     }
 
 

@@ -45,6 +45,6 @@ repos:
       - id: pytest-coverage
         name: tests (90% coverage)
         language: system
-        entry: pytest --cov=keel --cov-report=term-missing --cov-fail-under=90
+        entry: .venv/Scripts/python.exe -m pytest --cov=keel --cov-report=term-missing --cov-fail-under=90
         pass_filenames: false
         always_run: true

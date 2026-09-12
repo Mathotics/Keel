@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from keel.domain.enums import statuses_in_workflow_order
+from keel.domain.enums import sprint_cadences_in_menu_order, statuses_in_workflow_order
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -38,6 +38,7 @@ def project_page(
     chrome: ChromeDep,
     session: SessionDep,
     error: str | None = None,
+    notice: str | None = None,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
     issues = issue_service.list_issues(session, project.id)
@@ -53,7 +54,9 @@ def project_page(
             names=names,
             counts=issue_service.count_by_status(session, project.id),
             statuses=statuses_in_workflow_order(),
+            cadences=sprint_cadences_in_menu_order(),
             error=error,
+            notice=notice,
         ),
     )
 

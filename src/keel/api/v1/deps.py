@@ -4,7 +4,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
-from keel.db.session import get_session
+from keel.services.auto_sprint import get_session
 from keel.services.identity import USER_COOKIE, USER_HEADER, resolve_current_user
 
 SessionDep = Annotated[Session, Depends(get_session)]

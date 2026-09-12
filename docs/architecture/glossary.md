@@ -18,7 +18,8 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Project key** — a short uppercase identifier for a project, used to prefix its issue numbers.
 * **Relates-to** — a non-blocking association between two issues.
 * **Blocks** — a dependency asserting that one issue must progress before another; *blocks* links may not form a cycle.
-* **Sprint** — a time-boxed set of scheduled issues within a project; moves through *planned*, *active*, and *completed*. At most one sprint per project is active at a time.
+* **Sprint** — a time-boxed set of scheduled issues within a project; moves through *planned*, *active*, and *completed*. At most one sprint per project is active at a time. A project may opt into a cadence so those windows open and close automatically ([ADR 019](../adr/ADR-019.md)).
+* **Auto-sprint** — a per-project cadence (weekly, every two weeks, monthly, or every N days) that completes the active sprint after its last inclusive day and opens the next window.
 * **Status** — a state in the shared, fixed workflow: *To Do*, *In Progress*, *In Review*, *Blocked*, or *Done*.
 * **Story** — a deliverable unit of work; may belong to an Epic and may contain Subtasks.
 * **Subtask** — a small unit of work beneath a Story.

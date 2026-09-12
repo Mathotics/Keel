@@ -37,11 +37,22 @@ def update_project(
     payload: ProjectUpdate,
     session: SessionDep,
 ) -> ProjectRead:
+    supplied = payload.model_fields_set
     project = project_service.update_project(
         session,
         project_id,
         payload.name,
         payload.description,
+        sprint_cadence=(
+            payload.sprint_cadence
+            if "sprint_cadence" in supplied
+            else project_service.UNSET
+        ),
+        sprint_cadence_days=(
+            payload.sprint_cadence_days
+            if "sprint_cadence_days" in supplied
+            else project_service.UNSET
+        ),
     )
     return ProjectRead.model_validate(project)
 

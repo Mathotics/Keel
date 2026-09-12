@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
@@ -264,3 +265,44 @@ def test_the_project_nav_names_backlog_and_sprints(
     assert 'href="/projects/KEEL/sprints"' in header
     assert "Backlog" in header
     assert "Sprints" in header
+
+
+def test_the_sprints_page_shows_auto_sprint_status(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.patch(
+        f"/api/v1/projects/{project['id']}",
+        json={"sprint_cadence": "weekly"},
+    )
+    page = client.get("/projects/KEEL/sprints")
+    assert "Auto-sprint is on (Weekly)" in page.text
+    assert "Next close:" in page.text
+
+
+def test_the_sprints_page_catches_up_an_overdue_window(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.patch(
+        f"/api/v1/projects/{project['id']}",
+        json={"sprint_cadence": "weekly"},
+    )
+    active = client.get(
+        f"/api/v1/projects/{project['id']}/sprints",
+        params={"state": "active"},
+    ).json()[0]
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    client.patch(
+        f"/api/v1/sprints/{active['id']}",
+        json={"starts_on": yesterday, "ends_on": yesterday},
+    )
+
+    page = client.get("/projects/KEEL/sprints")
+    assert "Opened" in page.text
+    assert "automatically" in page.text
+    listed = client.get(
+        f"/api/v1/projects/{project['id']}/sprints",
+        params={"state": "completed"},
+    ).json()
+    assert listed[0]["id"] == active["id"]

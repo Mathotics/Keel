@@ -31,10 +31,10 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/` | — | The entry point; redirects to `/projects` |
 | `/create` | `create.html` | Project, type, title, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
-| `/projects/{key}` | `project.html` | Project summary, rename and delete, issue counts by status |
+| `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, and delete, issue counts by status |
 | `/projects/{key}/board` | `board.html` | Kanban columns, type, assignee, and sprint filters, optional rows per sprint, drag-and-drop |
 | `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
-| `/projects/{key}/sprints` | `sprints.html` | Sprints by state, create form |
+| `/projects/{key}/sprints` | `sprints.html` | Sprints by state, auto-sprint status, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
 | `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
 | `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
@@ -95,7 +95,9 @@ A flat table of the project's issues that have no sprint and are not Done, oldes
 
 ## Sprints
 
-The sprints page lists a project's sprints grouped by state, with a form to plan a new one. The detail page lists the sprint's issues and offers Start (when planned) or Complete (when active). Completing reports how many unfinished issues moved and where they went. Sprint settings — name, goal, dates — save with an ordinary button; Start and Complete are actions, not field updates. The start and end date inputs are paired so the picker cannot offer an end before the start; the service still refuses that combination if it is posted without the script.
+The sprints page lists a project's sprints grouped by state, with a form to plan a new one. When auto-sprint is on it also shows the cadence and the next close date — the last inclusive day of the active sprint ([ADR 019](../adr/ADR-019.md)). The detail page lists the sprint's issues and offers Start (when planned) or Complete (when active). Completing reports how many unfinished issues moved and where they went. An automatic rollover uses the same notice. Sprint settings — name, goal, dates — save with an ordinary button; Start and Complete are actions, not field updates. The start and end date inputs are paired so the picker cannot offer an end before the start; the service still refuses that combination if it is posted without the script.
+
+Project settings on the project page include sprint cadence: off, weekly, every 2 weeks, monthly, or every N days. Saving a cadence other than off opens a sprint immediately if the project has none active.
 
 ## Find
 

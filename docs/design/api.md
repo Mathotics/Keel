@@ -10,7 +10,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author.
-* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`; sprint states `planned`, `active`, `completed`; dependency kinds `blocks`, `relates_to`.
+* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 
 ## Users
@@ -30,8 +30,10 @@ Collections are nested under their parent; single resources are flat, so a clien
 | `GET` | `/api/v1/projects` | List projects |
 | `POST` | `/api/v1/projects` | Create — `{key, name, description}`; also creates the board |
 | `GET` | `/api/v1/projects/{project_id}` | Read a project |
-| `PATCH` | `/api/v1/projects/{project_id}` | Rename or redescribe; `key` is immutable |
+| `PATCH` | `/api/v1/projects/{project_id}` | Rename, redescribe, or set sprint cadence; `key` is immutable |
 | `DELETE` | `/api/v1/projects/{project_id}` | Delete, cascading its contents |
+
+A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/ADR-019.md)).
 
 ## Issues
 
@@ -178,6 +180,7 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `sprint.invalid_transition` | 409 | A state change other than planned to active or active to completed |
 | `sprint.project_mismatch` | 409 | Scheduling an issue into another project's sprint |
 | `sprint.invalid` | 422 | A sprint name is blank or its dates are out of order |
+| `project.invalid_cadence` | 422 | Auto-sprint is set to every N days without a positive N, or to an unknown cadence |
 | `dependency.cycle` | 409 | A `blocks` link would close a cycle |
 | `dependency.self_link` | 409 | Source and target are the same issue |
 | `dependency.duplicate` | 409 | An identical link already exists |

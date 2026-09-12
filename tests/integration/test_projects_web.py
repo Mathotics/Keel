@@ -114,3 +114,73 @@ def test_a_project_is_deleted_from_the_form(
 
     assert response.headers["location"] == "/projects"
     assert client.get("/projects/KEEL").status_code == 404
+
+
+def test_the_project_form_saves_sprint_cadence(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get("/projects/KEEL")
+    assert 'name="sprint_cadence"' in page.text
+    assert 'name="sprint_cadence_days"' in page.text
+
+    saved = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={
+            "name": "Keel",
+            "description": "",
+            "sprint_cadence": "weekly",
+            "sprint_cadence_days": "",
+        },
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    location = saved.headers["location"]
+    assert "notice=" in location
+    follow = client.get(location)
+    assert "Opened" in follow.text
+    assert "automatically" in follow.text
+    assert (
+        client.get("/api/v1/projects/" + str(project["id"])).json()["sprint_cadence"]
+        == "weekly"
+    )
+
+
+def test_an_unknown_cadence_returns_to_the_project_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    response = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={
+            "name": "Keel",
+            "description": "",
+            "sprint_cadence": "whenever",
+            "sprint_cadence_days": "abc",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location.startswith("/projects/KEEL?error=")
+    assert "not a sprint cadence" in client.get(location).text
+
+
+def test_a_non_numeric_day_count_returns_to_the_project_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    response = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={
+            "name": "Keel",
+            "description": "",
+            "sprint_cadence": "weekly",
+            "sprint_cadence_days": "abc",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location.startswith("/projects/KEEL?error=")
+    assert "at least 1" in client.get(location).text

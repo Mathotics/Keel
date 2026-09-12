@@ -8,6 +8,16 @@
       {% if notice %}
       <p class="keel-notice" role="status">{{ notice }}</p>
       {% endif %}
+      {% if auto_sprint_on %}
+      <p class="keel-lede">
+        Auto-sprint is on ({{ cadence_label }}).
+        {% if next_close %}
+        Next close: {{ next_close | day }} (the sprint stays active through that day).
+        {% else %}
+        Next close: none yet.
+        {% endif %}
+      </p>
+      {% endif %}
 
       {% for state in states %}
       <h2>{{ state | label }}</h2>

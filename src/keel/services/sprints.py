@@ -110,6 +110,19 @@ def delete_sprint(session: Session, sprint_id: int) -> None:
     session.flush()
 
 
+def next_planned_sprint(session: Session, project_id: int) -> Sprint | None:
+    return _next_planned(session, project_id)
+
+
+def active_sprint(session: Session, project_id: int) -> Sprint | None:
+    return session.scalars(
+        select(Sprint).where(
+            Sprint.project_id == project_id,
+            Sprint.state == SprintState.ACTIVE,
+        ),
+    ).first()
+
+
 def start_sprint(session: Session, sprint_id: int) -> Sprint:
     sprint = get_sprint(session, sprint_id)
     if sprint.state is not SprintState.PLANNED:

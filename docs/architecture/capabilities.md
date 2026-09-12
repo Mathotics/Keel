@@ -57,6 +57,7 @@ flowchart LR
 * Present a per-project backlog of unscheduled, unfinished issues in creation order (see [ADR 013](../adr/ADR-013.md), which amends [ADR 005](../adr/ADR-005.md)).
 * Create sprints, add issues to a sprint, and remove them.
 * Move a sprint through *planned → active → completed*, with at most one sprint active per project; on completion, carry unfinished issues into the next planned sprint or back to the backlog.
+* Optionally run a project's sprints on a cadence so windows open and close without a manual Start or Complete click ([ADR 019](../adr/ADR-019.md)).
 * Record a time-based estimate on an issue and update its remaining time as work progresses.
 * View estimated and remaining time aggregated from child issues.
 

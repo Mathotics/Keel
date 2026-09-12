@@ -9,11 +9,11 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
-from keel.db.session import get_session
 from keel.domain.duration import format_minutes
 from keel.domain.enums import label
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
+from keel.services.auto_sprint import get_session
 from keel.services.identity import USER_COOKIE, USER_HEADER, resolve_current_user
 from keel.version import package_version
 from keel.web.markdown import render_markdown

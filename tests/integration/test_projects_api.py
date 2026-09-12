@@ -64,3 +64,33 @@ def test_deleting_a_project_removes_it(client: TestClient) -> None:
 
 def test_an_unknown_project_is_not_found(client: TestClient) -> None:
     assert client.get("/api/v1/projects/404").status_code == 404
+
+
+def test_a_new_project_has_auto_sprint_off(client: TestClient) -> None:
+    created = create_project(client)
+    assert created["sprint_cadence"] == "off"
+    assert created["sprint_cadence_days"] is None
+
+
+def test_a_project_can_enable_weekly_auto_sprint(client: TestClient) -> None:
+    created = create_project(client)
+
+    updated = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"sprint_cadence": "weekly"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["sprint_cadence"] == "weekly"
+    sprints = client.get(f"/api/v1/projects/{created['id']}/sprints").json()
+    assert len(sprints) == 1
+    assert sprints[0]["state"] == "active"
+
+
+def test_every_n_days_without_a_count_is_refused(client: TestClient) -> None:
+    created = create_project(client)
+    response = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"sprint_cadence": "every_n_days"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "project.invalid_cadence"

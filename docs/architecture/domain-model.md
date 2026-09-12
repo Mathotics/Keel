@@ -41,6 +41,7 @@ The owner or a collaborator. In v1 there are no roles and no authentication.
 A first-class container that scopes a body of work. Multiple projects coexist.
 * Name; short description.
 * Key — a short identifier that prefixes the project's issue numbers (see [ADR 012](../adr/ADR-012.md)).
+* Sprint cadence — off, or a rhythm that automatically opens and closes sprints (see [ADR 019](../adr/ADR-019.md)).
 * Relationships: contains many issues; has many boards; has many sprints. Its **backlog** is not a separate entity — it is a derived view over the project's issues (see Backlog below).
 
 ### Issue

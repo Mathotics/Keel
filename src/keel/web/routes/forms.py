@@ -5,9 +5,10 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 from keel.domain.duration import parse_duration
-from keel.domain.enums import DependencyKind, IssueStatus, IssueType
-from keel.domain.errors import DomainError
+from keel.domain.enums import DependencyKind, IssueStatus, IssueType, SprintCadence
+from keel.domain.errors import DomainError, InvalidSprintCadenceError
 from keel.domain.hierarchy import child_type_of
+from keel.services import auto_sprint
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
@@ -157,14 +158,24 @@ def update_project(
     project_id: int,
     name: Annotated[str, Form()],
     description: Annotated[str, Form()] = "",
+    sprint_cadence: Annotated[str, Form()] = SprintCadence.OFF.value,
+    sprint_cadence_days: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     try:
-        project = project_service.update_project(session, project_id, name, description)
+        project = project_service.update_project(
+            session,
+            project_id,
+            name,
+            description,
+            sprint_cadence=_parse_cadence(sprint_cadence),
+            sprint_cadence_days=_parse_cadence_days(sprint_cadence_days),
+        )
     except DomainError as exc:
         session.rollback()
         key = project_service.get_project(session, project_id).key
         return _back(f"/projects/{key}", exc.message)
-    return _back(f"/projects/{project.key}")
+    notice = project.auto_sprint_notice or None
+    return _back(f"/projects/{project.key}", notice=notice)
 
 
 @router.post("/projects/{project_id}/delete")
@@ -653,18 +664,19 @@ def delete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     key = project_service.get_project(session, sprint.project_id).key
     listing = f"/projects/{key}/sprints"
     try:
-        sprint_service.delete_sprint(session, sprint_id)
+        auto_sprint.delete_sprint(session, sprint_id)
     except DomainError as exc:
         session.rollback()
         return _back(_sprint_page(session, sprint_id), exc.message)
-    return _back(listing)
+    project = project_service.get_project_by_key(session, key)
+    return _back(listing, notice=project.auto_sprint_notice or None)
 
 
 @router.post("/sprints/{sprint_id}/start")
 def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     here = _sprint_page(session, sprint_id)
     try:
-        sprint_service.start_sprint(session, sprint_id)
+        auto_sprint.start_sprint(session, sprint_id)
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -675,8 +687,31 @@ def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
 def complete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     here = _sprint_page(session, sprint_id)
     try:
-        result = sprint_service.complete_sprint(session, sprint_id)
+        result = auto_sprint.complete_sprint(session, sprint_id)
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
-    return _back(here, notice=_carry_notice(session, result))
+    project = project_service.get_project(session, result.sprint.project_id)
+    if project.sprint_cadence is not SprintCadence.OFF and project.auto_sprint_notice:
+        notice = project.auto_sprint_notice
+    else:
+        notice = _carry_notice(session, result)
+    return _back(here, notice=notice)
+
+
+def _parse_cadence(raw: str) -> SprintCadence:
+    try:
+        return SprintCadence(raw.strip())
+    except ValueError as exc:
+        raise InvalidSprintCadenceError("That is not a sprint cadence.") from exc
+
+
+def _parse_cadence_days(raw: str) -> int | None:
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    if not cleaned.isdigit():
+        raise InvalidSprintCadenceError(
+            "Every N days needs a number of days of at least 1.",
+        )
+    return int(cleaned)

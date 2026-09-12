@@ -4,8 +4,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from keel.db.models import Sprint
-from keel.domain.enums import sprint_states_in_lifecycle_order
+from keel.domain.enums import SprintCadence, sprint_states_in_lifecycle_order
 from keel.domain.errors import NotFoundError
+from keel.services import auto_sprint
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
@@ -29,6 +30,9 @@ def sprints_page(
         state.value: [sprint for sprint in found if sprint.state is state]
         for state in sprint_states_in_lifecycle_order()
     }
+    auto_on = project.sprint_cadence is not SprintCadence.OFF
+    active = sprint_service.active_sprint(session, project.id) if auto_on else None
+    shown_notice = notice or (project.auto_sprint_notice or None)
     return get_templates().TemplateResponse(
         request,
         "sprints.html",
@@ -38,8 +42,11 @@ def sprints_page(
             project=project,
             grouped=grouped,
             states=sprint_states_in_lifecycle_order(),
+            auto_sprint_on=auto_on,
+            cadence_label=auto_sprint.cadence_label(project) if auto_on else None,
+            next_close=None if active is None else active.ends_on,
             error=error,
-            notice=notice,
+            notice=shown_notice,
         ),
     )
 

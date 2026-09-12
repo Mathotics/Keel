@@ -13,6 +13,7 @@ from keel.schemas.sprint import (
     SprintStateRead,
     SprintUpdate,
 )
+from keel.services import auto_sprint
 from keel.services import dependencies as dependency_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -93,17 +94,17 @@ def update_sprint(
 
 @router.delete("/sprints/{sprint_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_sprint(sprint_id: int, session: SessionDep) -> None:
-    sprint_service.delete_sprint(session, sprint_id)
+    auto_sprint.delete_sprint(session, sprint_id)
 
 
 @router.post("/sprints/{sprint_id}/start", response_model=SprintRead)
 def start_sprint(sprint_id: int, session: SessionDep) -> SprintRead:
-    return SprintRead.of(sprint_service.start_sprint(session, sprint_id))
+    return SprintRead.of(auto_sprint.start_sprint(session, sprint_id))
 
 
 @router.post("/sprints/{sprint_id}/complete", response_model=SprintCompletionRead)
 def complete_sprint(sprint_id: int, session: SessionDep) -> SprintCompletionRead:
-    result = sprint_service.complete_sprint(session, sprint_id)
+    result = auto_sprint.complete_sprint(session, sprint_id)
     return SprintCompletionRead(
         sprint=SprintStateRead(id=result.sprint.id, state=result.sprint.state),
         carried_over=result.carried_over,

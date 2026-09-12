@@ -59,6 +59,11 @@ class InvalidProjectNameError(DomainError):
     status_code = 422
 
 
+class InvalidSprintCadenceError(DomainError):
+    code = "project.invalid_cadence"
+    status_code = 422
+
+
 class InvalidIssueError(DomainError):
     code = "issue.invalid"
     status_code = 422

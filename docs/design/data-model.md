@@ -50,9 +50,12 @@ A user is refused deletion while referenced as a reporter, assignee, or comment 
 | `name` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `issue_seq` | INTEGER | not null, default 0 |
+| `sprint_cadence` | TEXT | not null, default `'off'`, `CHECK` in (`off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`) |
+| `sprint_cadence_days` | INTEGER | nullable, `CHECK` null or `>= 1` |
+| `auto_sprint_notice` | TEXT | not null, default `''` |
 | `created_at` | TIMESTAMP | not null |
 
-`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/ADR-012.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused.
+`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/ADR-012.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/ADR-019.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
 
 ### boards
 
