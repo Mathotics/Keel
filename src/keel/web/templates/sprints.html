@@ -11,6 +11,7 @@
 
       {% for state in states %}
       <h2>{{ state | label }}</h2>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr>
@@ -33,6 +34,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% endfor %}
 
       <div class="keel-panel">

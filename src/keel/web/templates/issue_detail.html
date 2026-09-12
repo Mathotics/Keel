@@ -127,6 +127,7 @@
       </details>
 
       <h2>Children</h2>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr><th>Key</th><th>Type</th><th>Title</th><th>Status</th></tr>
@@ -144,6 +145,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% if child_type %}
       <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/children">
         <label class="keel-visually-hidden" for="issue-child-title">{{ child_type | label }} title</label>
@@ -154,6 +156,7 @@
 
       <h2>Dependencies</h2>
       <h3>Blocks</h3>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr><th>Key</th><th>Title</th><th></th></tr>
@@ -178,7 +181,9 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       <h3>Blocked by</h3>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr><th>Key</th><th>Title</th><th></th></tr>
@@ -203,7 +208,9 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       <h3>Relates to</h3>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr><th>Key</th><th>Title</th><th></th></tr>
@@ -228,6 +235,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
 
       {% if candidates %}
       <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dependencies">

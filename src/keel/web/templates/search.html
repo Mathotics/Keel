@@ -5,6 +5,7 @@
       <p class="keel-lede">Matches for “{{ results.query }}”{% if scoped and project %} in {{ project.key }}{% endif %}.</p>
 
       <h2>Issues</h2>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr>
@@ -27,11 +28,13 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% if results.issues_more %}
       <p class="keel-lede">More issues match. Narrow the query.</p>
       {% endif %}
 
       <h2>Projects</h2>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr><th>Key</th><th>Name</th><th></th></tr>
@@ -48,11 +51,13 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% if results.projects_more %}
       <p class="keel-lede">More projects match. Narrow the query.</p>
       {% endif %}
 
       <h2>Sprints</h2>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr>
@@ -73,11 +78,13 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% if results.sprints_more %}
       <p class="keel-lede">More sprints match. Narrow the query.</p>
       {% endif %}
 
       <h2>Users</h2>
+      <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
           <tr><th>Name</th></tr>
@@ -92,6 +99,7 @@
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% if results.users_more %}
       <p class="keel-lede">More users match. Narrow the query.</p>
       {% endif %}

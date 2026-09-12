@@ -6,13 +6,23 @@ Every page is server-rendered with Jinja2 and works without JavaScript. Nothing 
 
 ## Chrome
 
-`base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the sticky footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
+`base.html` carries the shared chrome: the sticky top bar of [ADR 001](../adr/ADR-001.md) with the home icon, and the footer of [ADR 002](../adr/ADR-002.md) with the copyright link and the version read through `keel.version.package_version()`. On a wide viewport the footer stays pinned; on a phone-narrow viewport it sits at the end of the page ([ADR 018](../adr/ADR-018.md)). Styling continues to come from `assets/brand.css` and the palette in [brand colors](../brand-colors.md).
 
 Beside the logo, a nav element holds the top-level section links, Projects, Create, and Users. Create is always reachable and opens a short form for a new issue. Inside a project the same nav also links to that project's board, backlog, and sprints, and Create preselects that project. Those section buttons can be reordered by dragging them, or with Up and Down when JavaScript has not run; the order is stored in a `keel_nav` cookie for this browser, the same regardless of who is selected in the picker. The home icon, the find field, and the picker stay fixed. Find sits between the section links and the picker: a GET form to `/search` with a required field, so an empty submit does not navigate and the same lookup works without JavaScript. Inside a project the form also posts that project's key so issue and sprint matches stay in that project; projects and users are always searched. The bar also holds the user picker from [ADR 011](../adr/ADR-011.md) — a small form listing users that posts to `/web/user` and returns to the current page.
 
 Choosing a name in the picker switches user immediately: `userpicker.js` submits the form on `change`. The same script submits any form marked `data-keel-autosubmit` — the board filters, the backlog schedule control, and every editable field on the issue page — so those controls take effect without an Apply or Save click. Fallback submit buttons remain in the markup and are hidden by the `data-keel-js` marker, so the forms still work when the script does not run.
 
 Every interactive element in the bar — link, button, select, and the find field alike — carries `keel-topbar__control` and therefore one height, text size, border, and radius. Create is the exception in colour only: it tints the brand blue with white so it reads as the primary action, still using the [brand palette](../brand-colors.md). The home icon keeps its own circular treatment as the brand mark.
+
+## Narrow viewports
+
+The same URLs and pages serve a phone. A wide window keeps the desktop layout with no changes. When the viewport is phone-narrow (including a desktop window squeezed down), [ADR 018](../adr/ADR-018.md) applies:
+
+* The top bar stays sticky and still shows the home icon, section links, Find, and the picker. Those controls wrap onto extra rows and shrink; none are hidden behind a menu.
+* The footer is at the end of the page, not pinned over the content. A wide window keeps the pinned footer of [ADR 002](../adr/ADR-002.md).
+* Board columns keep a readable card width. Columns that do not fit are reached by swiping sideways. Separate by sprint remains stacked strips of columns, each strip swiped the same way. Status still changes with the existing Move control on a phone even when the board script has run, because dragging is unreliable with a finger.
+* Tables keep their columns. Extra columns are reached by swiping sideways inside the table, not by restacking rows into cards.
+* Filters and issue or create fields wrap so they stay in the screen width. There are no extra screens or `/m/` paths.
 
 ## Pages
 
@@ -122,6 +132,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
 * [ADR 016: Find from the top bar by name](../adr/ADR-016.md)
 * [ADR 017: Render issue descriptions and comments as Markdown](../adr/ADR-017.md)
+* [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
 * [API reference](api.md)
 * [Brand colors](../brand-colors.md)
 * [Use cases](../architecture/use-cases.md)
