@@ -82,7 +82,7 @@ def test_create_stands_out_in_the_recorded_palette(client: TestClient) -> None:
 
 
 def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
-    """Sections read left to right from the logo; find then the picker at the far end."""
+    """Home, sections, Find, then the picker, left to right."""
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
     assert (
         header.index("keel-topbar__home")

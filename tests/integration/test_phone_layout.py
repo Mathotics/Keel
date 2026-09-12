@@ -28,20 +28,28 @@ def test_phone_layout_is_a_narrow_media_query(client: TestClient) -> None:
     assert "display: flex" in fallback
     assert "z-index: 2" in fallback
     assert ".keel-table-scroll" in phone
-    assert "overflow-x: auto" in phone.split(".keel-table-scroll {", 1)[1].split(
-        "}",
-        1,
-    )[0]
+    assert (
+        "overflow-x: auto"
+        in phone.split(".keel-table-scroll {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+    )
     assert "grid-template-columns: minmax(0, 1fr)" in phone
-    assert "flex: 1 1 0" not in phone.split(".keel-board__column {", 1)[1].split(
-        "}",
-        1,
-    )[0]
+    assert (
+        "flex: 1 1 0"
+        not in phone.split(".keel-board__column {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+    )
     assert "position: sticky" not in desktop_footer
 
 
 def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
-    header = client.get("/projects").text.split("<header", 1)[1].split("</header>", 1)[0]
+    header = (
+        client.get("/projects").text.split("<header", 1)[1].split("</header>", 1)[0]
+    )
     assert "keel-topbar__home" in header
     assert "keel-topbar__nav" in header
     assert "keel-find" in header
@@ -49,7 +57,9 @@ def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
     assert 'href="/projects"' in header
     assert 'href="/create"' in header
     assert 'href="/users"' in header
-    footer = client.get("/projects").text.split("<footer", 1)[1].split("</footer>", 1)[0]
+    footer = (
+        client.get("/projects").text.split("<footer", 1)[1].split("</footer>", 1)[0]
+    )
     assert "keel-footer__copyright" in footer
     assert "keel-footer__version" in footer
 

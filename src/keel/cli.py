@@ -58,7 +58,10 @@ def build_parser() -> argparse.ArgumentParser:
         "destination",
         nargs="?",
         type=Path,
-        help="Where to write the copy (default: timestamped file next to the live database)",
+        help=(
+            "Where to write the copy "
+            "(default: timestamped file next to the live database)"
+        ),
     )
     backup.add_argument(
         "-y",

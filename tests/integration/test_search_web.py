@@ -92,23 +92,31 @@ def test_scoped_results_omit_the_project_column(client: TestClient) -> None:
     page = client.get("/search", params={"q": "Shared", "project": "KEEL"})
     assert page.status_code == 200
     assert "in KEEL" in page.text
-    issues_block = page.text.split("<h2>Issues</h2>", 1)[1].split("<h2>Projects</h2>", 1)[0]
+    issues_block = page.text.split("<h2>Issues</h2>", 1)[1].split(
+        "<h2>Projects</h2>", 1
+    )[0]
     assert "<th>Project</th>" not in issues_block
 
 
 def test_a_project_page_keeps_find_in_that_project(client: TestClient) -> None:
     _project(client)
-    header = client.get("/projects/KEEL").text.split("<header", 1)[1].split(
-        "</header>",
-        1,
-    )[0]
+    header = (
+        client.get("/projects/KEEL")
+        .text.split("<header", 1)[1]
+        .split(
+            "</header>",
+            1,
+        )[0]
+    )
     find = header.split('class="keel-find"', 1)[1]
     assert 'name="project"' in find
     assert 'value="KEEL"' in find
 
 
 def test_the_project_list_finds_globally(client: TestClient) -> None:
-    header = client.get("/projects").text.split("<header", 1)[1].split("</header>", 1)[0]
+    header = (
+        client.get("/projects").text.split("<header", 1)[1].split("</header>", 1)[0]
+    )
     find = header.split('class="keel-find"', 1)[1]
     assert 'name="project"' not in find
 

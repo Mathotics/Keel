@@ -1,4 +1,4 @@
-"""Copy and restore the live SQLite file without asking the owner to copy WAL sidecars."""
+"""Copy and restore the live SQLite file without copying WAL sidecars."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def is_sqlite_file(path: Path) -> bool:
 
 
 def snapshot(source: Path, destination: Path) -> None:
-    """Write a consistent copy via SQLite's backup API, even if another connection holds source."""
+    """Write a consistent copy via SQLite's backup API, even if source is in use."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     source_conn = sqlite3.connect(source, timeout=BUSY_TIMEOUT_S)
     try:
@@ -58,16 +58,24 @@ def backup_database(
     live = _live_file(url)
     if not live.is_file():
         raise BackupError(f"No database at {live}.")
-    dest = destination.expanduser() if destination is not None else default_backup_path(live, when)
+    dest = (
+        destination.expanduser()
+        if destination is not None
+        else default_backup_path(live, when)
+    )
     if _same_file(live, dest):
         raise BackupError(f"Destination is the live database: {dest}.")
     if dest.exists() and not overwrite:
-        raise BackupError(f"Destination already exists: {dest}. Pass --yes to overwrite.")
+        raise BackupError(
+            f"Destination already exists: {dest}. Pass --yes to overwrite."
+        )
     snapshot(live, dest)
     return live, dest
 
 
-def restore_database(url: str, source: Path, *, overwrite: bool = False) -> tuple[Path, Path]:
+def restore_database(
+    url: str, source: Path, *, overwrite: bool = False
+) -> tuple[Path, Path]:
     live = _live_file(url)
     source = source.expanduser()
     if not source.is_file():
@@ -77,7 +85,9 @@ def restore_database(url: str, source: Path, *, overwrite: bool = False) -> tupl
     if _same_file(source, live):
         raise BackupError(f"Source is the live database: {source}.")
     if live.is_file() and not overwrite:
-        raise BackupError(f"A database already exists at {live}. Pass --yes to overwrite.")
+        raise BackupError(
+            f"A database already exists at {live}. Pass --yes to overwrite."
+        )
     snapshot(source, live)
     return source, live
 
