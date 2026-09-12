@@ -51,12 +51,16 @@ def test_every_status_has_a_column_even_when_empty(
 def test_issues_are_grouped_by_status(session: Session, project: Project) -> None:
     _issue(session, project, "Ready")
     _issue(session, project, "Finished", status=IssueStatus.DONE)
+    _issue(session, project, "Dropped", status=IssueStatus.CANCELLED)
 
     board = board_service.project_board(session, project.id)
     by_status = {column.status: column.cards for column in board.columns}
 
     assert [card.issue.title for card in by_status[IssueStatus.TODO]] == ["Ready"]
     assert [card.issue.title for card in by_status[IssueStatus.DONE]] == ["Finished"]
+    assert [card.issue.title for card in by_status[IssueStatus.CANCELLED]] == [
+        "Dropped"
+    ]
     assert by_status[IssueStatus.IN_PROGRESS] == ()
 
 

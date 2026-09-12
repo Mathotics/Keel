@@ -54,7 +54,7 @@ The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtas
 * Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; classified by one status; reported by one user; optionally assigned to one user; carries many comments; participates in many dependencies as source and as target.
 
 ### Status
-A state in the shared, fixed workflow. The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md). The concrete set is *To Do*, *In Progress*, *In Review*, *Blocked*, and *Done*, with *Done* terminal; because it is fixed, it is realized as an enumeration in code rather than as stored records (see [ADR 013](../adr/ADR-013.md)).
+A state in the shared, fixed workflow. The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md). The concrete set is *To Do*, *In Progress*, *In Review*, *Blocked*, *Done*, and *Cancelled*. *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](../adr/ADR-020.md)). Because the set is fixed, it is realized as an enumeration in code rather than as stored records (see [ADR 013](../adr/ADR-013.md)).
 * Name; ordinal position in the workflow.
 * Relationships: classifies many issues; surfaced by many board columns.
 
@@ -87,7 +87,7 @@ A note attached to an issue, capturing discussion and context over time.
 
 ## Backlog (a view, not an entity)
 
-The backlog is the list of a project's issues that have **no sprint assigned** and are **not yet done**, ordered by when they were created, oldest first. It is derived from Issue attributes rather than stored as its own entity. This keeps a single source of truth for every issue regardless of whether it is being viewed on the board, in a sprint, or in the backlog — see [ADR 005](../adr/ADR-005.md).
+The backlog is the list of a project's issues that have **no sprint assigned** and are **not closed**, ordered by when they were created, oldest first. It is derived from Issue attributes rather than stored as its own entity. This keeps a single source of truth for every issue regardless of whether it is being viewed on the board, in a sprint, or in the backlog — see [ADR 005](../adr/ADR-005.md).
 
 [ADR 013](../adr/ADR-013.md) amends [ADR 005](../adr/ADR-005.md) here: the backlog carries no manual rank, and membership is defined by having no sprint at all rather than by not being in an *active* sprint, so pulling an issue into a planned sprint removes it from the backlog immediately.
 

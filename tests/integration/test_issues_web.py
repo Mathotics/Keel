@@ -42,6 +42,7 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert "Epic" in page.text
     assert 'name="description"' in page.text
     assert 'name="status"' in page.text
+    assert ">Cancelled<" in page.text
     assert 'name="assignee_id"' in page.text
     assert 'name="parent_id"' in page.text
     assert 'name="sprint_id"' in page.text
@@ -653,3 +654,28 @@ def test_an_epic_page_shows_subtree_progress(
     page = client.get("/issues/KEEL-1")
     assert "Including descendants: 3h estimate, 3h remaining. 1 of 1 done." in page.text
     assert 'value="2h"' in page.text
+
+
+def test_an_epic_page_shows_cancelled_descendants_separately(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic", estimate="2h")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    submit_issue(
+        client,
+        project,
+        type="story",
+        title="Dropped",
+        parent_id=str(epic_id),
+        estimate="1h",
+        remaining="1h",
+    )
+    story_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[1]["id"]
+    client.patch(f"/api/v1/issues/{story_id}", json={"status": "cancelled"})
+
+    page = client.get("/issues/KEEL-1")
+    assert (
+        "Including descendants: 3h estimate, 2h remaining. 0 of 1 done, 1 cancelled."
+        in page.text
+    )

@@ -46,6 +46,7 @@ class RollupRead(BaseModel):
     remaining_minutes: int | None
     descendants: int
     descendants_done: int
+    descendants_cancelled: int
 
     @classmethod
     def of(cls, rollup: Rollup) -> "RollupRead":
@@ -54,6 +55,7 @@ class RollupRead(BaseModel):
             remaining_minutes=rollup.remaining_minutes,
             descendants=rollup.descendants,
             descendants_done=rollup.descendants_done,
+            descendants_cancelled=rollup.descendants_cancelled,
         )
 
 

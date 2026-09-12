@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Sprint
 from keel.db.models.user import utc_now
-from keel.domain.enums import TERMINAL_STATUS, SprintState
+from keel.domain.enums import CLOSED_STATUSES, SprintState
 from keel.domain.errors import (
     InvalidSprintError,
     NotFoundError,
@@ -159,7 +159,7 @@ def complete_sprint(session: Session, sprint_id: int) -> SprintCompletion:
     unfinished = session.scalars(
         select(Issue).where(
             Issue.sprint_id == sprint.id,
-            Issue.status != TERMINAL_STATUS,
+            Issue.status.notin_(CLOSED_STATUSES),
         ),
     ).all()
     destination = _next_planned(session, sprint.project_id)

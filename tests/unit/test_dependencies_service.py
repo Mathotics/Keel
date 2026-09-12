@@ -293,6 +293,24 @@ def test_unresolved_blocker_counts_ignore_done_sources(
     assert counts == {waiting: 1}
 
 
+def test_unresolved_blocker_counts_keep_cancelled_sources(
+    session: Session,
+    project: Project,
+) -> None:
+    blocker = story(session, project, "Blocker")
+    waiting = story(session, project, "Waiting")
+    dependency_service.create_dependency(
+        session,
+        blocker,
+        waiting,
+        DependencyKind.BLOCKS,
+    )
+    issue_service.update_issue(session, blocker, status=IssueStatus.CANCELLED)
+
+    counts = dependency_service.unresolved_blocker_counts(session, (waiting,))
+    assert counts == {waiting: 1}
+
+
 def test_relates_to_does_not_count_as_a_blocker(
     session: Session,
     project: Project,

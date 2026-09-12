@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue
-from keel.domain.enums import TERMINAL_STATUS
+from keel.domain.enums import CLOSED_STATUSES
 from keel.services import dependencies as dependency_service
 from keel.services import projects as project_service
 
@@ -17,14 +17,14 @@ class BacklogItem:
 
 
 def project_backlog(session: Session, project_id: int) -> Sequence[BacklogItem]:
-    """Unscheduled issues that are not Done, oldest first."""
+    """Unscheduled issues that are not closed, oldest first."""
     project_service.get_project(session, project_id)
     issues = session.scalars(
         select(Issue)
         .where(
             Issue.project_id == project_id,
             Issue.sprint_id.is_(None),
-            Issue.status != TERMINAL_STATUS,
+            Issue.status.notin_(CLOSED_STATUSES),
         )
         .order_by(Issue.created_at, Issue.id),
     ).all()

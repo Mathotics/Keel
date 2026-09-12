@@ -64,7 +64,7 @@ Done when a card can be dragged between columns and the change survives a reload
 * Sprint model with the partial unique index enforcing one active sprint per project.
 * Lifecycle service: start with its active-sprint check, complete with carry-over into the earliest remaining planned sprint or back to the backlog.
 * Sprint list and detail pages, JSON routes, and the start and complete actions with their fallback forms.
-* Backlog projection — no sprint assigned and not Done, oldest first — and the backlog page with a control to schedule an issue into a planned sprint.
+* Backlog projection — no sprint assigned and not closed, oldest first — and the backlog page with a control to schedule an issue into a planned sprint.
 
 Done when a sprint can be planned, filled from the backlog, started, and completed; a second start in the same project is refused; and completing one reports what was carried and where.
 

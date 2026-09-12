@@ -39,6 +39,29 @@ def test_the_backlog_is_unscheduled_unfinished_work_oldest_first(
     assert [item.issue.id for item in backlog] == [first.id]
 
 
+def test_cancelled_unscheduled_issues_are_not_in_the_backlog(
+    session: Session,
+) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    open_issue = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Still open",
+    )
+    cancelled = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Dropped",
+    )
+    issue_service.update_issue(session, cancelled.id, status=IssueStatus.CANCELLED)
+
+    backlog = backlog_service.project_backlog(session, project.id)
+
+    assert [item.issue.id for item in backlog] == [open_issue.id]
+
+
 def test_backlog_rows_carry_unresolved_blocker_counts(session: Session) -> None:
     project = project_service.create_project(session, "KEEL", "Keel")
     blocker = issue_service.create_issue(

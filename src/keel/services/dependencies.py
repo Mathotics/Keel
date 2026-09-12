@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Dependency, Issue
-from keel.domain.enums import TERMINAL_STATUS, DependencyKind
+from keel.domain.enums import COMPLETED_STATUS, DependencyKind
 from keel.domain.errors import (
     DependencyCycleError,
     DependencyDuplicateError,
@@ -135,7 +135,7 @@ def unresolved_blocker_counts(
         .where(
             Dependency.kind == DependencyKind.BLOCKS,
             Dependency.target_id.in_(tuple(issue_ids)),
-            Issue.status != TERMINAL_STATUS,
+            Issue.status != COMPLETED_STATUS,
         )
         .group_by(Dependency.target_id),
     ).all()

@@ -104,7 +104,7 @@
             <button class="keel-autosubmit__fallback" type="submit">Save</button>
           </form>
           {% if rollup.descendants %}
-          <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.descendants_done }} of {{ rollup.descendants }} done.</p>
+          <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
           {% endif %}
         </dd>
         <dt>Created on</dt><dd>{{ issue.created_at | when }}</dd>

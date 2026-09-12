@@ -15,6 +15,7 @@ class IssueStatus(StrEnum):
     IN_REVIEW = "in_review"
     BLOCKED = "blocked"
     DONE = "done"
+    CANCELLED = "cancelled"
 
 
 class SprintState(StrEnum):
@@ -41,7 +42,8 @@ class DependencyKind(StrEnum):
 
 
 INITIAL_STATUS = IssueStatus.TODO
-TERMINAL_STATUS = IssueStatus.DONE
+COMPLETED_STATUS = IssueStatus.DONE
+CLOSED_STATUSES = frozenset({IssueStatus.DONE, IssueStatus.CANCELLED})
 
 _LABELS = {
     IssueType.EPIC: "Epic",
@@ -52,6 +54,7 @@ _LABELS = {
     IssueStatus.IN_REVIEW: "In Review",
     IssueStatus.BLOCKED: "Blocked",
     IssueStatus.DONE: "Done",
+    IssueStatus.CANCELLED: "Cancelled",
     SprintState.PLANNED: "Planned",
     SprintState.ACTIVE: "Active",
     SprintState.COMPLETED: "Completed",

@@ -11,6 +11,8 @@ def test_a_lone_issue_has_no_descendants() -> None:
     assert rollup.remaining_minutes == 60
     assert rollup.descendants == 0
     assert rollup.descendants_done == 0
+    assert rollup.descendants_cancelled == 0
+    assert rollup.progress_sentence() == "0 of 0 done"
 
 
 def test_unset_effort_contributes_nothing_and_stays_absent() -> None:
@@ -53,3 +55,23 @@ def test_progress_counts_only_descendants() -> None:
     )
     assert rollup.descendants == 2
     assert rollup.descendants_done == 1
+    assert rollup.descendants_cancelled == 0
+    assert rollup.progress_sentence() == "1 of 2 done"
+
+
+def test_cancelled_descendants_are_counted_separately_and_omit_remaining() -> None:
+    rollup = compute_rollup(
+        1,
+        [
+            EffortNode(1, 120, 120, IssueStatus.TODO),
+            EffortNode(2, 60, 30, IssueStatus.DONE),
+            EffortNode(3, 45, 45, IssueStatus.CANCELLED),
+            EffortNode(4, None, 15, IssueStatus.TODO),
+        ],
+    )
+    assert rollup.estimate_minutes == 225
+    assert rollup.remaining_minutes == 165
+    assert rollup.descendants == 3
+    assert rollup.descendants_done == 1
+    assert rollup.descendants_cancelled == 1
+    assert rollup.progress_sentence() == "1 of 3 done, 1 cancelled"

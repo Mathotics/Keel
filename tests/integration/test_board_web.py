@@ -48,6 +48,7 @@ def test_the_board_page_renders_every_column(
     assert page.status_code == 200
     assert "To Do" in page.text
     assert "In Progress" in page.text
+    assert "Cancelled" in page.text
     assert "KEEL-1" in page.text
     assert "Ready" in page.text
     assert 'action="/web/issues/' in page.text

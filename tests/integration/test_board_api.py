@@ -40,6 +40,7 @@ def test_the_board_has_a_column_for_every_status(
         "in_review",
         "blocked",
         "done",
+        "cancelled",
     ]
     assert [column["label"] for column in board["columns"]][0] == "To Do"
     assert board["project_id"] == project_id

@@ -286,6 +286,39 @@ def test_an_epic_reports_subtree_rollup(client: TestClient, project_id: int) -> 
         "remaining_minutes": 150,
         "descendants": 2,
         "descendants_done": 1,
+        "descendants_cancelled": 0,
+    }
+
+
+def test_cancelled_children_are_counted_separately_in_api_rollup(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    epic = create_issue(
+        client,
+        project_id,
+        type="epic",
+        title="Epic",
+        estimate_minutes=120,
+    )
+    story = create_issue(
+        client,
+        project_id,
+        type="story",
+        title="Dropped",
+        parent_id=epic["id"],
+        estimate_minutes=60,
+        remaining_minutes=45,
+    )
+    client.patch(f"/api/v1/issues/{story['id']}", json={"status": "cancelled"})
+
+    body = client.get(f"/api/v1/issues/{epic['id']}").json()
+    assert body["rollup"] == {
+        "estimate_minutes": 180,
+        "remaining_minutes": 120,
+        "descendants": 1,
+        "descendants_done": 0,
+        "descendants_cancelled": 1,
     }
 
 

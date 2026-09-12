@@ -81,6 +81,23 @@ def test_issues_start_in_the_first_status(session: Session, project: Project) ->
     assert issue.status is INITIAL_STATUS is IssueStatus.TODO
 
 
+def test_cancelling_a_parent_leaves_children_unchanged(
+    session: Session,
+    project: Project,
+) -> None:
+    epic = make(session, project, IssueType.EPIC, "Epic")
+    story = make(session, project, IssueType.STORY, "Story", parent_id=epic)
+    issue_service.update_issue(session, epic, status=IssueStatus.CANCELLED)
+
+    assert issue_service.get_issue(session, story).status is IssueStatus.TODO
+    reopened = issue_service.update_issue(
+        session,
+        epic,
+        status=IssueStatus.TODO,
+    )
+    assert reopened.status is IssueStatus.TODO
+
+
 def test_a_blank_title_is_refused(session: Session, project: Project) -> None:
     with pytest.raises(InvalidIssueError):
         make(session, project, title="  ")
@@ -297,6 +314,7 @@ def test_rollup_covers_the_issue_and_its_descendants(
     assert rollup.remaining_minutes == 150
     assert rollup.descendants == 2
     assert rollup.descendants_done == 1
+    assert rollup.descendants_cancelled == 0
     own = issue_service.get_issue(session, epic)
     assert own.estimate_minutes == 120
 
@@ -353,6 +371,7 @@ def test_counts_cover_every_status(session: Session, project: Project) -> None:
 
     assert counts[IssueStatus.TODO] == 1
     assert counts[IssueStatus.DONE] == 0
+    assert counts[IssueStatus.CANCELLED] == 0
     assert len(counts) == len(IssueStatus)
 
 

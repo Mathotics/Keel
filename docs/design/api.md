@@ -10,7 +10,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author.
-* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; dependency kinds `blocks`, `relates_to`.
+* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 
 ## Users
@@ -87,7 +87,8 @@ Response body, with the fields the interface needs added:
     "estimate_minutes": 420,
     "remaining_minutes": 300,
     "descendants": 4,
-    "descendants_done": 1
+    "descendants_done": 1,
+    "descendants_cancelled": 0
   },
   "unresolved_blockers": 2,
   "created_at": "2026-08-31T14:02:11Z",
@@ -95,7 +96,7 @@ Response body, with the fields the interface needs added:
 }
 ```
 
-`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`.
+`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/ADR-020.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`.
 
 ## Projections
 

@@ -195,6 +195,28 @@ def test_completion_carries_unfinished_work_to_the_next_planned_sprint(
     assert issue_service.get_issue(session, done_id).sprint_id == current.id
 
 
+def test_completion_keeps_cancelled_work_on_the_completed_sprint(
+    session: Session,
+    project: Project,
+) -> None:
+    current = sprint_service.create_sprint(session, project.id, "Now")
+    later = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Next",
+        starts_on=date(2026, 10, 1),
+    )
+    cancelled_id = issue_id(session, project, "Dropped", sprint_id=current.id)
+    issue_service.update_issue(session, cancelled_id, status=IssueStatus.CANCELLED)
+    sprint_service.start_sprint(session, current.id)
+
+    result = sprint_service.complete_sprint(session, current.id)
+
+    assert result.carried_over == 0
+    assert result.carried_to_sprint_id == later.id
+    assert issue_service.get_issue(session, cancelled_id).sprint_id == current.id
+
+
 def test_completion_returns_work_to_the_backlog_when_nothing_is_planned(
     session: Session,
     project: Project,
