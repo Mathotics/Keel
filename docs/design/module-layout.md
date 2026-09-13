@@ -52,6 +52,8 @@ src/keel/
     boards.py
     backlog.py
     sprints.py
+    auto_sprint.py
+    series.py
     find.py
     dependencies.py
     comments.py
@@ -62,6 +64,7 @@ src/keel/
     project.py
     issue.py
     sprint.py
+    series.py
     dependency.py
     comment.py
     board.py
@@ -78,6 +81,7 @@ src/keel/
       issues.py
       boards.py
       sprints.py
+      series.py
       dependencies.py
       comments.py
 
@@ -95,6 +99,7 @@ src/keel/
       board.py
       backlog.py
       sprints.py
+      schedules.py
       users.py
       forms.py          /web POST handlers that redirect
     templates/

@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     CheckConstraint,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import text
 
 from keel.db.base import Base
 from keel.db.models.user import utc_now
@@ -45,6 +47,14 @@ class Issue(Base):
         Index("ix_issues_project_created", "project_id", "created_at"),
         Index("ix_issues_parent_id", "parent_id"),
         Index("ix_issues_sprint_id", "sprint_id"),
+        Index("ix_issues_series_id", "series_id"),
+        Index(
+            "uq_issues_series_occurrence",
+            "series_id",
+            "occurrence_on",
+            unique=True,
+            sqlite_where=text("series_id is not null"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -79,6 +89,11 @@ class Issue(Base):
     estimate_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
     remaining_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
     due_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    series_id: Mapped[int | None] = mapped_column(
+        ForeignKey("series.id", ondelete="SET NULL", use_alter=True),
+        default=None,
+    )
+    occurrence_on: Mapped[date | None] = mapped_column(Date, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,

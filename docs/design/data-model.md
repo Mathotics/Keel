@@ -104,6 +104,8 @@ Indexes and constraints:
 | `estimate_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `remaining_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `due_at` | TIMESTAMP | nullable |
+| `series_id` | INTEGER | nullable, references `series(id)` `ON DELETE SET NULL` |
+| `occurrence_on` | DATE | nullable |
 | `created_at` | TIMESTAMP | not null |
 | `updated_at` | TIMESTAMP | not null |
 
@@ -114,8 +116,38 @@ Indexes and constraints:
 * `ix_issues_project_created` on (`project_id`, `created_at`) for backlog ordering
 * `ix_issues_parent_id` on (`parent_id`) for hierarchy and rollup traversal
 * `ix_issues_sprint_id` on (`sprint_id`) for sprint membership
+* `ix_issues_series_id` on (`series_id`)
+* `uq_issues_series_occurrence` — unique on (`series_id`, `occurrence_on`) where `series_id` is not null
 
-Rules not expressible as constraints and therefore enforced in `keel.domain` and `keel.services`: the type-specific parent rules, same-project parenthood, ancestor cycle prevention, and the refusal to delete an issue with children. `ON DELETE RESTRICT` on `parent_id` is the backstop for the last of these.
+### series
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `project_id` | INTEGER | not null, references `projects(id)` `ON DELETE CASCADE` |
+| `title` | TEXT | not null |
+| `description` | TEXT | not null, default `''` |
+| `type` | TEXT | not null, `CHECK` in (`epic`, `story`, `subtask`) |
+| `state` | TEXT | not null, default `'active'`, `CHECK` in (`active`, `paused`, `stopped`) |
+| `spawn_mode` | TEXT | not null, `CHECK` in (`calendar`, `after_closed`) |
+| `sprint_basis` | TEXT | not null, `CHECK` in (`due_on`, `created_on`) |
+| `look_ahead_n` | INTEGER | not null, default 1, `CHECK >= 1` |
+| `freq` | TEXT | not null, `CHECK` in (`daily`, `weekly`, `monthly`, `yearly`) |
+| `interval` | INTEGER | not null, default 1, `CHECK >= 1` |
+| `weekdays` | TEXT | not null, default `''` |
+| `month_day` | INTEGER | nullable |
+| `nth_week` | INTEGER | nullable |
+| `month` | INTEGER | nullable |
+| `starts_on` | DATE | not null |
+| `ends_on` | DATE | nullable |
+| `occurrence_count` | INTEGER | nullable, `CHECK` null or `>= 1` |
+| `parent_id` | INTEGER | nullable, references `issues(id)` `ON DELETE SET NULL` |
+| `assignee_id` | INTEGER | nullable, references `users(id)` `ON DELETE SET NULL` |
+| `reporter_id` | INTEGER | nullable, references `users(id)` `ON DELETE SET NULL` |
+| `created_at` | TIMESTAMP | not null |
+| `updated_at` | TIMESTAMP | not null |
+
+`series_skips` records deleted occurrence dates so calendar mode does not recreate that cycle ([ADR 021](../adr/ADR-021.md)).
 
 ### dependencies
 
@@ -181,6 +213,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0006` | `comments` |
 | `0007` | `projects.sprint_cadence` |
 | `0008` | `cancelled` on `issues.status` |
+| `0009` | `series`, `series_skips`, `issues.series_id` |
 
 ## Related documents
 
@@ -189,6 +222,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 013: Planning realization](../adr/ADR-013.md)
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
 * [ADR 020: Cancelled status](../adr/ADR-020.md)
+* [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -118,6 +118,8 @@ def create_issue(
     sprint_id: int | None = None,
     estimate_minutes: int | None = None,
     remaining_minutes: int | None = None,
+    series_id: int | None = None,
+    occurrence_on: date | None = None,
 ) -> Issue:
     project = project_service.get_project(session, project_id)
     _check_minutes(estimate_minutes)
@@ -136,6 +138,8 @@ def create_issue(
         due_at=due_at,
         estimate_minutes=estimate_minutes,
         remaining_minutes=remaining_minutes,
+        series_id=series_id,
+        occurrence_on=occurrence_on,
     )
     _assign_parent(session, issue, parent_id)
     _assign_sprint(session, issue, sprint_id)
@@ -189,6 +193,10 @@ def update_issue(
         issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
 
     session.flush()
+    if status is not None:
+        from keel.services import series as series_service
+
+        series_service.on_occurrence_closed(session, issue)
     return issue
 
 
@@ -201,8 +209,14 @@ def delete_issue(session: Session, issue_id: int) -> None:
             issue_id=issue.id,
             children=len(children),
         )
+    series_id = issue.series_id
+    occurrence_on = issue.occurrence_on
     session.delete(issue)
     session.flush()
+    if series_id is not None and occurrence_on is not None:
+        from keel.services import series as series_service
+
+        series_service.after_issue_deleted(session, series_id, occurrence_on)
 
 
 def issue_rollup(session: Session, issue_id: int) -> Rollup:

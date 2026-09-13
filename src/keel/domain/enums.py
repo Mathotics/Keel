@@ -36,6 +36,35 @@ class SprintCadence(StrEnum):
     EVERY_N_DAYS = "every_n_days"
 
 
+class SeriesState(StrEnum):
+    ACTIVE = "active"
+    PAUSED = "paused"
+    STOPPED = "stopped"
+
+
+class SeriesSpawnMode(StrEnum):
+    CALENDAR = "calendar"
+    AFTER_CLOSED = "after_closed"
+
+
+class SeriesSprintBasis(StrEnum):
+    DUE_ON = "due_on"
+    CREATED_ON = "created_on"
+
+
+class RecurrenceFreq(StrEnum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    YEARLY = "yearly"
+
+
+class EditScope(StrEnum):
+    THIS = "this"
+    FUTURE = "future"
+    SERIES = "series"
+
+
 class DependencyKind(StrEnum):
     BLOCKS = "blocks"
     RELATES_TO = "relates_to"
@@ -65,9 +94,34 @@ _LABELS = {
     SprintCadence.EVERY_N_DAYS: "Every N days",
     DependencyKind.BLOCKS: "Blocks",
     DependencyKind.RELATES_TO: "Relates to",
+    SeriesState.ACTIVE: "Active",
+    SeriesState.PAUSED: "Paused",
+    SeriesState.STOPPED: "Stopped",
+    SeriesSpawnMode.CALENDAR: "On the calendar",
+    SeriesSpawnMode.AFTER_CLOSED: "After the previous copy is closed",
+    SeriesSprintBasis.DUE_ON: "Due date",
+    SeriesSprintBasis.CREATED_ON: "Creation date",
+    RecurrenceFreq.DAILY: "Daily",
+    RecurrenceFreq.WEEKLY: "Weekly",
+    RecurrenceFreq.MONTHLY: "Monthly",
+    RecurrenceFreq.YEARLY: "Yearly",
+    EditScope.THIS: "This occurrence",
+    EditScope.FUTURE: "This and all future",
+    EditScope.SERIES: "Entire series",
 }
 
-Labeled = IssueType | IssueStatus | SprintState | SprintCadence | DependencyKind
+Labeled = (
+    IssueType
+    | IssueStatus
+    | SprintState
+    | SprintCadence
+    | DependencyKind
+    | SeriesState
+    | SeriesSpawnMode
+    | SeriesSprintBasis
+    | RecurrenceFreq
+    | EditScope
+)
 
 
 def label(value: Labeled) -> str:

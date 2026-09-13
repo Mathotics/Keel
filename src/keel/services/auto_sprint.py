@@ -122,6 +122,9 @@ def advance_all(session: Session, today: date | None = None) -> None:
     ).all()
     for project in projects:
         ensure_open(session, project.id, today)
+    from keel.services import series as series_service
+
+    series_service.advance_all(session, today)
 
 
 def get_session(request: Request) -> Generator[Session, None, None]:

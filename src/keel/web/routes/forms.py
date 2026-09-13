@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -5,7 +6,17 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
 from keel.domain.duration import parse_duration
-from keel.domain.enums import DependencyKind, IssueStatus, IssueType, SprintCadence
+from keel.domain.enums import (
+    DependencyKind,
+    EditScope,
+    IssueStatus,
+    IssueType,
+    RecurrenceFreq,
+    SeriesSpawnMode,
+    SeriesSprintBasis,
+    SeriesState,
+    SprintCadence,
+)
 from keel.domain.errors import DomainError, InvalidSprintCadenceError
 from keel.domain.hierarchy import child_type_of
 from keel.services import auto_sprint
@@ -13,6 +24,7 @@ from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
+from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE
@@ -697,6 +709,301 @@ def complete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     else:
         notice = _carry_notice(session, result)
     return _back(here, notice=notice)
+
+
+@router.post("/projects/{project_id}/schedules")
+def create_schedule(
+    session: SessionDep,
+    chrome: ChromeDep,
+    project_id: int,
+    title: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    type: Annotated[IssueType, Form()] = IssueType.STORY,
+    spawn_mode: Annotated[SeriesSpawnMode, Form()] = SeriesSpawnMode.CALENDAR,
+    sprint_basis: Annotated[SeriesSprintBasis, Form()] = SeriesSprintBasis.DUE_ON,
+    freq: Annotated[RecurrenceFreq, Form()] = RecurrenceFreq.WEEKLY,
+    interval: Annotated[str, Form()] = "1",
+    starts_on: Annotated[str, Form()] = "",
+    weekday: Annotated[list[str] | None, Form()] = None,
+    month_day: Annotated[str, Form()] = "",
+    nth_week: Annotated[str, Form()] = "",
+    month: Annotated[str, Form()] = "",
+    look_ahead_n: Annotated[str, Form()] = "1",
+    end_mode: Annotated[str, Form()] = "never",
+    ends_on: Annotated[str, Form()] = "",
+    occurrence_count: Annotated[str, Form()] = "",
+    parent_id: Annotated[str, Form()] = "",
+    assignee_id: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    project = project_service.get_project(session, project_id)
+    listing = f"/projects/{project.key}/schedules"
+    try:
+        series = series_service.create_series(
+            session,
+            project.id,
+            title=title,
+            description=description,
+            type=type,
+            spawn_mode=spawn_mode,
+            sprint_basis=sprint_basis,
+            freq=freq,
+            starts_on=_required_date(starts_on),
+            interval=_positive_int(interval, "Repeat interval must be at least 1."),
+            weekdays=_weekdays(weekday),
+            month_day=_optional_int(month_day),
+            nth_week=_optional_signed_int(nth_week),
+            month=_optional_int(month),
+            ends_on=_end_date(end_mode, ends_on),
+            occurrence_count=_end_count(end_mode, occurrence_count),
+            look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            parent_id=_optional_id(parent_id),
+            assignee_id=_optional_id(assignee_id),
+            reporter_id=(
+                None if chrome.current_user is None else chrome.current_user.id
+            ),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(listing, exc.message)
+    return _back(f"/projects/{project.key}/schedules/{series.id}")
+
+
+@router.post("/schedules/{series_id}/update")
+def update_schedule(
+    session: SessionDep,
+    series_id: int,
+    title: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    type: Annotated[IssueType, Form()] = IssueType.STORY,
+    spawn_mode: Annotated[SeriesSpawnMode, Form()] = SeriesSpawnMode.CALENDAR,
+    sprint_basis: Annotated[SeriesSprintBasis, Form()] = SeriesSprintBasis.DUE_ON,
+    freq: Annotated[RecurrenceFreq, Form()] = RecurrenceFreq.WEEKLY,
+    interval: Annotated[str, Form()] = "1",
+    starts_on: Annotated[str, Form()] = "",
+    weekday: Annotated[list[str] | None, Form()] = None,
+    month_day: Annotated[str, Form()] = "",
+    nth_week: Annotated[str, Form()] = "",
+    month: Annotated[str, Form()] = "",
+    look_ahead_n: Annotated[str, Form()] = "1",
+    end_mode: Annotated[str, Form()] = "never",
+    ends_on: Annotated[str, Form()] = "",
+    occurrence_count: Annotated[str, Form()] = "",
+    parent_id: Annotated[str, Form()] = "",
+    assignee_id: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    series = series_service.get_series(session, series_id)
+    project = project_service.get_project(session, series.project_id)
+    here = f"/projects/{project.key}/schedules/{series.id}"
+    try:
+        series_service.update_series(
+            session,
+            series.id,
+            title=title,
+            description=description,
+            type=type,
+            spawn_mode=spawn_mode,
+            sprint_basis=sprint_basis,
+            freq=freq,
+            interval=_positive_int(interval, "Repeat interval must be at least 1."),
+            weekdays=_weekdays(weekday),
+            month_day=_optional_int(month_day),
+            nth_week=_optional_signed_int(nth_week),
+            month=_optional_int(month),
+            starts_on=_required_date(starts_on),
+            ends_on=_end_date(end_mode, ends_on),
+            occurrence_count=_end_count(end_mode, occurrence_count),
+            look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            parent_id=_optional_id(parent_id),
+            assignee_id=_optional_id(assignee_id),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/schedules/{series_id}/pause")
+def pause_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
+    return _schedule_state(session, series_id, SeriesState.PAUSED)
+
+
+@router.post("/schedules/{series_id}/resume")
+def resume_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
+    return _schedule_state(session, series_id, SeriesState.ACTIVE)
+
+
+@router.post("/schedules/{series_id}/stop")
+def stop_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
+    return _schedule_state(session, series_id, SeriesState.STOPPED)
+
+
+@router.post("/issues/{issue_id}/repeat")
+def make_issue_repeating(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    spawn_mode: Annotated[SeriesSpawnMode, Form()] = SeriesSpawnMode.CALENDAR,
+    sprint_basis: Annotated[SeriesSprintBasis, Form()] = SeriesSprintBasis.DUE_ON,
+    freq: Annotated[RecurrenceFreq, Form()] = RecurrenceFreq.WEEKLY,
+    interval: Annotated[str, Form()] = "1",
+    starts_on: Annotated[str, Form()] = "",
+    weekday: Annotated[list[str] | None, Form()] = None,
+    month_day: Annotated[str, Form()] = "",
+    nth_week: Annotated[str, Form()] = "",
+    month: Annotated[str, Form()] = "",
+    look_ahead_n: Annotated[str, Form()] = "1",
+    end_mode: Annotated[str, Form()] = "never",
+    ends_on: Annotated[str, Form()] = "",
+    occurrence_count: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    issue = issue_service.get_issue(session, issue_id)
+    try:
+        series_service.create_series(
+            session,
+            issue.project_id,
+            title=issue.title,
+            description=issue.description,
+            type=issue.type,
+            spawn_mode=spawn_mode,
+            sprint_basis=sprint_basis,
+            freq=freq,
+            starts_on=_required_date(starts_on),
+            interval=_positive_int(interval, "Repeat interval must be at least 1."),
+            weekdays=_weekdays(weekday),
+            month_day=_optional_int(month_day),
+            nth_week=_optional_signed_int(nth_week),
+            month=_optional_int(month),
+            ends_on=_end_date(end_mode, ends_on),
+            occurrence_count=_end_count(end_mode, occurrence_count),
+            look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            parent_id=issue.parent_id,
+            assignee_id=issue.assignee_id,
+            reporter_id=(
+                None if chrome.current_user is None else chrome.current_user.id
+            ),
+            seed_issue_id=issue.id,
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/series")
+def update_issue_series(
+    session: SessionDep,
+    issue_id: int,
+    scope: Annotated[EditScope, Form()] = EditScope.THIS,
+    title: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    spawn_mode: Annotated[SeriesSpawnMode, Form()] = SeriesSpawnMode.CALENDAR,
+    sprint_basis: Annotated[SeriesSprintBasis, Form()] = SeriesSprintBasis.DUE_ON,
+    freq: Annotated[RecurrenceFreq, Form()] = RecurrenceFreq.WEEKLY,
+    interval: Annotated[str, Form()] = "1",
+    starts_on: Annotated[str, Form()] = "",
+    weekday: Annotated[list[str] | None, Form()] = None,
+    month_day: Annotated[str, Form()] = "",
+    nth_week: Annotated[str, Form()] = "",
+    month: Annotated[str, Form()] = "",
+    look_ahead_n: Annotated[str, Form()] = "1",
+    end_mode: Annotated[str, Form()] = "never",
+    ends_on: Annotated[str, Form()] = "",
+    occurrence_count: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        series_service.apply_occurrence_edit(
+            session,
+            issue_id,
+            scope,
+            title=title,
+            description=description,
+            spawn_mode=spawn_mode,
+            sprint_basis=sprint_basis,
+            freq=freq,
+            interval=_positive_int(interval, "Repeat interval must be at least 1."),
+            weekdays=_weekdays(weekday),
+            month_day=_optional_int(month_day),
+            nth_week=_optional_signed_int(nth_week),
+            month=_optional_int(month),
+            starts_on=_required_date(starts_on),
+            ends_on=_end_date(end_mode, ends_on),
+            occurrence_count=_end_count(end_mode, occurrence_count),
+            look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+def _schedule_state(
+    session: SessionDep,
+    series_id: int,
+    state: SeriesState,
+) -> RedirectResponse:
+    series = series_service.get_series(session, series_id)
+    project = project_service.get_project(session, series.project_id)
+    here = f"/projects/{project.key}/schedules/{series.id}"
+    try:
+        series_service.set_state(session, series.id, state)
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+def _weekdays(raw: list[str] | str | None) -> tuple[int, ...]:
+    if raw is None or raw == "":
+        return ()
+    if isinstance(raw, str):
+        return (int(raw),)
+    return tuple(int(item) for item in raw if str(item).strip() != "")
+
+
+def _required_date(raw: str) -> date:
+    parsed = sprint_service.parse_date(raw)
+    if parsed is None:
+        from keel.domain.errors import InvalidSeriesError
+
+        raise InvalidSeriesError("A series needs a start date.")
+    return parsed
+
+
+def _optional_int(raw: str) -> int | None:
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    return int(cleaned)
+
+
+def _optional_signed_int(raw: str) -> int | None:
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    return int(cleaned)
+
+
+def _positive_int(raw: str, message: str) -> int:
+    from keel.domain.errors import InvalidSeriesError
+
+    cleaned = raw.strip()
+    if not cleaned.isdigit() or int(cleaned) < 1:
+        raise InvalidSeriesError(message)
+    return int(cleaned)
+
+
+def _end_date(end_mode: str, raw: str) -> date | None:
+    if end_mode != "on":
+        return None
+    return sprint_service.parse_date(raw)
+
+
+def _end_count(end_mode: str, raw: str) -> int | None:
+    if end_mode != "count":
+        return None
+    return _positive_int(raw, "Occurrence count must be at least 1.")
 
 
 def _parse_cadence(raw: str) -> SprintCadence:

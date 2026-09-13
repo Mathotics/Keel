@@ -53,9 +53,12 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         projects = {
             column["name"] for column in inspect(engine).get_columns("projects")
         }
+        series = {column["name"] for column in inspect(engine).get_columns("series")}
     finally:
         engine.dispose()
     assert "due_at" in columns
+    assert "series_id" in columns
+    assert "occurrence_on" in columns
     assert "sprint_id" in columns
     assert "created_at" in columns
     assert "updated_at" in columns
@@ -88,6 +91,15 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "sprint_cadence",
         "sprint_cadence_days",
         "auto_sprint_notice",
+    }
+    assert series >= {
+        "id",
+        "project_id",
+        "title",
+        "spawn_mode",
+        "look_ahead_n",
+        "freq",
+        "starts_on",
     }
 
 

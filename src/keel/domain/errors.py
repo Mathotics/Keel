@@ -122,3 +122,12 @@ class DependencySelfLinkError(DomainError):
 
 class DependencyDuplicateError(DomainError):
     code = "dependency.duplicate"
+
+
+class InvalidSeriesError(DomainError):
+    code = "series.invalid"
+    status_code = 422
+
+
+class SeriesStoppedError(DomainError):
+    code = "series.stopped"

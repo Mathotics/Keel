@@ -27,6 +27,12 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Complete a sprint.** A user completes the sprint; unfinished issues move into the next planned sprint, or return to the backlog if there is none.
 * **Run sprints on a cadence.** A user turns on auto-sprint for a project (weekly, every two weeks, monthly, or every N days). Keel keeps one sprint active, completing the current window after its last day and starting the next planned sprint — or creating one when none is planned ([ADR 019](../adr/ADR-019.md)).
 
+## Repeating work
+
+* **Schedule a repeating job.** A user creates a series on the project Schedules page (type, default title and description, cadence, when to spawn, which date picks the sprint). Copies appear as ordinary issues.
+* **Work this occurrence.** A user edits this month's copy without changing last month's notes. Recipe edits ask this occurrence, this and all future, or the entire series.
+* **Skip or abandon a cycle.** A user deletes this issue so that date does not come back, or marks it Cancelled so the record stays and the next copy can still appear.
+
 ## Kanban board
 
 * **Work the board.** A user views a project's issues as cards in columns drawn from the shared workflow statuses.

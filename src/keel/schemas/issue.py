@@ -1,5 +1,5 @@
 from collections.abc import Mapping, Sequence
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -77,6 +77,8 @@ class IssueRead(BaseModel):
     estimate_minutes: int | None
     remaining_minutes: int | None
     due_at: datetime | None
+    series_id: int | None = None
+    occurrence_on: date | None = None
     unresolved_blockers: int
     rollup: RollupRead | None = None
     created_at: datetime
@@ -106,6 +108,8 @@ class IssueRead(BaseModel):
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
             due_at=issue.due_at,
+            series_id=issue.series_id,
+            occurrence_on=issue.occurrence_on,
             unresolved_blockers=unresolved_blockers,
             rollup=None if rollup is None else RollupRead.of(rollup),
             created_at=issue.created_at,

@@ -15,6 +15,8 @@ erDiagram
   PROJECT ||--o{ ISSUE : "contains"
   PROJECT ||--o{ BOARD : "has"
   PROJECT ||--o{ SPRINT : "has"
+  PROJECT ||--o{ SERIES : "schedules"
+  SERIES ||--o{ ISSUE : "spawns"
 
   ISSUE ||--o{ ISSUE : "parent of"
   SPRINT ||--o{ ISSUE : "schedules"
@@ -42,7 +44,7 @@ A first-class container that scopes a body of work. Multiple projects coexist.
 * Name; short description.
 * Key — a short identifier that prefixes the project's issue numbers (see [ADR 012](../adr/ADR-012.md)).
 * Sprint cadence — off, or a rhythm that automatically opens and closes sprints (see [ADR 019](../adr/ADR-019.md)).
-* Relationships: contains many issues; has many boards; has many sprints. Its **backlog** is not a separate entity — it is a derived view over the project's issues (see Backlog below).
+* Relationships: contains many issues; has many boards; has many sprints; has many repeating series. Its **backlog** is not a separate entity — it is a derived view over the project's issues (see Backlog below).
 
 ### Issue
 The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtask; the parent relationship forms the Epic → Story → Subtask hierarchy. Modeled as one entity per [ADR 003](../adr/ADR-003.md).
@@ -51,7 +53,7 @@ The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtas
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
 * Estimated time; time remaining — time-based effort tracking for the issue.
-* Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; classified by one status; reported by one user; optionally assigned to one user; carries many comments; participates in many dependencies as source and as target.
+* Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; carries many comments; participates in many dependencies as source and as target.
 
 ### Status
 A state in the shared, fixed workflow. The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md). The concrete set is *To Do*, *In Progress*, *In Review*, *Blocked*, *Done*, and *Cancelled*. *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](../adr/ADR-020.md)). Because the set is fixed, it is realized as an enumeration in code rather than as stored records (see [ADR 013](../adr/ADR-013.md)).
@@ -74,6 +76,15 @@ A time-boxed set of scheduled issues within a project. Sprint membership is an a
 * State — one of *planned*, *active*, *completed*.
 * Start date; end date.
 * Relationships: belongs to one project; schedules many issues.
+
+### Series
+A repeating recipe that spawns ordinary issues. Recurrence is not an issue type ([ADR 021](../adr/ADR-021.md)).
+* Title; default description; type; assignee; optional parent.
+* Cadence (daily / weekly / monthly / yearly, with interval and optional end).
+* Spawn mode — on the calendar, or after the previous copy is closed.
+* Sprint assignment basis — creation date or due date; look-ahead N when no sprint overlaps.
+* State — *active*, *paused*, or *stopped*.
+* Relationships: belongs to one project; spawns many issue occurrences.
 
 ### Dependency
 A directed, typed link between two issues. A *blocks* link asserts an ordering constraint; a *relates-to* link is a non-blocking association. *Blocks* links must not form a cycle (see [ADR 006](../adr/ADR-006.md)).

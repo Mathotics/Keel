@@ -7,6 +7,7 @@ from keel.web.routes import (
     issues,
     pages,
     projects,
+    schedules,
     search,
     sprints,
     users,
@@ -19,6 +20,7 @@ router.include_router(projects.router)
 router.include_router(board.router)
 router.include_router(backlog.router)
 router.include_router(sprints.router)
+router.include_router(schedules.router)
 router.include_router(issues.router)
 router.include_router(users.router)
 router.include_router(forms.router)

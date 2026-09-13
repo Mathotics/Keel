@@ -19,6 +19,7 @@ flowchart LR
     b2[Create sprint, set scope]
     b3[Start / complete sprint]
     b4[Estimate time, track remaining]
+    b5[Repeating series spawn issues]
   end
   subgraph Board["Board & workflow"]
     c1[Kanban board per project]
@@ -60,6 +61,7 @@ flowchart LR
 * Optionally run a project's sprints on a cadence so windows open and close without a manual Start or Complete click ([ADR 019](../adr/ADR-019.md)).
 * Record a time-based estimate on an issue and update its remaining time as work progresses.
 * View estimated and remaining time aggregated from child issues.
+* Define a repeating series that spawns ordinary issues on a cadence ([ADR 021](../adr/ADR-021.md)).
 
 ## Board & workflow
 

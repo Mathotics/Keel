@@ -10,7 +10,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author.
-* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; dependency kinds `blocks`, `relates_to`.
+* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`, `stopped`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 
 ## Users
@@ -131,6 +131,20 @@ Completion returns what moved:
 
 `carried_to_sprint_id` is null when no planned sprint remained, meaning the issues returned to the backlog ([ADR 013](../adr/ADR-013.md)).
 
+## Series
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/projects/{project_id}/series` | List repeating series |
+| `POST` | `/api/v1/projects/{project_id}/series` | Create a series and spawn copies now |
+| `GET` | `/api/v1/series/{series_id}` | Read a series |
+| `PATCH` | `/api/v1/series/{series_id}` | Update the recipe or state |
+| `POST` | `/api/v1/series/{series_id}/pause` | Pause (no new copies) |
+| `POST` | `/api/v1/series/{series_id}/resume` | Resume spawning |
+| `POST` | `/api/v1/series/{series_id}/stop` | Stop forever; existing issues stay |
+
+Issues spawned from a series include `series_id` and `occurrence_on` ([ADR 021](../adr/ADR-021.md)).
+
 ## Dependencies
 
 | Method | Path | Purpose |
@@ -181,6 +195,8 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `sprint.invalid_transition` | 409 | A state change other than planned to active or active to completed |
 | `sprint.project_mismatch` | 409 | Scheduling an issue into another project's sprint |
 | `sprint.invalid` | 422 | A sprint name is blank or its dates are out of order |
+| `series.invalid` | 422 | A series recipe could not be saved |
+| `series.stopped` | 409 | A stopped series cannot change its recipe |
 | `project.invalid_cadence` | 422 | Auto-sprint is set to every N days without a positive N, or to an unknown cadence |
 | `dependency.cycle` | 409 | A `blocks` link would close a cycle |
 | `dependency.self_link` | 409 | Source and target are the same issue |
@@ -211,6 +227,13 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/sprints/{sprint_id}/delete` | Delete a sprint; its issues return to the backlog |
 | `POST` | `/web/sprints/{sprint_id}/start` | Start a sprint |
 | `POST` | `/web/sprints/{sprint_id}/complete` | Complete a sprint |
+| `POST` | `/web/projects/{project_id}/schedules` | Create a repeating series |
+| `POST` | `/web/schedules/{series_id}/update` | Save the recipe |
+| `POST` | `/web/schedules/{series_id}/pause` | Pause |
+| `POST` | `/web/schedules/{series_id}/resume` | Resume |
+| `POST` | `/web/schedules/{series_id}/stop` | Stop |
+| `POST` | `/web/issues/{issue_id}/repeat` | Make this issue the first occurrence of a series |
+| `POST` | `/web/issues/{issue_id}/series` | Outlook-scoped recipe edit from the issue page |
 | `POST` | `/web/issues/{issue_id}/dependencies` | Add a blocks, blocked-by, or relates-to link |
 | `POST` | `/web/dependencies/{dependency_id}/delete` | Remove a link |
 | `POST` | `/web/issues/{issue_id}/estimate` | The issue page's estimate |

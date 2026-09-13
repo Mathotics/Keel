@@ -17,6 +17,7 @@ def test_unknown_keys_are_dropped_and_missing_defaults_are_appended() -> None:
         "board",
         "backlog",
         "sprints",
+        "schedules",
         "users",
     }
 
@@ -55,7 +56,7 @@ def test_an_empty_visible_list_leaves_the_full_order_alone() -> None:
 
 def test_the_cookie_uses_dots_so_commas_are_not_quoted() -> None:
     assert encode_order(("create", "projects")) == (
-        "create.projects.board.backlog.sprints.users"
+        "create.projects.board.backlog.sprints.schedules.users"
     )
     assert parse_order("users.create.projects")[0] == "users"
 
@@ -64,5 +65,13 @@ def test_project_links_are_omitted_until_a_project_is_in_context() -> None:
     keys = [item.key for item in links_for(parse_order(None), None)]
     assert keys == ["projects", "create", "users"]
     inside = [item.key for item in links_for(parse_order(None), "TEST")]
-    assert inside == ["projects", "create", "board", "backlog", "sprints", "users"]
+    assert inside == [
+        "projects",
+        "create",
+        "board",
+        "backlog",
+        "sprints",
+        "schedules",
+        "users",
+    ]
     assert links_for(parse_order(None), "TEST")[2].href.endswith("/board")
