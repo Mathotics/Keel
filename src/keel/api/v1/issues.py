@@ -8,6 +8,7 @@ from keel.db.models import Issue, Project
 from keel.domain.enums import IssueStatus, IssueType
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services.issues import IssueFilters
@@ -112,8 +113,14 @@ def update_issue(
     issue_id: int,
     payload: IssueUpdate,
     session: SessionDep,
+    acting_user: ActingUserDep,
 ) -> IssueRead:
     supplied = payload.model_fields_set
+    actor_name = (
+        history_service.SYSTEM_ACTOR
+        if acting_user is None
+        else acting_user.display_name
+    )
     issue = issue_service.update_issue(
         session,
         issue_id,
@@ -137,6 +144,7 @@ def update_issue(
             if "remaining_minutes" in supplied
             else issue_service.UNSET
         ),
+        actor_name=actor_name,
     )
     return _read(session, issue)
 

@@ -9,7 +9,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * All request and response bodies are JSON. Timestamps are ISO 8601 in UTC.
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
-* The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author.
+* The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
 * Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`, `stopped`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 

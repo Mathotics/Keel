@@ -352,6 +352,13 @@
       <p>No other issues to link.</p>
       {% endif %}
 
+      <h2>History</h2>
+      {% for event in history %}
+      <p class="keel-history__line">{{ event.created_at | when }}, {{ event.actor_name }} — {{ event.field }} {{ event.from_value }} → {{ event.to_value }}</p>
+      {% else %}
+      <p class="keel-empty">No history yet.</p>
+      {% endfor %}
+
       <h2>Comments</h2>
       {% for comment in comments %}
       <article class="keel-comment">

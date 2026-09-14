@@ -40,6 +40,7 @@ src/keel/
       board.py
       sprint.py
       issue.py
+      issue_history.py
       dependency.py
       comment.py
 
@@ -58,6 +59,7 @@ src/keel/
     home.py
     dependencies.py
     comments.py
+    history.py
 
   schemas/
     __init__.py
