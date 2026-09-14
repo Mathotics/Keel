@@ -296,12 +296,18 @@ def _issue_here(session: SessionDep, issue_id: int) -> str:
 @router.post("/issues/{issue_id}/title")
 def update_issue_title(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     title: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
-        issue_service.update_issue(session, issue_id, title=title)
+        issue_service.update_issue(
+            session,
+            issue_id,
+            title=title,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -332,12 +338,18 @@ def update_issue_type(
 @router.post("/issues/{issue_id}/description")
 def update_issue_description(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     description: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
-        issue_service.update_issue(session, issue_id, description=description)
+        issue_service.update_issue(
+            session,
+            issue_id,
+            description=description,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)

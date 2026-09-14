@@ -184,9 +184,29 @@ def update_issue(
         _assign_parent(session, issue, issue.parent_id)
 
     if title is not None:
-        issue.title = _clean_title(title)
+        cleaned_title = _clean_title(title)
+        if cleaned_title != issue.title:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_TITLE,
+                from_value=issue.title,
+                to_value=cleaned_title,
+                actor_name=who,
+            )
+            issue.title = cleaned_title
     if description is not None:
-        issue.description = description.strip()
+        cleaned_description = description.strip()
+        if cleaned_description != issue.description:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_DESCRIPTION,
+                from_value=history_service.text_label(issue.description),
+                to_value=history_service.text_label(cleaned_description),
+                actor_name=who,
+            )
+            issue.description = cleaned_description
     if status is not None and status is not issue.status:
         history_service.record(
             session,

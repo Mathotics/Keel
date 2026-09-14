@@ -18,7 +18,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Shared fixed workflow** — a single small status set shared across projects ([ADR 004](../adr/ADR-004.md)).
 * **Users** — a minimal notion of people for assignee/reporter, with no authentication (see below).
 * **Comments** — notes on issues; descriptions and comments render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
-* **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, and type ([ADR 023](../adr/ADR-023.md)).
+* **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description ([ADR 023](../adr/ADR-023.md)).
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
 * **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/ADR-016.md)).
 * **Repeating work** — a per-project Schedules page of series recipes that spawn ordinary issues on a cadence ([ADR 021](../adr/ADR-021.md)).

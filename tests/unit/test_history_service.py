@@ -44,6 +44,9 @@ def test_labels_for_missing_rows_match_empty_copy(
     assert history_service.assignee_label(session, 999) == "Unassigned"
     assert history_service.sprint_label(session, 999) == "Unscheduled"
     assert history_service.parent_label(session, 999) == "No parent"
+    assert history_service.text_label("") == "none"
+    assert history_service.text_label("  ") == "none"
+    assert history_service.text_label("A note") == "A note"
 
 
 def test_a_new_issue_has_no_history(session: Session, project: Project) -> None:
@@ -86,7 +89,7 @@ def test_a_noop_status_save_does_not_append(
     assert list(history_service.list_history(session, issue_id)) == []
 
 
-def test_title_and_description_are_not_recorded(
+def test_title_and_description_are_recorded(
     session: Session,
     project: Project,
 ) -> None:
@@ -98,7 +101,52 @@ def test_title_and_description_are_not_recorded(
         description="A note",
         actor_name="Ada",
     )
-    assert list(history_service.list_history(session, issue_id)) == []
+    events = history_service.list_history(session, issue_id)
+    assert [(event.field, event.from_value, event.to_value) for event in events] == [
+        ("title", "Something", "Renamed"),
+        ("description", "none", "A note"),
+    ]
+    assert {event.actor_name for event in events} == {"Ada"}
+
+
+def test_a_noop_title_and_description_save_does_not_append(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(
+        session,
+        issue_id,
+        title="Renamed",
+        description="A note",
+        actor_name="Ada",
+    )
+    issue_service.update_issue(
+        session,
+        issue_id,
+        title="Renamed",
+        description="A note",
+        actor_name="Ada",
+    )
+    assert len(history_service.list_history(session, issue_id)) == 2
+
+
+def test_cleared_description_says_none(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project, description="A note")
+    issue_service.update_issue(
+        session,
+        issue_id,
+        description="",
+        actor_name="Ada",
+    )
+    events = history_service.list_history(session, issue_id)
+    assert len(events) == 1
+    assert events[0].field == "description"
+    assert events[0].from_value == "A note"
+    assert events[0].to_value == "none"
 
 
 def test_several_fields_append_several_lines(

@@ -972,6 +972,8 @@ body {
 .keel-history__line {
   margin: 0 0 0.35rem;
   font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .keel-card__blockers {

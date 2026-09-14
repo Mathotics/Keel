@@ -19,6 +19,8 @@ FIELD_REMAINING = "remaining"
 FIELD_DUE = "due date"
 FIELD_PARENT = "parent"
 FIELD_TYPE = "type"
+FIELD_TITLE = "title"
+FIELD_DESCRIPTION = "description"
 
 UNASSIGNED = "Unassigned"
 UNSCHEDULED = "Unscheduled"
@@ -113,3 +115,10 @@ def due_label(value: datetime | None) -> str:
     if value is None:
         return NONE
     return value.strftime("%Y-%m-%d %H:%M UTC")
+
+
+def text_label(value: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        return NONE
+    return cleaned

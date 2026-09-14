@@ -187,7 +187,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -230,6 +230,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0008` | `cancelled` on `issues.status` |
 | `0009` | `series`, `series_skips`, `issues.series_id` |
 | `0010` | `issue_history` |
+| `0011` | `title` and `description` on `issue_history.field` |
 
 ## Related documents
 

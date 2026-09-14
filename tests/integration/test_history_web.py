@@ -67,7 +67,7 @@ def test_a_noop_status_save_does_not_add_a_line(client: TestClient) -> None:
     assert "In Progress → In Progress" not in history
 
 
-def test_a_title_edit_is_not_history(client: TestClient) -> None:
+def test_a_title_edit_appears_in_history(client: TestClient) -> None:
     issue = _issue(client, _project(client))
     client.post(
         f"/web/issues/{issue['id']}/title",
@@ -75,7 +75,21 @@ def test_a_title_edit_is_not_history(client: TestClient) -> None:
         follow_redirects=False,
     )
     page = client.get("/issues/KEEL-1")
-    assert "No history yet." in _history(page.text)
+    history = _history(page.text)
+    assert "No history yet." not in history
+    assert "Tester — title Something → Renamed" in history
+
+
+def test_a_description_edit_appears_in_history(client: TestClient) -> None:
+    issue = _issue(client, _project(client))
+    client.post(
+        f"/web/issues/{issue['id']}/description",
+        data={"description": "A note"},
+        follow_redirects=False,
+    )
+    page = client.get("/issues/KEEL-1")
+    history = _history(page.text)
+    assert "Tester — description none → A note" in history
 
 
 def test_api_patch_uses_the_acting_user(client: TestClient) -> None:

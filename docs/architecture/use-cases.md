@@ -57,7 +57,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Issue history
 
-* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, and type changes — who, when, from → to — without relying on comments ([ADR 023](../adr/ADR-023.md)).
+* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description changes — who, when, from → to — without relying on comments ([ADR 023](../adr/ADR-023.md)).
 
 ## Time estimates
 
