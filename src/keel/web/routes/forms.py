@@ -736,7 +736,7 @@ def create_schedule(
     assignee_id: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     project = project_service.get_project(session, project_id)
-    listing = f"/projects/{project.key}/schedules"
+    form_tab = f"/projects/{project.key}/schedules?tab=new"
     try:
         series = series_service.create_series(
             session,
@@ -764,7 +764,7 @@ def create_schedule(
         )
     except DomainError as exc:
         session.rollback()
-        return _back(listing, exc.message)
+        return _back(form_tab, exc.message)
     return _back(f"/projects/{project.key}/schedules/{series.id}")
 
 

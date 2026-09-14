@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse
 
 from keel.domain.enums import (
     IssueStatus,
@@ -8,6 +8,7 @@ from keel.domain.enums import (
     types_in_hierarchy_order,
 )
 from keel.paths import license_text
+from keel.services import home as home_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -15,15 +16,30 @@ from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 
 router = APIRouter()
 
-# Temporary on purpose. A permanent redirect would be cached by browsers and
-# outlive the day `/` becomes a dashboard rather than a signpost to the list.
-FOUND = 302
 
-
-@router.get("/", include_in_schema=False)
-def home() -> RedirectResponse:
-    """The entry point, kept separate from the project list it points at."""
-    return RedirectResponse(url="/projects", status_code=FOUND)
+@router.get("/", response_class=HTMLResponse)
+def home(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    error: str | None = None,
+) -> HTMLResponse:
+    """Personal inbox for the acting user; `/projects` stays the directory."""
+    inbox = home_service.HomeInbox()
+    if chrome.current_user is not None:
+        inbox = home_service.personal_inbox(session, chrome.current_user.id)
+    return get_templates().TemplateResponse(
+        request,
+        "home.html",
+        page_context(
+            request,
+            chrome,
+            inbox=inbox,
+            has_projects=bool(project_service.list_projects(session)),
+            statuses=statuses_in_workflow_order(),
+            error=error,
+        ),
+    )
 
 
 @router.get("/create", response_class=HTMLResponse)

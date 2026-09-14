@@ -10,6 +10,23 @@
       {% endif %}
       <p class="keel-lede">Repeating recipes spawn ordinary issues. The recipe itself is not a board card.</p>
 
+      <nav class="keel-tabs" aria-label="Schedules">
+        <a class="keel-tabs__tab" href="/projects/{{ project.key }}/schedules"
+           {% if not new_series %}aria-current="page"{% endif %}>Schedules</a>
+        <a class="keel-tabs__tab" href="/projects/{{ project.key }}/schedules?tab=new"
+           {% if new_series %}aria-current="page"{% endif %}>New series</a>
+      </nav>
+
+      {% if new_series %}
+      <div class="keel-panel">
+        <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/schedules">
+          {% with prefix="series", recipe=none, include_identity=true, include_type=true, include_people=true, look_ahead_label="Look-ahead N when no sprint overlaps" %}
+          {% include "_series_recipe.html" %}
+          {% endwith %}
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Create series</button></p>
+        </form>
+      </div>
+      {% else %}
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
@@ -36,115 +53,5 @@
         </tbody>
       </table>
       </div>
-
-      <div class="keel-panel">
-        <h2>New series</h2>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/schedules">
-          <p>
-            <label for="series-title">Title</label>
-            <input id="series-title" name="title" type="text" maxlength="300" required/>
-          </p>
-          <p>
-            <label for="series-type">Type</label>
-            <select id="series-type" name="type">
-              {% for value in issue_types %}
-              <option value="{{ value.value }}">{{ value | label }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="series-description">Default description</label>
-            <textarea id="series-description" name="description" rows="4"></textarea>
-          </p>
-          <p>
-            <label for="series-spawn">When to create the next copy</label>
-            <select id="series-spawn" name="spawn_mode">
-              {% for value in spawn_modes %}
-              <option value="{{ value.value }}">{{ value | label }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="series-basis">Put copies in the sprint overlapping</label>
-            <select id="series-basis" name="sprint_basis">
-              {% for value in sprint_bases %}
-              <option value="{{ value.value }}">{{ value | label }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="series-freq">Repeat</label>
-            <select id="series-freq" name="freq">
-              {% for value in freqs %}
-              <option value="{{ value.value }}">{{ value | label }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="series-interval">Every</label>
-            <input id="series-interval" name="interval" type="number" min="1" value="1" required/>
-          </p>
-          <p>
-            <label for="series-starts">Starts</label>
-            <input id="series-starts" name="starts_on" type="date" required/>
-          </p>
-          <fieldset>
-            <legend>Weekdays</legend>
-            {% for value, name in weekdays %}
-            <label><input type="checkbox" name="weekday" value="{{ value }}"/> {{ name }}</label>
-            {% endfor %}
-          </fieldset>
-          <p>
-            <label for="series-month-day">Day of month</label>
-            <input id="series-month-day" name="month_day" type="number" min="1" max="31"/>
-          </p>
-          <p>
-            <label for="series-nth">Nth weekday (1–4 or -1 for last)</label>
-            <input id="series-nth" name="nth_week" type="number"/>
-          </p>
-          <p>
-            <label for="series-month">Month (yearly)</label>
-            <input id="series-month" name="month" type="number" min="1" max="12"/>
-          </p>
-          <p>
-            <label for="series-n">Look-ahead N when no sprint overlaps</label>
-            <input id="series-n" name="look_ahead_n" type="number" min="1" value="1" required/>
-          </p>
-          <p>
-            <label for="series-end">Ends</label>
-            <select id="series-end" name="end_mode">
-              <option value="never">Never</option>
-              <option value="on">On a date</option>
-              <option value="count">After a count</option>
-            </select>
-          </p>
-          <p>
-            <label for="series-ends-on">End date</label>
-            <input id="series-ends-on" name="ends_on" type="date"/>
-          </p>
-          <p>
-            <label for="series-count">Occurrence count</label>
-            <input id="series-count" name="occurrence_count" type="number" min="1"/>
-          </p>
-          <p>
-            <label for="series-assignee">Assignee</label>
-            <select id="series-assignee" name="assignee_id">
-              <option value="">Unassigned</option>
-              {% for person in users %}
-              <option value="{{ person.id }}">{{ person.display_name }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="series-parent">Parent</label>
-            <select id="series-parent" name="parent_id">
-              <option value="">No parent</option>
-              {% for issue in issues %}
-              <option value="{{ issue.id }}">{{ project.key }}-{{ issue.number }} {{ issue.title }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p><button class="keel-primary" type="submit">Create series</button></p>
-        </form>
-      </div>
+      {% endif %}
 {% endblock %}

@@ -57,31 +57,41 @@
       <div class="keel-panel">
         <h2>Project settings</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/update">
-          <p>
-            <label for="project-name">Name</label>
-            <input id="project-name" name="name" type="text" maxlength="200" value="{{ project.name }}" required/>
-          </p>
-          <p>
-            <label for="project-description">Description</label>
-            <input id="project-description" name="description" type="text" value="{{ project.description }}"/>
-          </p>
-          <p>
-            <label for="project-cadence">Sprint cadence</label>
-            <select id="project-cadence" name="sprint_cadence">
-              {% for cadence in cadences %}
-              <option value="{{ cadence.value }}"
-                      {% if project.sprint_cadence == cadence %}selected{% endif %}>
-                {{ cadence | label }}
-              </option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="project-cadence-days">Every N days</label>
-            <input id="project-cadence-days" name="sprint_cadence_days" type="number" min="1" step="1"
-                   value="{{ project.sprint_cadence_days if project.sprint_cadence_days else '' }}"/>
-          </p>
-          <p><button class="keel-primary" type="submit">Save</button></p>
+          <fieldset>
+            <legend>Project</legend>
+            <div class="keel-fields">
+              <p class="keel-fields__full">
+                <label for="project-name">Name</label>
+                <input id="project-name" name="name" type="text" maxlength="200" value="{{ project.name }}" required/>
+              </p>
+              <p class="keel-fields__full">
+                <label for="project-description">Description</label>
+                <input id="project-description" name="description" type="text" value="{{ project.description }}"/>
+              </p>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Sprints</legend>
+            <div class="keel-fields">
+              <p>
+                <label for="project-cadence">Sprint cadence</label>
+                <select id="project-cadence" name="sprint_cadence">
+                  {% for cadence in cadences %}
+                  <option value="{{ cadence.value }}"
+                          {% if project.sprint_cadence == cadence %}selected{% endif %}>
+                    {{ cadence | label }}
+                  </option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p>
+                <label for="project-cadence-days">Every N days</label>
+                <input id="project-cadence-days" name="sprint_cadence_days" type="number" min="1" step="1"
+                       value="{{ project.sprint_cadence_days if project.sprint_cadence_days else '' }}"/>
+              </p>
+            </div>
+          </fieldset>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
         </form>
       </div>
       <form class="keel-form keel-form--danger" method="post" action="/web/projects/{{ project.id }}/delete"

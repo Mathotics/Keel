@@ -12,277 +12,162 @@
         <button class="keel-autosubmit__fallback" type="submit">Save</button>
       </form>
 
+      <dl class="keel-meta">
+        <div>
+          <dt>Project</dt>
+          <dd><a href="/projects/{{ project.key }}">{{ project.key }}</a></dd>
+        </div>
+        <div>
+          <dt>Reporter</dt>
+          <dd>{{ reporter }}</dd>
+        </div>
+        <div>
+          <dt>Created on</dt>
+          <dd>{{ issue.created_at | when }}</dd>
+        </div>
+        <div>
+          <dt>Updated on</dt>
+          <dd>{{ issue.updated_at | when }}</dd>
+        </div>
+      </dl>
+
       <dl class="keel-facts">
-        <dt>Project</dt><dd><a href="/projects/{{ project.key }}">{{ project.key }}</a></dd>
-        <dt>Type</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-type">Type</label>
-            <select id="issue-type" name="type">
-              {% for value in issue_types %}
-              <option value="{{ value.value }}"{% if issue.type == value %} selected{% endif %}>{{ value | label }}</option>
-              {% endfor %}
-            </select>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Status</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/status" data-keel-autosubmit>
-            <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
-            <label class="keel-visually-hidden" for="issue-status">Status</label>
-            <select id="issue-status" name="status">
-              {% for value in statuses %}
-              <option value="{{ value.value }}"{% if issue.status == value %} selected{% endif %}>{{ value | label }}</option>
-              {% endfor %}
-            </select>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Reporter</dt><dd>{{ reporter }}</dd>
-        <dt>Assignee</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-assignee">Assignee</label>
-            <select id="issue-assignee" name="assignee_id">
-              <option value=""{% if not issue.assignee_id %} selected{% endif %}>Unassigned</option>
-              {% for person in users %}
-              <option value="{{ person.id }}"{% if issue.assignee_id == person.id %} selected{% endif %}>{{ person.display_name }}</option>
-              {% endfor %}
-            </select>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Parent</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/parent" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-parent">Parent</label>
-            <select id="issue-parent" name="parent_id">
-              <option value=""{% if not issue.parent_id %} selected{% endif %}>No parent</option>
-              {% for candidate in parents %}
-              <option value="{{ candidate.id }}"{% if issue.parent_id == candidate.id %} selected{% endif %}>{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
-              {% endfor %}
-            </select>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Sprint</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/sprint" data-keel-autosubmit>
-            <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
-            <label class="keel-visually-hidden" for="issue-sprint">Sprint</label>
-            <select id="issue-sprint" name="sprint_id">
-              <option value=""{% if not issue.sprint_id %} selected{% endif %}>Unscheduled</option>
-              {% for sprint in sprints %}
-              <option value="{{ sprint.id }}"{% if issue.sprint_id == sprint.id %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
-              {% endfor %}
-            </select>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Due date</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/due" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-due">Due date</label>
-            <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local }}"/>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Estimate</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-estimate">Estimate</label>
-            <input id="issue-estimate" name="estimate" type="text" value="{{ issue.estimate_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-        </dd>
-        <dt>Remaining</dt>
-        <dd>
-          <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit>
-            <label class="keel-visually-hidden" for="issue-remaining">Remaining</label>
-            <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
-            <button class="keel-autosubmit__fallback" type="submit">Save</button>
-          </form>
-          {% if rollup.descendants %}
-          <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
-          {% endif %}
-        </dd>
-        <dt>Created on</dt><dd>{{ issue.created_at | when }}</dd>
-        <dt>Updated on</dt><dd>{{ issue.updated_at | when }}</dd>
+        <div class="keel-fact">
+          <dt>Type</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-type">Type</label>
+              <select id="issue-type" name="type">
+                {% for value in issue_types %}
+                <option value="{{ value.value }}"{% if issue.type == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Status</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/status" data-keel-autosubmit>
+              <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+              <label class="keel-visually-hidden" for="issue-status">Status</label>
+              <select id="issue-status" name="status">
+                {% for value in statuses %}
+                <option value="{{ value.value }}"{% if issue.status == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Assignee</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-assignee">Assignee</label>
+              <select id="issue-assignee" name="assignee_id">
+                <option value=""{% if not issue.assignee_id %} selected{% endif %}>Unassigned</option>
+                {% for person in users %}
+                <option value="{{ person.id }}"{% if issue.assignee_id == person.id %} selected{% endif %}>{{ person.display_name }}</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Parent</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/parent" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-parent">Parent</label>
+              <select id="issue-parent" name="parent_id">
+                <option value=""{% if not issue.parent_id %} selected{% endif %}>No parent</option>
+                {% for candidate in parents %}
+                <option value="{{ candidate.id }}"{% if issue.parent_id == candidate.id %} selected{% endif %}>{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Sprint</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/sprint" data-keel-autosubmit>
+              <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+              <label class="keel-visually-hidden" for="issue-sprint">Sprint</label>
+              <select id="issue-sprint" name="sprint_id">
+                <option value=""{% if not issue.sprint_id %} selected{% endif %}>Unscheduled</option>
+                {% for sprint in sprints %}
+                <option value="{{ sprint.id }}"{% if issue.sprint_id == sprint.id %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Due date</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/due" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-due">Due date</label>
+              <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local }}"/>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Estimate</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-estimate">Estimate</label>
+              <input id="issue-estimate" name="estimate" type="text" value="{{ issue.estimate_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
+          <dt>Remaining</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-remaining">Remaining</label>
+              <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+            {% if rollup.descendants %}
+            <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
+            {% endif %}
+          </dd>
+        </div>
       </dl>
 
       {% if series %}
-      <h2>Repeating series</h2>
-      <p class="keel-lede">
-        This issue is occurrence {{ issue.occurrence_on }} of
-        <a href="/projects/{{ project.key }}/schedules/{{ series.id }}">{{ series.title }}</a>
-        ({{ series_summary }}). {{ series.spawn_mode | label }}.
-        Recipe changes ask which copies to update. Delete this issue to skip this cycle.
-      </p>
-      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series">
-        <p>
-          <label for="series-scope">Apply to</label>
-          <select id="series-scope" name="scope" required>
-            {% for value in edit_scopes %}
-            <option value="{{ value.value }}">{{ value | label }}</option>
-            {% endfor %}
-          </select>
+      <div class="keel-panel">
+        <h2>Repeating series</h2>
+        <p class="keel-lede">
+          This issue is occurrence {{ issue.occurrence_on }} of
+          <a href="/projects/{{ project.key }}/schedules/{{ series.id }}">{{ series.title }}</a>
+          ({{ series_summary }}). {{ series.spawn_mode | label }}.
+          Recipe changes ask which copies to update. Delete this issue to skip this cycle.
         </p>
-        <p>
-          <label for="series-title">Title</label>
-          <input id="series-title" name="title" type="text" maxlength="300" value="{{ series.title }}" required/>
-        </p>
-        <p>
-          <label for="series-description">Default description</label>
-          <textarea id="series-description" name="description" rows="4">{{ series.description }}</textarea>
-        </p>
-        <p>
-          <label for="series-spawn">When to create the next copy</label>
-          <select id="series-spawn" name="spawn_mode">
-            {% for value in spawn_modes %}
-            <option value="{{ value.value }}"{% if series.spawn_mode == value %} selected{% endif %}>{{ value | label }}</option>
-            {% endfor %}
-          </select>
-        </p>
-        <p>
-          <label for="series-basis">Put copies in the sprint overlapping</label>
-          <select id="series-basis" name="sprint_basis">
-            {% for value in sprint_bases %}
-            <option value="{{ value.value }}"{% if series.sprint_basis == value %} selected{% endif %}>{{ value | label }}</option>
-            {% endfor %}
-          </select>
-        </p>
-        <p>
-          <label for="series-freq">Repeat</label>
-          <select id="series-freq" name="freq">
-            {% for value in freqs %}
-            <option value="{{ value.value }}"{% if series.freq == value %} selected{% endif %}>{{ value | label }}</option>
-            {% endfor %}
-          </select>
-        </p>
-        <p>
-          <label for="series-interval">Every</label>
-          <input id="series-interval" name="interval" type="number" min="1" value="{{ series.interval }}" required/>
-        </p>
-        <p>
-          <label for="series-starts">Starts</label>
-          <input id="series-starts" name="starts_on" type="date" value="{{ series.starts_on.isoformat() }}" required/>
-        </p>
-        <fieldset>
-          <legend>Weekdays</legend>
-          {% for value, name in weekdays %}
-          <label><input type="checkbox" name="weekday" value="{{ value }}"{% if value in selected_weekdays %} checked{% endif %}/> {{ name }}</label>
-          {% endfor %}
-        </fieldset>
-        <p>
-          <label for="series-month-day">Day of month</label>
-          <input id="series-month-day" name="month_day" type="number" min="1" max="31" value="{{ series.month_day or '' }}"/>
-        </p>
-        <p>
-          <label for="series-nth">Nth weekday (1–4 or -1 for last)</label>
-          <input id="series-nth" name="nth_week" type="number" value="{{ series.nth_week if series.nth_week is not none else '' }}"/>
-        </p>
-        <p>
-          <label for="series-month">Month (yearly)</label>
-          <input id="series-month" name="month" type="number" min="1" max="12" value="{{ series.month or '' }}"/>
-        </p>
-        <p>
-          <label for="series-n">Look-ahead N</label>
-          <input id="series-n" name="look_ahead_n" type="number" min="1" value="{{ series.look_ahead_n }}" required/>
-        </p>
-        <p>
-          <label for="series-end">Ends</label>
-          <select id="series-end" name="end_mode">
-            <option value="never"{% if not series.ends_on and not series.occurrence_count %} selected{% endif %}>Never</option>
-            <option value="on"{% if series.ends_on %} selected{% endif %}>On a date</option>
-            <option value="count"{% if series.occurrence_count %} selected{% endif %}>After a count</option>
-          </select>
-        </p>
-        <p>
-          <label for="series-ends-on">End date</label>
-          <input id="series-ends-on" name="ends_on" type="date" value="{{ series.ends_on.isoformat() if series.ends_on else '' }}"/>
-        </p>
-        <p>
-          <label for="series-count">Occurrence count</label>
-          <input id="series-count" name="occurrence_count" type="number" min="1" value="{{ series.occurrence_count or '' }}"/>
-        </p>
-        <p><button class="keel-primary" type="submit">Save series</button></p>
-      </form>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series">
+          {% with prefix="series", recipe=series, include_apply=true, include_identity=true, include_type=false, include_people=false, look_ahead_label="Look-ahead N" %}
+          {% include "_series_recipe.html" %}
+          {% endwith %}
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save series</button></p>
+        </form>
+      </div>
       {% else %}
-      <h2>Make this repeating</h2>
-      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/repeat">
-        <p>
-          <label for="repeat-spawn">When to create the next copy</label>
-          <select id="repeat-spawn" name="spawn_mode">
-            {% for value in spawn_modes %}
-            <option value="{{ value.value }}">{{ value | label }}</option>
-            {% endfor %}
-          </select>
-        </p>
-        <p>
-          <label for="repeat-basis">Put copies in the sprint overlapping</label>
-          <select id="repeat-basis" name="sprint_basis">
-            {% for value in sprint_bases %}
-            <option value="{{ value.value }}">{{ value | label }}</option>
-            {% endfor %}
-          </select>
-        </p>
-        <p>
-          <label for="repeat-freq">Repeat</label>
-          <select id="repeat-freq" name="freq">
-            {% for value in freqs %}
-            <option value="{{ value.value }}">{{ value | label }}</option>
-            {% endfor %}
-          </select>
-        </p>
-        <p>
-          <label for="repeat-interval">Every</label>
-          <input id="repeat-interval" name="interval" type="number" min="1" value="1" required/>
-        </p>
-        <p>
-          <label for="repeat-starts">Starts</label>
-          <input id="repeat-starts" name="starts_on" type="date" required/>
-        </p>
-        <fieldset>
-          <legend>Weekdays</legend>
-          {% for value, name in weekdays %}
-          <label><input type="checkbox" name="weekday" value="{{ value }}"/> {{ name }}</label>
-          {% endfor %}
-        </fieldset>
-        <p>
-          <label for="repeat-month-day">Day of month</label>
-          <input id="repeat-month-day" name="month_day" type="number" min="1" max="31"/>
-        </p>
-        <p>
-          <label for="repeat-nth">Nth weekday (1–4 or -1 for last)</label>
-          <input id="repeat-nth" name="nth_week" type="number"/>
-        </p>
-        <p>
-          <label for="repeat-month">Month (yearly)</label>
-          <input id="repeat-month" name="month" type="number" min="1" max="12"/>
-        </p>
-        <p>
-          <label for="repeat-n">Look-ahead N</label>
-          <input id="repeat-n" name="look_ahead_n" type="number" min="1" value="1" required/>
-        </p>
-        <p>
-          <label for="repeat-end">Ends</label>
-          <select id="repeat-end" name="end_mode">
-            <option value="never">Never</option>
-            <option value="on">On a date</option>
-            <option value="count">After a count</option>
-          </select>
-        </p>
-        <p>
-          <label for="repeat-ends-on">End date</label>
-          <input id="repeat-ends-on" name="ends_on" type="date"/>
-        </p>
-        <p>
-          <label for="repeat-count">Occurrence count</label>
-          <input id="repeat-count" name="occurrence_count" type="number" min="1"/>
-        </p>
-        <p><button class="keel-primary" type="submit">Make repeating</button></p>
-      </form>
+      <div class="keel-panel">
+        <h2>Make this repeating</h2>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/repeat">
+          {% with prefix="repeat", recipe=none, look_ahead_label="Look-ahead N" %}
+          {% include "_series_recipe.html" %}
+          {% endwith %}
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Make repeating</button></p>
+        </form>
+      </div>
       {% endif %}
 
       <h2>Description</h2>

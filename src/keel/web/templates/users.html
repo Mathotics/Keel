@@ -9,11 +9,13 @@
       <div class="keel-panel">
         <h2>Add someone</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/users">
-          <p>
-            <label for="new-user">Name</label>
-            <input id="new-user" name="display_name" type="text" maxlength="100" required/>
-          </p>
-          <p><button class="keel-primary" type="submit">Add</button></p>
+          <div class="keel-fields">
+            <p class="keel-fields__full">
+              <label for="new-user">Name</label>
+              <input id="new-user" name="display_name" type="text" maxlength="100" required/>
+            </p>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Add</button></p>
         </form>
       </div>
       <div class="keel-table-scroll">

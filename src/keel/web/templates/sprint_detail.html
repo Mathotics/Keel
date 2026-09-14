@@ -52,27 +52,29 @@
       <div class="keel-panel">
         <h2>Sprint settings</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/sprints/{{ sprint.id }}/update">
-        <p>
-          <label for="sprint-name">Name</label>
-          <input id="sprint-name" name="name" type="text" maxlength="200" value="{{ sprint.name }}" required/>
-        </p>
-        <p>
-          <label for="sprint-goal">Goal</label>
-          <input id="sprint-goal" name="goal" type="text" value="{{ sprint.goal }}"/>
-        </p>
-        <p>
-          <label for="sprint-starts">Starts</label>
-          <input id="sprint-starts" name="starts_on" type="date" data-keel-range="start"
-                 {% if sprint.ends_on %}max="{{ sprint.ends_on.isoformat() }}"{% endif %}
-                 value="{{ sprint.starts_on.isoformat() if sprint.starts_on else '' }}"/>
-        </p>
-        <p>
-          <label for="sprint-ends">Ends</label>
-          <input id="sprint-ends" name="ends_on" type="date" data-keel-range="end"
-                 {% if sprint.starts_on %}min="{{ sprint.starts_on.isoformat() }}"{% endif %}
-                 value="{{ sprint.ends_on.isoformat() if sprint.ends_on else '' }}"/>
-        </p>
-          <p><button class="keel-primary" type="submit">Save</button></p>
+          <div class="keel-fields">
+            <p>
+              <label for="sprint-name">Name</label>
+              <input id="sprint-name" name="name" type="text" maxlength="200" value="{{ sprint.name }}" required/>
+            </p>
+            <p>
+              <label for="sprint-goal">Goal</label>
+              <input id="sprint-goal" name="goal" type="text" value="{{ sprint.goal }}"/>
+            </p>
+            <p>
+              <label for="sprint-starts">Starts</label>
+              <input id="sprint-starts" name="starts_on" type="date" data-keel-range="start"
+                     {% if sprint.ends_on %}max="{{ sprint.ends_on.isoformat() }}"{% endif %}
+                     value="{{ sprint.starts_on.isoformat() if sprint.starts_on else '' }}"/>
+            </p>
+            <p>
+              <label for="sprint-ends">Ends</label>
+              <input id="sprint-ends" name="ends_on" type="date" data-keel-range="end"
+                     {% if sprint.starts_on %}min="{{ sprint.starts_on.isoformat() }}"{% endif %}
+                     value="{{ sprint.ends_on.isoformat() if sprint.ends_on else '' }}"/>
+            </p>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
         </form>
       </div>
       <form class="keel-form keel-form--danger" method="post" action="/web/sprints/{{ sprint.id }}/delete"

@@ -37,7 +37,7 @@ Done when a fresh database is created by `keel db upgrade`, `keel serve` starts,
 
 **Status: done.**
 
-* Project model, service, schemas, JSON routes, list and detail pages, with the key validated and the board row created alongside. The list sits at `/projects` beside `/users`, and `/` redirects to it ([UI design](ui.md)).
+* Project model, service, schemas, JSON routes, list and detail pages, with the key validated and the board row created alongside. The list sits at `/projects` beside `/users`. `/` later became the personal inbox rather than a redirect ([ADR 022](../adr/ADR-022.md)).
 * Issue model with per-project numbering drawn from the project counter inside the insert transaction.
 * Hierarchy rules in `keel/domain/hierarchy.py` — type-specific parents, same-project parenthood, ancestor cycle prevention — enforced in the issue service.
 * The status enumeration, with issues created in the first status.

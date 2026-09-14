@@ -13,86 +13,105 @@
       {% else %}
       <div class="keel-panel">
         <form class="keel-form keel-form--stacked" method="get" action="/create" data-keel-autosubmit>
-          <p>
-            <label for="issue-project">Project</label>
-            <select id="issue-project" name="project" required>
-              {% if not project %}
-              <option value="" selected>Choose a project</option>
-              {% endif %}
-              {% for item in projects %}
-              <option value="{{ item.key }}"{% if project and item.id == project.id %} selected{% endif %}>{{ item.key }} — {{ item.name }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p><button class="keel-autosubmit__fallback" type="submit">Use this project</button></p>
+          <div class="keel-fields">
+            <p class="keel-fields__full">
+              <label for="issue-project">Project</label>
+              <span class="keel-control-row">
+                <select id="issue-project" name="project" required>
+                  {% if not project %}
+                  <option value="" selected>Choose a project</option>
+                  {% endif %}
+                  {% for item in projects %}
+                  <option value="{{ item.key }}"{% if project and item.id == project.id %} selected{% endif %}>{{ item.key }} — {{ item.name }}</option>
+                  {% endfor %}
+                </select>
+                <button class="keel-autosubmit__fallback" type="submit">Use this project</button>
+              </span>
+            </p>
+          </div>
         </form>
         {% if project %}
         <form class="keel-form keel-form--stacked" method="post" action="/web/issues">
           <input type="hidden" name="project_id" value="{{ project.id }}"/>
-          <p>
-            <label for="issue-type">Type</label>
-            <select id="issue-type" name="type">
-              {% for value in issue_types %}
-              <option value="{{ value }}"{% if value == default_type %} selected{% endif %}>{{ value | label }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="issue-title">Title</label>
-            <input id="issue-title" name="title" type="text" maxlength="300" required autofocus placeholder="What needs doing?"/>
-          </p>
-          <p>
-            <label for="issue-description">Description</label>
-            <textarea id="issue-description" class="keel-description" name="description" rows="6"></textarea>
-          </p>
-          <p>
-            <label for="issue-status">Status</label>
-            <select id="issue-status" name="status">
-              {% for value in statuses %}
-              <option value="{{ value }}"{% if value == default_status %} selected{% endif %}>{{ value | label }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="issue-assignee">Assignee</label>
-            <select id="issue-assignee" name="assignee_id">
-              <option value="" selected>Unassigned</option>
-              {% for person in users %}
-              <option value="{{ person.id }}">{{ person.display_name }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="issue-parent">Parent</label>
-            <select id="issue-parent" name="parent_id">
-              <option value="" selected>No parent</option>
-              {% for candidate in parents %}
-              <option value="{{ candidate.id }}">{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="issue-sprint">Sprint</label>
-            <select id="issue-sprint" name="sprint_id">
-              <option value="" selected>Unscheduled</option>
-              {% for sprint in sprints %}
-              <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.state | label }})</option>
-              {% endfor %}
-            </select>
-          </p>
-          <p>
-            <label for="issue-due">Due date</label>
-            <input id="issue-due" name="due_at" type="datetime-local"/>
-          </p>
-          <p>
-            <label for="issue-estimate">Estimate</label>
-            <input id="issue-estimate" name="estimate" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
-          </p>
-          <p>
-            <label for="issue-remaining">Remaining</label>
-            <input id="issue-remaining" name="remaining" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
-          </p>
-          <p><button class="keel-primary" type="submit">Create issue</button></p>
+          <fieldset>
+            <legend>Issue</legend>
+            <div class="keel-fields">
+              <p>
+                <label for="issue-type">Type</label>
+                <select id="issue-type" name="type">
+                  {% for value in issue_types %}
+                  <option value="{{ value }}"{% if value == default_type %} selected{% endif %}>{{ value | label }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p class="keel-fields__full">
+                <label for="issue-title">Title</label>
+                <input id="issue-title" name="title" type="text" maxlength="300" required autofocus placeholder="What needs doing?"/>
+              </p>
+              <p class="keel-fields__full">
+                <label for="issue-description">Description</label>
+                <textarea id="issue-description" class="keel-description" name="description" rows="6"></textarea>
+              </p>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Planning</legend>
+            <div class="keel-fields">
+              <p>
+                <label for="issue-status">Status</label>
+                <select id="issue-status" name="status">
+                  {% for value in statuses %}
+                  <option value="{{ value }}"{% if value == default_status %} selected{% endif %}>{{ value | label }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p>
+                <label for="issue-assignee">Assignee</label>
+                <select id="issue-assignee" name="assignee_id">
+                  <option value="" selected>Unassigned</option>
+                  {% for person in users %}
+                  <option value="{{ person.id }}">{{ person.display_name }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p>
+                <label for="issue-parent">Parent</label>
+                <select id="issue-parent" name="parent_id">
+                  <option value="" selected>No parent</option>
+                  {% for candidate in parents %}
+                  <option value="{{ candidate.id }}">{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p>
+                <label for="issue-sprint">Sprint</label>
+                <select id="issue-sprint" name="sprint_id">
+                  <option value="" selected>Unscheduled</option>
+                  {% for sprint in sprints %}
+                  <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.state | label }})</option>
+                  {% endfor %}
+                </select>
+              </p>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Dates and effort</legend>
+            <div class="keel-fields">
+              <p>
+                <label for="issue-due">Due date</label>
+                <input id="issue-due" name="due_at" type="datetime-local"/>
+              </p>
+              <p>
+                <label for="issue-estimate">Estimate</label>
+                <input id="issue-estimate" name="estimate" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
+              </p>
+              <p>
+                <label for="issue-remaining">Remaining</label>
+                <input id="issue-remaining" name="remaining" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
+              </p>
+            </div>
+          </fieldset>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Create issue</button></p>
         </form>
         {% endif %}
       </div>

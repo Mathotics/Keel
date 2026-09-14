@@ -194,7 +194,8 @@ body {
   line-height: 1.2;
 }
 
-.keel-main > h2 {
+.keel-main > h2,
+.keel-main > section > h2 {
   margin: 1.75rem 0 0.7rem;
   font-size: 1.05rem;
   font-weight: 650;
@@ -217,7 +218,7 @@ body {
 
 .keel-lede {
   margin: -0.25rem 0 1.15rem;
-  max-width: 40rem;
+  max-width: 48rem;
   font-size: 0.9375rem;
   line-height: 1.45;
   opacity: 0.85;
@@ -228,7 +229,7 @@ body {
 }
 
 .keel-panel {
-  max-width: 40rem;
+  max-width: 48rem;
   margin: 0 0 1.25rem;
   padding: 1rem 1.15rem 1.15rem;
   border-radius: 0.4rem;
@@ -247,6 +248,10 @@ body {
 
 .keel-panel .keel-form + .keel-form {
   margin-top: 1rem;
+}
+
+.keel-panel .keel-lede {
+  margin-top: 0;
 }
 
 .keel-note {
@@ -332,7 +337,11 @@ body {
 
 .keel-form--stacked {
   display: block;
-  max-width: 40rem;
+  max-width: 48rem;
+}
+
+.keel-panel .keel-form--stacked {
+  max-width: none;
 }
 
 .keel-form--stacked p {
@@ -366,6 +375,113 @@ body {
 
 .keel-form--stacked button {
   align-self: flex-start;
+}
+
+.keel-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1.15rem;
+  margin: 0;
+}
+
+.keel-form--stacked .keel-fields > p {
+  margin: 0;
+}
+
+.keel-fields__full {
+  grid-column: 1 / -1;
+}
+
+.keel-form--stacked fieldset {
+  min-width: 0;
+  margin: 0 0 1.05rem;
+  padding: 0 0 1rem;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--keel-blue) 22%, var(--keel-white));
+}
+
+.keel-form--stacked > fieldset:last-of-type {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.keel-form--stacked legend {
+  display: block;
+  float: none;
+  width: 100%;
+  padding: 0 0 0.6rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.keel-field-label {
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.keel-weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+}
+
+.keel-form--stacked .keel-weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+}
+
+.keel-control-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keel-control-row select,
+.keel-control-row input:not([type="checkbox"]) {
+  flex: 1 1 12rem;
+  min-width: 0;
+  width: auto;
+}
+
+.keel-form-actions {
+  margin: 0;
+}
+
+.keel-fields + .keel-form-actions {
+  margin-top: 0.85rem;
+}
+
+.keel-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.55rem 1.15rem;
+  max-width: 48rem;
+  margin: 0 0 1.15rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.4rem;
+  background: var(--keel-sheet);
+  font-size: 0.875rem;
+}
+
+.keel-meta > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.keel-meta dt {
+  font-size: 0.75rem;
+  font-weight: 650;
+  opacity: 0.8;
+}
+
+.keel-meta dd {
+  margin: 0;
 }
 
 .keel-title-field {
@@ -411,6 +527,52 @@ body {
   margin: 0 0 1.15rem;
 }
 
+.keel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.15rem;
+}
+
+.keel-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  height: var(--keel-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.keel-main a.keel-tabs__tab {
+  color: var(--keel-blue-deep);
+  text-decoration: none;
+}
+
+.keel-tabs__tab:hover,
+.keel-main a.keel-tabs__tab:hover,
+.keel-main a.keel-tabs__tab:focus-visible {
+  background: var(--keel-sheet);
+  color: var(--keel-blue-deep);
+}
+
+.keel-tabs__tab[aria-current="page"],
+.keel-main a.keel-tabs__tab[aria-current="page"] {
+  background: var(--keel-blue);
+  color: var(--keel-white);
+}
+
+.keel-tabs__tab[aria-current="page"]:hover,
+.keel-main a.keel-tabs__tab[aria-current="page"]:hover,
+.keel-main a.keel-tabs__tab[aria-current="page"]:focus-visible {
+  background: var(--keel-blue-deep);
+  color: var(--keel-white);
+}
+
 .keel-counts {
   display: flex;
   flex-wrap: wrap;
@@ -429,12 +591,22 @@ body {
 
 .keel-facts {
   display: grid;
-  grid-template-columns: 7.5rem minmax(0, 1fr);
-  gap: 0.45rem 1rem;
-  align-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: start;
   max-width: 48rem;
-  margin: 0 0 0.5rem;
+  margin: 0 0 1.15rem;
   font-size: 0.9375rem;
+}
+
+.keel-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-radius: 0.35rem;
+  background: var(--keel-sheet);
 }
 
 .keel-facts dt {
@@ -449,6 +621,13 @@ body {
 
 .keel-facts .keel-form {
   margin: 0;
+  width: 100%;
+}
+
+.keel-fact .keel-form select,
+.keel-fact .keel-form input:not([type="checkbox"]):not([type="hidden"]) {
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 .keel-description {
@@ -912,17 +1091,13 @@ body {
     max-width: none;
   }
 
+  .keel-fields,
   .keel-facts {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.2rem 0;
   }
 
-  .keel-facts dt {
-    margin-top: 0.45rem;
-  }
-
-  .keel-facts dt:first-child {
-    margin-top: 0;
+  .keel-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .keel-markdown,

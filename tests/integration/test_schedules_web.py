@@ -27,6 +27,12 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert page.status_code == 200
     assert "No repeating series." in page.text
     assert 'href="/projects/HOME/schedules"' in page.text.split("<header", 1)[1]
+    assert 'href="/projects/HOME/schedules?tab=new"' in page.text
+    assert "Create series" not in page.text
+    form = client.get("/projects/HOME/schedules?tab=new")
+    assert form.status_code == 200
+    assert "Create series" in form.text
+    assert 'name="title"' in form.text
     created = client.post(
         f"/web/projects/{project['id']}/schedules",
         data=_series_payload(),
@@ -41,6 +47,24 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert "Pause" in detail.text
     assert "Stop" in detail.text
     assert "Save recipe" in detail.text
+
+
+def test_a_refused_series_returns_to_the_new_series_tab(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    refused = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(title=""),
+        follow_redirects=False,
+    )
+    assert refused.status_code == 303
+    location = refused.headers["location"]
+    assert location.startswith("/projects/HOME/schedules?tab=new")
+    page = client.get(location)
+    assert "Create series" in page.text
+    assert "A series needs a title." in page.text
 
 
 def test_a_series_can_be_paused_resumed_edited_and_stopped(

@@ -28,7 +28,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 | Path | Template | Contents |
 | --- | --- | --- |
-| `/` | — | The entry point; redirects to `/projects` |
+| `/` | `home.html` | Personal inbox for the picker user: assigned, due or overdue, blocked, active sprint, and series copies waiting this cycle |
 | `/create` | `create.html` | Project, type, title, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, and delete, issue counts by status |
@@ -36,7 +36,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/projects/{key}/backlog` | `backlog.html` | Unscheduled unfinished issues, oldest first |
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, auto-sprint status, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
-| `/projects/{key}/schedules` | `schedules.html` | Repeating series list and create form |
+| `/projects/{key}/schedules` | `schedules.html` | Repeating series list; New series is a tab on the same URL (`?tab=new`) |
 | `/projects/{key}/schedules/{id}` | `schedule_detail.html` | Edit, pause, resume, or stop a series |
 | `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
 | `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
@@ -46,11 +46,11 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 Web URLs address issues by key, as `/issues/KEEL-12`; the JSON API addresses them by internal identifier ([ADR 012](../adr/ADR-012.md)).
 
-Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. That keeps what the application opens on separate from what it lists: `/` is only an entry point, and it redirects. The redirect is temporary rather than permanent so that browsers do not cache it beyond the day `/` has something of its own to show, such as a dashboard. Nothing in [v1 scope](../architecture/v1-scope.md) requires one, and an empty placeholder would be worse than a redirect.
+Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md)): five stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
 
 ## Creation and editing forms
 
-The ordinary forms post to `/web` routes that call the same services as the JSON API and redirect afterwards, so a refresh never resubmits ([API reference](api.md)).
+The ordinary forms post to `/web` routes that call the same services as the JSON API and redirect afterwards, so a refresh never resubmits ([API reference](api.md)). Related fields sit in labeled groups, and short fields pair in two columns on a wide window so a long create or recipe form is not one unbroken stack.
 
 | Method | Path | Posted from |
 | --- | --- | --- |
@@ -108,6 +108,10 @@ The sprints page lists a project's sprints grouped by state, with a form to plan
 
 Project settings on the project page include sprint cadence: off, weekly, every 2 weeks, monthly, or every N days. Saving a cadence other than off opens a sprint immediately if the project has none active.
 
+## Schedules
+
+The schedules page lists a project's repeating series. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page.
+
 ## Find
 
 The find field submits GET `/search?q=…`, and `project` when the current page has one. An exact issue key (`KEEL-12`) goes to that issue; otherwise an exact project key goes to that project; otherwise a unique user display name goes to `/users`; otherwise a unique sprint name in scope goes to that sprint. Anything else renders `search.html`: the query repeated, then issues, projects, sprints, and users, about ten of each, with a note when more exist, and a none message when nothing matched. Description, goal, and comment hits open the issue or sprint they belong to, not a comment-only view. Done issues and completed sprints are included. There is no query language and no saved filter.
@@ -144,6 +148,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 016: Find from the top bar by name](../adr/ADR-016.md)
 * [ADR 017: Render issue descriptions and comments as Markdown](../adr/ADR-017.md)
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
+* [ADR 022: Home page as a personal work inbox](../adr/ADR-022.md)
 * [API reference](api.md)
 * [Brand colors](../brand-colors.md)
 * [Use cases](../architecture/use-cases.md)

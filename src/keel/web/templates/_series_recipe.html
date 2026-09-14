@@ -1,0 +1,147 @@
+        {% if include_apply|default(false) %}
+        <fieldset>
+          <legend>Apply this change</legend>
+          <div class="keel-fields">
+            <p>
+              <label for="{{ prefix }}-scope">Apply to</label>
+              <select id="{{ prefix }}-scope" name="scope" required>
+                {% for value in edit_scopes %}
+                <option value="{{ value.value }}">{{ value | label }}</option>
+                {% endfor %}
+              </select>
+            </p>
+          </div>
+        </fieldset>
+        {% endif %}
+        {% if include_identity|default(false) %}
+        <fieldset>
+          <legend>Issue</legend>
+          <div class="keel-fields">
+            {% if include_type|default(false) %}
+            <p>
+              <label for="{{ prefix }}-type">Type</label>
+              <select id="{{ prefix }}-type" name="type">
+                {% for value in issue_types %}
+                <option value="{{ value.value }}"{% if recipe and recipe.type == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            {% endif %}
+            <p class="keel-fields__full">
+              <label for="{{ prefix }}-title">Title</label>
+              <input id="{{ prefix }}-title" name="title" type="text" maxlength="300" value="{{ recipe.title if recipe else '' }}" required/>
+            </p>
+            <p class="keel-fields__full">
+              <label for="{{ prefix }}-description">Default description</label>
+              <textarea id="{{ prefix }}-description" name="description" rows="4">{{ recipe.description if recipe else '' }}</textarea>
+            </p>
+            {% if include_people|default(false) %}
+            <p>
+              <label for="{{ prefix }}-assignee">Assignee</label>
+              <select id="{{ prefix }}-assignee" name="assignee_id">
+                <option value=""{% if not recipe or not recipe.assignee_id %} selected{% endif %}>Unassigned</option>
+                {% for person in users %}
+                <option value="{{ person.id }}"{% if recipe and recipe.assignee_id == person.id %} selected{% endif %}>{{ person.display_name }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            <p>
+              <label for="{{ prefix }}-parent">Parent</label>
+              <select id="{{ prefix }}-parent" name="parent_id">
+                <option value=""{% if not recipe or not recipe.parent_id %} selected{% endif %}>No parent</option>
+                {% for issue in issues %}
+                <option value="{{ issue.id }}"{% if recipe and recipe.parent_id == issue.id %} selected{% endif %}>{{ project.key }}-{{ issue.number }} {{ issue.title }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            {% endif %}
+          </div>
+        </fieldset>
+        {% endif %}
+        <fieldset>
+          <legend>Copies</legend>
+          <div class="keel-fields">
+            <p>
+              <label for="{{ prefix }}-spawn">When to create the next copy</label>
+              <select id="{{ prefix }}-spawn" name="spawn_mode">
+                {% for value in spawn_modes %}
+                <option value="{{ value.value }}"{% if recipe and recipe.spawn_mode == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            <p>
+              <label for="{{ prefix }}-basis">Put copies in the sprint overlapping</label>
+              <select id="{{ prefix }}-basis" name="sprint_basis">
+                {% for value in sprint_bases %}
+                <option value="{{ value.value }}"{% if recipe and recipe.sprint_basis == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            <p class="keel-fields__full">
+              <label for="{{ prefix }}-n">{{ look_ahead_label }}</label>
+              <input id="{{ prefix }}-n" name="look_ahead_n" type="number" min="1" value="{{ recipe.look_ahead_n if recipe else 1 }}" required/>
+            </p>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Cadence</legend>
+          <div class="keel-fields">
+            <p>
+              <label for="{{ prefix }}-freq">Repeat</label>
+              <select id="{{ prefix }}-freq" name="freq">
+                {% for value in freqs %}
+                <option value="{{ value.value }}"{% if recipe and recipe.freq == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            <p>
+              <label for="{{ prefix }}-interval">Every</label>
+              <input id="{{ prefix }}-interval" name="interval" type="number" min="1" value="{{ recipe.interval if recipe else 1 }}" required/>
+            </p>
+            <p>
+              <label for="{{ prefix }}-starts">Starts</label>
+              <input id="{{ prefix }}-starts" name="starts_on" type="date" value="{{ recipe.starts_on.isoformat() if recipe else '' }}" required/>
+            </p>
+            <p class="keel-fields__full">
+              <span class="keel-field-label" id="{{ prefix }}-weekdays-label">Weekdays</span>
+              <span class="keel-weekdays" role="group" aria-labelledby="{{ prefix }}-weekdays-label">
+                {% for value, name in weekdays %}
+                <label><input type="checkbox" name="weekday" value="{{ value }}"{% if value in selected_weekdays|default([]) %} checked{% endif %}/> {{ name }}</label>
+                {% endfor %}
+              </span>
+            </p>
+            <p>
+              <label for="{{ prefix }}-month-day">Day of month</label>
+              <input id="{{ prefix }}-month-day" name="month_day" type="number" min="1" max="31" value="{{ recipe.month_day if recipe and recipe.month_day else '' }}"/>
+            </p>
+            <p>
+              <label for="{{ prefix }}-nth">Nth weekday (1–4 or -1 for last)</label>
+              <input id="{{ prefix }}-nth" name="nth_week" type="number" value="{{ recipe.nth_week if recipe and recipe.nth_week is not none else '' }}"/>
+            </p>
+            <p>
+              <label for="{{ prefix }}-month">Month (yearly)</label>
+              <input id="{{ prefix }}-month" name="month" type="number" min="1" max="12" value="{{ recipe.month if recipe and recipe.month else '' }}"/>
+            </p>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Ends</legend>
+          <div class="keel-fields">
+            <p>
+              <label for="{{ prefix }}-end">Ends</label>
+              <select id="{{ prefix }}-end" name="end_mode">
+                <option value="never"{% if not recipe or (not recipe.ends_on and not recipe.occurrence_count) %} selected{% endif %}>Never</option>
+                <option value="on"{% if recipe and recipe.ends_on %} selected{% endif %}>On a date</option>
+                <option value="count"{% if recipe and recipe.occurrence_count %} selected{% endif %}>After a count</option>
+              </select>
+            </p>
+            <p>
+              <label for="{{ prefix }}-ends-on">End date</label>
+              <input id="{{ prefix }}-ends-on" name="ends_on" type="date" value="{{ recipe.ends_on.isoformat() if recipe and recipe.ends_on else '' }}"/>
+            </p>
+            <p>
+              <label for="{{ prefix }}-count">Occurrence count</label>
+              <input id="{{ prefix }}-count" name="occurrence_count" type="number" min="1" value="{{ recipe.occurrence_count if recipe and recipe.occurrence_count else '' }}"/>
+            </p>
+          </div>
+        </fieldset>

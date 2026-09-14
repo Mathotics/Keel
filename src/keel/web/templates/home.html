@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block main %}
+      <h1>Home</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      {% if inbox.empty %}
+      <p class="keel-lede">Nothing assigned to you right now.{% if not has_projects %} <a href="/projects">Create a project</a> to get started.{% endif %}</p>
+      {% else %}
+
+      {% macro inbox_rows(section, rows, extra) %}
+      <div class="keel-table-scroll">
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Project</th>
+            {% if extra == "due" %}<th>Due</th>{% endif %}
+            {% if extra == "sprint" %}<th>Sprint</th>{% endif %}
+            {% if extra == "occurrence" %}<th>Occurrence</th>{% endif %}
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in rows %}
+          <tr>
+            <td>
+              <a href="/issues/{{ item.key }}">{{ item.key }}</a>
+              {% if item.unresolved_blockers %}
+              <span class="keel-blockers" title="{{ item.unresolved_blockers }} unresolved blocker{% if item.unresolved_blockers != 1 %}s{% endif %}">{{ item.unresolved_blockers }}</span>
+              {% endif %}
+            </td>
+            <td>{{ item.issue.type | label }}</td>
+            <td>{{ item.issue.title }}</td>
+            <td><a href="/projects/{{ item.project.key }}">{{ item.project.key }}</a></td>
+            {% if extra == "due" %}<td>{{ item.issue.due_at | when }}</td>{% endif %}
+            {% if extra == "sprint" %}<td>{{ item.sprint_name or "" }}</td>{% endif %}
+            {% if extra == "occurrence" %}<td>{{ item.issue.occurrence_on | day }}</td>{% endif %}
+            <td>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ item.issue.id }}/status" data-keel-autosubmit>
+                <input type="hidden" name="next" value="/"/>
+                <label class="keel-visually-hidden" for="home-{{ section }}-status-{{ item.issue.id }}">Status for {{ item.key }}</label>
+                <select id="home-{{ section }}-status-{{ item.issue.id }}" name="status">
+                  {% for value in statuses %}
+                  <option value="{{ value.value }}"{% if item.issue.status == value %} selected{% endif %}>{{ value | label }}</option>
+                  {% endfor %}
+                </select>
+                <button class="keel-autosubmit__fallback" type="submit">Move</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endmacro %}
+
+      {% if inbox.assigned %}
+      <section>
+        <h2>Assigned to me</h2>
+        {{ inbox_rows("assigned", inbox.assigned, none) }}
+      </section>
+      {% endif %}
+      {% if inbox.due %}
+      <section>
+        <h2>Due or overdue</h2>
+        {{ inbox_rows("due", inbox.due, "due") }}
+      </section>
+      {% endif %}
+      {% if inbox.blocked %}
+      <section>
+        <h2>Blocked</h2>
+        {{ inbox_rows("blocked", inbox.blocked, none) }}
+      </section>
+      {% endif %}
+      {% if inbox.active_sprint %}
+      <section>
+        <h2>In the active sprint</h2>
+        {{ inbox_rows("sprint", inbox.active_sprint, "sprint") }}
+      </section>
+      {% endif %}
+      {% if inbox.waiting %}
+      <section>
+        <h2>Waiting this cycle</h2>
+        {{ inbox_rows("waiting", inbox.waiting, "occurrence") }}
+      </section>
+      {% endif %}
+
+      {% endif %}
+{% endblock %}

@@ -26,14 +26,6 @@ def test_the_project_list_page_lists_projects(
     assert "/projects/KEEL" in page.text
 
 
-def test_the_entry_point_points_at_the_project_list(client: TestClient) -> None:
-    """A temporary redirect, so `/` is free to become a dashboard later."""
-    response = client.get("/", follow_redirects=False)
-
-    assert response.status_code == 302
-    assert response.headers["location"] == "/projects"
-
-
 def test_a_project_is_created_from_the_form(client: TestClient) -> None:
     response = client.post(
         "/web/projects",

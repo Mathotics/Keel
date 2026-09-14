@@ -2,6 +2,11 @@
 
 Goal-level journeys for the v1 features. All journeys are performed by the **owner** or a **collaborator** — in v1 they have the same abilities (see [context](context.md)). Terms are defined in the [glossary](glossary.md).
 
+## Home
+
+* **Start the day.** A user opens `/` or the home icon and sees work assigned to them across projects: everything unfinished on them, what is due today or overdue, what is blocked, what sits in an active sprint (including closed items in that commitment), and repeating copies waiting this cycle. The same issue may appear in more than one list. Status can be changed from a row. With more than one project, Projects remains a directory rather than the starting point ([ADR 022](../adr/ADR-022.md)).
+* **Switch who I am.** Changing the picker reloads `/` for that person; unassigned work never appears there.
+
 ## Projects
 
 * **Create a project.** A user creates a named project to hold a body of work. Issues, boards, sprints, and the backlog all live inside a project. Multiple projects can exist side by side.
@@ -29,7 +34,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Repeating work
 
-* **Schedule a repeating job.** A user creates a series on the project Schedules page (type, default title and description, cadence, when to spawn, which date picks the sprint). Copies appear as ordinary issues.
+* **Schedule a repeating job.** A user opens New series on the project Schedules page (type, default title and description, cadence, when to spawn, which date picks the sprint). Copies appear as ordinary issues.
 * **Work this occurrence.** A user edits this month's copy without changing last month's notes. Recipe edits ask this occurrence, this and all future, or the entire series.
 * **Skip or abandon a cycle.** A user deletes this issue so that date does not come back, or marks it Cancelled so the record stays and the next copy can still appear.
 

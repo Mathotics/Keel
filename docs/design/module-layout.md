@@ -55,6 +55,7 @@ src/keel/
     auto_sprint.py
     series.py
     find.py
+    home.py
     dependencies.py
     comments.py
 
@@ -92,7 +93,7 @@ src/keel/
     nav.py              top-bar section order (cookie, not a user row)
     routes/
       __init__.py
-      pages.py          home, license
+      pages.py          home inbox, create, license
       search.py         GET /search
       projects.py
       issues.py

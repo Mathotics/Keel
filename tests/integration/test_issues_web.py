@@ -80,7 +80,8 @@ def test_create_from_the_menu_needs_only_a_title(
     assert created.headers["location"] == "/issues/KEEL-1"
     detail = client.get("/issues/KEEL-1")
     assert "Quick" in detail.text
-    assert "<dt>Reporter</dt><dd>Tester</dd>" in detail.text
+    assert "<dt>Reporter</dt>" in detail.text
+    assert "<dd>Tester</dd>" in detail.text
 
     blank = client.post(
         "/web/issues",

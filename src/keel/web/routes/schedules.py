@@ -25,6 +25,7 @@ def schedules_page(
     request: Request,
     chrome: ChromeDep,
     session: SessionDep,
+    tab: str | None = None,
     error: str | None = None,
     notice: str | None = None,
 ) -> HTMLResponse:
@@ -37,6 +38,7 @@ def schedules_page(
             request,
             chrome,
             project=project,
+            new_series=tab == "new",
             series_list=found,
             summaries={item.id: series_service.cadence_summary(item) for item in found},
             issue_types=types_in_hierarchy_order(),

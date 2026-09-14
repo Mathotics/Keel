@@ -8,15 +8,17 @@
       <div class="keel-panel">
         <h2>New project</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/projects">
-          <p>
-            <label for="new-key">Key</label>
-            <input id="new-key" name="key" type="text" size="8" maxlength="10" required placeholder="KEEL"/>
-          </p>
-          <p>
-            <label for="new-name">Name</label>
-            <input id="new-name" name="name" type="text" maxlength="200" required/>
-          </p>
-          <p><button class="keel-primary" type="submit">Create project</button></p>
+          <div class="keel-fields">
+            <p>
+              <label for="new-key">Key</label>
+              <input id="new-key" name="key" type="text" size="8" maxlength="10" required placeholder="KEEL"/>
+            </p>
+            <p>
+              <label for="new-name">Name</label>
+              <input id="new-name" name="name" type="text" maxlength="200" required/>
+            </p>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Create project</button></p>
         </form>
       </div>
       <div class="keel-table-scroll">
