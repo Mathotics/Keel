@@ -53,7 +53,7 @@ flowchart LR
 * Assign an issue to a user and set its reporter.
 * Set and change an issue's status within the shared workflow (see [ADR 004](../adr/ADR-004.md)).
 * Add and read comments on an issue. Issue descriptions and comment bodies render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
-* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description ([ADR 023](../adr/ADR-023.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description ([ADR 024](../adr/ADR-024.md)).
 
 ## Planning
 
@@ -96,4 +96,4 @@ flowchart LR
 * [API reference](../design/api.md)
 * [UI design](../design/ui.md)
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
-* [ADR 023: Lightweight per-issue field history](../adr/ADR-023.md)
+* [ADR 024: Lightweight per-issue field history](../adr/ADR-024.md)

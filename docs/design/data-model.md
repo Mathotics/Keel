@@ -192,7 +192,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
 
-Index: `ix_issue_history_issue_created` on (`issue_id`, `created_at`). Who, from, and to are snapshotted labels so a later rename does not rewrite old lines ([ADR 023](../adr/ADR-023.md)).
+Index: `ix_issue_history_issue_created` on (`issue_id`, `created_at`). Who, from, and to are snapshotted labels so a later rename does not rewrite old lines ([ADR 024](../adr/ADR-024.md)).
 
 ## Derived, not stored
 
@@ -240,7 +240,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
 * [ADR 020: Cancelled status](../adr/ADR-020.md)
 * [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
-* [ADR 023: Lightweight per-issue field history](../adr/ADR-023.md)
+* [ADR 024: Lightweight per-issue field history](../adr/ADR-024.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)
