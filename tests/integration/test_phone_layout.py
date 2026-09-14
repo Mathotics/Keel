@@ -17,6 +17,13 @@ def test_phone_layout_is_a_narrow_media_query(client: TestClient) -> None:
     assert "flex: 0 0 80%" not in desktop_column
 
     assert "flex-wrap: wrap" in phone.split(".keel-topbar {", 1)[1].split("}", 1)[0]
+    assert (
+        "margin-left: 0"
+        in phone.split(".keel-topbar__right {", 1)[1].split(
+            "}",
+            1,
+        )[0]
+    )
     assert "min-height: 0" in phone.split("html,", 1)[1].split("}", 1)[0]
     overlay_sheet = phone.split(".keel-overlay__sheet {", 1)[1].split("}", 1)[0]
     assert "min-height: calc(100dvh - 1rem)" in overlay_sheet
@@ -56,7 +63,10 @@ def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
     assert "keel-topbar__home" in header
     assert "keel-topbar__nav" in header
     assert "keel-find" in header
+    assert "keel-help" in header
     assert "keel-userpicker" in header
+    assert "FastAPI Docs" in header
+    assert "ReDoc" in header
     assert 'href="/projects"' in header
     assert 'href="/create"' in header
     assert 'href="/users"' in header
