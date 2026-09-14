@@ -42,7 +42,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 025](../adr/ADR-025.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 025](../adr/ADR-025.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md).
 
 ## Related documents
 

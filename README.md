@@ -80,6 +80,30 @@ uvicorn keel.app:app --host 127.0.0.1 --port 8000
 
 Then open `http://127.0.0.1:8000/` (the acting user's inbox). Also `http://127.0.0.1:8000/projects` (the project directory, with a create form), `http://127.0.0.1:8000/create` (file an issue), `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, its backlog at `/projects/KEEL/backlog`, its sprints at `/projects/KEEL/sprints`, its schedules at `/projects/KEEL/schedules`, and an issue at `/issues/KEEL-1`. The find field in the menu jumps to an exact key or lists matches at `/search`. The issue page is where comments, estimates, remaining time, and dependencies are edited.
 
+## Production
+
+Production is the owner's Raspberry Pi. After bootstrap, every push to `main` that passes CI updates that machine with no further steps ([ADR 026](docs/adr/ADR-026.md)).
+
+The app runs as a user systemd unit (`keel serve` from `/mnt/library/Keel/.venv`). It binds all interfaces on port 8000 so clients on the local VPN can reach it. SQLite and the env file live under `/mnt/library/keel-data/`, outside the git checkout.
+
+| Variable | Production value |
+| --- | --- |
+| `KEEL_HOST` | `0.0.0.0` |
+| `KEEL_PORT` | `8000` |
+| `KEEL_RELOAD` | `false` |
+| `KEEL_LOG_LEVEL` | `info` |
+| `KEEL_DATABASE_URL` | `sqlite+pysqlite:////mnt/library/keel-data/keel.db` |
+
+Those keys are in [`deploy/keel.env.example`](deploy/keel.env.example). Bootstrap copies them to `/mnt/library/keel-data/keel.env` if that file is missing and does not overwrite an existing file. `KEEL_DEFAULT_USER` is left unset so the service account's OS username is used.
+
+One-time setup on the Pi (Python 3.12, venv, data directory, linger, enable the unit):
+
+```bash
+./scripts/bootstrap-prod.sh
+```
+
+Later updates are [`scripts/deploy-prod.sh`](scripts/deploy-prod.sh), invoked by the Deploy workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) after CI on `main` succeeds. Do not put VPN hostnames or addresses in this repository.
+
 ## Lint and test
 
 ```powershell
@@ -109,7 +133,7 @@ What Keel is and why is described in the [architecture package](docs/architectur
 | --- | --- |
 | Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [implementation plan](docs/design/implementation-plan.md) |
-| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 022 the implementation |
+| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 025 the implementation, [026](docs/adr/ADR-026.md) production deploy |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The [implementation plan](docs/design/implementation-plan.md) is the build order. All six v1 phases are in place.
