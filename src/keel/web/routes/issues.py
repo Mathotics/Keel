@@ -31,6 +31,7 @@ def issue_page(
     chrome: ChromeDep,
     session: SessionDep,
     error: str | None = None,
+    repeat: str | None = None,
 ) -> HTMLResponse:
     issue = issue_service.get_issue_by_key(session, key)
     project = project_service.get_project(session, issue.project_id)
@@ -84,6 +85,7 @@ def issue_page(
                 set() if series is None else set(parse_weekdays(series.weekdays))
             ),
             error=error,
+            repeat_overlay=repeat == "1",
         ),
     )
 
