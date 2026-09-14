@@ -293,6 +293,117 @@ body {
   margin-top: 0;
 }
 
+.keel-repeat {
+  max-width: 48rem;
+  margin: 0 0 1.15rem;
+}
+
+.keel-repeat .keel-lede {
+  margin-top: 0;
+  margin-bottom: 0.6rem;
+}
+
+.keel-main a.keel-button,
+.keel-button {
+  display: inline-flex;
+  align-items: center;
+  height: var(--keel-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.keel-main a.keel-button:hover,
+.keel-main a.keel-button:focus-visible,
+.keel-button:hover {
+  color: var(--keel-blue-deep);
+  background: var(--keel-sheet);
+}
+
+.keel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 4.25rem 1rem 1rem;
+  overflow: auto;
+  border: none;
+  background: color-mix(in srgb, var(--keel-blue-deep) 40%, transparent);
+  color: inherit;
+}
+
+.keel-overlay[open] {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.keel-overlay::backdrop {
+  background: color-mix(in srgb, var(--keel-blue-deep) 40%, transparent);
+}
+
+.keel-overlay__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.keel-overlay__sheet {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  max-height: 90vh;
+  margin: 0 auto;
+  padding: 1rem 1.15rem 1.15rem;
+  overflow: auto;
+  border-radius: 0.4rem;
+  background: var(--keel-white);
+}
+
+.keel-overlay__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.keel-overlay__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-overlay .keel-form--stacked {
+  max-width: none;
+}
+
+.keel-overlay .keel-form--stacked .keel-form-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+[data-keel-overlay-js] .keel-overlay {
+  background: transparent;
+}
+
+[data-keel-overlay-js] .keel-overlay__scrim {
+  display: none;
+}
+
 .keel-note {
   margin: 0 0 1rem;
   font-size: 0.875rem;
@@ -1105,6 +1216,24 @@ body {
 
   .keel-panel {
     max-width: none;
+  }
+
+  .keel-repeat {
+    max-width: none;
+  }
+
+  .keel-overlay {
+    padding: 0.5rem;
+  }
+
+  .keel-overlay[open] {
+    align-items: stretch;
+  }
+
+  .keel-overlay__sheet {
+    max-width: none;
+    max-height: none;
+    min-height: calc(100dvh - 1rem);
   }
 
   .keel-form {

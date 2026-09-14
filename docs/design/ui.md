@@ -39,7 +39,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/projects/{key}/schedules` | `schedules.html` | Repeating series list; New series is a tab on the same URL (`?tab=new`) |
 | `/projects/{key}/schedules/{id}` | `schedule_detail.html` | Edit, pause, resume, or stop a series |
 | `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
-| `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
+| `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; repeating recipe in an overlay (`?repeat=1`) |
 | `/search` | `search.html` | Find results grouped by issues, projects, sprints, and users; exact keys and unique names jump instead |
 | `/users` | `users.html` | Add, rename, and remove users |
 | `/license` | `license.html` | Existing license page |
@@ -118,11 +118,11 @@ The find field submits GET `/search?q=…`, and `project` when the current page 
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done (with cancelled descendants counted separately when any exist) alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. When the issue belongs to a repeating series, a panel shows the cadence and a link to the series; recipe edits on that panel require choosing this occurrence, this and all future, or the entire series, and are not autosubmitted. Delete on a series issue skips that cycle. Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. An Epic or Story can also create a child from its own page: a title files a Story under an Epic, or a Subtask under a Story, and the parent page reloads so another can be filed. A Subtask has no such form. Comments and dependency links are added afterwards, because they need an id. Adding a comment or a child is an ordinary submit, not an autosubmit field.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done (with cancelled descendants counted separately when any exist) alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. Repeating is not an always-open panel ([ADR 024](../adr/ADR-024.md)). An issue that is not in a series has a Make this repeating control; an issue that is in a series shows a short occurrence, cadence, and schedule-link line plus Edit series. Either control opens the existing recipe in a same-page overlay (`?repeat=1` without JavaScript). Recipe edits still require choosing this occurrence, this and all future, or the entire series, and are not autosubmitted. A refused recipe re-opens the overlay with the error inside it. Delete on a series issue skips that cycle. Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. An Epic or Story can also create a child from its own page: a title files a Story under an Epic, or a Subtask under a Story, and the parent page reloads so another can be filed. A Subtask has no such form. Comments and dependency links are added afterwards, because they need an id. Adding a comment or a child is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 
-Three scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker and the find submit button, `data-keel-nav` for the section order, `data-keel-board` for the board.
+Four scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker and the find submit button, `data-keel-nav` for the section order, `data-keel-board` for the board, `data-keel-overlay-js` for the issue repeating overlay.
 
 `assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button. It also submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons. Paired sprint date fields marked `data-keel-range` keep `min` and `max` in sync so the calendar cannot offer an end before the start.
 
@@ -130,11 +130,13 @@ Three scripts, all vanilla and with no third-party dependency. Each sets a marke
 
 `assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status, and the sprint when the board is stacked by sprint. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
 
+`assets/js/overlay.js` loads on the issue page. It intercepts Make this repeating and Edit series so the native `dialog` opens with `showModal()` instead of navigating, and Close, Cancel, Escape, and a click on the dimmed page close it without a round trip. The `?repeat=1` link and Cancel/Close hrefs remain so the overlay still opens when the script does not run.
+
 None of the scripts is required. All are loaded with `defer`, hide their fallback controls only once they have run, and no page or action is reachable through JavaScript alone.
 
 ## Error presentation
 
-Web routes catch the same domain errors the JSON API returns and re-render the originating page with the message shown near the control that caused it — a refused cycle appears on the issue detail page, a refused sprint start on the sprint page. The user never sees a raw JSON error body or a stack trace.
+Web routes catch the same domain errors the JSON API returns and re-render the originating page with the message shown near the control that caused it — a refused cycle appears on the issue detail page, a refused recipe in the repeating overlay, a refused sprint start on the sprint page. The user never sees a raw JSON error body or a stack trace.
 
 ## Related documents
 
@@ -149,6 +151,8 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 017: Render issue descriptions and comments as Markdown](../adr/ADR-017.md)
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
 * [ADR 022: Home page as a personal work inbox](../adr/ADR-022.md)
+* [ADR 023: Help menu links to FastAPI API docs](../adr/ADR-023.md)
+* [ADR 024: Issue-page repeating recipe in an overlay](../adr/ADR-024.md)
 * [API reference](api.md)
 * [Brand colors](../brand-colors.md)
 * [Use cases](../architecture/use-cases.md)

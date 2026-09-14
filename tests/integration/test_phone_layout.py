@@ -25,6 +25,9 @@ def test_phone_layout_is_a_narrow_media_query(client: TestClient) -> None:
         )[0]
     )
     assert "min-height: 0" in phone.split("html,", 1)[1].split("}", 1)[0]
+    overlay_sheet = phone.split(".keel-overlay__sheet {", 1)[1].split("}", 1)[0]
+    assert "min-height: calc(100dvh - 1rem)" in overlay_sheet
+    assert "max-width: none" in overlay_sheet
     assert "flex: 0 0 80%" in phone
     assert "min-width: 14rem" in phone
     assert "[data-keel-board] .keel-card__fallback" in phone
