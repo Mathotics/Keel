@@ -41,6 +41,13 @@
         <button class="keel-topbar__control keel-find__fallback" type="submit">Find</button>
       </form>
       <div class="keel-topbar__right">
+        <details class="keel-help">
+          <summary class="keel-topbar__control">Help</summary>
+          <div class="keel-help__menu">
+            <a class="keel-topbar__control" href="/docs" target="_blank" rel="noopener">FastAPI Docs</a>
+            <a class="keel-topbar__control" href="/redoc" target="_blank" rel="noopener">ReDoc</a>
+          </div>
+        </details>
         {% if users %}
         <form class="keel-userpicker" method="post" action="/web/user">
           <input type="hidden" name="next" value="{{ request.url.path }}"/>
