@@ -98,7 +98,7 @@ A note attached to an issue, capturing discussion and context over time.
 * Relationships: belongs to one issue; authored by one user.
 
 ### Issue history
-A reconstructive changelog of field changes on one issue ([ADR 024](../adr/ADR-024.md)). Not a product-wide audit log.
+A reconstructive changelog of field changes on one issue ([ADR 025](../adr/ADR-025.md)). Not a product-wide audit log.
 * Who; when; field; previous value; new value.
 * Relationships: belongs to one issue.
 

@@ -937,7 +937,7 @@ def make_issue_repeating(
         )
     except DomainError as exc:
         session.rollback()
-        return _back(here, exc.message)
+        return _back(f"{here}?repeat=1", exc.message)
     return _back(here)
 
 
@@ -987,7 +987,7 @@ def update_issue_series(
         )
     except DomainError as exc:
         session.rollback()
-        return _back(here, exc.message)
+        return _back(f"{here}?repeat=1", exc.message)
     return _back(here)
 
 

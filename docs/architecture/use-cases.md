@@ -35,7 +35,8 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 ## Repeating work
 
 * **Schedule a repeating job.** A user opens New series on the project Schedules page (type, default title and description, cadence, when to spawn, which date picks the sprint). Copies appear as ordinary issues.
-* **Work this occurrence.** A user edits this month's copy without changing last month's notes. Recipe edits ask this occurrence, this and all future, or the entire series.
+* **Make an existing issue repeating.** A user opens Make this repeating on the issue; the recipe is an overlay, not a panel on the page. That issue becomes the first occurrence ([ADR 024](../adr/ADR-024.md)).
+* **Work this occurrence.** A user edits this month's copy without changing last month's notes. Recipe edits open in the same overlay and ask this occurrence, this and all future, or the entire series.
 * **Skip or abandon a cycle.** A user deletes this issue so that date does not come back, or marks it Cancelled so the record stays and the next copy can still appear.
 
 ## Kanban board
@@ -57,7 +58,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Issue history
 
-* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description changes — who, when, from → to — without relying on comments ([ADR 024](../adr/ADR-024.md)).
+* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md)).
 
 ## Time estimates
 
