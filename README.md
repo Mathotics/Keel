@@ -1,8 +1,10 @@
 # Keel
 
-FastAPI web application with a small CLI for local development.
+Keel is a personal issue tracker for **one owner plus up to two collaborators**. It is a lightweight, Jira-flavored tool you host yourself: start it with `keel serve` and work in a browser.
 
-Requires **Python 3.12**.
+Projects hold epics, stories, and subtasks on a shared workflow. Each project has a backlog, a Kanban board, time-boxed sprints, repeating schedules, and directed issue links. There is no login, no organization hierarchy, and no third-party integrations — v1 is built for a trusted local or small-group setup.
+
+The same FastAPI application serves the pages, a JSON API, and a small CLI. Requires **Python 3.12**.
 
 ## Setup
 
@@ -101,13 +103,13 @@ Individual tasks: `poe lint`, `poe format`, `poe format-check`, `poe isort`, `po
 
 ## Documentation
 
-Keel is an issue tracker for one owner plus up to two collaborators. What it is and why is described in the architecture package; how it is built is described in the design package and the decision records.
+What Keel is and why is described in the [architecture package](docs/architecture/context.md); how it is built is described in the design package and the decision records.
 
 | Area | Documents |
 | --- | --- |
 | Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [implementation plan](docs/design/implementation-plan.md) |
-| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 018 the implementation |
+| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 022 the implementation |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The [implementation plan](docs/design/implementation-plan.md) is the build order. All six v1 phases are in place.
