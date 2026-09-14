@@ -55,6 +55,10 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 * **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/ADR-017.md)).
 
+## Issue history
+
+* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, and type changes — who, when, from → to — without relying on comments ([ADR 023](../adr/ADR-023.md)).
+
 ## Time estimates
 
 * **Estimate effort.** A user sets an estimated time on an issue and updates the time remaining as work progresses.

@@ -17,6 +17,7 @@ erDiagram
   issues ||--o{ issues : "parent of"
   sprints ||--o{ issues : "schedules"
   issues ||--o{ comments : "carries"
+  issues ||--o{ issue_history : "records"
   issues ||--o{ dependencies : "is source of"
   issues ||--o{ dependencies : "is target of"
 ```
@@ -179,6 +180,20 @@ There is no project column: links may cross projects ([ADR 014](../adr/ADR-014.m
 
 Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 
+### issue_history
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
+| `actor_name` | TEXT | not null |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`) |
+| `from_value` | TEXT | not null |
+| `to_value` | TEXT | not null |
+| `created_at` | TIMESTAMP | not null |
+
+Index: `ix_issue_history_issue_created` on (`issue_id`, `created_at`). Who, from, and to are snapshotted labels so a later rename does not rewrite old lines ([ADR 023](../adr/ADR-023.md)).
+
 ## Derived, not stored
 
 Three things the [domain model](../architecture/domain-model.md) describes have no table, by design.
@@ -194,8 +209,8 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 | Action | Result |
 | --- | --- |
 | Delete issue with children | Refused, `issue.has_children` |
-| Delete childless issue | Cascades its comments and every dependency naming it |
-| Delete project | Cascades issues, sprints, board, and through issues their comments and dependency links, including links whose other end is in another project |
+| Delete childless issue | Cascades its comments, field history, and every dependency naming it |
+| Delete project | Cascades issues, sprints, board, and through issues their comments, field history, and dependency links, including links whose other end is in another project |
 | Delete sprint | Its issues are unscheduled, not deleted |
 | Delete user still referenced | Refused, `user.in_use` |
 
@@ -214,6 +229,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0007` | `projects.sprint_cadence` |
 | `0008` | `cancelled` on `issues.status` |
 | `0009` | `series`, `series_skips`, `issues.series_id` |
+| `0010` | `issue_history` |
 
 ## Related documents
 
@@ -223,6 +239,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
 * [ADR 020: Cancelled status](../adr/ADR-020.md)
 * [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
+* [ADR 023: Lightweight per-issue field history](../adr/ADR-023.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)

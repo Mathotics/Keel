@@ -14,6 +14,7 @@ from keel.domain.hierarchy import child_type_of
 from keel.domain.recurrence import WEEKDAY_NAMES, parse_weekdays
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
@@ -59,6 +60,7 @@ def issue_page(
             children=issue_service.list_children(session, issue.id),
             dependencies=dependency_service.list_for_issue(session, issue.id),
             comments=_comment_views(session, issue.id),
+            history=history_service.list_history(session, issue.id),
             rollup=issue_service.issue_rollup(session, issue.id),
             candidates=candidates,
             reporter=_named(session, issue.reporter_id, empty="None"),
