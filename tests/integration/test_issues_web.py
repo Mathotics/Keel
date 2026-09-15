@@ -49,6 +49,8 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="due_at"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'class="keel-type-select"' in page.text
+    assert 'data-type="story"' in page.text
 
 
 def test_an_issue_is_created_and_lands_on_its_page(
@@ -318,6 +320,8 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert ">Edit<" not in page.text
     assert 'name="title"' in page.text
     assert 'name="type"' in page.text
+    assert 'class="keel-type-select"' in page.text
+    assert 'data-type="story"' in page.text
     assert 'name="description"' in page.text
     assert 'name="parent_id"' in page.text
 

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}{{ issue_key }}{% endblock %}
 {% block scripts %}
     {{ super() }}
@@ -41,7 +42,7 @@
           <dd>
             <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
               <label class="keel-visually-hidden" for="issue-type">Type</label>
-              <select id="issue-type" name="type">
+              <select class="keel-type-select" id="issue-type" name="type" data-type="{{ issue.type.value }}">
                 {% for value in issue_types %}
                 <option value="{{ value.value }}"{% if issue.type == value %} selected{% endif %}>{{ value | label }}</option>
                 {% endfor %}
@@ -225,7 +226,7 @@
           {% for child in children %}
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ child.number }}">{{ project.key }}-{{ child.number }}</a></td>
-            <td>{{ child.type | label }}</td>
+            <td>{{ type_chip(child.type) }}</td>
             <td>{{ child.title }}</td>
             <td>{{ child.status | label }}</td>
           </tr>
