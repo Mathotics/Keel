@@ -883,9 +883,20 @@ def resume_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _schedule_state(session, series_id, SeriesState.ACTIVE)
 
 
-@router.post("/schedules/{series_id}/stop")
-def stop_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
-    return _schedule_state(session, series_id, SeriesState.STOPPED)
+@router.post("/schedules/{series_id}/delete")
+def delete_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
+    series = series_service.get_series(session, series_id)
+    project = project_service.get_project(session, series.project_id)
+    listing = f"/projects/{project.key}/schedules"
+    try:
+        series_service.delete_series(session, series_id)
+    except DomainError as exc:
+        session.rollback()
+        return _back(
+            f"/projects/{project.key}/schedules/{series.id}",
+            exc.message,
+        )
+    return _back(listing, notice="Schedule deleted. Existing issues remain.")
 
 
 @router.post("/issues/{issue_id}/repeat")

@@ -107,6 +107,8 @@ Indexes and constraints:
 | `due_at` | TIMESTAMP | nullable |
 | `series_id` | INTEGER | nullable, references `series(id)` `ON DELETE SET NULL` |
 | `occurrence_on` | DATE | nullable |
+| `former_series_title` | TEXT | nullable |
+| `former_series_cadence` | TEXT | nullable |
 | `created_at` | TIMESTAMP | not null |
 | `updated_at` | TIMESTAMP | not null |
 

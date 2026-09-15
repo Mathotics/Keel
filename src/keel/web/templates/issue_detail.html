@@ -160,6 +160,16 @@
         </p>
       </section>
       {% else %}
+      {% if issue.former_series_title %}
+      <section class="keel-repeat">
+        <p class="keel-lede">
+          This issue was
+          {% if issue.occurrence_on %}occurrence {{ issue.occurrence_on }} of{% else %}part of{% endif %}
+          {{ issue.former_series_title }}
+          ({{ issue.former_series_cadence }}). The recipe is gone.
+        </p>
+      </section>
+      {% endif %}
       <p class="keel-actions keel-repeat">
         <a class="keel-button" href="/issues/{{ issue_key }}?repeat=1" data-keel-overlay-open>Make this repeating</a>
       </p>

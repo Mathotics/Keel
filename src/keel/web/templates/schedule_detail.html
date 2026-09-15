@@ -22,16 +22,13 @@
           <button class="keel-primary" type="submit">Resume</button>
         </form>
         {% endif %}
-        {% if series.state.value != "stopped" %}
-        <form class="keel-form keel-form--inline" method="post" action="/web/schedules/{{ series.id }}/stop">
-          <button type="submit">Stop</button>
+        <form class="keel-form keel-form--inline keel-form--danger" method="post"
+              action="/web/schedules/{{ series.id }}/delete"
+              onsubmit="return confirm('Delete this schedule? Existing issues remain. This cannot be undone.');">
+          <button type="submit">Delete</button>
         </form>
-        {% endif %}
       </p>
 
-      {% if series.state.value == "stopped" %}
-      <p class="keel-lede">This series is stopped. Existing issues remain; the recipe cannot change.</p>
-      {% else %}
       <div class="keel-panel">
         <h2>Recipe</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/schedules/{{ series.id }}/update">
@@ -41,5 +38,4 @@
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Save recipe</button></p>
         </form>
       </div>
-      {% endif %}
 {% endblock %}
