@@ -104,7 +104,8 @@ Indexes and constraints:
 | `assignee_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |
 | `estimate_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `remaining_minutes` | INTEGER | nullable, `CHECK` not negative |
-| `due_at` | TIMESTAMP | nullable |
+| `start_at` | TIMESTAMP | nullable |
+| `due_at` | TIMESTAMP | nullable, `CHECK` null or not before `start_at` |
 | `series_id` | INTEGER | nullable, references `series(id)` `ON DELETE SET NULL` |
 | `occurrence_on` | DATE | nullable |
 | `former_series_title` | TEXT | nullable |
@@ -133,8 +134,12 @@ Indexes and constraints:
 | `type` | TEXT | not null, `CHECK` in (`epic`, `story`, `subtask`) |
 | `state` | TEXT | not null, default `'active'`, `CHECK` in (`active`, `paused`, `stopped`) |
 | `spawn_mode` | TEXT | not null, `CHECK` in (`calendar`, `after_closed`) |
-| `sprint_basis` | TEXT | not null, `CHECK` in (`due_on`, `created_on`) |
+| `sprint_basis` | TEXT | not null, `CHECK` in (`due_on`, `start_on`, `created_on`) |
 | `look_ahead_n` | INTEGER | not null, default 1, `CHECK >= 1` |
+| `start_offset_days` | INTEGER | not null, default 0 |
+| `start_minute_of_day` | INTEGER | not null, default 0, `CHECK` 0–1439 |
+| `due_offset_days` | INTEGER | not null, default 0 |
+| `due_minute_of_day` | INTEGER | not null, default 0, `CHECK` 0–1439, and start offset+time must not be after due |
 | `freq` | TEXT | not null, `CHECK` in (`daily`, `weekly`, `monthly`, `yearly`) |
 | `interval` | INTEGER | not null, default 1, `CHECK >= 1` |
 | `weekdays` | TEXT | not null, default `''` |

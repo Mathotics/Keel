@@ -88,6 +88,7 @@ def create_issue(
         sprint_id=payload.sprint_id,
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
+        start_at=payload.start_at,
         due_at=payload.due_at,
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
@@ -134,6 +135,7 @@ def update_issue(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),
         due_at=payload.due_at if "due_at" in supplied else issue_service.UNSET,
+        start_at=payload.start_at if "start_at" in supplied else issue_service.UNSET,
         estimate_minutes=(
             payload.estimate_minutes
             if "estimate_minutes" in supplied

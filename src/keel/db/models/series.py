@@ -58,6 +58,19 @@ class Series(Base):
             "occurrence_count is null or occurrence_count >= 1",
             name="ck_series_count_positive",
         ),
+        CheckConstraint(
+            "start_minute_of_day >= 0 and start_minute_of_day < 1440",
+            name="ck_series_start_minute_of_day",
+        ),
+        CheckConstraint(
+            "due_minute_of_day >= 0 and due_minute_of_day < 1440",
+            name="ck_series_due_minute_of_day",
+        ),
+        CheckConstraint(
+            "(start_offset_days * 1440 + start_minute_of_day) "
+            "<= (due_offset_days * 1440 + due_minute_of_day)",
+            name="ck_series_start_not_after_due",
+        ),
         Index("ix_series_project_id", "project_id"),
     )
 
@@ -80,6 +93,26 @@ class Series(Base):
         _enum_column(SeriesSprintBasis, "ck_series_sprint_basis"),
     )
     look_ahead_n: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    start_offset_days: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+    )
+    start_minute_of_day: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+    )
+    due_offset_days: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+    )
+    due_minute_of_day: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        server_default="0",
+    )
     freq: Mapped[RecurrenceFreq] = mapped_column(
         _enum_column(RecurrenceFreq, "ck_series_freq"),
     )

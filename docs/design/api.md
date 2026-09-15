@@ -10,7 +10,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
-* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
+* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `start_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 
 ## Users
@@ -60,6 +60,7 @@ Create body:
   "sprint_id": null,
   "assignee_id": 2,
   "estimate_minutes": 180,
+  "start_at": "2026-09-14T09:00:00Z",
   "due_at": "2026-09-15T17:00:00Z"
 }
 ```
@@ -82,6 +83,7 @@ Response body, with the fields the interface needs added:
   "assignee_id": 2,
   "estimate_minutes": 180,
   "remaining_minutes": 180,
+  "start_at": "2026-09-14T09:00:00Z",
   "due_at": "2026-09-15T17:00:00Z",
   "rollup": {
     "estimate_minutes": 420,
@@ -143,7 +145,7 @@ Completion returns what moved:
 | `POST` | `/api/v1/series/{series_id}/resume` | Resume spawning |
 | `DELETE` | `/api/v1/series/{series_id}` | Delete the recipe; existing issues stay |
 
-Issues spawned from a series include `series_id` and `occurrence_on` ([ADR 021](../adr/ADR-021.md)). After the series is deleted those become `null` and the issue keeps `former_series_title` and `former_series_cadence` ([ADR 028](../adr/ADR-028.md)).
+Issues spawned from a series include `series_id` and `occurrence_on`. Each series stores start and due as day offsets plus minutes-of-day from the occurrence date, and `sprint_basis` may be `due_on`, `start_on`, or `created_on` ([ADR 021](../adr/ADR-021.md), [ADR 029](../adr/ADR-029.md)). After the series is deleted those become `null` and the issue keeps `former_series_title` and `former_series_cadence` ([ADR 028](../adr/ADR-028.md)).
 
 ## Dependencies
 

@@ -16,6 +16,8 @@
             <th>Title</th>
             <th>Status</th>
             <th>Assignee</th>
+            <th>Start</th>
+            <th>Due</th>
             <th>Sprint</th>
           </tr>
         </thead>
@@ -32,6 +34,8 @@
             <td>{{ item.issue.title }}</td>
             <td>{{ item.issue.status | label }}</td>
             <td>{% if item.issue.assignee_id %}{{ names.get(item.issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
+            <td>{% if item.issue.start_at %}{{ item.issue.start_at | when }}{% endif %}</td>
+            <td>{% if item.issue.due_at %}{{ item.issue.due_at | when }}{% endif %}</td>
             <td>
               {% if planned %}
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ item.issue.id }}/sprint" data-keel-autosubmit>
@@ -51,7 +55,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="6">Nothing in the backlog.</td></tr>
+          <tr><td class="keel-empty" colspan="8">Nothing in the backlog.</td></tr>
           {% endfor %}
         </tbody>
       </table>

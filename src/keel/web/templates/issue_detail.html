@@ -113,12 +113,24 @@
           </dd>
         </div>
         <div class="keel-fact">
-          <dt>Due date</dt>
+          <dt>Dates</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/due" data-keel-autosubmit>
-              <label class="keel-visually-hidden" for="issue-due">Due date</label>
-              <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local }}"/>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}>
+              <label for="issue-start">Start date</label>
+              <input id="issue-start" name="start_at" type="datetime-local" value="{{ issue.start_at | datetime_local }}" data-keel-range="start"/>
+              <label for="issue-due">Due date</label>
+              <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local }}" data-keel-range="end"/>
+              {% if series %}
+              <label for="issue-dates-scope">Apply to</label>
+              <select id="issue-dates-scope" name="scope" required>
+                {% for value in edit_scopes %}
+                <option value="{{ value.value }}">{{ value | label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Save</button>
+              {% else %}
               <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              {% endif %}
             </form>
           </dd>
         </div>
