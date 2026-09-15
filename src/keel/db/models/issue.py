@@ -99,6 +99,11 @@ class Issue(Base):
         default=None,
     )
     occurrence_on: Mapped[date | None] = mapped_column(Date, default=None)
+    former_series_title: Mapped[str | None] = mapped_column(String(300), default=None)
+    former_series_cadence: Mapped[str | None] = mapped_column(
+        String(300),
+        default=None,
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,

@@ -82,6 +82,8 @@ class IssueRead(BaseModel):
     due_at: datetime | None
     series_id: int | None = None
     occurrence_on: date | None = None
+    former_series_title: str | None = None
+    former_series_cadence: str | None = None
     unresolved_blockers: int
     rollup: RollupRead | None = None
     created_at: datetime
@@ -114,6 +116,8 @@ class IssueRead(BaseModel):
             due_at=issue.due_at,
             series_id=issue.series_id,
             occurrence_on=issue.occurrence_on,
+            former_series_title=issue.former_series_title,
+            former_series_cadence=issue.former_series_cadence,
             unresolved_blockers=unresolved_blockers,
             rollup=None if rollup is None else RollupRead.of(rollup),
             created_at=issue.created_at,

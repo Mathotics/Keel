@@ -187,3 +187,12 @@ def test_like_wildcards_are_literal(session: Session) -> None:
     outcome = find_service.find(session, "%")
     assert isinstance(outcome, FindResults)
     assert outcome.empty
+
+
+def test_find_does_not_search_issue_history(session: Session) -> None:
+    owner = project(session)
+    issue_id = story(session, owner, title="Quiet")
+    issue_service.update_issue(session, issue_id, remaining_minutes=90)
+    outcome = find_service.find(session, "1h 30m")
+    assert isinstance(outcome, FindResults)
+    assert outcome.empty

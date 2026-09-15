@@ -124,8 +124,6 @@ def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
     )
 
 
-@router.post("/series/{series_id}/stop", response_model=SeriesRead)
-def stop_series(series_id: int, session: SessionDep) -> SeriesRead:
-    return SeriesRead.of(
-        series_service.set_state(session, series_id, SeriesState.STOPPED),
-    )
+@router.delete("/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_series(series_id: int, session: SessionDep) -> None:
+    series_service.delete_series(session, series_id)

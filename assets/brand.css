@@ -5,6 +5,9 @@
   --keel-blue-deep: #0062ab;
   --keel-white: #ffffff;
   --keel-sheet: #ebf0f3;
+  --keel-type-epic: #0068b0;
+  --keel-type-story: #0f7a73;
+  --keel-type-subtask: #b86a00;
   /* One height and one text size for every control in the top bar, so centred
      boxes also share an edge and a baseline. */
   --keel-control-height: 1.75rem;
@@ -112,6 +115,45 @@ body {
   align-items: center;
   gap: 0.75rem;
   margin-left: auto;
+}
+
+/* Native disclosure so Help works without JavaScript. The open panel overlays
+   page content instead of stretching the sticky bar. */
+.keel-help {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.keel-help > summary {
+  list-style: none;
+}
+
+.keel-help > summary::marker {
+  content: "";
+}
+
+.keel-help > summary::-webkit-details-marker {
+  display: none;
+}
+
+.keel-help__menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  min-width: 100%;
+  padding: 0.35rem;
+  background: var(--keel-blue);
+  border: 1px solid var(--keel-white);
+  border-radius: 0.25rem;
+}
+
+.keel-help__menu a {
+  white-space: nowrap;
 }
 
 /* Every interactive thing in the top bar wears this, so a link, a button and a
@@ -252,6 +294,117 @@ body {
 
 .keel-panel .keel-lede {
   margin-top: 0;
+}
+
+.keel-repeat {
+  max-width: 48rem;
+  margin: 0 0 1.15rem;
+}
+
+.keel-repeat .keel-lede {
+  margin-top: 0;
+  margin-bottom: 0.6rem;
+}
+
+.keel-main a.keel-button,
+.keel-button {
+  display: inline-flex;
+  align-items: center;
+  height: var(--keel-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+  text-decoration: none;
+}
+
+.keel-main a.keel-button:hover,
+.keel-main a.keel-button:focus-visible,
+.keel-button:hover {
+  color: var(--keel-blue-deep);
+  background: var(--keel-sheet);
+}
+
+.keel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 4.25rem 1rem 1rem;
+  overflow: auto;
+  border: none;
+  background: color-mix(in srgb, var(--keel-blue-deep) 40%, transparent);
+  color: inherit;
+}
+
+.keel-overlay[open] {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.keel-overlay::backdrop {
+  background: color-mix(in srgb, var(--keel-blue-deep) 40%, transparent);
+}
+
+.keel-overlay__scrim {
+  position: absolute;
+  inset: 0;
+}
+
+.keel-overlay__sheet {
+  position: relative;
+  width: 100%;
+  max-width: 48rem;
+  max-height: 90vh;
+  margin: 0 auto;
+  padding: 1rem 1.15rem 1.15rem;
+  overflow: auto;
+  border-radius: 0.4rem;
+  background: var(--keel-white);
+}
+
+.keel-overlay__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.keel-overlay__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-overlay .keel-form--stacked {
+  max-width: none;
+}
+
+.keel-overlay .keel-form--stacked .keel-form-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+[data-keel-overlay-js] .keel-overlay {
+  background: transparent;
+}
+
+[data-keel-overlay-js] .keel-overlay__scrim {
+  display: none;
 }
 
 .keel-note {
@@ -896,6 +1049,28 @@ body {
   border-color: var(--keel-blue);
 }
 
+.keel-card[data-type="epic"] {
+  --keel-type: var(--keel-type-epic);
+}
+
+.keel-card[data-type="story"] {
+  --keel-type: var(--keel-type-story);
+}
+
+.keel-card[data-type="subtask"] {
+  --keel-type: var(--keel-type-subtask);
+}
+
+.keel-card[data-type] {
+  background: color-mix(in srgb, var(--keel-type) 12%, var(--keel-white));
+  border-color: color-mix(in srgb, var(--keel-type) 40%, var(--keel-sheet));
+}
+
+.keel-card[data-type]:hover,
+.keel-card[data-type]:focus-within {
+  border-color: var(--keel-type);
+}
+
 .keel-card.is-dragging {
   opacity: 0.5;
 }
@@ -903,7 +1078,8 @@ body {
 .keel-card__key,
 .keel-card__title,
 .keel-card__meta,
-.keel-card__estimate {
+.keel-card__estimate,
+.keel-card__parent {
   margin: 0 0 0.3rem;
 }
 
@@ -947,6 +1123,21 @@ body {
   opacity: 0.8;
 }
 
+.keel-card__parent {
+  position: relative;
+  z-index: 1;
+  font-size: 0.75rem;
+}
+
+.keel-card__parent-link {
+  text-decoration: none;
+}
+
+.keel-card__parent-link:hover,
+.keel-card__parent-link:focus-visible {
+  text-decoration: underline;
+}
+
 .keel-rollup {
   margin: 0.35rem 0 0;
   font-size: 0.875rem;
@@ -969,6 +1160,13 @@ body {
   opacity: 0.8;
 }
 
+.keel-history__line {
+  margin: 0 0 0.35rem;
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .keel-card__blockers {
   margin: 0 0 0.35rem;
 }
@@ -982,6 +1180,37 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--keel-blue-deep);
+}
+
+.keel-type[data-type="epic"],
+.keel-type-select[data-type="epic"] {
+  --keel-type: var(--keel-type-epic);
+}
+
+.keel-type[data-type="story"],
+.keel-type-select[data-type="story"] {
+  --keel-type: var(--keel-type-story);
+}
+
+.keel-type[data-type="subtask"],
+.keel-type-select[data-type="subtask"] {
+  --keel-type: var(--keel-type-subtask);
+}
+
+.keel-type[data-type] {
+  color: var(--keel-type);
+}
+
+.keel-chip.keel-type[data-type] {
+  border-color: var(--keel-type);
+  background: color-mix(in srgb, var(--keel-type) 18%, var(--keel-white));
+}
+
+.keel-form select.keel-type-select[data-type],
+select.keel-type-select[data-type] {
+  color: var(--keel-type);
+  border-color: var(--keel-type);
+  background: color-mix(in srgb, var(--keel-type) 12%, var(--keel-white));
 }
 
 .keel-card__fallback {
@@ -1066,6 +1295,24 @@ body {
 
   .keel-panel {
     max-width: none;
+  }
+
+  .keel-repeat {
+    max-width: none;
+  }
+
+  .keel-overlay {
+    padding: 0.5rem;
+  }
+
+  .keel-overlay[open] {
+    align-items: stretch;
+  }
+
+  .keel-overlay__sheet {
+    max-width: none;
+    max-height: none;
+    min-height: calc(100dvh - 1rem);
   }
 
   .keel-form {

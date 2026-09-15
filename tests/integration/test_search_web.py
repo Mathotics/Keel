@@ -53,6 +53,8 @@ def test_title_matches_render_a_results_page(client: TestClient) -> None:
     assert page.status_code == 200
     assert "KEEL-1" in page.text
     assert 'href="/issues/KEEL-1"' in page.text
+    assert "<th>Type</th>" in page.text
+    assert 'data-type="story"' in page.text
     assert "Matches for “onboarding”" in page.text
 
 

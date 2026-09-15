@@ -40,19 +40,42 @@ HORIZON_DAYS = 366 * 2
 
 
 def get_series(session: Session, series_id: int) -> Series:
-    series = session.get(Series, series_id)
-    if series is None:
+    series = _require_series(session, series_id)
+    if series.state is SeriesState.STOPPED:
+        _retire_series(session, series)
         raise NotFoundError(f"No series with id {series_id}.")
     return series
 
 
 def list_series(session: Session, project_id: int) -> Sequence[Series]:
     project_service.get_project(session, project_id)
+    _retire_stopped(session, project_id)
     return session.scalars(
         select(Series)
-        .where(Series.project_id == project_id)
+        .where(
+            Series.project_id == project_id,
+            Series.state != SeriesState.STOPPED,
+        )
         .order_by(Series.title, Series.id),
     ).all()
+
+
+def attached_series(session: Session, issue: Issue) -> Series | None:
+    """Live recipe for an issue, retiring leftover Stopped series first."""
+    if issue.series_id is None:
+        return None
+    series = session.get(Series, issue.series_id)
+    if series is None:
+        return None
+    if series.state is SeriesState.STOPPED:
+        _retire_series(session, series)
+        session.refresh(issue)
+        return None
+    return series
+
+
+def delete_series(session: Session, series_id: int) -> None:
+    _retire_series(session, _require_series(session, series_id))
 
 
 def cadence_summary(series: Series) -> str:
@@ -165,8 +188,6 @@ def update_series(
     today: date | None = None,
 ) -> Series:
     series = get_series(session, series_id)
-    if series.state is SeriesState.STOPPED:
-        raise SeriesStoppedError("A stopped series cannot change its recipe.")
     if title is not None:
         series.title = _clean_title(title)
     if description is not None:
@@ -223,9 +244,9 @@ def set_state(
     state: SeriesState,
     today: date | None = None,
 ) -> Series:
+    if state is SeriesState.STOPPED:
+        raise SeriesStoppedError("A series is ended by deleting it.")
     series = get_series(session, series_id)
-    if series.state is SeriesState.STOPPED and state is not SeriesState.STOPPED:
-        raise SeriesStoppedError("A stopped series cannot be resumed.")
     series.state = state
     session.flush()
     if state is SeriesState.ACTIVE:
@@ -262,6 +283,7 @@ def apply_occurrence_edit(
     start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
     today: date | None = None,
+    actor_name: str | None = None,
 ) -> Issue:
     issue = issue_service.get_issue(session, issue_id)
     if issue.series_id is None:
@@ -278,24 +300,9 @@ def apply_occurrence_edit(
             parent_id=parent_id,
             start_at=start_at,
             due_at=due_at,
+            actor_name=actor_name,
         )
         return issue
-    if series.state is SeriesState.STOPPED and _touches_recipe(
-        spawn_mode,
-        sprint_basis,
-        look_ahead_n,
-        freq,
-        interval,
-        weekdays,
-        starts_on,
-        start_offset_days,
-        start_minute_of_day,
-        due_offset_days,
-        due_minute_of_day,
-        start_at,
-        due_at,
-    ):
-        raise SeriesStoppedError("A stopped series cannot change its recipe.")
     if start_at is not UNSET or due_at is not UNSET:
         start_offset_days, start_minute_of_day, due_offset_days, due_minute_of_day = (
             _offsets_from_datetimes(issue, start_at, due_at)
@@ -343,6 +350,7 @@ def apply_occurrence_edit(
             type=type,
             assignee_id=assignee_id,
             parent_id=parent_id,
+            actor_name=actor_name,
         )
     return issue
 
@@ -371,6 +379,7 @@ def on_occurrence_closed(
 
 def advance_all(session: Session, today: date | None = None) -> None:
     today = today or date.today()
+    _retire_stopped(session)
     rows = session.scalars(
         select(Series).where(Series.state == SeriesState.ACTIVE),
     ).all()
@@ -505,6 +514,16 @@ def _claim_previews(
             continue
         sprint = _overlapping(windows, _claim_day(series, issue))
         if sprint is not None:
+            from keel.services import history as history_service
+
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_SPRINT,
+                from_value=history_service.sprint_label(session, issue.sprint_id),
+                to_value=sprint.name,
+                actor_name=history_service.SYSTEM_ACTOR,
+            )
             issue.sprint_id = sprint.id
     session.flush()
 
@@ -596,6 +615,8 @@ def _attach_seed(
         issue.start_at = start_at
     if issue.due_at is None:
         issue.due_at = due_at
+    issue.former_series_title = None
+    issue.former_series_cadence = None
     session.flush()
 
 
@@ -610,6 +631,7 @@ def _update_one_issue(
     parent_id: int | None | object,
     start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
+    actor_name: str | None = None,
 ) -> None:
     kwargs: dict[str, object] = {}
     if title is not None:
@@ -627,7 +649,12 @@ def _update_one_issue(
     if due_at is not UNSET:
         kwargs["due_at"] = due_at
     if kwargs:
-        issue_service.update_issue(session, issue.id, **kwargs)  # type: ignore[arg-type]
+        issue_service.update_issue(
+            session,
+            issue.id,
+            actor_name=actor_name,
+            **kwargs,  # type: ignore[arg-type]
+        )
 
 
 def occurrence_window(series: Series, occurrence_on: date) -> tuple[datetime, datetime]:
@@ -730,8 +757,29 @@ def _offsets_from_datetimes(
     return start_days, start_minutes, due_days, due_minutes
 
 
-def _touches_recipe(*values: object) -> bool:
-    return any(value is not None and value is not UNSET for value in values)
+def _require_series(session: Session, series_id: int) -> Series:
+    series = session.get(Series, series_id)
+    if series is None:
+        raise NotFoundError(f"No series with id {series_id}.")
+    return series
+
+
+def _retire_stopped(session: Session, project_id: int | None = None) -> None:
+    query = select(Series).where(Series.state == SeriesState.STOPPED)
+    if project_id is not None:
+        query = query.where(Series.project_id == project_id)
+    for series in session.scalars(query).all():
+        _retire_series(session, series)
+
+
+def _retire_series(session: Session, series: Series) -> None:
+    summary = cadence_summary(series)
+    for issue in _copies(session, series.id):
+        issue.former_series_title = series.title
+        issue.former_series_cadence = summary
+        issue.series_id = None
+    session.delete(series)
+    session.flush()
 
 
 def _clean_title(title: str) -> str:

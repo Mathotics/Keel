@@ -22,6 +22,7 @@ erDiagram
   SPRINT ||--o{ ISSUE : "schedules"
   STATUS ||--o{ ISSUE : "classifies"
   ISSUE ||--o{ COMMENT : "carries"
+  ISSUE ||--o{ ISSUE_HISTORY : "records"
 
   BOARD ||--o{ BOARD_COLUMN : "orders"
   STATUS ||--o{ BOARD_COLUMN : "surfaced by"
@@ -52,9 +53,9 @@ The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtas
 * Type — one of *Epic*, *Story*, *Subtask*.
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
-* Optional start date/time; optional due date/time — when both are set, start must not be after due (see [ADR 023](../adr/ADR-023.md)).
+* Optional start date/time; optional due date/time — when both are set, start must not be after due (see [ADR 029](../adr/ADR-029.md)).
 * Estimated time; time remaining — time-based effort tracking for the issue.
-* Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; carries many comments; participates in many dependencies as source and as target.
+* Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; carries many comments; records many history lines; participates in many dependencies as source and as target.
 
 ### Status
 A state in the shared, fixed workflow. The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md). The concrete set is *To Do*, *In Progress*, *In Review*, *Blocked*, *Done*, and *Cancelled*. *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](../adr/ADR-020.md)). Because the set is fixed, it is realized as an enumeration in code rather than as stored records (see [ADR 013](../adr/ADR-013.md)).
@@ -84,8 +85,8 @@ A repeating recipe that spawns ordinary issues. Recurrence is not an issue type 
 * Cadence (daily / weekly / monthly / yearly, with interval and optional end).
 * Spawn mode — on the calendar, or after the previous copy is closed.
 * Sprint assignment basis — creation date, due date, or start date; look-ahead N when no sprint overlaps.
-* Start and due for each copy — a day offset plus clock time from the occurrence day ([ADR 023](../adr/ADR-023.md)).
-* State — *active*, *paused*, or *stopped*.
+* Start and due for each copy — a day offset plus clock time from the occurrence day ([ADR 029](../adr/ADR-029.md)).
+* State — *active* or *paused*. Delete removes the recipe; leftover *stopped* series are treated as deleted ([ADR 028](../adr/ADR-028.md)).
 * Relationships: belongs to one project; spawns many issue occurrences.
 
 ### Dependency
@@ -98,6 +99,11 @@ A note attached to an issue, capturing discussion and context over time.
 * Body; time written.
 * Relationships: belongs to one issue; authored by one user.
 
+### Issue history
+A reconstructive changelog of field changes on one issue ([ADR 025](../adr/ADR-025.md)). Not a product-wide audit log.
+* Who; when; field; previous value; new value.
+* Relationships: belongs to one issue.
+
 ## Backlog (a view, not an entity)
 
 The backlog is the list of a project's issues that have **no sprint assigned** and are **not closed**, ordered by when they were created, oldest first. It is derived from Issue attributes rather than stored as its own entity. This keeps a single source of truth for every issue regardless of whether it is being viewed on the board, in a sprint, or in the backlog — see [ADR 005](../adr/ADR-005.md).
@@ -106,7 +112,7 @@ The backlog is the list of a project's issues that have **no sprint assigned** a
 
 ## Persistence
 
-Every entity above must be **durably stored** so that projects, issues, sprints, boards, comments, and dependencies survive restarts. **How** persistence is realized was deliberately left open at the system level and is now decided in [ADR 007](../adr/ADR-007.md), with the concrete schema in the [data model](../design/data-model.md). This document specifies *that* entities persist, not *how*.
+Every entity above must be **durably stored** so that projects, issues, sprints, boards, comments, issue history, and dependencies survive restarts. **How** persistence is realized was deliberately left open at the system level and is now decided in [ADR 007](../adr/ADR-007.md), with the concrete schema in the [data model](../design/data-model.md). This document specifies *that* entities persist, not *how*.
 
 ## Related documents
 

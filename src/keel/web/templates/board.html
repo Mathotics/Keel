@@ -10,13 +10,16 @@
               <{{ heading }} class="keel-board__heading">{{ column.status | label }} <span class="keel-board__count" data-keel-count>{{ column.cards | length }}</span></{{ heading }}>
               <div class="keel-board__cards" data-keel-cards>
                 {% for card in column.cards %}
-                <article class="keel-card" data-issue-id="{{ card.issue.id }}">
+                <article class="keel-card" data-issue-id="{{ card.issue.id }}" data-type="{{ card.issue.type.value }}">
                   <p class="keel-card__key"><a class="keel-card__link" href="/issues/{{ card.key }}" draggable="false">{{ card.key }}</a></p>
                   <p class="keel-card__title">{{ card.issue.title }}</p>
                   <p class="keel-card__meta">
-                    <span class="keel-chip">{{ card.issue.type | label }}</span>
+                    <span class="keel-chip keel-type" data-type="{{ card.issue.type.value }}">{{ card.issue.type | label }}</span>
                     <span>{{ card.assignee_name or "Unassigned" }}</span>
                   </p>
+                  {% if card.parent_key %}
+                  <p class="keel-card__parent">Parent <a class="keel-card__parent-link" href="/issues/{{ card.parent_key }}" draggable="false">{{ card.parent_key }}</a></p>
+                  {% endif %}
                   {% if card.issue.estimate_minutes is not none %}
                   <p class="keel-card__estimate">{{ card.issue.estimate_minutes | duration }}</p>
                   {% endif %}
@@ -54,7 +57,7 @@
       <form class="keel-form keel-board__filter" method="get" action="/projects/{{ project.key }}/board" data-keel-autosubmit>
         <span>Show</span>
         {% for issue_type in issue_types %}
-        <label>
+        <label class="keel-type" data-type="{{ issue_type.value }}">
           <input type="checkbox" name="type" value="{{ issue_type.value }}"{% if not selected_types or issue_type in selected_types %} checked{% endif %}/>
           {{ issue_type | label }}
         </label>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}Find {{ results.query }}{% endblock %}
 {% block main %}
       <h1>Find</h1>
@@ -10,6 +11,7 @@
         <thead>
           <tr>
             <th>Key</th>
+            <th>Type</th>
             <th>Title</th>
             {% if not scoped %}<th>Project</th>{% endif %}
             <th></th>
@@ -19,12 +21,13 @@
           {% for hit in results.issues %}
           <tr>
             <td><a href="/issues/{{ hit.key }}">{{ hit.key }}</a></td>
+            <td>{{ type_chip(hit.type) }}</td>
             <td>{{ hit.title }}</td>
             {% if not scoped %}<td>{{ hit.project_key }}</td>{% endif %}
             <td>{% if hit.snippet %}<span class="keel-muted">{{ hit.snippet }}</span>{% endif %}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="{% if scoped %}3{% else %}4{% endif %}">None.</td></tr>
+          <tr><td class="keel-empty" colspan="{% if scoped %}4{% else %}5{% endif %}">None.</td></tr>
           {% endfor %}
         </tbody>
       </table>

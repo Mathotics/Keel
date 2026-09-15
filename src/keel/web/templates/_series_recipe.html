@@ -20,7 +20,7 @@
             {% if include_type|default(false) %}
             <p>
               <label for="{{ prefix }}-type">Type</label>
-              <select id="{{ prefix }}-type" name="type">
+              <select class="keel-type-select" id="{{ prefix }}-type" name="type" data-type="{{ (recipe.type if recipe else issue_types[0]).value }}">
                 {% for value in issue_types %}
                 <option value="{{ value.value }}"{% if recipe and recipe.type == value %} selected{% endif %}>{{ value | label }}</option>
                 {% endfor %}

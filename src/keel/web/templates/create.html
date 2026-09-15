@@ -38,7 +38,7 @@
             <div class="keel-fields">
               <p>
                 <label for="issue-type">Type</label>
-                <select id="issue-type" name="type">
+                <select class="keel-type-select" id="issue-type" name="type" data-type="{{ default_type.value }}">
                   {% for value in issue_types %}
                   <option value="{{ value }}"{% if value == default_type %} selected{% endif %}>{{ value | label }}</option>
                   {% endfor %}
