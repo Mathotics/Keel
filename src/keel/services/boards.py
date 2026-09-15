@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project, Sprint
@@ -25,6 +26,7 @@ class BoardCard:
     key: str
     assignee_name: str | None
     unresolved_blockers: int
+    parent_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -130,12 +132,14 @@ def project_board(
         session,
         [issue.id for issue in found],
     )
+    parent_keys = _parent_keys(session, project, found)
     cards = tuple(
         BoardCard(
             issue=issue,
             key=issue_service.issue_key(issue, project),
             assignee_name=(names.get(issue.assignee_id) if issue.assignee_id else None),
             unresolved_blockers=counts.get(issue.id, 0),
+            parent_key=parent_keys.get(issue.parent_id) if issue.parent_id else None,
         )
         for issue in found
     )
@@ -149,6 +153,18 @@ def project_board(
             unscheduled=unscheduled,
         ),
     )
+
+
+def _parent_keys(
+    session: Session,
+    project: Project,
+    issues: Sequence[Issue],
+) -> dict[int, str]:
+    parent_ids = {issue.parent_id for issue in issues if issue.parent_id is not None}
+    if not parent_ids:
+        return {}
+    parents = session.scalars(select(Issue).where(Issue.id.in_(parent_ids))).all()
+    return {parent.id: issue_service.issue_key(parent, project) for parent in parents}
 
 
 def _columns_from(cards: Sequence[BoardCard]) -> tuple[BoardColumn, ...]:

@@ -68,6 +68,7 @@ flowchart LR
 ## Board & workflow
 
 * Present a project's issues on a Kanban board.
+* Show a Story or Subtask's parent key on its board card when it has a parent, and color Epic, Story, and Subtask distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * Derive board columns from the shared workflow statuses.
 * Restrict the board to chosen issue types, to a chosen assignee, and to a chosen sprint.
 * Separate the board into a row of columns per sprint.
@@ -97,3 +98,4 @@ flowchart LR
 * [UI design](../design/ui.md)
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
+* [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)

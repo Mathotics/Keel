@@ -25,6 +25,7 @@ def _issue(
     status: IssueStatus = IssueStatus.TODO,
     assignee_id: int | None = None,
     sprint_id: int | None = None,
+    parent_id: int | None = None,
 ) -> None:
     issue = issue_service.create_issue(
         session,
@@ -33,6 +34,7 @@ def _issue(
         title=title,
         assignee_id=assignee_id,
         sprint_id=sprint_id,
+        parent_id=parent_id,
     )
     if status is not IssueStatus.TODO:
         issue_service.update_issue(session, issue.id, status=status)
@@ -256,7 +258,105 @@ def test_cards_carry_the_readable_key_and_assignee(
 
     assert cards[0].key == "KEEL-1"
     assert cards[0].assignee_name == "Ada"
+    assert cards[0].parent_key is None
     assert cards[1].assignee_name is None
+    assert cards[1].parent_key is None
+
+
+def test_cards_carry_a_parent_key_when_the_issue_has_a_parent(
+    session: Session,
+    project: Project,
+) -> None:
+    epic = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.EPIC,
+        title="Epic",
+    )
+    story = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Story",
+        parent_id=epic.id,
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.SUBTASK,
+        title="Subtask",
+        parent_id=story.id,
+    )
+
+    cards = {
+        card.issue.title: card
+        for card in board_service.project_board(session, project.id).columns[0].cards
+    }
+
+    assert cards["Epic"].parent_key is None
+    assert cards["Story"].parent_key == "KEEL-1"
+    assert cards["Subtask"].parent_key == "KEEL-2"
+
+
+def test_a_type_filter_still_resolves_a_hidden_parent_key(
+    session: Session,
+    project: Project,
+) -> None:
+    epic = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.EPIC,
+        title="Epic",
+    )
+    _issue(session, project, "Story", parent_id=epic.id)
+
+    board = board_service.project_board(session, project.id, types=[IssueType.STORY])
+    cards = [card for column in board.columns for card in column.cards]
+
+    assert [card.issue.title for card in cards] == ["Story"]
+    assert cards[0].parent_key == "KEEL-1"
+
+
+def test_an_assignee_filter_still_resolves_an_assigned_parent(
+    session: Session,
+    project: Project,
+) -> None:
+    ada = user_service.create_user(session, "Ada")
+    epic = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.EPIC,
+        title="Epic",
+        assignee_id=ada.id,
+    )
+    _issue(session, project, "Story", parent_id=epic.id)
+
+    board = board_service.project_board(session, project.id, unassigned=True)
+    cards = [card for column in board.columns for card in column.cards]
+
+    assert [card.issue.title for card in cards] == ["Story"]
+    assert cards[0].parent_key == "KEEL-1"
+
+
+def test_a_sprint_filter_still_resolves_a_parent_in_another_sprint(
+    session: Session,
+    project: Project,
+) -> None:
+    sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    epic = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.EPIC,
+        title="Epic",
+        sprint_id=sprint.id,
+    )
+    _issue(session, project, "Story", parent_id=epic.id)
+
+    board = board_service.project_board(session, project.id, unscheduled=True)
+    cards = [card for column in board.columns for card in column.cards]
+
+    assert [card.issue.title for card in cards] == ["Story"]
+    assert cards[0].parent_key == "KEEL-1"
 
 
 def test_cards_carry_unresolved_blocker_counts(
