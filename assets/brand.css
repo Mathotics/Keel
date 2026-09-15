@@ -5,6 +5,9 @@
   --keel-blue-deep: #0062ab;
   --keel-white: #ffffff;
   --keel-sheet: #ebf0f3;
+  --keel-type-epic: #0068b0;
+  --keel-type-story: #0f7a73;
+  --keel-type-subtask: #b86a00;
   /* One height and one text size for every control in the top bar, so centred
      boxes also share an edge and a baseline. */
   --keel-control-height: 1.75rem;
@@ -1046,6 +1049,28 @@ body {
   border-color: var(--keel-blue);
 }
 
+.keel-card[data-type="epic"] {
+  --keel-type: var(--keel-type-epic);
+}
+
+.keel-card[data-type="story"] {
+  --keel-type: var(--keel-type-story);
+}
+
+.keel-card[data-type="subtask"] {
+  --keel-type: var(--keel-type-subtask);
+}
+
+.keel-card[data-type] {
+  background: color-mix(in srgb, var(--keel-type) 12%, var(--keel-white));
+  border-color: color-mix(in srgb, var(--keel-type) 40%, var(--keel-sheet));
+}
+
+.keel-card[data-type]:hover,
+.keel-card[data-type]:focus-within {
+  border-color: var(--keel-type);
+}
+
 .keel-card.is-dragging {
   opacity: 0.5;
 }
@@ -1053,7 +1078,8 @@ body {
 .keel-card__key,
 .keel-card__title,
 .keel-card__meta,
-.keel-card__estimate {
+.keel-card__estimate,
+.keel-card__parent {
   margin: 0 0 0.3rem;
 }
 
@@ -1095,6 +1121,21 @@ body {
 .keel-card__estimate {
   font-size: 0.75rem;
   opacity: 0.8;
+}
+
+.keel-card__parent {
+  position: relative;
+  z-index: 1;
+  font-size: 0.75rem;
+}
+
+.keel-card__parent-link {
+  text-decoration: none;
+}
+
+.keel-card__parent-link:hover,
+.keel-card__parent-link:focus-visible {
+  text-decoration: underline;
 }
 
 .keel-rollup {
@@ -1139,6 +1180,37 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--keel-blue-deep);
+}
+
+.keel-type[data-type="epic"],
+.keel-type-select[data-type="epic"] {
+  --keel-type: var(--keel-type-epic);
+}
+
+.keel-type[data-type="story"],
+.keel-type-select[data-type="story"] {
+  --keel-type: var(--keel-type-story);
+}
+
+.keel-type[data-type="subtask"],
+.keel-type-select[data-type="subtask"] {
+  --keel-type: var(--keel-type-subtask);
+}
+
+.keel-type[data-type] {
+  color: var(--keel-type);
+}
+
+.keel-chip.keel-type[data-type] {
+  border-color: var(--keel-type);
+  background: color-mix(in srgb, var(--keel-type) 18%, var(--keel-white));
+}
+
+.keel-form select.keel-type-select[data-type],
+select.keel-type-select[data-type] {
+  color: var(--keel-type);
+  border-color: var(--keel-type);
+  background: color-mix(in srgb, var(--keel-type) 12%, var(--keel-white));
 }
 
 .keel-card__fallback {

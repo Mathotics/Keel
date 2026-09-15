@@ -60,6 +60,8 @@ def test_home_lists_assigned_work_and_hides_unassigned(
     assert "Assigned to me" in page.text
     assert "KEEL-1" in page.text
     assert "Mine" in page.text
+    assert 'data-type="story"' in page.text
+    assert "keel-chip keel-type" in page.text
     assert "Unowned" not in page.text
     assert "Nothing assigned to you right now." not in page.text
     assert "<h2>Blocked</h2>" not in page.text
