@@ -19,6 +19,7 @@
             <th>Type</th>
             <th>Title</th>
             <th>Project</th>
+            <th>Start</th>
             {% if extra == "due" %}<th>Due</th>{% endif %}
             {% if extra == "sprint" %}<th>Sprint</th>{% endif %}
             {% if extra == "occurrence" %}<th>Occurrence</th>{% endif %}
@@ -37,6 +38,7 @@
             <td>{{ item.issue.type | label }}</td>
             <td>{{ item.issue.title }}</td>
             <td><a href="/projects/{{ item.project.key }}">{{ item.project.key }}</a></td>
+            <td>{% if item.issue.start_at %}{{ item.issue.start_at | when }}{% endif %}</td>
             {% if extra == "due" %}<td>{{ item.issue.due_at | when }}</td>{% endif %}
             {% if extra == "sprint" %}<td>{{ item.sprint_name or "" }}</td>{% endif %}
             {% if extra == "occurrence" %}<td>{{ item.issue.occurrence_on | day }}</td>{% endif %}
@@ -69,6 +71,12 @@
       <section>
         <h2>Due or overdue</h2>
         {{ inbox_rows("due", inbox.due, "due") }}
+      </section>
+      {% endif %}
+      {% if inbox.starting %}
+      <section>
+        <h2>Starting or started</h2>
+        {{ inbox_rows("starting", inbox.starting, none) }}
       </section>
       {% endif %}
       {% if inbox.blocked %}

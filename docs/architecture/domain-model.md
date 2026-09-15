@@ -52,6 +52,7 @@ The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtas
 * Type — one of *Epic*, *Story*, *Subtask*.
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
+* Optional start date/time; optional due date/time — when both are set, start must not be after due (see [ADR 023](../adr/ADR-023.md)).
 * Estimated time; time remaining — time-based effort tracking for the issue.
 * Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; carries many comments; participates in many dependencies as source and as target.
 
@@ -82,7 +83,8 @@ A repeating recipe that spawns ordinary issues. Recurrence is not an issue type 
 * Title; default description; type; assignee; optional parent.
 * Cadence (daily / weekly / monthly / yearly, with interval and optional end).
 * Spawn mode — on the calendar, or after the previous copy is closed.
-* Sprint assignment basis — creation date or due date; look-ahead N when no sprint overlaps.
+* Sprint assignment basis — creation date, due date, or start date; look-ahead N when no sprint overlaps.
+* Start and due for each copy — a day offset plus clock time from the occurrence day ([ADR 023](../adr/ADR-023.md)).
 * State — *active*, *paused*, or *stopped*.
 * Relationships: belongs to one project; spawns many issue occurrences.
 

@@ -18,6 +18,7 @@ class IssueCreate(BaseModel):
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    start_at: datetime | None = None
     due_at: datetime | None = None
 
 
@@ -38,6 +39,7 @@ class IssueUpdate(BaseModel):
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    start_at: datetime | None = None
     due_at: datetime | None = None
 
 
@@ -76,6 +78,7 @@ class IssueRead(BaseModel):
     assignee_id: int | None
     estimate_minutes: int | None
     remaining_minutes: int | None
+    start_at: datetime | None
     due_at: datetime | None
     series_id: int | None = None
     occurrence_on: date | None = None
@@ -107,6 +110,7 @@ class IssueRead(BaseModel):
             assignee_id=issue.assignee_id,
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
+            start_at=issue.start_at,
             due_at=issue.due_at,
             series_id=issue.series_id,
             occurrence_on=issue.occurrence_on,

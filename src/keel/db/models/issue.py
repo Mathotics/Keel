@@ -43,6 +43,10 @@ class Issue(Base):
             "remaining_minutes is null or remaining_minutes >= 0",
             name="ck_issues_remaining_not_negative",
         ),
+        CheckConstraint(
+            "start_at is null or due_at is null or start_at <= due_at",
+            name="ck_issues_start_not_after_due",
+        ),
         Index("ix_issues_project_status", "project_id", "status"),
         Index("ix_issues_project_created", "project_id", "created_at"),
         Index("ix_issues_parent_id", "parent_id"),
@@ -88,6 +92,7 @@ class Issue(Base):
     )
     estimate_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
     remaining_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
+    start_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     due_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     series_id: Mapped[int | None] = mapped_column(
         ForeignKey("series.id", ondelete="SET NULL", use_alter=True),

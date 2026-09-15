@@ -19,6 +19,7 @@ from keel.domain.enums import (
 )
 from keel.domain.errors import DomainError, InvalidSprintCadenceError
 from keel.domain.hierarchy import child_type_of
+from keel.domain.schedule import parse_clock
 from keel.services import auto_sprint
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
@@ -207,6 +208,7 @@ def create_issue_from_page(
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
@@ -230,6 +232,7 @@ def create_issue_from_page(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
             assignee_id=_optional_id(assignee_id),
+            start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
@@ -252,6 +255,7 @@ def create_issue(
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     reporter_id: Annotated[str, Form()] = "",
+    start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
@@ -269,6 +273,7 @@ def create_issue(
             parent_id=_optional_id(parent_id),
             reporter_id=_optional_id(reporter_id),
             assignee_id=_optional_id(assignee_id),
+            start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
@@ -411,6 +416,40 @@ def update_issue_remaining(
             issue_id,
             remaining_minutes=parse_duration(remaining),
         )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/dates")
+def update_issue_dates(
+    session: SessionDep,
+    issue_id: int,
+    start_at: Annotated[str, Form()] = "",
+    due_at: Annotated[str, Form()] = "",
+    scope: Annotated[EditScope, Form()] = EditScope.THIS,
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    issue = issue_service.get_issue(session, issue_id)
+    parsed_start = issue_service.parse_start_at(start_at)
+    parsed_due = issue_service.parse_due_at(due_at)
+    try:
+        if issue.series_id is None:
+            issue_service.update_issue(
+                session,
+                issue_id,
+                start_at=parsed_start,
+                due_at=parsed_due,
+            )
+        else:
+            series_service.apply_occurrence_edit(
+                session,
+                issue_id,
+                scope,
+                start_at=parsed_start,
+                due_at=parsed_due,
+            )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -729,6 +768,10 @@ def create_schedule(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -756,6 +799,10 @@ def create_schedule(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
             reporter_id=(
@@ -785,6 +832,10 @@ def update_schedule(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -813,6 +864,10 @@ def update_schedule(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
         )
@@ -852,6 +907,10 @@ def make_issue_repeating(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -877,6 +936,10 @@ def make_issue_repeating(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
             parent_id=issue.parent_id,
             assignee_id=issue.assignee_id,
             reporter_id=(
@@ -907,6 +970,10 @@ def update_issue_series(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -931,6 +998,10 @@ def update_issue_series(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
         )
     except DomainError as exc:
         session.rollback()
@@ -992,6 +1063,18 @@ def _positive_int(raw: str, message: str) -> int:
     if not cleaned.isdigit() or int(cleaned) < 1:
         raise InvalidSeriesError(message)
     return int(cleaned)
+
+
+def _offset_days(raw: str) -> int:
+    cleaned = raw.strip()
+    if not cleaned:
+        return 0
+    try:
+        return int(cleaned)
+    except ValueError as exc:
+        from keel.domain.errors import InvalidSeriesError
+
+        raise InvalidSeriesError("Day offset could not be read.") from exc
 
 
 def _end_date(end_mode: str, raw: str) -> date | None:

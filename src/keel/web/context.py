@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from keel.db.models import User
 from keel.domain.duration import format_minutes
 from keel.domain.enums import label
+from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
 from keel.services.auto_sprint import get_session
@@ -38,6 +39,7 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["label"] = label
     templates.env.filters["when"] = format_when
     templates.env.filters["datetime_local"] = datetime_local
+    templates.env.filters["clock"] = format_clock
     templates.env.filters["day"] = format_day
     templates.env.filters["duration"] = format_duration
     templates.env.filters["markdown"] = render_markdown

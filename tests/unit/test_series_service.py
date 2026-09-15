@@ -497,3 +497,109 @@ def test_deleting_the_same_occurrence_twice_is_idempotent(
         session, series.id, occurrence, date(2026, 9, 14)
     )
     assert issue_service.list_issues(session, project.id) == []
+
+
+def test_spawned_copies_get_start_and_due_from_offsets(
+    session: Session,
+) -> None:
+    from datetime import datetime
+
+    project = _project(session)
+    series = _weekly(
+        session,
+        project,
+        start_offset_days=-1,
+        start_minute_of_day=9 * 60,
+        due_offset_days=0,
+        due_minute_of_day=17 * 60,
+        sprint_basis=SeriesSprintBasis.CREATED_ON,
+        today=date(2026, 9, 14),
+    )
+    copy = next(
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    )
+    assert copy.occurrence_on == date(2026, 9, 14)
+    assert copy.start_at == datetime(2026, 9, 13, 9, 0)
+    assert copy.due_at == datetime(2026, 9, 14, 17, 0)
+
+
+def test_start_sprint_basis_uses_the_start_calendar_date(
+    session: Session,
+) -> None:
+    project = _project(session)
+    sprint = sprint_service.create_sprint(
+        session,
+        project.id,
+        name="Early window",
+        starts_on=date(2026, 9, 12),
+        ends_on=date(2026, 9, 13),
+    )
+    sprint_service.start_sprint(session, sprint.id)
+    series = _weekly(
+        session,
+        project,
+        start_offset_days=-1,
+        start_minute_of_day=9 * 60,
+        due_offset_days=0,
+        due_minute_of_day=17 * 60,
+        sprint_basis=SeriesSprintBasis.START_ON,
+        look_ahead_n=1,
+        today=date(2026, 9, 12),
+    )
+    in_sprint = [
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id and issue.sprint_id == sprint.id
+    ]
+    assert len(in_sprint) == 1
+    assert in_sprint[0].occurrence_on == date(2026, 9, 14)
+    assert in_sprint[0].start_at is not None
+    assert in_sprint[0].start_at.date() == date(2026, 9, 13)
+
+
+def test_outlook_scopes_rewrite_open_copy_dates(
+    session: Session,
+) -> None:
+    from datetime import datetime
+
+    project = _project(session)
+    series = _weekly(session, project, look_ahead_n=2)
+    copies = sorted(
+        [
+            issue
+            for issue in issue_service.list_issues(session, project.id)
+            if issue.series_id == series.id
+        ],
+        key=lambda issue: issue.occurrence_on or date.min,
+    )
+    first, second = copies[0], copies[1]
+    series_service.apply_occurrence_edit(
+        session,
+        first.id,
+        EditScope.THIS,
+        start_at=datetime(2026, 9, 13, 8, 0),
+        due_at=datetime(2026, 9, 14, 18, 0),
+    )
+    session.refresh(second)
+    session.refresh(series)
+    assert first.start_at == datetime(2026, 9, 13, 8, 0)
+    assert series.start_offset_days == 0
+    assert second.start_at == datetime(2026, 9, 21, 0, 0)
+    series_service.apply_occurrence_edit(
+        session,
+        second.id,
+        EditScope.FUTURE,
+        start_at=datetime(2026, 9, 20, 9, 0),
+        due_at=datetime(2026, 9, 21, 17, 0),
+    )
+    session.refresh(series)
+    session.refresh(first)
+    session.refresh(second)
+    assert series.start_offset_days == -1
+    assert series.start_minute_of_day == 9 * 60
+    assert series.due_minute_of_day == 17 * 60
+    assert first.start_at == datetime(2026, 9, 13, 8, 0)
+    assert second.start_at == datetime(2026, 9, 20, 9, 0)
+    assert second.due_at == datetime(2026, 9, 21, 17, 0)

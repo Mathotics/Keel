@@ -32,6 +32,7 @@
             <th>Title</th>
             <th>Status</th>
             <th>Assignee</th>
+            <th>Start</th>
             <th>Due date</th>
             <th>Created on</th>
           </tr>
@@ -44,11 +45,12 @@
             <td>{{ issue.title }}</td>
             <td>{{ issue.status | label }}</td>
             <td>{% if issue.assignee_id %}{{ names.get(issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
+            <td>{% if issue.start_at %}{{ issue.start_at | when }}{% endif %}</td>
             <td>{{ issue.due_at | when }}</td>
             <td>{{ issue.created_at | when }}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="7">No issues yet.</td></tr>
+          <tr><td class="keel-empty" colspan="8">No issues yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

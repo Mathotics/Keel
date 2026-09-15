@@ -136,6 +136,46 @@ def test_due_is_today_or_earlier_by_calendar_date(session: Session) -> None:
     }
 
 
+def test_starting_is_today_or_earlier_by_calendar_date(session: Session) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    started = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Started",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 9, 12, 9, 0),
+    )
+    starts_today = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Starts today",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 9, 13, 23, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Tomorrow",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 9, 14, 8, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "No start",
+        assignee_id=ada.id,
+    )
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert [item.issue.id for item in inbox.starting] == [started.id, starts_today.id]
+
+
 def test_blocked_is_status_or_unresolved_blockers(session: Session) -> None:
     project = _project(session)
     ada = user_service.create_user(session, "Ada")

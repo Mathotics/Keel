@@ -98,8 +98,12 @@
             <legend>Dates and effort</legend>
             <div class="keel-fields">
               <p>
+                <label for="issue-start">Start date</label>
+                <input id="issue-start" name="start_at" type="datetime-local" data-keel-range="start"/>
+              </p>
+              <p>
                 <label for="issue-due">Due date</label>
-                <input id="issue-due" name="due_at" type="datetime-local"/>
+                <input id="issue-due" name="due_at" type="datetime-local" data-keel-range="end"/>
               </p>
               <p>
                 <label for="issue-estimate">Estimate</label>
