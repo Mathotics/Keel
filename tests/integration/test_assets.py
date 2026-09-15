@@ -6,6 +6,7 @@ ASSETS = (
     "/assets/js/userpicker.js",
     "/assets/js/nav.js",
     "/assets/js/board.js",
+    "/assets/js/overlay.js",
 )
 
 

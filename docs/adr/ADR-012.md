@@ -40,7 +40,7 @@ Four gaps must be closed before issues can be implemented. Which parent/child co
 - Moving an issue between projects, which would break the immutability of its key.
 - Reusing the numbers of deleted issues.
 - Soft deletion, archiving, and an undo mechanism.
-- Activity history, deferred by [v1 scope](../architecture/v1-scope.md).
+- A product-wide audit log, still deferred by [v1 scope](../architecture/v1-scope.md). Lightweight per-issue field history is [ADR 025](ADR-025.md).
 
 ### Deliverables
 
@@ -80,14 +80,14 @@ Four gaps must be closed before issues can be implemented. Which parent/child co
 ### Deletion
 
 * **Must** refuse to delete an issue that has children, reporting the code `issue.has_children`, so the user moves or deletes them first.
-* **Must** delete a childless issue together with its comments and every dependency link naming it as source or target.
-* **Must** delete a project together with its issues, sprints, board, comments, and dependency links, behind an explicit confirmation that names what will be removed.
+* **Must** delete a childless issue together with its comments, field history, and every dependency link naming it as source or target.
+* **Must** delete a project together with its issues, sprints, board, comments, field history, and dependency links, behind an explicit confirmation that names what will be removed.
 * **Must** refuse to delete a user who is still a reporter, an assignee, or a comment author, reporting the code `user.in_use`.
 * **Must Not** delete any record implicitly as a side effect of an unrelated operation.
 
 ## Consequences
 
-* **Good:** The hierarchy risk from [ADR 003](ADR-003.md) is closed with rules narrow enough to implement as a single validation function and test exhaustively. Readable keys make issues quotable in commit messages and conversation. Showing own and rolled-up effort side by side means no number is silently replaced. Refusing destructive deletes protects work in a tool with no undo and no activity history.
+* **Good:** The hierarchy risk from [ADR 003](ADR-003.md) is closed with rules narrow enough to implement as a single validation function and test exhaustively. Readable keys make issues quotable in commit messages and conversation. Showing own and rolled-up effort side by side means no number is silently replaced. Refusing destructive deletes protects work in a tool with no undo; [ADR 025](ADR-025.md) records field changes but does not restore them.
 * **Bad:** Optional parents at every level mean orphaned Stories and Subtasks are legal, so views must handle unparented issues everywhere rather than assuming a tree.
 * **Bad:** Per-project sequences require a counter on the project and a serialized increment, which is a small write contention point on a database that already serializes writes.
 * **Bad:** Refusing to delete an issue with children makes clearing out a large Epic tedious, since it must be emptied from the leaves upward.
@@ -140,10 +140,10 @@ Deletion policy:
 flowchart TD
   delIssue["Delete issue"] --> children{"Has children?"}
   children -->|yes| refuse["Refuse - issue.has_children"]
-  children -->|no| cascadeIssue["Delete with its comments and dependency links"]
+  children -->|no| cascadeIssue["Delete with its comments, field history, and dependency links"]
 
   delProject["Delete project"] --> confirm["Require explicit confirmation"]
-  confirm --> cascadeProject["Delete issues, sprints, board, comments, links"]
+  confirm --> cascadeProject["Delete issues, sprints, board, comments, history, links"]
 
   delUser["Delete user"] --> referenced{"Reporter, assignee, or author anywhere?"}
   referenced -->|yes| refuseUser["Refuse - user.in_use"]
@@ -163,3 +163,4 @@ flowchart TD
 * [ADR 013: Planning realization](ADR-013.md)
 * [ADR 014: Cross-project dependencies and cycle detection](ADR-014.md)
 * [ADR 020: Cancelled status](ADR-020.md)
+* [ADR 025: Lightweight per-issue field history](ADR-025.md)

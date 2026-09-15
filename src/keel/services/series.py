@@ -248,6 +248,7 @@ def apply_occurrence_edit(
     ends_on: date | None | object = UNSET,
     occurrence_count: int | None | object = UNSET,
     today: date | None = None,
+    actor_name: str | None = None,
 ) -> Issue:
     issue = issue_service.get_issue(session, issue_id)
     if issue.series_id is None:
@@ -262,6 +263,7 @@ def apply_occurrence_edit(
             type=type,
             assignee_id=assignee_id,
             parent_id=parent_id,
+            actor_name=actor_name,
         )
         return issue
     cutoff = issue.occurrence_on
@@ -302,6 +304,7 @@ def apply_occurrence_edit(
             type=type,
             assignee_id=assignee_id,
             parent_id=parent_id,
+            actor_name=actor_name,
         )
     return issue
 
@@ -463,6 +466,16 @@ def _claim_previews(
             continue
         sprint = _overlapping(windows, issue.occurrence_on)
         if sprint is not None:
+            from keel.services import history as history_service
+
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_SPRINT,
+                from_value=history_service.sprint_label(session, issue.sprint_id),
+                to_value=sprint.name,
+                actor_name=history_service.SYSTEM_ACTOR,
+            )
             issue.sprint_id = sprint.id
     session.flush()
 
@@ -550,6 +563,7 @@ def _update_one_issue(
     type: IssueType | None,
     assignee_id: int | None | object,
     parent_id: int | None | object,
+    actor_name: str | None = None,
 ) -> None:
     kwargs: dict[str, object] = {}
     if title is not None:
@@ -563,7 +577,12 @@ def _update_one_issue(
     if parent_id is not UNSET:
         kwargs["parent_id"] = parent_id
     if kwargs:
-        issue_service.update_issue(session, issue.id, **kwargs)  # type: ignore[arg-type]
+        issue_service.update_issue(
+            session,
+            issue.id,
+            actor_name=actor_name,
+            **kwargs,  # type: ignore[arg-type]
+        )
 
 
 def _require_series(session: Session, series_id: int) -> Series:

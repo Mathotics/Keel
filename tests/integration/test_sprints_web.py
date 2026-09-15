@@ -103,6 +103,8 @@ def test_the_backlog_schedules_an_issue_into_a_planned_sprint(
     page = client.get("/projects/KEEL/backlog")
     assert page.status_code == 200
     assert "Waiting" in page.text
+    assert 'data-type="story"' in page.text
+    assert "keel-chip keel-type" in page.text
     assert "data-keel-autosubmit" in page.text
     assert ">Schedule<" in page.text
 

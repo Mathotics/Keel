@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlparse
+
 from fastapi.testclient import TestClient
 
 
@@ -16,6 +18,11 @@ def _series_payload(**overrides: str) -> dict[str, str]:
     }
     body.update(overrides)
     return body
+
+
+def _overlay_is_open(html: str) -> bool:
+    opening = html.split('id="issue-repeat-overlay"', 1)[1].split(">", 1)[0]
+    return " open" in opening
 
 
 def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
@@ -156,10 +163,16 @@ def test_an_issue_can_become_a_series_and_show_on_the_board(
         follow_redirects=False,
     )
     detail = client.get(f"/issues/{issue['key']}")
-    assert "Repeating series" in detail.text
-    assert "This occurrence" in detail.text
+    assert "Edit series" in detail.text
+    assert "Make this repeating" not in detail.text
     assert "Delete this issue to skip this cycle" in detail.text
     assert "Pay bills" in detail.text
+    assert 'href="/issues/' in detail.text and "?repeat=1" in detail.text
+    assert not _overlay_is_open(detail.text)
+    assert "This occurrence" in detail.text
+    opened = client.get(f"/issues/{issue['key']}?repeat=1")
+    assert _overlay_is_open(opened.text)
+    assert "Save series" in opened.text
     board = client.get("/projects/HOME/board")
     assert "Pay bills" in board.text
     backlog = client.get("/projects/HOME/backlog")
@@ -241,3 +254,92 @@ def test_spawned_issues_show_on_the_sprint_page(client: TestClient) -> None:
     assert "Take out trash" in page.text
     listing = client.get("/projects/HOME/sprints")
     assert "This week" in listing.text
+
+
+def test_the_issue_recipe_stays_in_an_overlay(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Pay bills"},
+    ).json()
+    here = f"/issues/{issue['key']}"
+    page = client.get(here)
+    assert "Make this repeating" in page.text
+    assert f'href="{here}?repeat=1"' in page.text
+    assert 'src="/assets/js/overlay.js"' in page.text
+    assert not _overlay_is_open(page.text)
+    opened = client.get(f"{here}?repeat=1")
+    assert _overlay_is_open(opened.text)
+    assert "Make repeating" in opened.text
+    closed = opened.text.split("<dialog", 1)[0]
+    assert "Look-ahead N" not in closed
+
+    refused = client.post(
+        f"/web/issues/{issue['id']}/repeat",
+        data={
+            "spawn_mode": "calendar",
+            "sprint_basis": "due_on",
+            "freq": "weekly",
+            "interval": "1",
+            "starts_on": "",
+            "look_ahead_n": "1",
+            "end_mode": "never",
+        },
+        follow_redirects=False,
+    )
+    assert refused.status_code == 303
+    location = refused.headers["location"]
+    query = parse_qs(urlparse(location).query)
+    assert query["repeat"] == ["1"]
+    assert query["error"] == ["A series needs a start date."]
+    failed = client.get(location)
+    assert _overlay_is_open(failed.text)
+    overlay = failed.text.split('id="issue-repeat-overlay"', 1)[1]
+    assert "A series needs a start date." in overlay.split("</dialog>", 1)[0]
+    assert "keel-error" not in failed.text.split("<dialog", 1)[0]
+
+    saved = client.post(
+        f"/web/issues/{issue['id']}/repeat",
+        data={
+            "spawn_mode": "calendar",
+            "sprint_basis": "due_on",
+            "freq": "weekly",
+            "interval": "1",
+            "starts_on": "2026-09-14",
+            "weekday": "0",
+            "look_ahead_n": "1",
+            "end_mode": "never",
+        },
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    assert saved.headers["location"] == here
+    after = client.get(here)
+    assert "Edit series" in after.text
+    assert not _overlay_is_open(after.text)
+
+    scoped = client.post(
+        f"/web/issues/{issue['id']}/series",
+        data=_series_payload(title="", scope="series"),
+        follow_redirects=False,
+    )
+    assert scoped.status_code == 303
+    scoped_query = parse_qs(urlparse(scoped.headers["location"]).query)
+    assert scoped_query["repeat"] == ["1"]
+    assert "error" in scoped_query
+    again = client.get(scoped.headers["location"])
+    assert _overlay_is_open(again.text)
+    assert "keel-error" in again.text.split('id="issue-repeat-overlay"', 1)[1]
+
+
+def test_overlay_script_opens_without_a_framework(client: TestClient) -> None:
+    script = client.get("/assets/js/overlay.js")
+    assert script.status_code == 200
+    assert "showModal" in script.text
+    assert "data-keel-overlay-js" in script.text
+    assert "data-keel-overlay-open" in script.text
+    assert "data-keel-overlay-close" in script.text
+    assert 'src="/assets/js/overlay.js"' not in client.get("/").text

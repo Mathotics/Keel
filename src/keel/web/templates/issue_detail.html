@@ -1,8 +1,13 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}{{ issue_key }}{% endblock %}
+{% block scripts %}
+    {{ super() }}
+    <script src="/assets/js/overlay.js" defer></script>
+{% endblock %}
 {% block main %}
       <h1>{{ issue_key }}</h1>
-      {% if error %}
+      {% if error and not repeat_overlay %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
 
@@ -37,7 +42,7 @@
           <dd>
             <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
               <label class="keel-visually-hidden" for="issue-type">Type</label>
-              <select id="issue-type" name="type">
+              <select class="keel-type-select" id="issue-type" name="type" data-type="{{ issue.type.value }}">
                 {% for value in issue_types %}
                 <option value="{{ value.value }}"{% if issue.type == value %} selected{% endif %}>{{ value | label }}</option>
                 {% endfor %}
@@ -143,43 +148,68 @@
       </dl>
 
       {% if series %}
-      <div class="keel-panel">
-        <h2>Repeating series</h2>
+      <section class="keel-repeat">
         <p class="keel-lede">
           This issue is occurrence {{ issue.occurrence_on }} of
           <a href="/projects/{{ project.key }}/schedules/{{ series.id }}">{{ series.title }}</a>
           ({{ series_summary }}). {{ series.spawn_mode | label }}.
           Recipe changes ask which copies to update. Delete this issue to skip this cycle.
         </p>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series">
-          {% with prefix="series", recipe=series, include_apply=true, include_identity=true, include_type=false, include_people=false, look_ahead_label="Look-ahead N" %}
-          {% include "_series_recipe.html" %}
-          {% endwith %}
-          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save series</button></p>
-        </form>
-      </div>
+        <p class="keel-actions">
+          <a class="keel-button" href="/issues/{{ issue_key }}?repeat=1" data-keel-overlay-open>Edit series</a>
+        </p>
+      </section>
       {% else %}
       {% if issue.former_series_title %}
-      <div class="keel-panel">
-        <h2>Repeating series</h2>
+      <section class="keel-repeat">
         <p class="keel-lede">
           This issue was
           {% if issue.occurrence_on %}occurrence {{ issue.occurrence_on }} of{% else %}part of{% endif %}
           {{ issue.former_series_title }}
           ({{ issue.former_series_cadence }}). The recipe is gone.
         </p>
-      </div>
+      </section>
       {% endif %}
-      <div class="keel-panel">
-        <h2>Make this repeating</h2>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/repeat">
-          {% with prefix="repeat", recipe=none, look_ahead_label="Look-ahead N" %}
-          {% include "_series_recipe.html" %}
-          {% endwith %}
-          <p class="keel-form-actions"><button class="keel-primary" type="submit">Make repeating</button></p>
-        </form>
-      </div>
+      <p class="keel-actions keel-repeat">
+        <a class="keel-button" href="/issues/{{ issue_key }}?repeat=1" data-keel-overlay-open>Make this repeating</a>
+      </p>
       {% endif %}
+
+      <dialog class="keel-overlay" id="issue-repeat-overlay" data-keel-overlay
+              aria-labelledby="issue-repeat-title"{% if repeat_overlay %} open{% endif %}>
+        <a class="keel-overlay__scrim" href="/issues/{{ issue_key }}" data-keel-overlay-close
+           tabindex="-1" aria-hidden="true"></a>
+        <div class="keel-overlay__sheet">
+          <div class="keel-overlay__header">
+            <h2 id="issue-repeat-title">{% if series %}Edit series{% else %}Make this repeating{% endif %}</h2>
+            <a class="keel-button" href="/issues/{{ issue_key }}" data-keel-overlay-close>Close</a>
+          </div>
+          {% if error and repeat_overlay %}
+          <p class="keel-error" role="alert">{{ error }}</p>
+          {% endif %}
+          {% if series %}
+          <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series">
+            {% with prefix="series", recipe=series, include_apply=true, include_identity=true, include_type=false, include_people=false, look_ahead_label="Look-ahead N" %}
+            {% include "_series_recipe.html" %}
+            {% endwith %}
+            <p class="keel-form-actions">
+              <button class="keel-primary" type="submit">Save series</button>
+              <a class="keel-button" href="/issues/{{ issue_key }}" data-keel-overlay-close>Cancel</a>
+            </p>
+          </form>
+          {% else %}
+          <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/repeat">
+            {% with prefix="repeat", recipe=none, look_ahead_label="Look-ahead N" %}
+            {% include "_series_recipe.html" %}
+            {% endwith %}
+            <p class="keel-form-actions">
+              <button class="keel-primary" type="submit">Make repeating</button>
+              <a class="keel-button" href="/issues/{{ issue_key }}" data-keel-overlay-close>Cancel</a>
+            </p>
+          </form>
+          {% endif %}
+        </div>
+      </dialog>
 
       <h2>Description</h2>
       {% if issue.description %}
@@ -206,7 +236,7 @@
           {% for child in children %}
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ child.number }}">{{ project.key }}-{{ child.number }}</a></td>
-            <td>{{ child.type | label }}</td>
+            <td>{{ type_chip(child.type) }}</td>
             <td>{{ child.title }}</td>
             <td>{{ child.status | label }}</td>
           </tr>
@@ -332,6 +362,13 @@
       {% else %}
       <p>No other issues to link.</p>
       {% endif %}
+
+      <h2>History</h2>
+      {% for event in history %}
+      <p class="keel-history__line">{{ event.created_at | when }}, {{ event.actor_name }} — {{ event.field }} {{ event.from_value }} → {{ event.to_value }}</p>
+      {% else %}
+      <p class="keel-empty">No history yet.</p>
+      {% endfor %}
 
       <h2>Comments</h2>
       {% for comment in comments %}

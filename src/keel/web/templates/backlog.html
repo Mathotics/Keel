@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}{{ project.key }} backlog{% endblock %}
 {% block main %}
       <h1>{{ project.key }} backlog</h1>
@@ -27,7 +28,7 @@
               <span class="keel-blockers" title="{{ item.unresolved_blockers }} unresolved blocker{% if item.unresolved_blockers != 1 %}s{% endif %}">{{ item.unresolved_blockers }}</span>
               {% endif %}
             </td>
-            <td>{{ item.issue.type | label }}</td>
+            <td>{{ type_chip(item.issue.type) }}</td>
             <td>{{ item.issue.title }}</td>
             <td>{{ item.issue.status | label }}</td>
             <td>{% if item.issue.assignee_id %}{{ names.get(item.issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
