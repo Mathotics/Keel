@@ -37,7 +37,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, auto-sprint status, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
 | `/projects/{key}/schedules` | `schedules.html` | Repeating series list; New series is a tab on the same URL (`?tab=new`) |
-| `/projects/{key}/schedules/{id}` | `schedule_detail.html` | Edit, pause, resume, or stop a series |
+| `/projects/{key}/schedules/{id}` | `schedule_detail.html` | Edit, pause, resume, or delete a series |
 | `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
 | `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; editable fields submit on change |
 | `/search` | `search.html` | Find results grouped by issues, projects, sprints, and users; exact keys and unique names jump instead |
@@ -84,7 +84,7 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/schedules/{series_id}/update` | The schedule detail recipe |
 | `POST` | `/web/schedules/{series_id}/pause` | Pause a series |
 | `POST` | `/web/schedules/{series_id}/resume` | Resume a series |
-| `POST` | `/web/schedules/{series_id}/stop` | Stop a series |
+| `POST` | `/web/schedules/{series_id}/delete` | Delete a series; spawned issues remain |
 | `POST` | `/web/issues/{issue_id}/repeat` | Make this issue repeating |
 | `POST` | `/web/issues/{issue_id}/series` | Outlook-scoped recipe edit |
 | `POST` | `/web/issues/{issue_id}/dependencies` | The issue page's add-link form |
@@ -110,7 +110,7 @@ Project settings on the project page include sprint cadence: off, weekly, every 
 
 ## Schedules
 
-The schedules page lists a project's repeating series. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page.
+The schedules page lists a project's repeating series. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page. Pause and Resume halt and continue spawning. Delete, behind a confirmation that existing issues remain, removes the recipe from the list and leaves spawned issues on the board with a former-series note ([ADR 023](../adr/ADR-023.md)).
 
 ## Find
 
@@ -118,7 +118,7 @@ The find field submits GET `/search?q=…`, and `project` when the current page 
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done (with cancelled descendants counted separately when any exist) alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. When the issue belongs to a repeating series, a panel shows the cadence and a link to the series; recipe edits on that panel require choosing this occurrence, this and all future, or the entire series, and are not autosubmitted. Delete on a series issue skips that cycle. Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. An Epic or Story can also create a child from its own page: a title files a Story under an Epic, or a Subtask under a Story, and the parent page reloads so another can be filed. A Subtask has no such form. Comments and dependency links are added afterwards, because they need an id. Adding a comment or a child is an ordinary submit, not an autosubmit field.
+The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done (with cancelled descendants counted separately when any exist) alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. When the issue belongs to a repeating series, a panel shows the cadence and a link to the series; recipe edits on that panel require choosing this occurrence, this and all future, or the entire series, and are not autosubmitted. Delete on a series issue skips that cycle. After the series itself is deleted, the issue keeps a former-series note (title and cadence) with no live recipe, and Make this repeating remains available ([ADR 023](../adr/ADR-023.md)). Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. An Epic or Story can also create a child from its own page: a title files a Story under an Epic, or a Subtask under a Story, and the parent page reloads so another can be filed. A Subtask has no such form. Comments and dependency links are added afterwards, because they need an id. Adding a comment or a child is an ordinary submit, not an autosubmit field.
 
 ## JavaScript
 

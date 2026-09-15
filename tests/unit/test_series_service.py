@@ -306,19 +306,59 @@ def test_pause_stops_new_copies_and_claiming_assigns_a_preview(
     assert preview.sprint_id == sprint.id
 
 
-def test_stop_leaves_existing_issues_and_cannot_resume(
+def test_delete_leaves_existing_issues_and_a_former_note(
     session: Session,
 ) -> None:
     project = _project(session)
     series = _weekly(session, project)
-    before = len(issue_service.list_issues(session, project.id))
-    series_service.set_state(session, series.id, SeriesState.STOPPED)
-    series_service.advance_series(session, series.id, date(2026, 9, 28))
-    assert len(issue_service.list_issues(session, project.id)) == before
+    copies = [
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    ]
+    assert copies
     with pytest.raises(SeriesStoppedError):
-        series_service.set_state(session, series.id, SeriesState.ACTIVE)
-    with pytest.raises(SeriesStoppedError):
-        series_service.update_series(session, series.id, title="Later trash")
+        series_service.set_state(session, series.id, SeriesState.STOPPED)
+    series_service.set_state(session, series.id, SeriesState.PAUSED)
+    series_id = series.id
+    series_service.delete_series(session, series_id)
+    remaining = issue_service.list_issues(session, project.id)
+    assert len(remaining) == len(copies)
+    for issue in remaining:
+        assert issue.series_id is None
+        assert issue.status is IssueStatus.TODO
+        assert issue.former_series_title == "Take out trash"
+        assert issue.former_series_cadence == "Weekly on Mon"
+    assert series_service.list_series(session, project.id) == []
+    with pytest.raises(NotFoundError):
+        series_service.get_series(session, series_id)
+
+
+def test_leftover_stopped_series_are_treated_as_deleted(
+    session: Session,
+) -> None:
+    project = _project(session)
+    series = _weekly(session, project)
+    copies = issue_service.list_issues(session, project.id)
+    seed = copies[0]
+    series_id = series.id
+    series.state = SeriesState.STOPPED
+    session.flush()
+    assert series_service.attached_series(session, seed) is None
+    session.refresh(seed)
+    assert seed.series_id is None
+    assert seed.former_series_title == "Take out trash"
+    assert seed.former_series_cadence == "Weekly on Mon"
+    assert series_service.attached_series(session, seed) is None
+    with pytest.raises(NotFoundError):
+        series_service.get_series(session, series_id)
+    leftover = _weekly(session, project, title="Old chore")
+    leftover_id = leftover.id
+    leftover.state = SeriesState.STOPPED
+    session.flush()
+    with pytest.raises(NotFoundError):
+        series_service.get_series(session, leftover_id)
+    assert series_service.list_series(session, project.id) == []
 
 
 def test_outlook_scopes_change_this_copy_or_the_recipe(

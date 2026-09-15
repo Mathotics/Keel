@@ -46,7 +46,7 @@ def issue_page(
     ]
     series = None
     if issue.series_id is not None:
-        series = series_service.get_series(session, issue.series_id)
+        series = series_service.attached_series(session, issue)
     return get_templates().TemplateResponse(
         request,
         "issue_detail.html",

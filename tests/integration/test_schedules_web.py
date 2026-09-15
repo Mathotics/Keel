@@ -45,7 +45,8 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     detail = client.get(created.headers["location"])
     assert detail.status_code == 200
     assert "Pause" in detail.text
-    assert "Stop" in detail.text
+    assert "Delete" in detail.text
+    assert "Stop" not in detail.text
     assert "Save recipe" in detail.text
 
 
@@ -67,7 +68,7 @@ def test_a_refused_series_returns_to_the_new_series_tab(client: TestClient) -> N
     assert "A series needs a title." in page.text
 
 
-def test_a_series_can_be_paused_resumed_edited_and_stopped(
+def test_a_series_can_be_paused_resumed_edited_and_deleted(
     client: TestClient,
 ) -> None:
     project = client.post(
@@ -99,11 +100,34 @@ def test_a_series_can_be_paused_resumed_edited_and_stopped(
     page = client.get(here)
     assert "Bin night" in page.text
     assert "Every 2 weeks on Mon" in page.text
-    client.post(f"/web/schedules/{series_id}/stop", follow_redirects=False)
-    page = client.get(here)
-    assert "Stopped" in page.text
-    assert "Save recipe" not in page.text
-    assert "the recipe cannot change" in page.text
+    issues = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    copies = [item for item in issues if item["series_id"] == series_id]
+    assert copies
+    deleted = client.post(
+        f"/web/schedules/{series_id}/delete",
+        follow_redirects=False,
+    )
+    assert deleted.status_code == 303
+    assert deleted.headers["location"].startswith("/projects/HOME/schedules")
+    listing = client.get(deleted.headers["location"])
+    assert "Bin night" not in listing.text
+    assert "Schedule deleted. Existing issues remain." in listing.text
+    remaining = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    assert {item["id"] for item in copies} <= {item["id"] for item in remaining}
+    first = remaining[0]
+    assert first["series_id"] is None
+    assert first["former_series_title"] == "Bin night"
+    assert first["former_series_cadence"] == "Every 2 weeks on Mon"
+    board = client.get("/projects/HOME/board")
+    assert first["key"] in board.text
+    assert first["title"] in board.text
+    detail = client.get(f"/issues/{first['key']}")
+    assert "The recipe is gone." in detail.text
+    assert "Every 2 weeks on Mon" in detail.text
+    assert "Make this repeating" in detail.text
+    assert "Save series" not in detail.text
+    missing = client.get(here)
+    assert missing.status_code == 404
 
 
 def test_an_issue_can_become_a_series_and_show_on_the_board(
