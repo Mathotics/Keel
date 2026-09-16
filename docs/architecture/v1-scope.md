@@ -19,6 +19,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Users** — a minimal notion of people for assignee/reporter, with no authentication (see below).
 * **Comments** — notes on issues; descriptions and comments render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
+* **Priority** — a required five-level rank on every issue so urgency is visible on cards and lists ([ADR 023](../adr/ADR-023.md)).
 * **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/ADR-016.md)).
 * **Repeating work** — a per-project Schedules page of series recipes that spawn ordinary issues on a cadence ([ADR 021](../adr/ADR-021.md)).
 
@@ -41,7 +42,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 022](../adr/ADR-022.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 023](../adr/ADR-023.md).
 
 ## Related documents
 

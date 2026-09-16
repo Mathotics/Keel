@@ -7,6 +7,7 @@ from keel.domain.enums import (
     RecurrenceFreq,
     SeriesSpawnMode,
     SeriesSprintBasis,
+    priorities_in_rank_order,
     statuses_in_workflow_order,
     types_in_hierarchy_order,
 )
@@ -63,6 +64,7 @@ def issue_page(
             candidates=candidates,
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
+            priorities=priorities_in_rank_order(),
             issue_types=types_in_hierarchy_order(),
             child_type=child_type_of(issue.type),
             parents=[

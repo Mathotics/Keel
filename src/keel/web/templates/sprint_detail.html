@@ -28,6 +28,7 @@
           <tr>
             <th>Key</th>
             <th>Type</th>
+            <th>Priority</th>
             <th>Title</th>
             <th>Status</th>
             <th>Assignee</th>
@@ -38,12 +39,13 @@
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ issue.number }}">{{ project.key }}-{{ issue.number }}</a></td>
             <td>{{ issue.type | label }}</td>
+            <td>{{ issue.priority | label }}</td>
             <td>{{ issue.title }}</td>
             <td>{{ issue.status | label }}</td>
             <td>{% if issue.assignee_id %}{{ names.get(issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="5">No issues in this sprint.</td></tr>
+          <tr><td class="keel-empty" colspan="6">No issues in this sprint.</td></tr>
           {% endfor %}
         </tbody>
       </table>

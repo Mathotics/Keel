@@ -57,6 +57,7 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     finally:
         engine.dispose()
     assert "due_at" in columns
+    assert "priority" in columns
     assert "series_id" in columns
     assert "occurrence_on" in columns
     assert "sprint_id" in columns

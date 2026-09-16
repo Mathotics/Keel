@@ -4,7 +4,13 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from keel.db.models import Issue, Project
-from keel.domain.enums import INITIAL_STATUS, IssueStatus, IssueType
+from keel.domain.enums import (
+    INITIAL_PRIORITY,
+    INITIAL_STATUS,
+    IssuePriority,
+    IssueStatus,
+    IssueType,
+)
 from keel.domain.rollup import Rollup
 
 
@@ -13,6 +19,7 @@ class IssueCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
     status: IssueStatus = INITIAL_STATUS
+    priority: IssuePriority = INITIAL_PRIORITY
     parent_id: int | None = None
     sprint_id: int | None = None
     assignee_id: int | None = None
@@ -33,6 +40,7 @@ class IssueUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = None
     status: IssueStatus | None = None
+    priority: IssuePriority | None = None
     parent_id: int | None = None
     sprint_id: int | None = None
     assignee_id: int | None = None
@@ -70,6 +78,7 @@ class IssueRead(BaseModel):
     title: str
     description: str
     status: IssueStatus
+    priority: IssuePriority
     parent_id: int | None
     sprint_id: int | None
     reporter_id: int | None
@@ -101,6 +110,7 @@ class IssueRead(BaseModel):
             title=issue.title,
             description=issue.description,
             status=issue.status,
+            priority=issue.priority,
             parent_id=issue.parent_id,
             sprint_id=issue.sprint_id,
             reporter_id=issue.reporter_id,

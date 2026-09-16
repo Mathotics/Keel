@@ -28,6 +28,7 @@ def test_a_created_issue_carries_its_key(client: TestClient, project_id: int) ->
     assert issue["key"] == "KEEL-1"
     assert issue["number"] == 1
     assert issue["status"] == "todo"
+    assert issue["priority"] == "p3"
 
 
 def test_the_reporter_defaults_to_the_acting_user(
@@ -329,3 +330,33 @@ def test_created_at_cannot_be_patched(client: TestClient, project_id: int) -> No
         json={"created_at": "2020-01-01T00:00:00"},
     )
     assert response.status_code == 422
+
+
+def test_priority_defaults_to_major_and_round_trips(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(client, project_id)
+    assert issue["priority"] == "p3"
+
+    created = create_issue(client, project_id, title="Blocker", priority="p1")
+    assert created["priority"] == "p1"
+
+    updated = client.patch(
+        f"/api/v1/issues/{created['id']}",
+        json={"priority": "p5"},
+    ).json()
+    assert updated["priority"] == "p5"
+    assert updated["title"] == "Blocker"
+
+    listed = client.get(
+        f"/api/v1/projects/{project_id}/issues",
+        params={"priority": "p5"},
+    ).json()
+    assert [item["id"] for item in listed] == [created["id"]]
+
+    refused = client.patch(
+        f"/api/v1/issues/{created['id']}",
+        json={"priority": "p0"},
+    )
+    assert refused.status_code == 422

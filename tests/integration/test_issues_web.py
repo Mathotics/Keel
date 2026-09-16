@@ -43,6 +43,9 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="description"' in page.text
     assert 'name="status"' in page.text
     assert ">Cancelled<" in page.text
+    assert 'name="priority"' in page.text
+    assert "P1 — Blocker" in page.text
+    assert "P3 — Major" in page.text
     assert 'name="assignee_id"' in page.text
     assert 'name="parent_id"' in page.text
     assert 'name="sprint_id"' in page.text
@@ -117,6 +120,7 @@ def test_create_can_set_the_other_fields_at_birth(
             "title": "Full",
             "description": "Body text",
             "status": "in_progress",
+            "priority": "p1",
             "parent_id": str(parent_id),
             "assignee_id": str(tester),
             "sprint_id": str(sprint["id"]),
@@ -133,6 +137,7 @@ def test_create_can_set_the_other_fields_at_birth(
     assert "Full" in html
     assert "Body text" in html
     assert "In Progress" in html
+    assert "P1 — Blocker" in html
     assert 'value="2026-11-02T08:15"' in html
     assert f'value="{tester}" selected' in html or f'value="{tester}"selected' in html
     assert f'value="{parent_id}" selected' in html or (
@@ -318,6 +323,7 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert ">Edit<" not in page.text
     assert 'name="title"' in page.text
     assert 'name="type"' in page.text
+    assert 'name="priority"' in page.text
     assert 'name="description"' in page.text
     assert 'name="parent_id"' in page.text
 
@@ -343,7 +349,16 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert due.headers["location"] == "/issues/KEEL-1"
     page = client.get("/issues/KEEL-1")
     assert "In Progress" in page.text
+    assert "P3 — Major" in page.text
     assert 'value="2026-11-02T08:15"' in page.text
+
+    ranked = client.post(
+        f"/web/issues/{issue_id}/priority",
+        data={"priority": "p1"},
+        follow_redirects=False,
+    )
+    assert ranked.headers["location"] == "/issues/KEEL-1"
+    assert "P1 — Blocker" in client.get("/issues/KEEL-1").text
 
 
 def test_the_old_edit_url_redirects_to_the_issue(

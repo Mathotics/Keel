@@ -17,10 +17,19 @@ from sqlalchemy.sql import text
 
 from keel.db.base import Base
 from keel.db.models.user import utc_now
-from keel.domain.enums import INITIAL_STATUS, IssueStatus, IssueType
+from keel.domain.enums import (
+    INITIAL_PRIORITY,
+    INITIAL_STATUS,
+    IssuePriority,
+    IssueStatus,
+    IssueType,
+)
 
 
-def _enum_column(enum: type[IssueType] | type[IssueStatus], name: str) -> Enum:
+def _enum_column(
+    enum: type[IssueType] | type[IssueStatus] | type[IssuePriority],
+    name: str,
+) -> Enum:
     """Store the lowercase value, guarded by a CHECK rather than a native type."""
     return Enum(
         enum,
@@ -69,6 +78,11 @@ class Issue(Base):
         _enum_column(IssueStatus, "ck_issues_status"),
         default=INITIAL_STATUS,
         server_default=INITIAL_STATUS.value,
+    )
+    priority: Mapped[IssuePriority] = mapped_column(
+        _enum_column(IssuePriority, "ck_issues_priority"),
+        default=INITIAL_PRIORITY,
+        server_default=INITIAL_PRIORITY.value,
     )
     parent_id: Mapped[int | None] = mapped_column(
         ForeignKey("issues.id", ondelete="RESTRICT"),

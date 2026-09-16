@@ -2,7 +2,7 @@
 
 A conceptual entity–relationship model for Keel v1. It names the domain entities, their meaningful attributes in domain terms, and how they relate. It is deliberately **conceptual**: no tables, columns, data types, keys, or indexes. The physical realization is documented separately in the [data model](../design/data-model.md).
 
-Terms are defined in the [glossary](glossary.md). The modeling decisions behind this diagram are recorded in [ADR 003](../adr/ADR-003.md), [ADR 004](../adr/ADR-004.md), [ADR 005](../adr/ADR-005.md), and [ADR 006](../adr/ADR-006.md). Their implementation-level realization is recorded in [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), and [ADR 014](../adr/ADR-014.md).
+Terms are defined in the [glossary](glossary.md). The modeling decisions behind this diagram are recorded in [ADR 003](../adr/ADR-003.md), [ADR 004](../adr/ADR-004.md), [ADR 005](../adr/ADR-005.md), and [ADR 006](../adr/ADR-006.md). Their implementation-level realization is recorded in [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), [ADR 014](../adr/ADR-014.md), and [ADR 023](../adr/ADR-023.md).
 
 ## Entity–relationship diagram
 
@@ -50,6 +50,7 @@ A first-class container that scopes a body of work. Multiple projects coexist.
 The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtask; the parent relationship forms the Epic → Story → Subtask hierarchy. Modeled as one entity per [ADR 003](../adr/ADR-003.md).
 * Title; description.
 * Type — one of *Epic*, *Story*, *Subtask*.
+* Priority — one of *P1 — Blocker*, *P2 — Critical*, *P3 — Major*, *P4 — Minor*, *P5 — Trivial*; every issue has one, defaulting to *P3 — Major* ([ADR 023](../adr/ADR-023.md)).
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
 * Estimated time; time remaining — time-based effort tracking for the issue.

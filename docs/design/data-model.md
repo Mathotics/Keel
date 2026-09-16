@@ -1,6 +1,6 @@
 # Data model
 
-The physical schema behind the conceptual [domain model](../architecture/domain-model.md). Storage decisions are recorded in [ADR 007](../adr/ADR-007.md); the rules the constraints enforce come from [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), and [ADR 014](../adr/ADR-014.md).
+The physical schema behind the conceptual [domain model](../architecture/domain-model.md). Storage decisions are recorded in [ADR 007](../adr/ADR-007.md); the rules the constraints enforce come from [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), [ADR 014](../adr/ADR-014.md), and [ADR 023](../adr/ADR-023.md).
 
 All tables live in one SQLite file. Every connection sets `PRAGMA foreign_keys=ON`, without which SQLite silently ignores foreign keys.
 
@@ -97,6 +97,7 @@ Indexes and constraints:
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `status` | TEXT | not null, default `'todo'`, `CHECK` in (`todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`) |
+| `priority` | TEXT | not null, default `'p3'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `parent_id` | INTEGER | nullable, references `issues(id)` `ON DELETE RESTRICT` |
 | `sprint_id` | INTEGER | nullable, references `sprints(id)` `ON DELETE SET NULL` |
 | `reporter_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |

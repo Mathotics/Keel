@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     INITIAL_STATUS,
+    IssuePriority,
     IssueStatus,
     IssueType,
     statuses_in_workflow_order,
@@ -31,6 +33,7 @@ class IssueFilters:
     type: IssueType | None = None
     types: tuple[IssueType, ...] = ()
     status: IssueStatus | None = None
+    priority: IssuePriority | None = None
     assignee_id: int | None = None
     unassigned: bool = False
     parent_id: int | None = None
@@ -111,6 +114,7 @@ def create_issue(
     title: str,
     description: str = "",
     status: IssueStatus = INITIAL_STATUS,
+    priority: IssuePriority = INITIAL_PRIORITY,
     parent_id: int | None = None,
     reporter_id: int | None = None,
     assignee_id: int | None = None,
@@ -133,6 +137,7 @@ def create_issue(
         title=_clean_title(title),
         description=description.strip(),
         status=status,
+        priority=priority,
         reporter_id=reporter_id,
         assignee_id=assignee_id,
         due_at=due_at,
@@ -156,6 +161,7 @@ def update_issue(
     title: str | None = None,
     description: str | None = None,
     status: IssueStatus | None = None,
+    priority: IssuePriority | None = None,
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
@@ -177,6 +183,8 @@ def update_issue(
         issue.description = description.strip()
     if status is not None:
         issue.status = status
+    if priority is not None:
+        issue.priority = priority
     if parent_id is not UNSET:
         _assign_parent(session, issue, parent_id)  # type: ignore[arg-type]
     if assignee_id is not UNSET:
@@ -286,6 +294,8 @@ def _apply_filters(
         query = query.where(Issue.type == filters.type)
     if filters.status is not None:
         query = query.where(Issue.status == filters.status)
+    if filters.priority is not None:
+        query = query.where(Issue.priority == filters.priority)
     if filters.unassigned:
         query = query.where(Issue.assignee_id.is_(None))
     elif filters.assignee_id is not None:
