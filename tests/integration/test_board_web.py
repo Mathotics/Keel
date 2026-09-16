@@ -97,6 +97,8 @@ def test_the_board_page_renders_every_column(
     assert "Cancelled" in page.text
     assert "KEEL-1" in page.text
     assert "Ready" in page.text
+    assert "keel-priority--p3" in page.text
+    assert ">P3<" in page.text
     assert 'action="/web/issues/' in page.text
     assert ">Move<" in page.text
     assert 'src="/assets/js/board.js"' in page.text

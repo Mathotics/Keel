@@ -1,6 +1,6 @@
 # Data model
 
-The physical schema behind the conceptual [domain model](../architecture/domain-model.md). Storage decisions are recorded in [ADR 007](../adr/ADR-007.md); the rules the constraints enforce come from [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), and [ADR 014](../adr/ADR-014.md).
+The physical schema behind the conceptual [domain model](../architecture/domain-model.md). Storage decisions are recorded in [ADR 007](../adr/ADR-007.md); the rules the constraints enforce come from [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), [ADR 014](../adr/ADR-014.md), and [ADR 030](../adr/ADR-030.md).
 
 All tables live in one SQLite file. Every connection sets `PRAGMA foreign_keys=ON`, without which SQLite silently ignores foreign keys.
 
@@ -98,6 +98,7 @@ Indexes and constraints:
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `status` | TEXT | not null, default `'todo'`, `CHECK` in (`todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`) |
+| `priority` | TEXT | not null, default `'p3'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `parent_id` | INTEGER | nullable, references `issues(id)` `ON DELETE RESTRICT` |
 | `sprint_id` | INTEGER | nullable, references `sprints(id)` `ON DELETE SET NULL` |
 | `reporter_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |
@@ -194,7 +195,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `priority`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -238,6 +239,9 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0009` | `series`, `series_skips`, `issues.series_id` |
 | `0010` | `issue_history` |
 | `0011` | `title` and `description` on `issue_history.field` |
+| `0012` | former series note on `issues` |
+| `0013` | `issues.start_at` and series start/due offsets |
+| `0014` | `issues.priority` and `priority` on `issue_history.field` |
 
 ## Related documents
 
@@ -248,6 +252,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 020: Cancelled status](../adr/ADR-020.md)
 * [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
+* [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)

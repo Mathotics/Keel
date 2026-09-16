@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     INITIAL_STATUS,
+    IssuePriority,
     IssueStatus,
     IssueType,
     statuses_in_workflow_order,
@@ -32,6 +34,7 @@ class IssueFilters:
     type: IssueType | None = None
     types: tuple[IssueType, ...] = ()
     status: IssueStatus | None = None
+    priority: IssuePriority | None = None
     assignee_id: int | None = None
     unassigned: bool = False
     parent_id: int | None = None
@@ -112,6 +115,7 @@ def create_issue(
     title: str,
     description: str = "",
     status: IssueStatus = INITIAL_STATUS,
+    priority: IssuePriority = INITIAL_PRIORITY,
     parent_id: int | None = None,
     reporter_id: int | None = None,
     assignee_id: int | None = None,
@@ -136,6 +140,7 @@ def create_issue(
         title=_clean_title(title),
         description=description.strip(),
         status=status,
+        priority=priority,
         reporter_id=reporter_id,
         assignee_id=assignee_id,
         start_at=start_at,
@@ -160,6 +165,7 @@ def update_issue(
     title: str | None = None,
     description: str | None = None,
     status: IssueStatus | None = None,
+    priority: IssuePriority | None = None,
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
     start_at: datetime | None | object = UNSET,
@@ -222,6 +228,16 @@ def update_issue(
             actor_name=who,
         )
         issue.status = status
+    if priority is not None and priority is not issue.priority:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_PRIORITY,
+            from_value=history_service.priority_label(issue.priority),
+            to_value=history_service.priority_label(priority),
+            actor_name=who,
+        )
+        issue.priority = priority
     if parent_id is not UNSET and parent_id != issue.parent_id:
         old_parent = history_service.parent_label(session, issue.parent_id)
         new_parent = history_service.parent_label(session, parent_id)  # type: ignore[arg-type]
@@ -388,6 +404,8 @@ def _apply_filters(
         query = query.where(Issue.type == filters.type)
     if filters.status is not None:
         query = query.where(Issue.status == filters.status)
+    if filters.priority is not None:
+        query = query.where(Issue.priority == filters.priority)
     if filters.unassigned:
         query = query.where(Issue.assignee_id.is_(None))
     elif filters.assignee_id is not None:

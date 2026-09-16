@@ -9,6 +9,7 @@ from keel.domain.duration import parse_duration
 from keel.domain.enums import (
     DependencyKind,
     EditScope,
+    IssuePriority,
     IssueStatus,
     IssueType,
     RecurrenceFreq,
@@ -207,6 +208,7 @@ def create_issue_from_page(
     title: Annotated[str, Form()] = "",
     description: Annotated[str, Form()] = "",
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
+    priority: Annotated[IssuePriority, Form()] = IssuePriority.P3,
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     start_at: Annotated[str, Form()] = "",
@@ -228,6 +230,7 @@ def create_issue_from_page(
             title=title,
             description=description,
             status=status,
+            priority=priority,
             parent_id=_optional_id(parent_id),
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
@@ -253,6 +256,7 @@ def create_issue(
     title: Annotated[str, Form()],
     description: Annotated[str, Form()] = "",
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
+    priority: Annotated[IssuePriority, Form()] = IssuePriority.P3,
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     reporter_id: Annotated[str, Form()] = "",
@@ -271,6 +275,7 @@ def create_issue(
             title=title,
             description=description,
             status=status,
+            priority=priority,
             parent_id=_optional_id(parent_id),
             reporter_id=_optional_id(reporter_id),
             assignee_id=_optional_id(assignee_id),
@@ -334,6 +339,21 @@ def update_issue_type(
             type=type,
             actor_name=_actor_name(chrome),
         )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/priority")
+def update_issue_priority(
+    session: SessionDep,
+    issue_id: int,
+    priority: Annotated[IssuePriority, Form()],
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(session, issue_id, priority=priority)
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)

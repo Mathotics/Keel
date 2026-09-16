@@ -15,6 +15,7 @@
                   <p class="keel-card__title">{{ card.issue.title }}</p>
                   <p class="keel-card__meta">
                     <span class="keel-chip keel-type" data-type="{{ card.issue.type.value }}">{{ card.issue.type | label }}</span>
+                    <span class="keel-chip keel-priority keel-priority--{{ card.issue.priority.value }}" title="{{ card.issue.priority | label }}">{{ card.issue.priority.value | upper }}</span>
                     <span>{{ card.assignee_name or "Unassigned" }}</span>
                   </p>
                   {% if card.parent_key %}

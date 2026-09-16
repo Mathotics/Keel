@@ -67,6 +67,20 @@
           </dd>
         </div>
         <div class="keel-fact">
+          <dt>Priority</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/priority" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-priority">Priority</label>
+              <select id="issue-priority" name="priority">
+                {% for value in priorities %}
+                <option value="{{ value.value }}"{% if issue.priority == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
           <dt>Assignee</dt>
           <dd>
             <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit>
@@ -242,18 +256,19 @@
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
-          <tr><th>Key</th><th>Type</th><th>Title</th><th>Status</th></tr>
+          <tr><th>Key</th><th>Type</th><th>Priority</th><th>Title</th><th>Status</th></tr>
         </thead>
         <tbody>
           {% for child in children %}
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ child.number }}">{{ project.key }}-{{ child.number }}</a></td>
             <td>{{ type_chip(child.type) }}</td>
+            <td>{{ child.priority | label }}</td>
             <td>{{ child.title }}</td>
             <td>{{ child.status | label }}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="4">No children.</td></tr>
+          <tr><td class="keel-empty" colspan="5">No children.</td></tr>
           {% endfor %}
         </tbody>
       </table>

@@ -18,6 +18,7 @@
           <tr>
             <th>Key</th>
             <th>Type</th>
+            <th>Priority</th>
             <th>Title</th>
             <th>Project</th>
             <th>Start</th>
@@ -37,6 +38,7 @@
               {% endif %}
             </td>
             <td>{{ type_chip(item.issue.type) }}</td>
+            <td>{{ item.issue.priority | label }}</td>
             <td>{{ item.issue.title }}</td>
             <td><a href="/projects/{{ item.project.key }}">{{ item.project.key }}</a></td>
             <td>{% if item.issue.start_at %}{{ item.issue.start_at | when }}{% endif %}</td>

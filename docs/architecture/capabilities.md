@@ -12,6 +12,7 @@ flowchart LR
     a1[Create/edit Epics, Stories, Subtasks]
     a2[Parent/child hierarchy + progress rollup]
     a3[Assign to a user, set status]
+    a3b[Set priority]
     a4[Comment on issues]
     a5[Read field history]
   end
@@ -52,8 +53,9 @@ flowchart LR
 * Roll up child progress and effort to parent issues.
 * Assign an issue to a user and set its reporter.
 * Set and change an issue's status within the shared workflow (see [ADR 004](../adr/ADR-004.md)).
+* Set and change an issue's priority on the five-level scale (see [ADR 030](../adr/ADR-030.md)).
 * Add and read comments on an issue. Issue descriptions and comment bodies render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
-* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description ([ADR 025](../adr/ADR-025.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, and priority ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md)).
 
 ## Planning
 

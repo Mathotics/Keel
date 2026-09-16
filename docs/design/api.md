@@ -10,7 +10,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
-* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `start_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
+* Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; priorities `p1`, `p2`, `p3`, `p4`, `p5`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `start_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 
 ## Users
@@ -46,7 +46,7 @@ A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `mon
 | `DELETE` | `/api/v1/issues/{issue_id}` | Delete, refused when it has children |
 | `GET` | `/api/v1/issues/{issue_id}/children` | Direct children |
 
-Filters on the list endpoint: `type`, `status`, `assignee_id`, `sprint_id`, `parent_id`, and `unscheduled` (a boolean selecting issues with no sprint).
+Filters on the list endpoint: `type`, `status`, `priority`, `assignee_id`, `sprint_id`, `parent_id`, and `unscheduled` (a boolean selecting issues with no sprint).
 
 Create body:
 
@@ -56,6 +56,7 @@ Create body:
   "title": "Rework the onboarding script",
   "description": "",
   "status": "todo",
+  "priority": "p3",
   "parent_id": null,
   "sprint_id": null,
   "assignee_id": 2,
@@ -77,6 +78,7 @@ Response body, with the fields the interface needs added:
   "title": "Rework the onboarding script",
   "description": "",
   "status": "todo",
+  "priority": "p3",
   "parent_id": null,
   "sprint_id": null,
   "reporter_id": 1,
@@ -220,6 +222,7 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/issues/{issue_id}/status` | The board's fallback status change, and the issue page |
 | `POST` | `/web/issues/{issue_id}/title` | The issue page's title |
 | `POST` | `/web/issues/{issue_id}/type` | The issue page's type |
+| `POST` | `/web/issues/{issue_id}/priority` | The issue page's priority |
 | `POST` | `/web/issues/{issue_id}/description` | The issue page's description |
 | `POST` | `/web/issues/{issue_id}/parent` | The issue page's parent |
 | `POST` | `/web/issues/{issue_id}/children` | Create a child Story or Subtask from the issue page |

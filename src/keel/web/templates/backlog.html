@@ -13,6 +13,7 @@
           <tr>
             <th>Key</th>
             <th>Type</th>
+            <th>Priority</th>
             <th>Title</th>
             <th>Status</th>
             <th>Assignee</th>
@@ -31,6 +32,7 @@
               {% endif %}
             </td>
             <td>{{ type_chip(item.issue.type) }}</td>
+            <td>{{ item.issue.priority | label }}</td>
             <td>{{ item.issue.title }}</td>
             <td>{{ item.issue.status | label }}</td>
             <td>{% if item.issue.assignee_id %}{{ names.get(item.issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
@@ -55,7 +57,7 @@
             </td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="8">Nothing in the backlog.</td></tr>
+          <tr><td class="keel-empty" colspan="9">Nothing in the backlog.</td></tr>
           {% endfor %}
         </tbody>
       </table>

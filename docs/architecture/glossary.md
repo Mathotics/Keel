@@ -9,12 +9,13 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Board column** — a lane on a board that surfaces the issues currently in one status.
 * **Collaborator** — one of up to two trusted people who share a project with the owner; in v1, equal in ability to the owner.
 * **Comment** — a note attached to an issue, capturing discussion and context over time.
-* **Issue history** — an append-only trail on an issue of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, or description, from what to what ([ADR 025](../adr/ADR-025.md)).
+* **Issue history** — an append-only trail on an issue of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, or priority, from what to what ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md)).
 * **Dependency** — a directed, typed link between two issues; either *blocks* or *relates-to*.
 * **Epic** — the top level of the issue hierarchy; groups related Stories.
 * **Estimated time** — the effort a user expects an issue to take.
 * **Issue** — the single work entity; typed as an Epic, a Story, or a Subtask.
 * **Issue key** — a project's key with the issue's per-project number, such as `KEEL-12`; how an issue is named in the interface and in conversation ([ADR 012](../adr/ADR-012.md)).
+* **Priority** — a required rank on every issue: *P1 — Blocker* through *P5 — Trivial*, default *P3 — Major* ([ADR 030](../adr/ADR-030.md)).
 * **Owner** — the primary user of the tool.
 * **Project** — a first-class container that scopes issues, boards, sprints, and a backlog. Multiple projects coexist.
 * **Project key** — a short uppercase identifier for a project, used to prefix its issue numbers.

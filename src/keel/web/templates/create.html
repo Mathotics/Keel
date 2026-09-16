@@ -66,6 +66,14 @@
                 </select>
               </p>
               <p>
+                <label for="issue-priority">Priority</label>
+                <select id="issue-priority" name="priority">
+                  {% for value in priorities %}
+                  <option value="{{ value }}"{% if value == default_priority %} selected{% endif %}>{{ value | label }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p>
                 <label for="issue-assignee">Assignee</label>
                 <select id="issue-assignee" name="assignee_id">
                   <option value="" selected>Unassigned</option>
