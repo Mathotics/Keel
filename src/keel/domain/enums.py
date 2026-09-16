@@ -59,6 +59,7 @@ class SeriesSpawnMode(StrEnum):
 
 class SeriesSprintBasis(StrEnum):
     DUE_ON = "due_on"
+    START_ON = "start_on"
     CREATED_ON = "created_on"
 
 
@@ -116,6 +117,7 @@ _LABELS = {
     SeriesSpawnMode.CALENDAR: "On the calendar",
     SeriesSpawnMode.AFTER_CLOSED: "After the previous copy is closed",
     SeriesSprintBasis.DUE_ON: "Due date",
+    SeriesSprintBasis.START_ON: "Start date",
     SeriesSprintBasis.CREATED_ON: "Creation date",
     RecurrenceFreq.DAILY: "Daily",
     RecurrenceFreq.WEEKLY: "Weekly",

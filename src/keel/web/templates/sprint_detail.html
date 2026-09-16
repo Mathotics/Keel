@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}{{ sprint.name }}{% endblock %}
 {% block main %}
       <h1>{{ sprint.name }}</h1>
@@ -38,7 +39,7 @@
           {% for issue in issues %}
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ issue.number }}">{{ project.key }}-{{ issue.number }}</a></td>
-            <td>{{ issue.type | label }}</td>
+            <td>{{ type_chip(issue.type) }}</td>
             <td>{{ issue.priority | label }}</td>
             <td>{{ issue.title }}</td>
             <td>{{ issue.status | label }}</td>

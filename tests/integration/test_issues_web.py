@@ -50,8 +50,11 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="parent_id"' in page.text
     assert 'name="sprint_id"' in page.text
     assert 'name="due_at"' in page.text
+    assert 'name="start_at"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'class="keel-type-select"' in page.text
+    assert 'data-type="story"' in page.text
 
 
 def test_an_issue_is_created_and_lands_on_its_page(
@@ -324,6 +327,8 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert 'name="title"' in page.text
     assert 'name="type"' in page.text
     assert 'name="priority"' in page.text
+    assert 'class="keel-type-select"' in page.text
+    assert 'data-type="story"' in page.text
     assert 'name="description"' in page.text
     assert 'name="parent_id"' in page.text
 
@@ -504,6 +509,33 @@ def test_due_date_can_be_changed_from_the_issue_page(
     )
     assert cleared.headers["location"] == "/issues/KEEL-1"
     assert client.get(f"/api/v1/issues/{issue_id}").json()["due_at"] is None
+
+
+def test_start_and_due_can_be_changed_together_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    response = client.post(
+        f"/web/issues/{issue_id}/dates",
+        data={"start_at": "2026-10-01T08:00", "due_at": "2026-10-01T17:00"},
+        follow_redirects=False,
+    )
+    assert response.headers["location"] == "/issues/KEEL-1"
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["start_at"].startswith("2026-10-01T08:00")
+    assert stored["due_at"].startswith("2026-10-01T17:00")
+
+    refused = client.post(
+        f"/web/issues/{issue_id}/dates",
+        data={"start_at": "2026-10-02T08:00", "due_at": "2026-10-01T17:00"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/issues/KEEL-1")
+    page = client.get(refused.headers["location"])
+    assert "Start cannot be after due" in page.text
 
 
 def test_an_unreadable_due_date_returns_to_the_issue_page(

@@ -11,10 +11,16 @@ from sqlalchemy.orm import Session
 from keel.db.models import User
 from keel.domain.duration import format_minutes
 from keel.domain.enums import label
+from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
 from keel.services.auto_sprint import get_session
-from keel.services.identity import USER_COOKIE, USER_HEADER, resolve_current_user
+from keel.services.identity import (
+    USER_COOKIE,
+    USER_HEADER,
+    bind_acting_user,
+    resolve_current_user,
+)
 from keel.version import package_version
 from keel.web.markdown import render_markdown
 from keel.web.nav import NAV_COOKIE, links_for, parse_order
@@ -38,6 +44,7 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["label"] = label
     templates.env.filters["when"] = format_when
     templates.env.filters["datetime_local"] = datetime_local
+    templates.env.filters["clock"] = format_clock
     templates.env.filters["day"] = format_day
     templates.env.filters["duration"] = format_duration
     templates.env.filters["markdown"] = render_markdown
@@ -88,9 +95,25 @@ class Chrome:
     current_user: User | None
 
 
-def get_chrome(
+def get_request_session(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
+) -> Session:
+    """Bind the picker user after auto-sprint catch-up so history names a person."""
+    bind_acting_user(
+        resolve_current_user(
+            session,
+            header=request.headers.get(USER_HEADER),
+            cookie=request.cookies.get(USER_COOKIE),
+            configured=request.app.state.settings.default_user,
+        ),
+    )
+    return session
+
+
+def get_chrome(
+    request: Request,
+    session: Annotated[Session, Depends(get_request_session)],
 ) -> Chrome:
     return Chrome(
         users=user_service.list_users(session),
@@ -104,7 +127,7 @@ def get_chrome(
 
 
 ChromeDep = Annotated[Chrome, Depends(get_chrome)]
-SessionDep = Annotated[Session, Depends(get_session)]
+SessionDep = Annotated[Session, Depends(get_request_session)]
 
 
 def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, Any]:

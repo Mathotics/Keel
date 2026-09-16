@@ -1,0 +1,15 @@
+[Unit]
+Description=Keel
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/library/Keel
+EnvironmentFile=/mnt/library/keel-data/keel.env
+ExecStart=/mnt/library/Keel/.venv/bin/keel serve
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -227,6 +227,30 @@ def test_a_due_date_round_trips_over_json(
     assert cleared["due_at"] is None
 
 
+def test_a_start_date_round_trips_over_json(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(
+        client,
+        project_id,
+        start_at="2026-09-14T09:00:00",
+        due_at="2026-09-15T17:00:00",
+    )
+    assert issue["start_at"].startswith("2026-09-14T09:00:00")
+    refused = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={
+            "type": "story",
+            "title": "Backwards",
+            "start_at": "2026-09-16T09:00:00",
+            "due_at": "2026-09-15T17:00:00",
+        },
+    )
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "issue.invalid"
+
+
 def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> None:
     issue = create_issue(client, project_id, estimate_minutes=90)
     assert issue["estimate_minutes"] == 90

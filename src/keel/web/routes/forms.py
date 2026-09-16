@@ -20,16 +20,18 @@ from keel.domain.enums import (
 )
 from keel.domain.errors import DomainError, InvalidSprintCadenceError
 from keel.domain.hierarchy import child_type_of
+from keel.domain.schedule import parse_clock
 from keel.services import auto_sprint
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE
-from keel.web.context import ChromeDep, SessionDep
+from keel.web.context import Chrome, ChromeDep, SessionDep
 from keel.web.nav import (
     NAV_COOKIE,
     NAV_COOKIE_MAX_AGE,
@@ -209,6 +211,7 @@ def create_issue_from_page(
     priority: Annotated[IssuePriority, Form()] = IssuePriority.P3,
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
@@ -233,6 +236,7 @@ def create_issue_from_page(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
             assignee_id=_optional_id(assignee_id),
+            start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
@@ -256,6 +260,7 @@ def create_issue(
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     reporter_id: Annotated[str, Form()] = "",
+    start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
@@ -274,6 +279,7 @@ def create_issue(
             parent_id=_optional_id(parent_id),
             reporter_id=_optional_id(reporter_id),
             assignee_id=_optional_id(assignee_id),
+            start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
@@ -285,6 +291,12 @@ def create_issue(
     return _back(f"/issues/{key}-{issue.number}")
 
 
+def _actor_name(chrome: Chrome) -> str:
+    if chrome.current_user is None:
+        return history_service.SYSTEM_ACTOR
+    return chrome.current_user.display_name
+
+
 def _issue_here(session: SessionDep, issue_id: int) -> str:
     issue = issue_service.get_issue(session, issue_id)
     key = project_service.get_project(session, issue.project_id).key
@@ -294,12 +306,18 @@ def _issue_here(session: SessionDep, issue_id: int) -> str:
 @router.post("/issues/{issue_id}/title")
 def update_issue_title(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     title: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
-        issue_service.update_issue(session, issue_id, title=title)
+        issue_service.update_issue(
+            session,
+            issue_id,
+            title=title,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -309,12 +327,18 @@ def update_issue_title(
 @router.post("/issues/{issue_id}/type")
 def update_issue_type(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     type: Annotated[IssueType, Form()],
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
-        issue_service.update_issue(session, issue_id, type=type)
+        issue_service.update_issue(
+            session,
+            issue_id,
+            type=type,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -339,12 +363,18 @@ def update_issue_priority(
 @router.post("/issues/{issue_id}/description")
 def update_issue_description(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     description: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
-        issue_service.update_issue(session, issue_id, description=description)
+        issue_service.update_issue(
+            session,
+            issue_id,
+            description=description,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -383,6 +413,7 @@ def create_child_issue(
 @router.post("/issues/{issue_id}/parent")
 def update_issue_parent(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     parent_id: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -392,6 +423,7 @@ def update_issue_parent(
             session,
             issue_id,
             parent_id=_optional_id(parent_id),
+            actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
         session.rollback()
@@ -402,6 +434,7 @@ def update_issue_parent(
 @router.post("/issues/{issue_id}/estimate")
 def update_issue_estimate(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     estimate: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -411,6 +444,7 @@ def update_issue_estimate(
             session,
             issue_id,
             estimate_minutes=parse_duration(estimate),
+            actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
         session.rollback()
@@ -421,6 +455,7 @@ def update_issue_estimate(
 @router.post("/issues/{issue_id}/remaining")
 def update_issue_remaining(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     remaining: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -430,7 +465,45 @@ def update_issue_remaining(
             session,
             issue_id,
             remaining_minutes=parse_duration(remaining),
+            actor_name=_actor_name(chrome),
         )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/dates")
+def update_issue_dates(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    start_at: Annotated[str, Form()] = "",
+    due_at: Annotated[str, Form()] = "",
+    scope: Annotated[EditScope, Form()] = EditScope.THIS,
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    issue = issue_service.get_issue(session, issue_id)
+    parsed_start = issue_service.parse_start_at(start_at)
+    parsed_due = issue_service.parse_due_at(due_at)
+    try:
+        if issue.series_id is None:
+            issue_service.update_issue(
+                session,
+                issue_id,
+                start_at=parsed_start,
+                due_at=parsed_due,
+                actor_name=_actor_name(chrome),
+            )
+        else:
+            series_service.apply_occurrence_edit(
+                session,
+                issue_id,
+                scope,
+                start_at=parsed_start,
+                due_at=parsed_due,
+                actor_name=_actor_name(chrome),
+            )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -440,6 +513,7 @@ def update_issue_remaining(
 @router.post("/issues/{issue_id}/due")
 def update_issue_due(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     due_at: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -451,6 +525,7 @@ def update_issue_due(
             session,
             issue_id,
             due_at=issue_service.parse_due_at(due_at),
+            actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
         session.rollback()
@@ -461,6 +536,7 @@ def update_issue_due(
 @router.post("/issues/{issue_id}/assignee")
 def update_issue_assignee(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     assignee_id: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -472,6 +548,7 @@ def update_issue_assignee(
             session,
             issue_id,
             assignee_id=_optional_id(assignee_id),
+            actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
         session.rollback()
@@ -482,6 +559,7 @@ def update_issue_assignee(
 @router.post("/issues/{issue_id}/status")
 def move_issue_status(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     status: Annotated[IssueStatus, Form()],
     return_to: Annotated[str, Form(alias="next")] = "",
@@ -490,7 +568,12 @@ def move_issue_status(
     project = project_service.get_project(session, issue.project_id)
     board = f"/projects/{project.key}/board"
     try:
-        issue_service.update_issue(session, issue_id, status=status)
+        issue_service.update_issue(
+            session,
+            issue_id,
+            status=status,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(return_to or board, exc.message)
@@ -620,6 +703,7 @@ def _carry_notice(session: SessionDep, result: sprint_service.SprintCompletion) 
 @router.post("/issues/{issue_id}/sprint")
 def update_issue_sprint(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     sprint_id: Annotated[str, Form()] = "",
     return_to: Annotated[str, Form(alias="next")] = "",
@@ -632,6 +716,7 @@ def update_issue_sprint(
             session,
             issue_id,
             sprint_id=_optional_id(sprint_id),
+            actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
         session.rollback()
@@ -716,10 +801,18 @@ def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
 
 
 @router.post("/sprints/{sprint_id}/complete")
-def complete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
+def complete_sprint(
+    session: SessionDep,
+    chrome: ChromeDep,
+    sprint_id: int,
+) -> RedirectResponse:
     here = _sprint_page(session, sprint_id)
     try:
-        result = auto_sprint.complete_sprint(session, sprint_id)
+        result = auto_sprint.complete_sprint(
+            session,
+            sprint_id,
+            actor_name=_actor_name(chrome),
+        )
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
@@ -749,6 +842,10 @@ def create_schedule(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -776,6 +873,10 @@ def create_schedule(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
             reporter_id=(
@@ -805,6 +906,10 @@ def update_schedule(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -833,6 +938,10 @@ def update_schedule(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
         )
@@ -852,9 +961,20 @@ def resume_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _schedule_state(session, series_id, SeriesState.ACTIVE)
 
 
-@router.post("/schedules/{series_id}/stop")
-def stop_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
-    return _schedule_state(session, series_id, SeriesState.STOPPED)
+@router.post("/schedules/{series_id}/delete")
+def delete_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
+    series = series_service.get_series(session, series_id)
+    project = project_service.get_project(session, series.project_id)
+    listing = f"/projects/{project.key}/schedules"
+    try:
+        series_service.delete_series(session, series_id)
+    except DomainError as exc:
+        session.rollback()
+        return _back(
+            f"/projects/{project.key}/schedules/{series.id}",
+            exc.message,
+        )
+    return _back(listing, notice="Schedule deleted. Existing issues remain.")
 
 
 @router.post("/issues/{issue_id}/repeat")
@@ -872,6 +992,10 @@ def make_issue_repeating(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -897,6 +1021,10 @@ def make_issue_repeating(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
             parent_id=issue.parent_id,
             assignee_id=issue.assignee_id,
             reporter_id=(
@@ -906,13 +1034,14 @@ def make_issue_repeating(
         )
     except DomainError as exc:
         session.rollback()
-        return _back(here, exc.message)
+        return _back(f"{here}?repeat=1", exc.message)
     return _back(here)
 
 
 @router.post("/issues/{issue_id}/series")
 def update_issue_series(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     scope: Annotated[EditScope, Form()] = EditScope.THIS,
     title: Annotated[str, Form()] = "",
@@ -927,6 +1056,10 @@ def update_issue_series(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
+    start_offset_days: Annotated[str, Form()] = "0",
+    start_time: Annotated[str, Form()] = "00:00",
+    due_offset_days: Annotated[str, Form()] = "0",
+    due_time: Annotated[str, Form()] = "00:00",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -951,10 +1084,15 @@ def update_issue_series(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
+            start_offset_days=_offset_days(start_offset_days),
+            start_minute_of_day=parse_clock(start_time),
+            due_offset_days=_offset_days(due_offset_days),
+            due_minute_of_day=parse_clock(due_time),
+            actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
         session.rollback()
-        return _back(here, exc.message)
+        return _back(f"{here}?repeat=1", exc.message)
     return _back(here)
 
 
@@ -1012,6 +1150,18 @@ def _positive_int(raw: str, message: str) -> int:
     if not cleaned.isdigit() or int(cleaned) < 1:
         raise InvalidSeriesError(message)
     return int(cleaned)
+
+
+def _offset_days(raw: str) -> int:
+    cleaned = raw.strip()
+    if not cleaned:
+        return 0
+    try:
+        return int(cleaned)
+    except ValueError as exc:
+        from keel.domain.errors import InvalidSeriesError
+
+        raise InvalidSeriesError("Day offset could not be read.") from exc
 
 
 def _end_date(end_mode: str, raw: str) -> date | None:

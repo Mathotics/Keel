@@ -60,6 +60,8 @@ def test_home_lists_assigned_work_and_hides_unassigned(
     assert "Assigned to me" in page.text
     assert "KEEL-1" in page.text
     assert "Mine" in page.text
+    assert 'data-type="story"' in page.text
+    assert "keel-chip keel-type" in page.text
     assert "Unowned" not in page.text
     assert "Nothing assigned to you right now." not in page.text
     assert "<h2>Blocked</h2>" not in page.text
@@ -91,6 +93,28 @@ def test_the_same_issue_can_appear_in_more_than_one_section(
     assert "KEEL-1" in assigned
     assert "KEEL-1" in due
     assert "KEEL-1" in blocked
+
+
+def test_home_lists_starting_or_started(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Begun",
+            "assignee_id": tester["id"],
+            "start_at": "2020-01-01T09:00:00",
+        },
+    )
+
+    page = client.get("/")
+    assert "<h2>Starting or started</h2>" in page.text
+    starting = page.text.split("<h2>Starting or started</h2>", 1)[1]
+    assert "KEEL-1" in starting
 
 
 def test_status_from_home_returns_to_home(client: TestClient) -> None:

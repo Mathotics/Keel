@@ -71,6 +71,8 @@ def complete_sprint(
     session: Session,
     sprint_id: int,
     today: date | None = None,
+    *,
+    actor_name: str | None = None,
 ) -> sprint_service.SprintCompletion:
     """Complete, then keep a window open when auto-sprint is on."""
     sprint = sprint_service.get_sprint(session, sprint_id)
@@ -81,7 +83,11 @@ def complete_sprint(
         and sprint.state is SprintState.ACTIVE
     ):
         _prepare_next(session, project, today, closed_end=sprint.ends_on)
-    result = sprint_service.complete_sprint(session, sprint_id)
+    result = sprint_service.complete_sprint(
+        session,
+        sprint_id,
+        actor_name=actor_name,
+    )
     if project.sprint_cadence is not SprintCadence.OFF:
         opened = _start_prepared(session, project, today)
         _note_rollover(project, result, opened)

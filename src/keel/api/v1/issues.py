@@ -8,6 +8,7 @@ from keel.db.models import Issue, Project
 from keel.domain.enums import IssuePriority, IssueStatus, IssueType
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services.issues import IssueFilters
@@ -90,6 +91,7 @@ def create_issue(
         sprint_id=payload.sprint_id,
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
+        start_at=payload.start_at,
         due_at=payload.due_at,
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
@@ -115,8 +117,14 @@ def update_issue(
     issue_id: int,
     payload: IssueUpdate,
     session: SessionDep,
+    acting_user: ActingUserDep,
 ) -> IssueRead:
     supplied = payload.model_fields_set
+    actor_name = (
+        history_service.SYSTEM_ACTOR
+        if acting_user is None
+        else acting_user.display_name
+    )
     issue = issue_service.update_issue(
         session,
         issue_id,
@@ -131,6 +139,7 @@ def update_issue(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),
         due_at=payload.due_at if "due_at" in supplied else issue_service.UNSET,
+        start_at=payload.start_at if "start_at" in supplied else issue_service.UNSET,
         estimate_minutes=(
             payload.estimate_minutes
             if "estimate_minutes" in supplied
@@ -141,6 +150,7 @@ def update_issue(
             if "remaining_minutes" in supplied
             else issue_service.UNSET
         ),
+        actor_name=actor_name,
     )
     return _read(session, issue)
 

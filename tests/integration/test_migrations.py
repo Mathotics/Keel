@@ -58,6 +58,7 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         engine.dispose()
     assert "due_at" in columns
     assert "priority" in columns
+    assert "start_at" in columns
     assert "series_id" in columns
     assert "occurrence_on" in columns
     assert "sprint_id" in columns
@@ -101,6 +102,10 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "look_ahead_n",
         "freq",
         "starts_on",
+        "start_offset_days",
+        "due_offset_days",
+        "start_minute_of_day",
+        "due_minute_of_day",
     }
 
 

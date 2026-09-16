@@ -419,6 +419,41 @@ def test_a_due_date_round_trips(session: Session, project: Project) -> None:
     assert cleared.due_at is None
 
 
+def test_a_start_date_round_trips(session: Session, project: Project) -> None:
+    start = datetime(2026, 9, 14, 9, 0)
+    issue = issue_service.get_issue(
+        session,
+        make(session, project, start_at=start),
+    )
+    assert issue.start_at == start
+
+    cleared = issue_service.update_issue(session, issue.id, start_at=None)
+    assert cleared.start_at is None
+
+
+def test_start_after_due_is_refused(session: Session, project: Project) -> None:
+    with pytest.raises(InvalidIssueError, match="Start cannot be after due"):
+        make(
+            session,
+            project,
+            start_at=datetime(2026, 9, 16, 9, 0),
+            due_at=datetime(2026, 9, 15, 17, 0),
+        )
+
+
+def test_updating_start_after_due_is_refused(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = make(session, project, due_at=datetime(2026, 9, 15, 17, 0))
+    with pytest.raises(InvalidIssueError, match="Start cannot be after due"):
+        issue_service.update_issue(
+            session,
+            issue_id,
+            start_at=datetime(2026, 9, 16, 9, 0),
+        )
+
+
 def test_created_at_is_set_on_insert(session: Session, project: Project) -> None:
     issue = issue_service.get_issue(session, make(session, project))
     assert issue.created_at is not None

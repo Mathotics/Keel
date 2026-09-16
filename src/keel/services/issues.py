@@ -22,6 +22,7 @@ from keel.domain.errors import (
 )
 from keel.domain.hierarchy import IssueRef, check_children, check_parent
 from keel.domain.rollup import EffortNode, Rollup, compute_rollup
+from keel.domain.schedule import check_start_due_window
 from keel.services import projects as project_service
 
 MAX_TITLE_LENGTH = 300
@@ -118,6 +119,7 @@ def create_issue(
     parent_id: int | None = None,
     reporter_id: int | None = None,
     assignee_id: int | None = None,
+    start_at: datetime | None = None,
     due_at: datetime | None = None,
     sprint_id: int | None = None,
     estimate_minutes: int | None = None,
@@ -128,6 +130,7 @@ def create_issue(
     project = project_service.get_project(session, project_id)
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
+    check_start_due_window(start_at, due_at)
     if remaining_minutes is None:
         remaining_minutes = estimate_minutes
     issue = Issue(
@@ -140,6 +143,7 @@ def create_issue(
         priority=priority,
         reporter_id=reporter_id,
         assignee_id=assignee_id,
+        start_at=start_at,
         due_at=due_at,
         estimate_minutes=estimate_minutes,
         remaining_minutes=remaining_minutes,
@@ -164,41 +168,147 @@ def update_issue(
     priority: IssuePriority | None = None,
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
+    start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
     sprint_id: int | None | object = UNSET,
     estimate_minutes: int | None | object = UNSET,
     remaining_minutes: int | None | object = UNSET,
+    actor_name: str | None = None,
 ) -> Issue:
     """Nullable fields accept None as "clear it", so they use UNSET."""
+    from keel.services import history as history_service
+
     issue = get_issue(session, issue_id)
+    who = actor_name if actor_name is not None else history_service.current_actor_name()
 
     if type is not None and type is not issue.type:
         check_children(type, [child.type for child in list_children(session, issue.id)])
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_TYPE,
+            from_value=history_service.type_label(issue.type),
+            to_value=history_service.type_label(type),
+            actor_name=who,
+        )
         issue.type = type
         _assign_parent(session, issue, issue.parent_id)
 
     if title is not None:
-        issue.title = _clean_title(title)
+        cleaned_title = _clean_title(title)
+        if cleaned_title != issue.title:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_TITLE,
+                from_value=issue.title,
+                to_value=cleaned_title,
+                actor_name=who,
+            )
+            issue.title = cleaned_title
     if description is not None:
-        issue.description = description.strip()
-    if status is not None:
+        cleaned_description = description.strip()
+        if cleaned_description != issue.description:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_DESCRIPTION,
+                from_value=history_service.text_label(issue.description),
+                to_value=history_service.text_label(cleaned_description),
+                actor_name=who,
+            )
+            issue.description = cleaned_description
+    if status is not None and status is not issue.status:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_STATUS,
+            from_value=history_service.status_label(issue.status),
+            to_value=history_service.status_label(status),
+            actor_name=who,
+        )
         issue.status = status
-    if priority is not None:
+    if priority is not None and priority is not issue.priority:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_PRIORITY,
+            from_value=history_service.priority_label(issue.priority),
+            to_value=history_service.priority_label(priority),
+            actor_name=who,
+        )
         issue.priority = priority
-    if parent_id is not UNSET:
+    if parent_id is not UNSET and parent_id != issue.parent_id:
+        old_parent = history_service.parent_label(session, issue.parent_id)
+        new_parent = history_service.parent_label(session, parent_id)  # type: ignore[arg-type]
         _assign_parent(session, issue, parent_id)  # type: ignore[arg-type]
-    if assignee_id is not UNSET:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_PARENT,
+            from_value=old_parent,
+            to_value=new_parent,
+            actor_name=who,
+        )
+    if assignee_id is not UNSET and assignee_id != issue.assignee_id:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_ASSIGNEE,
+            from_value=history_service.assignee_label(session, issue.assignee_id),
+            to_value=history_service.assignee_label(session, assignee_id),  # type: ignore[arg-type]
+            actor_name=who,
+        )
         issue.assignee_id = assignee_id  # type: ignore[assignment]
-    if due_at is not UNSET:
+    if start_at is not UNSET:
+        issue.start_at = start_at  # type: ignore[assignment]
+    if due_at is not UNSET and due_at != issue.due_at:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_DUE,
+            from_value=history_service.due_label(issue.due_at),
+            to_value=history_service.due_label(due_at),  # type: ignore[arg-type]
+            actor_name=who,
+        )
         issue.due_at = due_at  # type: ignore[assignment]
-    if sprint_id is not UNSET:
+    check_start_due_window(issue.start_at, issue.due_at)
+    if sprint_id is not UNSET and sprint_id != issue.sprint_id:
+        old_sprint = history_service.sprint_label(session, issue.sprint_id)
+        new_sprint = history_service.sprint_label(session, sprint_id)  # type: ignore[arg-type]
         _assign_sprint(session, issue, sprint_id)  # type: ignore[arg-type]
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_SPRINT,
+            from_value=old_sprint,
+            to_value=new_sprint,
+            actor_name=who,
+        )
     if estimate_minutes is not UNSET:
         _check_minutes(estimate_minutes)  # type: ignore[arg-type]
-        issue.estimate_minutes = estimate_minutes  # type: ignore[assignment]
+        if estimate_minutes != issue.estimate_minutes:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_ESTIMATE,
+                from_value=history_service.effort_label(issue.estimate_minutes),
+                to_value=history_service.effort_label(estimate_minutes),  # type: ignore[arg-type]
+                actor_name=who,
+            )
+            issue.estimate_minutes = estimate_minutes  # type: ignore[assignment]
     if remaining_minutes is not UNSET:
         _check_minutes(remaining_minutes)  # type: ignore[arg-type]
-        issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
+        if remaining_minutes != issue.remaining_minutes:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_REMAINING,
+                from_value=history_service.effort_label(issue.remaining_minutes),
+                to_value=history_service.effort_label(remaining_minutes),  # type: ignore[arg-type]
+                actor_name=who,
+            )
+            issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
 
     session.flush()
     if status is not None:
@@ -326,13 +436,22 @@ def _load_subtree(session: Session, root_id: int) -> Sequence[Issue]:
 
 def parse_due_at(raw: str) -> datetime | None:
     """Read a datetime-local or ISO string. Blank means no due date."""
+    return parse_datetime(raw, "Due date")
+
+
+def parse_start_at(raw: str) -> datetime | None:
+    """Read a datetime-local or ISO string. Blank means no start date."""
+    return parse_datetime(raw, "Start date")
+
+
+def parse_datetime(raw: str, field: str) -> datetime | None:
     cleaned = raw.strip()
     if not cleaned:
         return None
     try:
         parsed = datetime.fromisoformat(cleaned)
     except ValueError as exc:
-        raise InvalidIssueError("Due date could not be read.") from exc
+        raise InvalidIssueError(f"{field} could not be read.") from exc
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone(UTC).replace(tzinfo=None)
     return parsed

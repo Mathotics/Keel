@@ -15,6 +15,14 @@ def project(client: TestClient) -> Json:
     return created
 
 
+def _card_html(page_text: str, title: str) -> str:
+    for chunk in page_text.split('class="keel-card"')[1:]:
+        card = chunk.split("</article>", 1)[0]
+        if title in card:
+            return card
+    raise AssertionError(f"No board card contained {title!r}")
+
+
 def test_a_board_card_links_to_the_issue(
     client: TestClient,
     project: Json,
@@ -32,6 +40,44 @@ def test_a_board_card_links_to_the_issue(
     css = client.get("/assets/brand.css").text
     assert ".keel-card__link::after" in css
     assert "inset: 0" in css.split(".keel-card__link::after", 1)[1].split("}", 1)[0]
+
+
+def test_board_cards_and_chips_use_type_colors(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "epic", "title": "Epic work"},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Story work"},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "subtask", "title": "Subtask work"},
+    )
+
+    page = client.get("/projects/KEEL/board")
+    epic = _card_html(page.text, "Epic work")
+    story = _card_html(page.text, "Story work")
+    subtask = _card_html(page.text, "Subtask work")
+
+    assert 'data-type="epic"' in epic
+    assert 'data-type="story"' in story
+    assert 'data-type="subtask"' in subtask
+    assert 'class="keel-chip keel-type"' in epic
+    assert 'class="keel-type" data-type="epic"' in page.text
+    assert 'class="keel-type" data-type="story"' in page.text
+    assert 'class="keel-type" data-type="subtask"' in page.text
+
+    css = client.get("/assets/brand.css").text
+    assert "--keel-type-epic: #0068b0" in css
+    assert "--keel-type-story: #0f7a73" in css
+    assert "--keel-type-subtask: #b86a00" in css
+    assert ".keel-card[data-type]" in css
+    assert ".keel-chip.keel-type[data-type]" in css
 
 
 def test_the_board_page_renders_every_column(
@@ -56,6 +102,114 @@ def test_the_board_page_renders_every_column(
     assert 'action="/web/issues/' in page.text
     assert ">Move<" in page.text
     assert 'src="/assets/js/board.js"' in page.text
+
+
+def test_a_story_card_links_to_its_epic_parent(
+    client: TestClient,
+    project: Json,
+) -> None:
+    epic = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "epic", "title": "Epic work"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Child story", "parent_id": epic["id"]},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Standalone"},
+    )
+
+    page = client.get("/projects/KEEL/board")
+    child = _card_html(page.text, "Child story")
+    standalone = _card_html(page.text, "Standalone")
+    epic_card = _card_html(page.text, "Epic work")
+
+    assert "Parent " in child
+    assert 'class="keel-card__parent-link"' in child
+    assert 'href="/issues/KEEL-1"' in child
+    assert 'draggable="false"' in child.split("keel-card__parent-link", 1)[1]
+    assert "No parent" not in child
+    css = client.get("/assets/brand.css").text
+    parent_rule = css.split(".keel-card__parent {")[-1].split("}", 1)[0]
+    assert "z-index: 1" in parent_rule
+    assert "Parent " not in standalone
+    assert "keel-card__parent" not in standalone
+    assert "Parent " not in epic_card
+    assert "No parent" not in page.text
+
+
+def test_a_subtask_card_links_to_its_story_parent(
+    client: TestClient,
+    project: Json,
+) -> None:
+    story = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Parent story"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "subtask", "title": "Child subtask", "parent_id": story["id"]},
+    )
+
+    page = client.get("/projects/KEEL/board")
+    card = _card_html(page.text, "Child subtask")
+    assert "Parent " in card
+    assert 'href="/issues/KEEL-1"' in card.split("keel-card__parent-link", 1)[1]
+
+
+def test_the_type_filter_still_shows_a_hidden_parent(
+    client: TestClient,
+    project: Json,
+) -> None:
+    epic = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "epic", "title": "Epic work"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Child story", "parent_id": epic["id"]},
+    )
+
+    page = client.get("/projects/KEEL/board", params={"type": "story"})
+    card = _card_html(page.text, "Child story")
+
+    assert "Epic work" not in page.text
+    assert "Parent " in card
+    assert 'href="/issues/KEEL-1"' in card
+
+
+def test_separating_by_sprint_still_shows_a_parent_in_another_lane(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    epic = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "epic", "title": "Epic work", "sprint_id": sprint["id"]},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting child", "parent_id": epic["id"]},
+    )
+
+    page = client.get("/projects/KEEL/board", params={"by": "sprint"})
+    first, rest = page.text.split("keel-board__lane-title", 1)[1].split(
+        "keel-board__lane-title",
+        1,
+    )
+    child = _card_html(rest, "Waiting child")
+
+    assert "Sprint 1" in first
+    assert "Epic work" in first
+    assert "Waiting child" not in first
+    assert "Unscheduled" in rest
+    assert "Parent " in child
+    assert 'href="/issues/KEEL-1"' in child
 
 
 def test_the_type_filter_changes_what_the_board_queries(
@@ -285,6 +439,7 @@ def test_board_script_hides_only_its_own_fallback(client: TestClient) -> None:
     assert script.status_code == 200
     assert 'addEventListener("drop"' in script.text
     assert "keel-card__link" in script.text
+    assert "keel-card__parent-link" in script.text
     assert "data-keel-board" in script.text
     assert "/api/v1/issues/" in script.text
     assert "sprint_id" in script.text

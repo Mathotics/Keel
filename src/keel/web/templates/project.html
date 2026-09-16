@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}{{ project.key }}{% endblock %}
 {% block main %}
       <h1>{{ project.key }} — {{ project.name }}</h1>
@@ -33,6 +34,7 @@
             <th>Title</th>
             <th>Status</th>
             <th>Assignee</th>
+            <th>Start</th>
             <th>Due date</th>
             <th>Created on</th>
           </tr>
@@ -41,16 +43,17 @@
           {% for issue in issues %}
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ issue.number }}">{{ project.key }}-{{ issue.number }}</a></td>
-            <td>{{ issue.type | label }}</td>
+            <td>{{ type_chip(issue.type) }}</td>
             <td>{{ issue.priority | label }}</td>
             <td>{{ issue.title }}</td>
             <td>{{ issue.status | label }}</td>
             <td>{% if issue.assignee_id %}{{ names.get(issue.assignee_id, "Unknown") }}{% else %}Unassigned{% endif %}</td>
+            <td>{% if issue.start_at %}{{ issue.start_at | when }}{% endif %}</td>
             <td>{{ issue.due_at | when }}</td>
             <td>{{ issue.created_at | when }}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="8">No issues yet.</td></tr>
+          <tr><td class="keel-empty" colspan="9">No issues yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>
