@@ -23,6 +23,8 @@ erDiagram
   STATUS ||--o{ ISSUE : "classifies"
   ISSUE ||--o{ COMMENT : "carries"
   ISSUE ||--o{ ISSUE_HISTORY : "records"
+  ISSUE ||--o{ ISSUE_LABEL : "tagged by"
+  LABEL ||--o{ ISSUE_LABEL : "names"
 
   BOARD ||--o{ BOARD_COLUMN : "orders"
   STATUS ||--o{ BOARD_COLUMN : "surfaced by"
@@ -54,7 +56,12 @@ The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtas
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
 * Estimated time; time remaining — time-based effort tracking for the issue.
-* Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; carries many comments; records many history lines; participates in many dependencies as source and as target.
+* Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; tagged by many labels; carries many comments; records many history lines; participates in many dependencies as source and as target.
+
+### Label
+A reusable free-form tag on an issue ([ADR 028](../adr/ADR-028.md)). The catalog is global, not per-project.
+* Name — lowercase, unique.
+* Relationships: tags many issues.
 
 ### Status
 A state in the shared, fixed workflow. The status set is shared across all projects and is not user-configurable in v1 — see [ADR 004](../adr/ADR-004.md). The concrete set is *To Do*, *In Progress*, *In Review*, *Blocked*, *Done*, and *Cancelled*. *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](../adr/ADR-020.md)). Because the set is fixed, it is realized as an enumeration in code rather than as stored records (see [ADR 013](../adr/ADR-013.md)).
@@ -110,7 +117,7 @@ The backlog is the list of a project's issues that have **no sprint assigned** a
 
 ## Persistence
 
-Every entity above must be **durably stored** so that projects, issues, sprints, boards, comments, issue history, and dependencies survive restarts. **How** persistence is realized was deliberately left open at the system level and is now decided in [ADR 007](../adr/ADR-007.md), with the concrete schema in the [data model](../design/data-model.md). This document specifies *that* entities persist, not *how*.
+Every entity above must be **durably stored** so that projects, issues, sprints, boards, comments, issue history, labels, and dependencies survive restarts. **How** persistence is realized was deliberately left open at the system level and is now decided in [ADR 007](../adr/ADR-007.md), with the concrete schema in the [data model](../design/data-model.md). This document specifies *that* entities persist, not *how*.
 
 ## Related documents
 

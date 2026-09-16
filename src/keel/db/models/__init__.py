@@ -3,6 +3,7 @@ from keel.db.models.comment import Comment
 from keel.db.models.dependency import Dependency
 from keel.db.models.issue import Issue
 from keel.db.models.issue_history import IssueHistory
+from keel.db.models.label import IssueLabel, Label
 from keel.db.models.project import Project
 from keel.db.models.series import Series, SeriesSkip
 from keel.db.models.sprint import Sprint
@@ -14,6 +15,8 @@ __all__ = [
     "Dependency",
     "Issue",
     "IssueHistory",
+    "IssueLabel",
+    "Label",
     "Project",
     "Series",
     "SeriesSkip",

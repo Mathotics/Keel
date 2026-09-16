@@ -18,10 +18,11 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Shared fixed workflow** — a single small status set shared across projects ([ADR 004](../adr/ADR-004.md)).
 * **Users** — a minimal notion of people for assignee/reporter, with no authentication (see below).
 * **Comments** — notes on issues; descriptions and comments render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
-* **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description ([ADR 025](../adr/ADR-025.md)).
+* **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, and labels ([ADR 025](../adr/ADR-025.md), [ADR 028](../adr/ADR-028.md)).
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
 * **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/ADR-016.md)).
 * **Repeating work** — a per-project Schedules page of series recipes that spawn ordinary issues on a cadence ([ADR 021](../adr/ADR-021.md)).
+* **Labels** — free-form tags on issues, filterable on the board and issue list ([ADR 028](../adr/ADR-028.md)).
 
 ## Deferred beyond v1
 
@@ -31,7 +32,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 | --- | --- |
 | **Authentication & identity** | v1 assumes a trusted local/small-group context. No login, roles, permission matrices, or SSO. Users are still recorded for attribution, with identity declared rather than verified ([ADR 011](../adr/ADR-011.md)). To be designed in a later version. |
 | **Configurable / per-project workflows** | A fixed shared workflow is proportional to a personal tool ([ADR 004](../adr/ADR-004.md)). Custom statuses, transitions, and swimlanes other than sprint are deferred. |
-| **Labels, components, releases/versions** | Extra classification beyond the Epic/Story/Subtask hierarchy is not needed for 1–3 users yet. |
+| **Components, releases/versions** | Extra classification beyond issue type, parent, and labels is not needed for 1–3 users yet. Labels are in v1 ([ADR 028](../adr/ADR-028.md)). |
 | **Attachments** | File handling adds storage and lifecycle concerns beyond v1's core. |
 | **Burndown / velocity / reporting** | Time estimates are captured in v1, but charts and analytics on top of them are deferred. |
 | **Notifications** | No email or external messaging; the tool is local and low-volume. |
@@ -42,7 +43,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 025](../adr/ADR-025.md) and [ADR 027](../adr/ADR-027.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 028](../adr/ADR-028.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md).
 
 ## Related documents
 

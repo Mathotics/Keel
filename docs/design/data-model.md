@@ -18,6 +18,8 @@ erDiagram
   sprints ||--o{ issues : "schedules"
   issues ||--o{ comments : "carries"
   issues ||--o{ issue_history : "records"
+  issues ||--o{ issue_labels : "tagged by"
+  labels ||--o{ issue_labels : "names"
   issues ||--o{ dependencies : "is source of"
   issues ||--o{ dependencies : "is target of"
 ```
@@ -187,12 +189,31 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `labels`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
 
 Index: `ix_issue_history_issue_created` on (`issue_id`, `created_at`). Who, from, and to are snapshotted labels so a later rename does not rewrite old lines ([ADR 025](../adr/ADR-025.md)).
+
+### labels
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `name` | TEXT | not null, unique, length 1–40 |
+| `created_at` | TIMESTAMP | not null |
+
+Names are stored lowercase. The catalog is global across projects ([ADR 028](../adr/ADR-028.md)).
+
+### issue_labels
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE`, part of primary key |
+| `label_id` | INTEGER | not null, references `labels(id)` `ON DELETE CASCADE`, part of primary key |
+
+Index: `ix_issue_labels_label_id` on (`label_id`). Deleting an issue drops its links; unused catalog rows remain.
 
 ## Derived, not stored
 
@@ -209,7 +230,7 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 | Action | Result |
 | --- | --- |
 | Delete issue with children | Refused, `issue.has_children` |
-| Delete childless issue | Cascades its comments, field history, and every dependency naming it |
+| Delete childless issue | Cascades its comments, field history, label links, and every dependency naming it |
 | Delete project | Cascades issues, sprints, board, and through issues their comments, field history, and dependency links, including links whose other end is in another project |
 | Delete sprint | Its issues are unscheduled, not deleted |
 | Delete user still referenced | Refused, `user.in_use` |
@@ -231,6 +252,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0009` | `series`, `series_skips`, `issues.series_id` |
 | `0010` | `issue_history` |
 | `0011` | `title` and `description` on `issue_history.field` |
+| `0012` | `labels`, `issue_labels`, and `labels` on `issue_history.field` |
 
 ## Related documents
 
@@ -241,6 +263,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 020: Cancelled status](../adr/ADR-020.md)
 * [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
+* [ADR 028: Issue labels](../adr/ADR-028.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)

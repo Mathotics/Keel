@@ -16,6 +16,7 @@ from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
@@ -59,6 +60,8 @@ def issue_page(
             issue=issue,
             issue_key=issue_service.issue_key(issue, project),
             children=issue_service.list_children(session, issue.id),
+            issue_labels=label_service.labels_for_issue(session, issue.id),
+            label_catalog=label_service.list_labels(session),
             dependencies=dependency_service.list_for_issue(session, issue.id),
             comments=_comment_views(session, issue.id),
             history=history_service.list_history(session, issue.id),

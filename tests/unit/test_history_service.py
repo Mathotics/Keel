@@ -47,6 +47,8 @@ def test_labels_for_missing_rows_match_empty_copy(
     assert history_service.text_label("") == "none"
     assert history_service.text_label("  ") == "none"
     assert history_service.text_label("A note") == "A note"
+    assert history_service.labels_label(()) == "none"
+    assert history_service.labels_label(("urgent", "bug")) == "bug, urgent"
 
 
 def test_a_new_issue_has_no_history(session: Session, project: Project) -> None:

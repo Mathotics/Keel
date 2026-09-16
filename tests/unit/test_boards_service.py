@@ -434,6 +434,73 @@ def test_parse_sprint_filter_rejects_an_unknown_value() -> None:
         board_service.parse_sprint_filter("Sprint 1")
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (None, (None, False)),
+        ("", (None, False)),
+        ("  ", (None, False)),
+        ("unlabeled", (None, True)),
+        ("Urgent", ("urgent", False)),
+    ],
+)
+def test_parse_label_filter_accepts_the_board_query_values(
+    raw: str | None,
+    expected: tuple[str | None, bool],
+) -> None:
+    assert board_service.parse_label_filter(raw) == expected
+
+
+def test_parse_label_filter_rejects_an_illegal_name() -> None:
+    with pytest.raises(InvalidIssueError):
+        board_service.parse_label_filter("!!!")
+
+
+def test_the_label_filter_is_applied_before_grouping(
+    session: Session,
+    project: Project,
+) -> None:
+    tagged = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Tagged",
+        labels=["urgent"],
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Bare",
+    )
+    board = board_service.project_board(session, project.id, label="urgent")
+    cards = [card for column in board.columns for card in column.cards]
+    assert [card.issue.id for card in cards] == [tagged.id]
+    assert cards[0].labels == ("urgent",)
+
+
+def test_the_unlabeled_filter_keeps_only_bare_cards(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Tagged",
+        labels=["urgent"],
+    )
+    bare = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Bare",
+    )
+    board = board_service.project_board(session, project.id, unlabeled=True)
+    cards = [card for column in board.columns for card in column.cards]
+    assert [card.issue.id for card in cards] == [bare.id]
+
+
 def test_parse_board_grouping_accepts_sprint_or_nothing() -> None:
     assert board_service.parse_board_grouping(None) is None
     assert board_service.parse_board_grouping("") is None

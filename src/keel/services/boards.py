@@ -12,8 +12,10 @@ from keel.domain.enums import (
     statuses_in_workflow_order,
 )
 from keel.domain.errors import InvalidIssueError
+from keel.domain.labels import normalize_label_name
 from keel.services import dependencies as dependency_service
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
@@ -27,6 +29,7 @@ class BoardCard:
     assignee_name: str | None
     unresolved_blockers: int
     parent_key: str | None = None
+    labels: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,20 @@ def parse_sprint_filter(raw: str | None) -> tuple[int | None, bool]:
     return _parse_id_filter(raw, none_token="unscheduled", kind="sprint")
 
 
+def parse_label_filter(raw: str | None) -> tuple[str | None, bool]:
+    """Read the board's `label` query value.
+
+    Empty means every issue. `unlabeled` means no labels. Otherwise a
+    normalized label name.
+    """
+    if raw is None or not raw.strip():
+        return None, False
+    cleaned = raw.strip()
+    if cleaned == "unlabeled":
+        return None, True
+    return normalize_label_name(cleaned), False
+
+
 def parse_board_grouping(raw: str | None) -> str | None:
     """Read the board's `by` query value.
 
@@ -106,12 +123,15 @@ def project_board(
     unassigned: bool = False,
     sprint_id: int | None = None,
     unscheduled: bool = False,
+    label: str | None = None,
+    unlabeled: bool = False,
 ) -> Board:
     """Group a project's issues by status in workflow order.
 
-    Type, assignee, and sprint filters are applied in the query so hidden
-    cards are never loaded. Empty `types` means every type; omitting
-    assignee or sprint means every value. That matches the board's default.
+    Type, assignee, sprint, and label filters are applied in the query so
+    hidden cards are never loaded. Empty `types` means every type; omitting
+    assignee, sprint, or label means every value. That matches the board's
+    default.
     Lanes always regroup the same cards by sprint so the page can stack a
     row per sprint without a second query.
     """
@@ -125,6 +145,8 @@ def project_board(
             unassigned=unassigned,
             sprint_id=sprint_id,
             unscheduled=unscheduled,
+            label=label,
+            unlabeled=unlabeled,
         ),
     )
     names = {user.id: user.display_name for user in user_service.list_users(session)}
@@ -133,6 +155,10 @@ def project_board(
         [issue.id for issue in found],
     )
     parent_keys = _parent_keys(session, project, found)
+    label_names = label_service.names_for_issues(
+        session,
+        [issue.id for issue in found],
+    )
     cards = tuple(
         BoardCard(
             issue=issue,
@@ -140,6 +166,7 @@ def project_board(
             assignee_name=(names.get(issue.assignee_id) if issue.assignee_id else None),
             unresolved_blockers=counts.get(issue.id, 0),
             parent_key=parent_keys.get(issue.parent_id) if issue.parent_id else None,
+            labels=tuple(label_names.get(issue.id, ())),
         )
         for issue in found
     )

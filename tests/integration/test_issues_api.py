@@ -329,3 +329,50 @@ def test_created_at_cannot_be_patched(client: TestClient, project_id: int) -> No
         json={"created_at": "2020-01-01T00:00:00"},
     )
     assert response.status_code == 422
+
+
+def test_labels_round_trip_and_filter(client: TestClient, project_id: int) -> None:
+    tagged = create_issue(
+        client,
+        project_id,
+        title="Tagged",
+        labels=["Urgent", "bug"],
+    )
+    bare = create_issue(client, project_id, title="Bare")
+
+    assert tagged["labels"] == ["bug", "urgent"]
+    assert bare["labels"] == []
+    catalog = client.get("/api/v1/labels").json()
+    assert [item["name"] for item in catalog] == ["bug", "urgent"]
+
+    by_label = client.get(
+        f"/api/v1/projects/{project_id}/issues",
+        params={"label": "URGENT"},
+    ).json()
+    unlabeled = client.get(
+        f"/api/v1/projects/{project_id}/issues",
+        params={"unlabeled": True},
+    ).json()
+    assert [issue["id"] for issue in by_label] == [tagged["id"]]
+    assert [issue["id"] for issue in unlabeled] == [bare["id"]]
+
+    cleared = client.patch(
+        f"/api/v1/issues/{tagged['id']}",
+        json={"labels": []},
+    ).json()
+    assert cleared["labels"] == []
+    leftover = client.patch(
+        f"/api/v1/issues/{bare['id']}",
+        json={"title": "Still bare"},
+    ).json()
+    assert leftover["labels"] == []
+
+
+def test_an_illegal_label_is_refused(client: TestClient, project_id: int) -> None:
+    response = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={"type": "story", "title": "Nope", "labels": ["bad!"]},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "issue.invalid"
+    assert response.status_code == 422

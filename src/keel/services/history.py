@@ -21,6 +21,7 @@ FIELD_PARENT = "parent"
 FIELD_TYPE = "type"
 FIELD_TITLE = "title"
 FIELD_DESCRIPTION = "description"
+FIELD_LABELS = "labels"
 
 UNASSIGNED = "Unassigned"
 UNSCHEDULED = "Unscheduled"
@@ -122,3 +123,10 @@ def text_label(value: str) -> str:
     if not cleaned:
         return NONE
     return cleaned
+
+
+def labels_label(names: Sequence[str]) -> str:
+    cleaned = [name for name in names if name]
+    if not cleaned:
+        return NONE
+    return ", ".join(sorted(cleaned))

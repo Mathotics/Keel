@@ -1083,6 +1083,15 @@ body {
   margin: 0 0 0.3rem;
 }
 
+.keel-card__labels {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0 0 0.3rem;
+}
+
 .keel-card__key {
   font-size: 0.75rem;
   font-weight: 650;
@@ -1180,6 +1189,22 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--keel-blue-deep);
+}
+
+.keel-labels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.keel-labels li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .keel-type[data-type="epic"],
