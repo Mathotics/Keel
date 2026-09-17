@@ -48,7 +48,7 @@ class BoardLane:
 
 @dataclass(frozen=True)
 class Board:
-    project: Project
+    project: Project | None
     columns: tuple[BoardColumn, ...]
     lanes: tuple[BoardLane, ...]
 
@@ -85,6 +85,16 @@ def parse_label_filter(raw: str | None) -> tuple[str | None, bool]:
     return normalize_label_name(cleaned), False
 
 
+def parse_project_filter(raw: str | None) -> str | None:
+    """Read the master board's `project` query value.
+
+    Empty means every project. Otherwise a project key.
+    """
+    if raw is None or not raw.strip():
+        return None
+    return raw.strip()
+
+
 def parse_board_grouping(raw: str | Sequence[str] | None) -> str | None:
     """Read the board's `by` query value.
 
@@ -104,6 +114,10 @@ def parse_board_grouping(raw: str | Sequence[str] | None) -> str | None:
     if all(item == "status" for item in cleaned):
         return None
     raise InvalidIssueError(f"{cleaned[-1]} is not a valid board grouping.")
+
+
+def card_count(board: Board) -> int:
+    return sum(len(column.cards) for column in board.columns)
 
 
 def _parse_id_filter(
@@ -157,12 +171,79 @@ def project_board(
             unlabeled=unlabeled,
         ),
     )
+    return _board_from_issues(
+        session,
+        found,
+        project=project,
+        sprints=sprint_service.list_sprints(session, project.id),
+        sprint_id=sprint_id,
+        unscheduled=unscheduled,
+    )
+
+
+def master_board(
+    session: Session,
+    types: Sequence[IssueType] = (),
+    *,
+    project_id: int | None = None,
+    assignee_id: int | None = None,
+    unassigned: bool = False,
+    sprint_id: int | None = None,
+    unscheduled: bool = False,
+    label: str | None = None,
+    unlabeled: bool = False,
+) -> Board:
+    """Group issues from every project, omitting closed completed-sprint work."""
+    found = issue_service.list_issues(
+        session,
+        project_id,
+        IssueFilters(
+            types=tuple(types),
+            assignee_id=assignee_id,
+            unassigned=unassigned,
+            sprint_id=sprint_id,
+            unscheduled=unscheduled,
+            label=label,
+            unlabeled=unlabeled,
+            hide_closed_in_completed_sprints=True,
+        ),
+    )
+    if project_id is not None:
+        sprints = sprint_service.list_sprints(session, project_id)
+        projects = {project_id: project_service.get_project(session, project_id)}
+    else:
+        sprints = sprint_service.list_all_sprints(session)
+        projects = {item.id: item for item in project_service.list_projects(session)}
+    return _board_from_issues(
+        session,
+        found,
+        project=None,
+        sprints=sprints,
+        sprint_id=sprint_id,
+        unscheduled=unscheduled,
+        projects=projects,
+        prefix_project=True,
+    )
+
+
+def _board_from_issues(
+    session: Session,
+    found: Sequence[Issue],
+    *,
+    project: Project | None,
+    sprints: Sequence[Sprint],
+    sprint_id: int | None,
+    unscheduled: bool,
+    projects: dict[int, Project] | None = None,
+    prefix_project: bool = False,
+) -> Board:
+    by_id = projects or ({project.id: project} if project is not None else {})
     names = {user.id: user.display_name for user in user_service.list_users(session)}
     counts = dependency_service.unresolved_blocker_counts(
         session,
         [issue.id for issue in found],
     )
-    parent_keys = _parent_keys(session, project, found)
+    parent_keys = _parent_keys(session, found, by_id)
     label_names = label_service.names_for_issues(
         session,
         [issue.id for issue in found],
@@ -170,7 +251,7 @@ def project_board(
     cards = tuple(
         BoardCard(
             issue=issue,
-            key=issue_service.issue_key(issue, project),
+            key=issue_service.issue_key(issue, by_id[issue.project_id]),
             assignee_name=(names.get(issue.assignee_id) if issue.assignee_id else None),
             unresolved_blockers=counts.get(issue.id, 0),
             parent_key=parent_keys.get(issue.parent_id) if issue.parent_id else None,
@@ -183,23 +264,34 @@ def project_board(
         columns=_columns_from(cards),
         lanes=_lanes(
             cards,
-            sprint_service.list_sprints(session, project.id),
+            sprints,
             sprint_id=sprint_id,
             unscheduled=unscheduled,
+            projects=by_id,
+            prefix_project=prefix_project,
         ),
     )
 
 
 def _parent_keys(
     session: Session,
-    project: Project,
     issues: Sequence[Issue],
+    projects: dict[int, Project],
 ) -> dict[int, str]:
     parent_ids = {issue.parent_id for issue in issues if issue.parent_id is not None}
     if not parent_ids:
         return {}
     parents = session.scalars(select(Issue).where(Issue.id.in_(parent_ids))).all()
-    return {parent.id: issue_service.issue_key(parent, project) for parent in parents}
+    missing = {
+        parent.project_id for parent in parents if parent.project_id not in projects
+    }
+    if missing:
+        extra = session.scalars(select(Project).where(Project.id.in_(missing))).all()
+        projects = {**projects, **{item.id: item for item in extra}}
+    return {
+        parent.id: issue_service.issue_key(parent, projects[parent.project_id])
+        for parent in parents
+    }
 
 
 def _columns_from(cards: Sequence[BoardCard]) -> tuple[BoardColumn, ...]:
@@ -220,15 +312,22 @@ def _lanes(
     *,
     sprint_id: int | None,
     unscheduled: bool,
+    projects: dict[int, Project] | None = None,
+    prefix_project: bool = False,
 ) -> tuple[BoardLane, ...]:
     by_sprint: dict[int | None, list[BoardCard]] = {}
     for card in cards:
         by_sprint.setdefault(card.issue.sprint_id, []).append(card)
 
+    def lane_name(sprint: Sprint) -> str:
+        if prefix_project and projects is not None:
+            return f"{projects[sprint.project_id].key} / {sprint.name}"
+        return sprint.name
+
     def lane_for(sprint: Sprint) -> BoardLane:
         return BoardLane(
             sprint_id=sprint.id,
-            name=sprint.name,
+            name=lane_name(sprint),
             state=sprint.state,
             columns=_columns_from(by_sprint.get(sprint.id, ())),
         )

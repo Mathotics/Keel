@@ -9,7 +9,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Epics, Stories, Subtasks** as one typed issue with a parent/child hierarchy and progress rollup ([ADR 003](../adr/ADR-003.md)).
 * **Backlog** — a per-project list of unscheduled, unfinished issues in creation order ([ADR 005](../adr/ADR-005.md), amended by [ADR 013](../adr/ADR-013.md)).
 * **Sprints** — time-boxed issue sets moving through *planned → active → completed*, one active per project, with an optional per-project cadence that opens and closes those windows automatically ([ADR 005](../adr/ADR-005.md), [ADR 013](../adr/ADR-013.md), [ADR 019](../adr/ADR-019.md)).
-* **Kanban board** — one per project, columns derived from shared statuses ([ADR 005](../adr/ADR-005.md)). Story and Subtask cards show a parent key when they have a parent. Epic, Story, and Subtask are colored distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
+* **Kanban board** — one per project, columns derived from shared statuses ([ADR 005](../adr/ADR-005.md)). A master board at `/board` shows current work from every project ([ADR 032](../adr/ADR-032.md)). Story and Subtask cards show a parent key when they have a parent. Epic, Story, and Subtask are colored distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * **Ticket dependencies** — directed *blocks* / *relates-to* links with cycle prevention, permitted across projects ([ADR 006](../adr/ADR-006.md), [ADR 014](../adr/ADR-014.md)).
 
 **Architect-proposed additions, confirmed for v1** (minimal glue that makes the core coherent):
@@ -44,7 +44,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 031](../adr/ADR-031.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 032](../adr/ADR-032.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md).
 
 ## Related documents
 

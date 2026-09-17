@@ -99,14 +99,17 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
     assert (
         nav.index('href="/projects"')
         < nav.index('href="/create"')
+        < nav.index('href="/board"')
         < nav.index('href="/users"')
     )
     assert 'href="/projects"' in nav
     assert 'href="/create"' in nav
+    assert 'href="/board"' in nav
     assert 'href="/users"' in nav
     assert "keel-nav__fallback" in nav
     assert 'action="/web/nav/move"' in nav
-    assert "Board" not in nav
+    assert "Board" in nav
+    assert "Backlog" not in nav
     assert "Up" in nav
     assert "Down" in nav
     assert 'action="/search"' in header

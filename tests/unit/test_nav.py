@@ -63,7 +63,8 @@ def test_the_cookie_uses_dots_so_commas_are_not_quoted() -> None:
 
 def test_project_links_are_omitted_until_a_project_is_in_context() -> None:
     keys = [item.key for item in links_for(parse_order(None), None)]
-    assert keys == ["projects", "create", "users"]
+    assert keys == ["projects", "create", "board", "users"]
+    assert links_for(parse_order(None), None)[2].href == "/board"
     inside = [item.key for item in links_for(parse_order(None), "TEST")]
     assert inside == [
         "projects",
@@ -74,4 +75,4 @@ def test_project_links_are_omitted_until_a_project_is_in_context() -> None:
         "schedules",
         "users",
     ]
-    assert links_for(parse_order(None), "TEST")[2].href.endswith("/board")
+    assert links_for(parse_order(None), "TEST")[2].href.endswith("/projects/TEST/board")

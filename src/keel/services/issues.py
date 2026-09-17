@@ -5,13 +5,15 @@ from datetime import UTC, date, datetime
 from sqlalchemy import Select, exists, func, select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Issue, IssueLabel, Label, Project
+from keel.db.models import Issue, IssueLabel, Label, Project, Sprint
 from keel.domain.enums import (
+    CLOSED_STATUSES,
     INITIAL_PRIORITY,
     INITIAL_STATUS,
     IssuePriority,
     IssueStatus,
     IssueType,
+    SprintState,
     statuses_in_workflow_order,
 )
 from keel.domain.errors import (
@@ -43,6 +45,7 @@ class IssueFilters:
     unscheduled: bool = False
     label: str | None = None
     unlabeled: bool = False
+    hide_closed_in_completed_sprints: bool = False
 
 
 def issue_key(issue: Issue, project: Project) -> str:
@@ -75,12 +78,19 @@ def get_issue_by_key(session: Session, key: str) -> Issue:
 
 def list_issues(
     session: Session,
-    project_id: int,
+    project_id: int | None = None,
     filters: IssueFilters | None = None,
 ) -> Sequence[Issue]:
-    query = select(Issue).where(Issue.project_id == project_id)
+    query = select(Issue)
+    if project_id is not None:
+        query = query.where(Issue.project_id == project_id).order_by(Issue.number)
+    else:
+        query = query.join(Project, Issue.project_id == Project.id).order_by(
+            Project.key,
+            Issue.number,
+        )
     query = _apply_filters(query, filters or IssueFilters())
-    return session.scalars(query.order_by(Issue.number)).all()
+    return session.scalars(query).all()
 
 
 def list_issues_globally(session: Session) -> Sequence[Issue]:
@@ -451,6 +461,16 @@ def _apply_filters(
             query.join(IssueLabel, IssueLabel.issue_id == Issue.id)
             .join(Label, Label.id == IssueLabel.label_id)
             .where(Label.name == filters.label)
+        )
+    if filters.hide_closed_in_completed_sprints:
+        query = query.where(
+            ~exists(
+                select(Sprint.id).where(
+                    Sprint.id == Issue.sprint_id,
+                    Sprint.state == SprintState.COMPLETED,
+                    Issue.status.in_(CLOSED_STATUSES),
+                ),
+            ),
         )
     return query
 
