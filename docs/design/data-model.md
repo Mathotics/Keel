@@ -135,6 +135,7 @@ Indexes and constraints:
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `type` | TEXT | not null, `CHECK` in (`epic`, `story`, `subtask`) |
+| `priority` | TEXT | not null, default `'p3'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `state` | TEXT | not null, default `'active'`, `CHECK` in (`active`, `paused`, `stopped`) |
 | `spawn_mode` | TEXT | not null, `CHECK` in (`calendar`, `after_closed`) |
 | `sprint_basis` | TEXT | not null, `CHECK` in (`due_on`, `start_on`, `created_on`) |
@@ -264,6 +265,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0013` | `issues.start_at` and series start/due offsets |
 | `0014` | `issues.priority` and `priority` on `issue_history.field` |
 | `0015` | `labels`, `issue_labels`, and `labels` on `issue_history.field` |
+| `0016` | `series.priority` |
 
 ## Related documents
 
@@ -276,6 +278,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
 * [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [ADR 031: Issue labels](../adr/ADR-031.md)
+* [ADR 032: Series recipe priority](../adr/ADR-032.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)

@@ -17,6 +17,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from keel.db.base import Base
 from keel.db.models.user import utc_now
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
+    IssuePriority,
     IssueType,
     RecurrenceFreq,
     SeriesSpawnMode,
@@ -26,6 +28,7 @@ from keel.domain.enums import (
 
 SeriesEnum = (
     type[IssueType]
+    | type[IssuePriority]
     | type[SeriesState]
     | type[SeriesSpawnMode]
     | type[SeriesSprintBasis]
@@ -81,6 +84,11 @@ class Series(Base):
     title: Mapped[str] = mapped_column(String(300))
     description: Mapped[str] = mapped_column(Text, default="", server_default="")
     type: Mapped[IssueType] = mapped_column(_enum_column(IssueType, "ck_series_type"))
+    priority: Mapped[IssuePriority] = mapped_column(
+        _enum_column(IssuePriority, "ck_series_priority"),
+        default=INITIAL_PRIORITY,
+        server_default=INITIAL_PRIORITY.value,
+    )
     state: Mapped[SeriesState] = mapped_column(
         _enum_column(SeriesState, "ck_series_state"),
         default=SeriesState.ACTIVE,

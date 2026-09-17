@@ -112,6 +112,7 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "due_offset_days",
         "start_minute_of_day",
         "due_minute_of_day",
+        "priority",
     }
 
 

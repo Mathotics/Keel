@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from keel.db.models import Series
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
+    IssuePriority,
     IssueType,
     RecurrenceFreq,
     SeriesSpawnMode,
@@ -17,6 +19,7 @@ class SeriesCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
     type: IssueType
+    priority: IssuePriority = INITIAL_PRIORITY
     spawn_mode: SeriesSpawnMode
     sprint_basis: SeriesSprintBasis
     freq: RecurrenceFreq
@@ -44,6 +47,7 @@ class SeriesUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = None
     type: IssueType | None = None
+    priority: IssuePriority | None = None
     spawn_mode: SeriesSpawnMode | None = None
     sprint_basis: SeriesSprintBasis | None = None
     freq: RecurrenceFreq | None = None
@@ -73,6 +77,7 @@ class SeriesRead(BaseModel):
     title: str
     description: str
     type: IssueType
+    priority: IssuePriority
     state: SeriesState
     spawn_mode: SeriesSpawnMode
     sprint_basis: SeriesSprintBasis
@@ -103,6 +108,7 @@ class SeriesRead(BaseModel):
             title=series.title,
             description=series.description,
             type=series.type,
+            priority=series.priority,
             state=series.state,
             spawn_mode=series.spawn_mode,
             sprint_basis=series.sprint_basis,

@@ -67,7 +67,7 @@ flowchart LR
 * Optionally run a project's sprints on a cadence so windows open and close without a manual Start or Complete click ([ADR 019](../adr/ADR-019.md)).
 * Record a time-based estimate on an issue and update its remaining time as work progresses.
 * View estimated and remaining time aggregated from child issues.
-* Define a repeating series that spawns ordinary issues on a cadence ([ADR 021](../adr/ADR-021.md)).
+* Define a repeating series that spawns ordinary issues on a cadence, including a recipe priority copied onto each copy ([ADR 021](../adr/ADR-021.md), [ADR 032](../adr/ADR-032.md)).
 
 ## Board & workflow
 

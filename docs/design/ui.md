@@ -112,7 +112,7 @@ Project settings on the project page include sprint cadence: off, weekly, every 
 
 ## Schedules
 
-The schedules page lists a project's repeating series. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page. Pause and Resume halt and continue spawning. Delete, behind a confirmation that existing issues remain, removes the recipe from the list and leaves spawned issues on the board with a former-series note ([ADR 028](../adr/ADR-028.md)).
+The schedules page lists a project's repeating series, including type and priority. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The recipe's Issue group includes a required Priority select (same P1–P5 scale as issues, default *P3 — Major*). The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page. Pause and Resume halt and continue spawning. Delete, behind a confirmation that existing issues remain, removes the recipe from the list and leaves spawned issues on the board with a former-series note ([ADR 028](../adr/ADR-028.md)). Spawned copies take the recipe's priority ([ADR 032](../adr/ADR-032.md)).
 
 ## Find
 

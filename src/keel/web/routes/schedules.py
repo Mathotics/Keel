@@ -6,6 +6,7 @@ from keel.domain.enums import (
     SeriesSpawnMode,
     SeriesSprintBasis,
     SeriesState,
+    priorities_in_rank_order,
     types_in_hierarchy_order,
 )
 from keel.domain.errors import NotFoundError
@@ -42,6 +43,7 @@ def schedules_page(
             series_list=found,
             summaries={item.id: series_service.cadence_summary(item) for item in found},
             issue_types=types_in_hierarchy_order(),
+            priorities=priorities_in_rank_order(),
             spawn_modes=tuple(SeriesSpawnMode),
             sprint_bases=tuple(SeriesSprintBasis),
             freqs=tuple(RecurrenceFreq),
@@ -80,6 +82,7 @@ def schedule_detail_page(
             series=series,
             summary=series_service.cadence_summary(series),
             issue_types=types_in_hierarchy_order(),
+            priorities=priorities_in_rank_order(),
             spawn_modes=tuple(SeriesSpawnMode),
             sprint_bases=tuple(SeriesSprintBasis),
             freqs=tuple(RecurrenceFreq),
