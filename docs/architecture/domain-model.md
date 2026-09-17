@@ -71,9 +71,9 @@ A state in the shared, fixed workflow. The status set is shared across all proje
 * Relationships: classifies many issues; surfaced by many board columns.
 
 ### Board
-A project's Kanban view. It presents the project's issues as cards arranged by status. A board is a **view** over the project's issue pool, not a container that owns issues (see [ADR 005](../adr/ADR-005.md)).
+A Kanban view that presents issues as cards arranged by status. A board is a **view** over the issue pool, not a container that owns issues (see [ADR 005](../adr/ADR-005.md)). Each project has one stored board row; `/board` is an additional master view across all projects ([ADR 032](../adr/ADR-032.md)).
 * Name.
-* Relationships: belongs to one project; orders many board columns.
+* Relationships: belongs to one project; orders many board columns. The master view belongs to no project.
 
 ### Board column
 A vertical lane on a board that surfaces the issues currently in one status.

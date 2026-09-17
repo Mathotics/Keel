@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Issue, Sprint
+from keel.db.models import Issue, Project, Sprint
 from keel.db.models.user import utc_now
 from keel.domain.enums import CLOSED_STATUSES, SprintState
 from keel.domain.errors import (
@@ -38,6 +38,15 @@ def list_sprints(
         query = query.where(Sprint.state == state)
     return session.scalars(
         query.order_by(Sprint.starts_on.asc().nulls_last(), Sprint.id),
+    ).all()
+
+
+def list_all_sprints(session: Session) -> Sequence[Sprint]:
+    """Every sprint, ordered by project key then the usual sprint order."""
+    return session.scalars(
+        select(Sprint)
+        .join(Project, Sprint.project_id == Project.id)
+        .order_by(Project.key, Sprint.starts_on.asc().nulls_last(), Sprint.id),
     ).all()
 
 

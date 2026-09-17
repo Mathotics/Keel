@@ -13,7 +13,7 @@ DEFAULT_ORDER: tuple[str, ...] = (
     "schedules",
     "users",
 )
-PROJECT_ITEMS = frozenset({"board", "backlog", "sprints", "schedules"})
+PROJECT_ITEMS = frozenset({"backlog", "sprints", "schedules"})
 KNOWN = frozenset(DEFAULT_ORDER)
 LABELS = {
     "projects": "Projects",
@@ -100,7 +100,7 @@ def move_item(
 
 
 def links_for(order: Sequence[str], project_key: str | None) -> list[NavLink]:
-    """Section links in cookie order. Project-scoped keys need a project."""
+    """Section links in cookie order. Backlog, sprints, and schedules need a project."""
     found: list[NavLink] = []
     for key in complete(order):
         if key in PROJECT_ITEMS and not project_key:
@@ -122,7 +122,7 @@ def _href(key: str, project_key: str | None) -> str:
     if key == "create":
         return f"/create?project={project_key}" if project_key else "/create"
     if key == "board":
-        return f"/projects/{project_key}/board"
+        return f"/projects/{project_key}/board" if project_key else "/board"
     if key == "backlog":
         return f"/projects/{project_key}/backlog"
     if key == "sprints":

@@ -104,7 +104,7 @@ src/keel/
       search.py         GET /search
       projects.py
       issues.py
-      board.py
+      board.py          project Kanban and `/board` master view
       backlog.py
       sprints.py
       schedules.py

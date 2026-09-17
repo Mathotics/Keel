@@ -38,6 +38,8 @@ def read_board(
         label=label_name,
         unlabeled=unlabeled,
     )
+    if board.project is None:
+        raise RuntimeError("A project board always belongs to a project.")
     return BoardRead(
         project_id=board.project.id,
         columns=_column_reads(board),
@@ -57,6 +59,9 @@ def _column_reads(
     board: Board,
     columns: Sequence[BoardColumn] | None = None,
 ) -> list[BoardColumnRead]:
+    owned = board.project
+    if owned is None:
+        raise RuntimeError("A project board always belongs to a project.")
     chosen = board.columns if columns is None else columns
     return [
         BoardColumnRead(
@@ -65,7 +70,7 @@ def _column_reads(
             issues=[
                 IssueRead.of(
                     card.issue,
-                    board.project,
+                    owned,
                     card.unresolved_blockers,
                     labels=card.labels,
                 )

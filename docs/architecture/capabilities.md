@@ -26,6 +26,7 @@ flowchart LR
   end
   subgraph Board["Board & workflow"]
     c1[Kanban board per project]
+    c1b[Master board across projects]
     c2[Columns from shared statuses]
     c3[Move card = change status]
   end
@@ -72,10 +73,11 @@ flowchart LR
 ## Board & workflow
 
 * Present a project's issues on a Kanban board.
+* Present a master Kanban of current work from every project at `/board`, reachable from Board when no project is in context ([ADR 032](../adr/ADR-032.md)).
 * Show a Story or Subtask's parent key on its board card when it has a parent, and color Epic, Story, and Subtask distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * Derive board columns from the shared workflow statuses.
-* Restrict the board to chosen issue types, to a chosen assignee, to a chosen sprint, and to a chosen label.
-* Separate the board into a row of columns per sprint.
+* Restrict the board to chosen issue types, to a chosen assignee, to a chosen sprint, and to a chosen label; on the master board, also to a chosen project.
+* Separate the board into a row of columns per sprint; on the master board, prefix those rows with the project key and refuse a drop onto another project's sprint.
 * Change an issue's status by moving its card between columns.
 
 ## Dependencies
@@ -103,3 +105,4 @@ flowchart LR
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
 * [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)
+* [ADR 032: Master board across all projects](../adr/ADR-032.md)

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ project.key }} board{% endblock %}
+{% block title %}{% if project %}{{ project.key }} board{% else %}Board{% endif %}{% endblock %}
 {% block scripts %}
     {{ super() }}
     <script src="/assets/js/board.js" defer></script>
@@ -57,12 +57,19 @@
               </div>
             </section>
 {% endmacro %}
-      <h1>{{ project.key }} board</h1>
+      <h1>{% if project %}{{ project.key }} board{% else %}Board{% endif %}</h1>
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
+      {% if not project %}
+        {% if not has_projects %}
+      <p class="keel-lede">Nothing to show yet. <a href="/projects">Create a project</a> to get started.</p>
+        {% elif card_count == 0 %}
+      <p class="keel-lede">Nothing to show.</p>
+        {% endif %}
+      {% endif %}
 
-      <form class="keel-form keel-board__filter" method="get" action="/projects/{{ project.key }}/board" data-keel-autosubmit>
+      <form class="keel-form keel-board__filter" method="get" action="{% if project %}/projects/{{ project.key }}/board{% else %}/board{% endif %}" data-keel-autosubmit>
         <span>Show</span>
         {% for issue_type in issue_types %}
         <label class="keel-type" data-type="{{ issue_type.value }}">
@@ -70,6 +77,17 @@
           {{ issue_type | label }}
         </label>
         {% endfor %}
+        {% if filter_projects is defined %}
+        <label>
+          Project
+          <select name="project">
+            <option value=""{% if not selected_project %} selected{% endif %}>Any project</option>
+            {% for item in filter_projects %}
+            <option value="{{ item.key }}"{% if selected_project == item.key %} selected{% endif %}>{{ item.key }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% endif %}
         <label>
           Assignee
           <select name="assignee">
@@ -86,7 +104,7 @@
             <option value=""{% if not selected_sprint %} selected{% endif %}>Any sprint</option>
             <option value="unscheduled"{% if selected_sprint == "unscheduled" %} selected{% endif %}>Unscheduled</option>
             {% for sprint in sprints %}
-            <option value="{{ sprint.id }}"{% if selected_sprint == sprint.id|string %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
+            <option value="{{ sprint.id }}"{% if selected_sprint == sprint.id|string %} selected{% endif %}>{% if prefix_sprints %}{{ project_keys[sprint.project_id] }} / {% endif %}{{ sprint.name }} ({{ sprint.state | label }})</option>
             {% endfor %}
           </select>
         </label>
