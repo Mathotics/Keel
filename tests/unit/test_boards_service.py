@@ -501,12 +501,22 @@ def test_the_unlabeled_filter_keeps_only_bare_cards(
     assert [card.issue.id for card in cards] == [bare.id]
 
 
-def test_parse_board_grouping_accepts_sprint_or_nothing() -> None:
-    assert board_service.parse_board_grouping(None) is None
-    assert board_service.parse_board_grouping("") is None
+def test_parse_board_grouping_defaults_to_sprint() -> None:
+    assert board_service.parse_board_grouping(None) == "sprint"
+    assert board_service.parse_board_grouping("") == "sprint"
+    assert board_service.parse_board_grouping([]) == "sprint"
     assert board_service.parse_board_grouping("sprint") == "sprint"
+    assert board_service.parse_board_grouping(["sprint"]) == "sprint"
+    assert board_service.parse_board_grouping(["status", "sprint"]) == "sprint"
+
+
+def test_parse_board_grouping_accepts_status_for_one_row() -> None:
+    assert board_service.parse_board_grouping("status") is None
+    assert board_service.parse_board_grouping(["status"]) is None
 
 
 def test_parse_board_grouping_rejects_an_unknown_value() -> None:
     with pytest.raises(InvalidIssueError):
         board_service.parse_board_grouping("assignee")
+    with pytest.raises(InvalidIssueError):
+        board_service.parse_board_grouping(["status", "assignee"])

@@ -112,7 +112,7 @@ Response body, with the fields the interface needs added:
 | `GET` | `/api/v1/projects/{project_id}/board` | Columns in workflow order, each with its issues |
 | `GET` | `/api/v1/projects/{project_id}/backlog` | Unscheduled, unfinished issues, oldest first |
 
-The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint, and a `label` parameter (`unlabeled` or a label name) to filter by label. The JSON body always includes `lanes` grouping the same cards by sprint, including Unscheduled. All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)). The HTML board also accepts `by=sprint` to stack a row of columns per lane.
+The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint, and a `label` parameter (`unlabeled` or a label name) to filter by label. The JSON body always includes `lanes` grouping the same cards by sprint, including Unscheduled. All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)). The HTML board stacks a row of columns per lane by default (`by=sprint`); `by=status` restores one shared row of columns.
 
 ## Sprints
 
