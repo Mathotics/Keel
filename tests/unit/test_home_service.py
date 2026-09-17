@@ -1,5 +1,6 @@
 from datetime import UTC, date, datetime
 
+import pytest
 from sqlalchemy.orm import Session
 
 from keel.db.models import Project
@@ -134,6 +135,40 @@ def test_due_is_today_or_earlier_by_calendar_date(session: Session) -> None:
         "Tomorrow",
         "No date",
     }
+
+
+def test_default_today_is_local_date_so_utc_tomorrow_stays_out(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    due_today = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Due today",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 16, 23, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Tomorrow",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 17, 0, 0),
+    )
+
+    class LocalDate(date):
+        @classmethod
+        def today(cls) -> "LocalDate":
+            return cls(2026, 9, 16)
+
+    monkeypatch.setattr(home_service, "date", LocalDate)
+    inbox = home_service.personal_inbox(session, ada.id)
+
+    assert [item.issue.id for item in inbox.due] == [due_today.id]
 
 
 def test_starting_is_today_or_earlier_by_calendar_date(session: Session) -> None:
