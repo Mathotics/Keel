@@ -278,7 +278,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
 * [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [ADR 031: Issue labels](../adr/ADR-031.md)
-* [ADR 032: Series recipe priority](../adr/ADR-032.md)
+* [Series recipe priority](../adr/series-recipe-priority.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)

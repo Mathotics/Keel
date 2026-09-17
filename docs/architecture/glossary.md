@@ -16,7 +16,7 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Estimated time** — the effort a user expects an issue to take.
 * **Issue** — the single work entity; typed as an Epic, a Story, or a Subtask.
 * **Issue key** — a project's key with the issue's per-project number, such as `KEEL-12`; how an issue is named in the interface and in conversation ([ADR 012](../adr/ADR-012.md)).
-* **Priority** — a required rank on every issue: *P1 — Blocker* through *P5 — Trivial*, default *P3 — Major*. A repeating series stores the same rank and copies it onto spawned issues ([ADR 030](../adr/ADR-030.md), [ADR 032](../adr/ADR-032.md)).
+* **Priority** — a required rank on every issue: *P1 — Blocker* through *P5 — Trivial*, default *P3 — Major*. A repeating series stores the same rank and copies it onto spawned issues ([ADR 030](../adr/ADR-030.md), [Series recipe priority](../adr/series-recipe-priority.md)).
 * **Owner** — the primary user of the tool.
 * **Project** — a first-class container that scopes issues, boards, sprints, and a backlog. Multiple projects coexist.
 * **Project key** — a short uppercase identifier for a project, used to prefix its issue numbers.

@@ -1,11 +1,11 @@
-# ADR 032: Series recipe priority
+# Series recipe priority
 
 * **Status:** Accepted
 * **Date:** 2026-09-16
 
 ## Background
 
-Every issue has a required P1–P5 priority ([ADR 030](ADR-030.md)). Repeating work is a series recipe that spawns ordinary issues ([ADR 021](ADR-021.md)). ADR 030 left priority off the recipe on purpose: spawned copies took the issue default (*P3 — Major*) until someone edited the copy. KEEL-15 asked for that rank to be set on the schedule, the same way type, title, and assignee already are.
+Every issue has a required P1–P5 priority ([ADR 030](ADR-030.md)). Repeating work is a series recipe that spawns ordinary issues ([Repeating work via Scheduling Manager](repeating-work-scheduling-manager.md)). ADR 030 left priority off the recipe on purpose: spawned copies took the issue default (*P3 — Major*) until someone edited the copy. KEEL-15 asked for that rank to be set on the schedule, the same way type, title, and assignee already are.
 
 ## Problem Statement
 
@@ -94,7 +94,7 @@ classDiagram
 
 ## Supporting Documentation
 
-* [ADR 021: Repeating work via Scheduling Manager](ADR-021.md)
+* [Repeating work via Scheduling Manager](repeating-work-scheduling-manager.md)
 * [ADR 030: Issue priority as a required ranked field](ADR-030.md)
 * [Data model](../design/data-model.md)
 * [API reference](../design/api.md)

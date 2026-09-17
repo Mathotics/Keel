@@ -22,7 +22,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
 * **Priority** — a required five-level rank on every issue so urgency is visible on cards and lists ([ADR 030](../adr/ADR-030.md)).
 * **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/ADR-016.md)).
-* **Repeating work** — a per-project Schedules page of series recipes that spawn ordinary issues on a cadence, each copy taking the recipe's priority ([ADR 021](../adr/ADR-021.md), [ADR 032](../adr/ADR-032.md)).
+* **Repeating work** — a per-project Schedules page of series recipes that spawn ordinary issues on a cadence, each copy taking the recipe's priority ([ADR 021](../adr/ADR-021.md), [Series recipe priority](../adr/series-recipe-priority.md)).
 * **Labels** — free-form tags on issues, filterable on the board and issue list ([ADR 031](../adr/ADR-031.md)).
 
 ## Deferred beyond v1
