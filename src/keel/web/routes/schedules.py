@@ -9,7 +9,7 @@ from keel.domain.enums import (
     types_in_hierarchy_order,
 )
 from keel.domain.errors import NotFoundError
-from keel.domain.recurrence import WEEKDAY_NAMES, parse_weekdays
+from keel.domain.recurrence import MONTH_NAMES, WEEKDAY_NAMES, parse_weekdays
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
@@ -46,6 +46,7 @@ def schedules_page(
             sprint_bases=tuple(SeriesSprintBasis),
             freqs=tuple(RecurrenceFreq),
             weekdays=list(enumerate(WEEKDAY_NAMES)),
+            months=list(enumerate(MONTH_NAMES, start=1)),
             issues=issue_service.list_issues(session, project.id),
             users=user_service.list_users(session),
             error=error,
@@ -84,6 +85,7 @@ def schedule_detail_page(
             freqs=tuple(RecurrenceFreq),
             states=tuple(SeriesState),
             weekdays=list(enumerate(WEEKDAY_NAMES)),
+            months=list(enumerate(MONTH_NAMES, start=1)),
             selected_weekdays=selected,
             issues=issue_service.list_issues(session, project.id),
             users=user_service.list_users(session),

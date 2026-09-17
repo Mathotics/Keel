@@ -171,6 +171,33 @@
             {% endif %}
           </dd>
         </div>
+        <div class="keel-fact">
+          <dt>Labels</dt>
+          <dd>
+            <ul class="keel-labels">
+              {% for item in issue_labels %}
+              <li>
+                <span class="keel-chip keel-label">{{ item.name }}</span>
+                <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/labels/{{ item.id }}/delete">
+                  <button type="submit">Remove</button>
+                </form>
+              </li>
+              {% else %}
+              <li class="keel-empty">None</li>
+              {% endfor %}
+            </ul>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/labels">
+              <label class="keel-visually-hidden" for="issue-label">Add label</label>
+              <input id="issue-label" name="name" type="text" maxlength="40" list="issue-label-suggestions" placeholder="urgent" required/>
+              <datalist id="issue-label-suggestions">
+                {% for item in label_catalog %}
+                <option value="{{ item.name }}"></option>
+                {% endfor %}
+              </datalist>
+              <button class="keel-primary" type="submit">Add</button>
+            </form>
+          </dd>
+        </div>
       </dl>
 
       {% if series %}

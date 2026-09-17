@@ -45,8 +45,9 @@ A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `mon
 | `PATCH` | `/api/v1/issues/{issue_id}` | Update any mutable field |
 | `DELETE` | `/api/v1/issues/{issue_id}` | Delete, refused when it has children |
 | `GET` | `/api/v1/issues/{issue_id}/children` | Direct children |
+| `GET` | `/api/v1/labels` | List the global label catalog |
 
-Filters on the list endpoint: `type`, `status`, `priority`, `assignee_id`, `sprint_id`, `parent_id`, and `unscheduled` (a boolean selecting issues with no sprint).
+Filters on the list endpoint: `type`, `status`, `priority`, `assignee_id`, `sprint_id`, `parent_id`, `unscheduled` (a boolean selecting issues with no sprint), `label` (a normalized name), and `unlabeled` (issues with no labels).
 
 Create body:
 
@@ -62,7 +63,8 @@ Create body:
   "assignee_id": 2,
   "estimate_minutes": 180,
   "start_at": "2026-09-14T09:00:00Z",
-  "due_at": "2026-09-15T17:00:00Z"
+  "due_at": "2026-09-15T17:00:00Z",
+  "labels": ["onboarding"]
 }
 ```
 
@@ -87,6 +89,7 @@ Response body, with the fields the interface needs added:
   "remaining_minutes": 180,
   "start_at": "2026-09-14T09:00:00Z",
   "due_at": "2026-09-15T17:00:00Z",
+  "labels": ["onboarding"],
   "rollup": {
     "estimate_minutes": 420,
     "remaining_minutes": 300,
@@ -100,7 +103,7 @@ Response body, with the fields the interface needs added:
 }
 ```
 
-`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/ADR-020.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`.
+`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/ADR-020.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)).
 
 ## Projections
 
@@ -109,7 +112,7 @@ Response body, with the fields the interface needs added:
 | `GET` | `/api/v1/projects/{project_id}/board` | Columns in workflow order, each with its issues |
 | `GET` | `/api/v1/projects/{project_id}/backlog` | Unscheduled, unfinished issues, oldest first |
 
-The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, and a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint. The JSON body always includes `lanes` grouping the same cards by sprint, including Unscheduled. All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)). The HTML board also accepts `by=sprint` to stack a row of columns per lane.
+The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint, and a `label` parameter (`unlabeled` or a label name) to filter by label. The JSON body always includes `lanes` grouping the same cards by sprint, including Unscheduled. All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)). The HTML board also accepts `by=sprint` to stack a row of columns per lane.
 
 ## Sprints
 

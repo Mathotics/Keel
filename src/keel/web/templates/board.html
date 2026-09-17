@@ -33,6 +33,13 @@
                   {% if card.issue.due_at %}
                   <p class="keel-card__meta">Due {{ card.issue.due_at | when }}</p>
                   {% endif %}
+                  {% if card.labels %}
+                  <p class="keel-card__labels">
+                    {% for name in card.labels %}
+                    <span class="keel-chip keel-label">{{ name }}</span>
+                    {% endfor %}
+                  </p>
+                  {% endif %}
                   <form class="keel-form keel-card__fallback" method="post" action="/web/issues/{{ card.issue.id }}/status">
                     <input type="hidden" name="next" value="{{ request.url.path }}{% if request.url.query %}?{{ request.url.query }}{% endif %}"/>
                     <label>
@@ -80,6 +87,16 @@
             <option value="unscheduled"{% if selected_sprint == "unscheduled" %} selected{% endif %}>Unscheduled</option>
             {% for sprint in sprints %}
             <option value="{{ sprint.id }}"{% if selected_sprint == sprint.id|string %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Label
+          <select name="label">
+            <option value=""{% if not selected_label %} selected{% endif %}>Any label</option>
+            <option value="unlabeled"{% if selected_label == "unlabeled" %} selected{% endif %}>Unlabeled</option>
+            {% for item in label_catalog %}
+            <option value="{{ item.name }}"{% if selected_label == item.name %} selected{% endif %}>{{ item.name }}</option>
             {% endfor %}
           </select>
         </label>

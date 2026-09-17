@@ -101,3 +101,13 @@ def test_api_patch_uses_the_acting_user(client: TestClient) -> None:
     assert patched.status_code == 200
     page = client.get("/issues/KEEL-1")
     assert "Tester — remaining none → 1h 30m" in _history(page.text)
+
+
+def test_label_changes_appear_in_history(client: TestClient) -> None:
+    issue = _issue(client, _project(client))
+    client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"labels": ["urgent"]},
+    )
+    page = client.get("/issues/KEEL-1")
+    assert "Tester — labels none → urgent" in _history(page.text)

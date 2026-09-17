@@ -385,6 +385,25 @@ def test_assignee_filters_narrow_the_list(session: Session, project: Project) ->
     assert [i.id for i in unassigned] == [open_id]
 
 
+def test_label_filters_narrow_the_list(session: Session, project: Project) -> None:
+    tagged = make(session, project, title="Tagged", labels=["urgent"])
+    bare = make(session, project, title="Bare")
+
+    by_name = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(label="urgent"),
+    )
+    unlabeled = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(unlabeled=True),
+    )
+
+    assert [i.id for i in by_name] == [tagged]
+    assert [i.id for i in unlabeled] == [bare]
+
+
 def test_counts_cover_every_status(session: Session, project: Project) -> None:
     make(session, project)
     counts = issue_service.count_by_status(session, project.id)

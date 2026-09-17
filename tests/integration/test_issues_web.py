@@ -727,3 +727,49 @@ def test_an_epic_page_shows_cancelled_descendants_separately(
         "Including descendants: 3h estimate, 2h remaining. 0 of 1 done, 1 cancelled."
         in page.text
     )
+
+
+def test_create_can_set_labels_at_birth(client: TestClient, project: Json) -> None:
+    created = client.post(
+        "/web/issues",
+        data={
+            "project_id": str(project["id"]),
+            "type": "story",
+            "title": "Tagged",
+            "labels": "Urgent, bug",
+        },
+        follow_redirects=False,
+    )
+    assert created.headers["location"] == "/issues/KEEL-1"
+    page = client.get("/issues/KEEL-1")
+    assert "bug" in page.text
+    assert "urgent" in page.text
+    assert 'name="labels"' in client.get(f"/create?project={project['key']}").text
+
+
+def test_labels_can_be_added_and_removed_on_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Work"},
+    ).json()
+    added = client.post(
+        f"/web/issues/{issue['id']}/labels",
+        data={"name": "Urgent"},
+        follow_redirects=False,
+    )
+    assert added.status_code == 303
+    page = client.get("/issues/KEEL-1")
+    assert "urgent" in page.text
+    assert "Tester — labels none → urgent" in page.text
+    catalog = client.get("/api/v1/labels").json()
+    label_id = catalog[0]["id"]
+    removed = client.post(
+        f"/web/issues/{issue['id']}/labels/{label_id}/delete",
+        follow_redirects=False,
+    )
+    assert removed.status_code == 303
+    page = client.get("/issues/KEEL-1")
+    assert "Tester — labels urgent → none" in page.text

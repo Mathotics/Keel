@@ -2,10 +2,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, exists, func, select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Issue, Project
+from keel.db.models import Issue, IssueLabel, Label, Project
 from keel.domain.enums import (
     INITIAL_PRIORITY,
     INITIAL_STATUS,
@@ -21,6 +21,7 @@ from keel.domain.errors import (
     SprintProjectMismatchError,
 )
 from keel.domain.hierarchy import IssueRef, check_children, check_parent
+from keel.domain.labels import parse_label_names
 from keel.domain.rollup import EffortNode, Rollup, compute_rollup
 from keel.domain.schedule import check_start_due_window
 from keel.services import projects as project_service
@@ -40,6 +41,8 @@ class IssueFilters:
     parent_id: int | None = None
     sprint_id: int | None = None
     unscheduled: bool = False
+    label: str | None = None
+    unlabeled: bool = False
 
 
 def issue_key(issue: Issue, project: Project) -> str:
@@ -126,10 +129,12 @@ def create_issue(
     remaining_minutes: int | None = None,
     series_id: int | None = None,
     occurrence_on: date | None = None,
+    labels: Sequence[str] | str = (),
 ) -> Issue:
     project = project_service.get_project(session, project_id)
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
+    wanted_labels = parse_label_names(labels) if labels else ()
     check_start_due_window(start_at, due_at)
     if remaining_minutes is None:
         remaining_minutes = estimate_minutes
@@ -154,6 +159,15 @@ def create_issue(
     _assign_sprint(session, issue, sprint_id)
     session.add(issue)
     session.flush()
+    if wanted_labels:
+        from keel.services import labels as label_service
+
+        label_service.set_issue_labels(
+            session,
+            issue.id,
+            wanted_labels,
+            record_history=False,
+        )
     return issue
 
 
@@ -173,6 +187,7 @@ def update_issue(
     sprint_id: int | None | object = UNSET,
     estimate_minutes: int | None | object = UNSET,
     remaining_minutes: int | None | object = UNSET,
+    labels: Sequence[str] | str | object = UNSET,
     actor_name: str | None = None,
 ) -> Issue:
     """Nullable fields accept None as "clear it", so they use UNSET."""
@@ -309,6 +324,15 @@ def update_issue(
                 actor_name=who,
             )
             issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
+    if labels is not UNSET:
+        from keel.services import labels as label_service
+
+        label_service.set_issue_labels(
+            session,
+            issue.id,
+            labels,  # type: ignore[arg-type]
+            actor_name=who,
+        )
 
     session.flush()
     if status is not None:
@@ -416,6 +440,18 @@ def _apply_filters(
         query = query.where(Issue.sprint_id.is_(None))
     elif filters.sprint_id is not None:
         query = query.where(Issue.sprint_id == filters.sprint_id)
+    if filters.unlabeled:
+        query = query.where(
+            ~exists(
+                select(IssueLabel.issue_id).where(IssueLabel.issue_id == Issue.id),
+            ),
+        )
+    elif filters.label is not None:
+        query = (
+            query.join(IssueLabel, IssueLabel.issue_id == Issue.id)
+            .join(Label, Label.id == IssueLabel.label_id)
+            .where(Label.name == filters.label)
+        )
     return query
 
 

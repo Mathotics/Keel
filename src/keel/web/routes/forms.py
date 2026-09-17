@@ -26,6 +26,7 @@ from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
@@ -216,6 +217,7 @@ def create_issue_from_page(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     chosen = _optional_id(project_id)
     if chosen is None:
@@ -241,6 +243,7 @@ def create_issue_from_page(
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            labels=labels,
         )
     except DomainError as exc:
         session.rollback()
@@ -265,6 +268,7 @@ def create_issue(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     key = project_service.get_project(session, project_id).key
     try:
@@ -284,6 +288,7 @@ def create_issue(
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            labels=labels,
         )
     except DomainError as exc:
         session.rollback()
@@ -465,6 +470,48 @@ def update_issue_remaining(
             session,
             issue_id,
             remaining_minutes=parse_duration(remaining),
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/labels")
+def add_issue_label(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    name: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        label_service.add_issue_label(
+            session,
+            issue_id,
+            name,
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/labels/{label_id}/delete")
+def remove_issue_label(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    label_id: int,
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        label_service.remove_issue_label(
+            session,
+            issue_id,
+            label_id,
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

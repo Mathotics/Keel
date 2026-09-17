@@ -9,7 +9,8 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Board column** — a lane on a board that surfaces the issues currently in one status.
 * **Collaborator** — one of up to two trusted people who share a project with the owner; in v1, equal in ability to the owner.
 * **Comment** — a note attached to an issue, capturing discussion and context over time.
-* **Issue history** — an append-only trail on an issue of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, or priority, from what to what ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md)).
+* **Issue history** — an append-only trail on an issue of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, or labels, from what to what ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)).
+* **Label** — a reusable free-form tag on an issue; the catalog is shared across projects ([ADR 031](../adr/ADR-031.md)).
 * **Dependency** — a directed, typed link between two issues; either *blocks* or *relates-to*.
 * **Epic** — the top level of the issue hierarchy; groups related Stories.
 * **Estimated time** — the effort a user expects an issue to take.

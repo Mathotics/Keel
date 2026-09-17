@@ -9,6 +9,20 @@ from keel.domain.enums import RecurrenceFreq
 from keel.domain.errors import InvalidSeriesError
 
 WEEKDAY_NAMES = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+MONTH_NAMES = (
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+)
 MAX_GENERATED = 400
 
 

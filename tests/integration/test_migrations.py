@@ -54,6 +54,10 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
             column["name"] for column in inspect(engine).get_columns("projects")
         }
         series = {column["name"] for column in inspect(engine).get_columns("series")}
+        labels = {column["name"] for column in inspect(engine).get_columns("labels")}
+        issue_labels = {
+            column["name"] for column in inspect(engine).get_columns("issue_labels")
+        }
     finally:
         engine.dispose()
     assert "due_at" in columns
@@ -89,6 +93,8 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "body",
         "created_at",
     }
+    assert labels == {"id", "name", "created_at"}
+    assert issue_labels == {"issue_id", "label_id"}
     assert projects >= {
         "sprint_cadence",
         "sprint_cadence_days",

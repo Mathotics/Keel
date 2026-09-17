@@ -16,6 +16,7 @@ from keel.schemas.sprint import (
 from keel.services import auto_sprint
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 
@@ -29,9 +30,10 @@ def _detail(session: Session, sprint: Sprint) -> SprintDetailRead:
         session,
         [issue.id for issue in issues],
     )
+    labels = label_service.names_for_issues(session, [issue.id for issue in issues])
     return SprintDetailRead(
         **SprintRead.of(sprint).model_dump(),
-        issues=IssueRead.many(issues, project, counts),
+        issues=IssueRead.many(issues, project, counts, labels),
     )
 
 

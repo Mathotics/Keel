@@ -454,3 +454,29 @@ def test_board_script_hides_only_its_own_fallback(client: TestClient) -> None:
 
 def test_an_unknown_project_board_is_not_found(client: TestClient) -> None:
     assert client.get("/projects/NOPE/board").status_code == 404
+
+
+def test_the_label_filter_changes_what_the_board_queries(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Tagged", "labels": ["urgent"]},
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Bare"},
+    )
+
+    tagged = client.get("/projects/KEEL/board", params={"label": "urgent"})
+    bare = client.get("/projects/KEEL/board", params={"label": "unlabeled"})
+    assert "Tagged" in tagged.text
+    assert "Bare" not in tagged.text
+    assert 'class="keel-chip keel-label"' in tagged.text
+    assert ">urgent<" in tagged.text
+    assert "Bare" in bare.text
+    assert "Tagged" not in bare.text
+    page = client.get("/projects/KEEL/board")
+    assert "Any label" in page.text
+    assert "Unlabeled" in page.text

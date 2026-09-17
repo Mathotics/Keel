@@ -27,6 +27,7 @@ class IssueCreate(BaseModel):
     remaining_minutes: int | None = Field(default=None, ge=0)
     start_at: datetime | None = None
     due_at: datetime | None = None
+    labels: list[str] = Field(default_factory=list)
 
 
 class IssueUpdate(BaseModel):
@@ -49,6 +50,7 @@ class IssueUpdate(BaseModel):
     remaining_minutes: int | None = Field(default=None, ge=0)
     start_at: datetime | None = None
     due_at: datetime | None = None
+    labels: list[str] | None = None
 
 
 class RollupRead(BaseModel):
@@ -95,6 +97,7 @@ class IssueRead(BaseModel):
     former_series_cadence: str | None = None
     unresolved_blockers: int
     rollup: RollupRead | None = None
+    labels: list[str] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
@@ -105,6 +108,7 @@ class IssueRead(BaseModel):
         project: Project,
         unresolved_blockers: int = 0,
         rollup: Rollup | None = None,
+        labels: Sequence[str] = (),
     ) -> "IssueRead":
         return cls(
             id=issue.id,
@@ -130,6 +134,7 @@ class IssueRead(BaseModel):
             former_series_cadence=issue.former_series_cadence,
             unresolved_blockers=unresolved_blockers,
             rollup=None if rollup is None else RollupRead.of(rollup),
+            labels=list(labels),
             created_at=issue.created_at,
             updated_at=issue.updated_at,
         )
@@ -140,7 +145,15 @@ class IssueRead(BaseModel):
         issues: Sequence[Issue],
         project: Project,
         blocker_counts: Mapping[int, int],
+        labels: Mapping[int, Sequence[str]] | None = None,
     ) -> list["IssueRead"]:
+        names = labels or {}
         return [
-            cls.of(issue, project, blocker_counts.get(issue.id, 0)) for issue in issues
+            cls.of(
+                issue,
+                project,
+                blocker_counts.get(issue.id, 0),
+                labels=names.get(issue.id, ()),
+            )
+            for issue in issues
         ]

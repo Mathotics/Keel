@@ -40,6 +40,15 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert form.status_code == 200
     assert "Create series" in form.text
     assert 'name="title"' in form.text
+    cadence = form.text.split("<legend>Cadence</legend>", 1)[1].split("</fieldset>", 1)[
+        0
+    ]
+    assert cadence.index('name="month_day"') < cadence.index('name="month"')
+    assert cadence.index('name="month"') < cadence.index('name="nth_week"')
+    assert '<select id="series-month" name="month">' in cadence
+    assert "From start date" in cadence
+    assert '<option value="1"' in cadence and "January" in cadence
+    assert '<option value="12"' in cadence and "December" in cadence
     created = client.post(
         f"/web/projects/{project['id']}/schedules",
         data=_series_payload(),
@@ -55,6 +64,31 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert "Delete" in detail.text
     assert "Stop" not in detail.text
     assert "Save recipe" in detail.text
+
+
+def test_a_yearly_series_keeps_the_chosen_month(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    created = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(
+            freq="yearly",
+            starts_on="2026-02-01",
+            month="2",
+            month_day="1",
+        ),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    page = client.get(created.headers["location"])
+    assert page.status_code == 200
+    assert "Yearly on 1 Feb" in page.text
+    cadence = page.text.split("<legend>Cadence</legend>", 1)[1].split("</fieldset>", 1)[
+        0
+    ]
+    assert '<option value="2" selected>February</option>' in cadence
 
 
 def test_a_refused_series_returns_to_the_new_series_tab(client: TestClient) -> None:
