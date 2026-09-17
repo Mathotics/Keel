@@ -131,12 +131,17 @@
               <input id="{{ prefix }}-month-day" name="month_day" type="number" min="1" max="31" value="{{ recipe.month_day if recipe and recipe.month_day else '' }}"/>
             </p>
             <p>
+              <label for="{{ prefix }}-month">Month</label>
+              <select id="{{ prefix }}-month" name="month">
+                <option value=""{% if not recipe or not recipe.month %} selected{% endif %}>From start date</option>
+                {% for value, name in months %}
+                <option value="{{ value }}"{% if recipe and recipe.month == value %} selected{% endif %}>{{ name }}</option>
+                {% endfor %}
+              </select>
+            </p>
+            <p class="keel-fields__full">
               <label for="{{ prefix }}-nth">Nth weekday (1–4 or -1 for last)</label>
               <input id="{{ prefix }}-nth" name="nth_week" type="number" value="{{ recipe.nth_week if recipe and recipe.nth_week is not none else '' }}"/>
-            </p>
-            <p>
-              <label for="{{ prefix }}-month">Month (yearly)</label>
-              <input id="{{ prefix }}-month" name="month" type="number" min="1" max="12" value="{{ recipe.month if recipe and recipe.month else '' }}"/>
             </p>
           </div>
         </fieldset>

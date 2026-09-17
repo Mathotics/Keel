@@ -12,7 +12,7 @@ from keel.domain.enums import (
     types_in_hierarchy_order,
 )
 from keel.domain.hierarchy import child_type_of
-from keel.domain.recurrence import WEEKDAY_NAMES, parse_weekdays
+from keel.domain.recurrence import MONTH_NAMES, WEEKDAY_NAMES, parse_weekdays
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
@@ -88,6 +88,7 @@ def issue_page(
             freqs=tuple(RecurrenceFreq),
             edit_scopes=tuple(EditScope),
             weekdays=list(enumerate(WEEKDAY_NAMES)),
+            months=list(enumerate(MONTH_NAMES, start=1)),
             selected_weekdays=(
                 set() if series is None else set(parse_weekdays(series.weekdays))
             ),
