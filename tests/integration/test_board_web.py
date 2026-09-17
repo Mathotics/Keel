@@ -319,9 +319,10 @@ def test_separating_by_sprint_puts_cards_in_lanes(
         json={"type": "story", "title": "Waiting"},
     )
 
-    page = client.get("/projects/KEEL/board", params={"by": "sprint"})
+    page = client.get("/projects/KEEL/board")
     assert page.status_code == 200
     assert "Separate by sprint" in page.text
+    assert 'name="by" value="status"' in page.text
     assert 'name="by" value="sprint" checked' in page.text or (
         'name="by" value="sprint"checked' in page.text
     )
@@ -339,11 +340,18 @@ def test_separating_by_sprint_puts_cards_in_lanes(
     assert "Waiting" in rest
     assert "In sprint" not in rest
 
-    together = client.get("/projects/KEEL/board")
+    explicit = client.get("/projects/KEEL/board", params={"by": "sprint"})
+    assert 'class="keel-board__lane-title"' in explicit.text
+    assert "Sprint 1" in explicit.text
+
+    together = client.get("/projects/KEEL/board", params={"by": "status"})
     assert "keel-board__lane-title" not in together.text
     assert "data-sprint-id" not in together.text
     assert "In sprint" in together.text
     assert "Waiting" in together.text
+    assert 'name="by" value="sprint"' in together.text
+    assert 'name="by" value="sprint" checked' not in together.text
+    assert 'name="by" value="sprint"checked' not in together.text
 
 
 def test_the_board_filter_keeps_apply_without_javascript(

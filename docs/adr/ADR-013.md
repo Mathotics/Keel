@@ -1,9 +1,11 @@
 # ADR 013: Planning realization — statuses, board and backlog composition, sprint lifecycle
 
 * **Status:** Accepted
-* **Date:** 2026-09-12
+* **Date:** 2026-09-16
 
 > **Amendment.** The board filters by sprint, including unscheduled, and can stack a row of columns per sprint. Work-in-progress limits and swimlanes other than sprint remain out of scope.
+
+> **Amendment.** Separate by sprint is on by default. The HTML board still accepts `by=sprint`, and `by=status` restores one shared row of columns.
 
 > **Amendment.** [ADR 020](ADR-020.md) adds *Cancelled* as a sixth status. *Done* and *Cancelled* are both closed (backlog membership and sprint carry-over). Only *Done* is completed (blocker resolution and descendants-done progress).
 
@@ -37,7 +39,7 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 ### In-Scope
 
 - A six-status workflow realized as an enumeration in code.
-- Board composition, including type, assignee, and sprint filters, and optional separation by sprint.
+- Board composition, including type, assignee, and sprint filters, and separation by sprint on by default.
 - Backlog composition and ordering, amending [ADR 005](ADR-005.md).
 - Single-active-sprint enforcement and carry-over on completion.
 - One board created automatically per project.
@@ -78,7 +80,7 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 * **Must** provide a filter that restricts the board to chosen issue types, applied at query time.
 * **Must** provide a filter that restricts the board to a chosen assignee, including unassigned, applied at query time.
 * **Must** provide a filter that restricts the board to a chosen sprint, including unscheduled, applied at query time.
-* **Must** let the board stack a row of columns per sprint, including unscheduled, as an optional grouping of the same cards.
+* **Must** stack a row of columns per sprint, including unscheduled, by default, as a grouping of the same cards that `by=status` turns off.
 * **Must** change an issue's status when its card is moved to another column.
 * **Must** show a marker on a card whose blockers are unresolved, as required by [ADR 014](ADR-014.md).
 
@@ -157,7 +159,7 @@ What each view contains:
 ```mermaid
 flowchart TD
   pool["Project issue pool"]
-  board["Board - every type, assignee, and sprint by default, filterable, optionally stacked by sprint, grouped by status"]
+  board["Board - every type, assignee, and sprint by default, filterable, stacked by sprint by default, grouped by status"]
   backlog["Backlog - no sprint assigned and not closed, oldest first"]
   sprint["Sprint - issues assigned to that sprint"]
 
