@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, status
 from sqlalchemy.orm import Session
 
-from keel.api.v1.deps import SessionDep
+from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Sprint
 from keel.domain.enums import SprintState
 from keel.schemas.issue import IssueRead
@@ -15,6 +15,8 @@ from keel.schemas.sprint import (
 )
 from keel.services import auto_sprint
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 
@@ -28,9 +30,10 @@ def _detail(session: Session, sprint: Sprint) -> SprintDetailRead:
         session,
         [issue.id for issue in issues],
     )
+    labels = label_service.names_for_issues(session, [issue.id for issue in issues])
     return SprintDetailRead(
         **SprintRead.of(sprint).model_dump(),
-        issues=IssueRead.many(issues, project, counts),
+        issues=IssueRead.many(issues, project, counts, labels),
     )
 
 
@@ -103,8 +106,21 @@ def start_sprint(sprint_id: int, session: SessionDep) -> SprintRead:
 
 
 @router.post("/sprints/{sprint_id}/complete", response_model=SprintCompletionRead)
-def complete_sprint(sprint_id: int, session: SessionDep) -> SprintCompletionRead:
-    result = auto_sprint.complete_sprint(session, sprint_id)
+def complete_sprint(
+    sprint_id: int,
+    session: SessionDep,
+    acting_user: ActingUserDep,
+) -> SprintCompletionRead:
+    actor_name = (
+        history_service.SYSTEM_ACTOR
+        if acting_user is None
+        else acting_user.display_name
+    )
+    result = auto_sprint.complete_sprint(
+        session,
+        sprint_id,
+        actor_name=actor_name,
+    )
     return SprintCompletionRead(
         sprint=SprintStateRead(id=result.sprint.id, state=result.sprint.state),
         carried_over=result.carried_over,

@@ -28,6 +28,7 @@ def test_a_created_issue_carries_its_key(client: TestClient, project_id: int) ->
     assert issue["key"] == "KEEL-1"
     assert issue["number"] == 1
     assert issue["status"] == "todo"
+    assert issue["priority"] == "p3"
 
 
 def test_the_reporter_defaults_to_the_acting_user(
@@ -226,6 +227,30 @@ def test_a_due_date_round_trips_over_json(
     assert cleared["due_at"] is None
 
 
+def test_a_start_date_round_trips_over_json(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(
+        client,
+        project_id,
+        start_at="2026-09-14T09:00:00",
+        due_at="2026-09-15T17:00:00",
+    )
+    assert issue["start_at"].startswith("2026-09-14T09:00:00")
+    refused = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={
+            "type": "story",
+            "title": "Backwards",
+            "start_at": "2026-09-16T09:00:00",
+            "due_at": "2026-09-15T17:00:00",
+        },
+    )
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "issue.invalid"
+
+
 def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> None:
     issue = create_issue(client, project_id, estimate_minutes=90)
     assert issue["estimate_minutes"] == 90
@@ -329,3 +354,79 @@ def test_created_at_cannot_be_patched(client: TestClient, project_id: int) -> No
         json={"created_at": "2020-01-01T00:00:00"},
     )
     assert response.status_code == 422
+
+
+def test_labels_round_trip_and_filter(client: TestClient, project_id: int) -> None:
+    tagged = create_issue(
+        client,
+        project_id,
+        title="Tagged",
+        labels=["Urgent", "bug"],
+    )
+    bare = create_issue(client, project_id, title="Bare")
+
+    assert tagged["labels"] == ["bug", "urgent"]
+    assert bare["labels"] == []
+    catalog = client.get("/api/v1/labels").json()
+    assert [item["name"] for item in catalog] == ["bug", "urgent"]
+
+    by_label = client.get(
+        f"/api/v1/projects/{project_id}/issues",
+        params={"label": "URGENT"},
+    ).json()
+    unlabeled = client.get(
+        f"/api/v1/projects/{project_id}/issues",
+        params={"unlabeled": True},
+    ).json()
+    assert [issue["id"] for issue in by_label] == [tagged["id"]]
+    assert [issue["id"] for issue in unlabeled] == [bare["id"]]
+
+    cleared = client.patch(
+        f"/api/v1/issues/{tagged['id']}",
+        json={"labels": []},
+    ).json()
+    assert cleared["labels"] == []
+    leftover = client.patch(
+        f"/api/v1/issues/{bare['id']}",
+        json={"title": "Still bare"},
+    ).json()
+    assert leftover["labels"] == []
+
+
+def test_an_illegal_label_is_refused(client: TestClient, project_id: int) -> None:
+    response = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={"type": "story", "title": "Nope", "labels": ["bad!"]},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "issue.invalid"
+
+
+def test_priority_defaults_to_major_and_round_trips(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(client, project_id)
+    assert issue["priority"] == "p3"
+
+    created = create_issue(client, project_id, title="Blocker", priority="p1")
+    assert created["priority"] == "p1"
+
+    updated = client.patch(
+        f"/api/v1/issues/{created['id']}",
+        json={"priority": "p5"},
+    ).json()
+    assert updated["priority"] == "p5"
+    assert updated["title"] == "Blocker"
+
+    listed = client.get(
+        f"/api/v1/projects/{project_id}/issues",
+        params={"priority": "p5"},
+    ).json()
+    assert [item["id"] for item in listed] == [created["id"]]
+
+    refused = client.patch(
+        f"/api/v1/issues/{created['id']}",
+        json={"priority": "p0"},
+    )
+    assert refused.status_code == 422

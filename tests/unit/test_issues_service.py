@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from keel.db.models import Project
-from keel.domain.enums import INITIAL_STATUS, IssueStatus, IssueType
+from keel.domain.enums import INITIAL_STATUS, IssuePriority, IssueStatus, IssueType
 from keel.domain.errors import (
     DomainError,
     InvalidIssueError,
@@ -79,6 +79,26 @@ def test_unresolvable_keys_are_not_found(
 def test_issues_start_in_the_first_status(session: Session, project: Project) -> None:
     issue = issue_service.get_issue(session, make(session, project))
     assert issue.status is INITIAL_STATUS is IssueStatus.TODO
+    assert issue.priority is IssuePriority.P3
+
+
+def test_priority_can_be_set_and_filtered(session: Session, project: Project) -> None:
+    blocker = make(session, project, title="Blocker", priority=IssuePriority.P1)
+    make(session, project, title="Ordinary")
+
+    updated = issue_service.update_issue(
+        session,
+        blocker,
+        priority=IssuePriority.P2,
+    )
+    assert updated.priority is IssuePriority.P2
+
+    found = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(priority=IssuePriority.P2),
+    )
+    assert [issue.id for issue in found] == [blocker]
 
 
 def test_cancelling_a_parent_leaves_children_unchanged(
@@ -365,6 +385,25 @@ def test_assignee_filters_narrow_the_list(session: Session, project: Project) ->
     assert [i.id for i in unassigned] == [open_id]
 
 
+def test_label_filters_narrow_the_list(session: Session, project: Project) -> None:
+    tagged = make(session, project, title="Tagged", labels=["urgent"])
+    bare = make(session, project, title="Bare")
+
+    by_name = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(label="urgent"),
+    )
+    unlabeled = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(unlabeled=True),
+    )
+
+    assert [i.id for i in by_name] == [tagged]
+    assert [i.id for i in unlabeled] == [bare]
+
+
 def test_counts_cover_every_status(session: Session, project: Project) -> None:
     make(session, project)
     counts = issue_service.count_by_status(session, project.id)
@@ -397,6 +436,41 @@ def test_a_due_date_round_trips(session: Session, project: Project) -> None:
 
     cleared = issue_service.update_issue(session, issue.id, due_at=None)
     assert cleared.due_at is None
+
+
+def test_a_start_date_round_trips(session: Session, project: Project) -> None:
+    start = datetime(2026, 9, 14, 9, 0)
+    issue = issue_service.get_issue(
+        session,
+        make(session, project, start_at=start),
+    )
+    assert issue.start_at == start
+
+    cleared = issue_service.update_issue(session, issue.id, start_at=None)
+    assert cleared.start_at is None
+
+
+def test_start_after_due_is_refused(session: Session, project: Project) -> None:
+    with pytest.raises(InvalidIssueError, match="Start cannot be after due"):
+        make(
+            session,
+            project,
+            start_at=datetime(2026, 9, 16, 9, 0),
+            due_at=datetime(2026, 9, 15, 17, 0),
+        )
+
+
+def test_updating_start_after_due_is_refused(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = make(session, project, due_at=datetime(2026, 9, 15, 17, 0))
+    with pytest.raises(InvalidIssueError, match="Start cannot be after due"):
+        issue_service.update_issue(
+            session,
+            issue_id,
+            start_at=datetime(2026, 9, 16, 9, 0),
+        )
 
 
 def test_created_at_is_set_on_insert(session: Session, project: Project) -> None:

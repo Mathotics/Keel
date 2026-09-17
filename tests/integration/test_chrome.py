@@ -31,6 +31,7 @@ def test_every_page_shares_the_same_chrome(client: TestClient) -> None:
         html = client.get(path).text
         assert "keel-topbar" in html
         assert "keel-footer" in html
+        assert "keel-help" in html
         assert "keel-userpicker" in html
 
 
@@ -42,10 +43,12 @@ def test_health_has_no_menu_bar(client: TestClient) -> None:
 
 
 def test_docs_has_no_keel_menu_bar(client: TestClient) -> None:
-    response = client.get("/docs")
-    assert response.status_code == 200
-    assert "keel-topbar" not in response.text
-    assert "keel-footer" not in response.text
+    for path in ("/docs", "/redoc"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "keel-topbar" not in response.text
+        assert "keel-footer" not in response.text
+        assert "keel-help" not in response.text
 
 
 def test_topbar_controls_share_one_look(client: TestClient) -> None:
@@ -61,6 +64,7 @@ def test_topbar_controls_share_one_look(client: TestClient) -> None:
         header.count("<a ")
         + header.count("<select")
         + header.count("<button")
+        + header.count("<summary")
         + header.count('<input class="keel-topbar__control"')
     )
     brand = 1  # the home icon keeps its own circular treatment
@@ -82,12 +86,13 @@ def test_create_stands_out_in_the_recorded_palette(client: TestClient) -> None:
 
 
 def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
-    """Home, sections, Find, then the picker, left to right."""
+    """Home, sections, Find, Help, then the picker, left to right."""
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
     assert (
         header.index("keel-topbar__home")
         < header.index("keel-topbar__nav")
         < header.index("keel-find")
+        < header.index("keel-help")
         < header.index("keel-userpicker")
     )
     nav = header.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
@@ -108,6 +113,33 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
     assert 'name="q"' in header
     assert "required" in header.split("keel-find", 1)[1]
     assert "keel-find__fallback" in header
+    assert "keel-help" not in nav
+    assert "FastAPI Docs" not in nav
+    assert "Help" not in nav
+
+
+def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> None:
+    header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
+    right = header.split('class="keel-topbar__right"', 1)[1]
+    help_block = right.split("<details", 1)[1].split("</details>", 1)[0]
+    opening = help_block.split(">", 1)[0]
+    assert 'class="keel-help"' in opening
+    assert "open" not in opening
+    assert "<summary" in help_block
+    assert ">Help<" in help_block
+    assert 'href="/docs"' in help_block
+    assert 'href="/redoc"' in help_block
+    assert "FastAPI Docs" in help_block
+    assert ">ReDoc<" in help_block
+    assert 'target="_blank"' in help_block
+    assert 'rel="noopener"' in help_block
+    assert help_block.index('href="/docs"') < help_block.index('href="/redoc"')
+    assert right.index("keel-help") < right.index("keel-userpicker")
+
+    css = client.get("/assets/brand.css").text
+    menu = _rule(css, ".keel-help__menu")
+    assert "position: absolute" in menu
+    assert "js/help" not in client.get("/").text
 
 
 def test_picker_switches_on_change_but_keeps_a_button_without_js(
@@ -125,6 +157,7 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert "data-keel-js" in script.text
     assert "data-keel-autosubmit" in script.text
     assert "data-keel-range" in script.text
+    assert "keel-type-select" in script.text
 
     css = client.get("/assets/brand.css").text
     hidden = _rule(css, "[data-keel-js] .keel-userpicker__fallback")

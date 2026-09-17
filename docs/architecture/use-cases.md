@@ -15,7 +15,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 ## Epics, Stories, Subtasks
 
 * **Group work under an Epic.** A user creates an Epic to represent a large body of work, files Stories from that Epic, and sees its child Stories and rolled-up progress.
-* **Write a Story.** A user creates a Story (optionally under an Epic), gives it a description, assigns it to a person, sets a time estimate, and moves it through statuses.
+* **Write a Story.** A user creates a Story (optionally under an Epic), gives it a description, assigns it to a person, sets a priority and a time estimate, and moves it through statuses.
 * **File an issue quickly.** A user opens Create from the menu, picks a project and type, types a title, and lands on the new issue to fill in the rest.
 * **Find work by name.** A user types an issue key, a title, or other text in the menu and jumps to that item, or sees a short list of matches, without scanning the board.
 * **Break a Story into Subtasks.** A user creates Subtasks from the Story's page; Subtask progress and time estimates roll up to the parent Story.
@@ -35,12 +35,14 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 ## Repeating work
 
 * **Schedule a repeating job.** A user opens New series on the project Schedules page (type, default title and description, cadence, when to spawn, which date picks the sprint). Copies appear as ordinary issues.
-* **Work this occurrence.** A user edits this month's copy without changing last month's notes. Recipe edits ask this occurrence, this and all future, or the entire series.
+* **Make an existing issue repeating.** A user opens Make this repeating on the issue; the recipe is an overlay, not a panel on the page. That issue becomes the first occurrence ([ADR 024](../adr/ADR-024.md)).
+* **Work this occurrence.** A user edits this month's copy without changing last month's notes. Recipe edits open in the same overlay and ask this occurrence, this and all future, or the entire series.
 * **Skip or abandon a cycle.** A user deletes this issue so that date does not come back, or marks it Cancelled so the record stays and the next copy can still appear.
 
 ## Kanban board
 
 * **Work the board.** A user views a project's issues as cards in columns drawn from the shared workflow statuses.
+* **See a card's parent.** A user looking at a Story or Subtask sees **Parent {key}** when that issue has a parent, and can open the parent from the card. Epic, Story, and Subtask are colored distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * **Filter the board.** A user restricts the board to chosen issue types, to a chosen assignee including unassigned, and to a chosen sprint including unscheduled.
 * **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to.
 * **Advance an issue.** A user moves a card from one column to the next, which changes the issue's status.
@@ -55,6 +57,10 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 * **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/ADR-017.md)).
 
+## Issue history
+
+* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md)).
+
 ## Time estimates
 
 * **Estimate effort.** A user sets an estimated time on an issue and updates the time remaining as work progresses.
@@ -68,3 +74,4 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * [v1 scope](v1-scope.md)
 * [UI design](../design/ui.md)
 * [API reference](../design/api.md)
+* [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)

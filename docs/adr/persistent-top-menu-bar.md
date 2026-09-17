@@ -1,9 +1,11 @@
 # ADR 001: Persistent top menu bar
 
-* **Status:** Accepted, amended 2026-08-31
-* **Date:** 2026-08-31
+* **Status:** Accepted, amended 2026-09-15
+* **Date:** 2026-09-15
 
 > **Amended 2026-08-31.** The original record forbade any menu destination or label besides the home icon. That was a note about how little existed at the time, not a lasting property of the bar, and later decisions contradict it: [ADR 011](ADR-011.md) places the user picker in the bar, and the [UI design](../design/ui.md) places project section links there. The bar is the application's shared shell and may carry navigation. What it must keep is the home icon at the far left and the recorded palette.
+
+> **Amended 2026-09-15.** [ADR 027](ADR-027.md) records type identity hues (Epic brand blue, Story teal, Subtask amber) beside the logo palette. The top bar and footer still use only logo blues. The Must Not against a second unrelated palette does not forbid those recorded type tokens.
 
 ## Background
 
@@ -55,7 +57,7 @@ People moving around Keel HTML pages have no always-visible way back to home and
 * **May** carry further destinations and controls, such as section links and the user picker, placed to the right of the home icon.
 * **Must Not** displace the home icon from the far left, whatever else the bar carries.
 * **Must Not** require the bar on Swagger, ReDoc, or JSON-only URLs.
-* **Must Not** invent a second unrelated palette (for example arbitrary accent colors not present on `logos.png`).
+* **Must Not** invent a second unrelated palette for the bar and chrome (for example arbitrary accent colors not present on `logos.png`). Recorded type identity hues in [ADR 027](ADR-027.md) are the exception, and they must not recolor the bar or footer.
 
 ## Consequences
 
@@ -104,3 +106,4 @@ stateDiagram-v2
 * [Package version (single source of truth)](../version.md)
 * [ADR 002: Persistent version footer](ADR-002.md)
 * [Brand colors from logos.png](../brand-colors.md)
+* [ADR 027: Parent key on Kanban cards and type colors](ADR-027.md)

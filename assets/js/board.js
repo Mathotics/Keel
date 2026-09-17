@@ -63,8 +63,9 @@
         dragged = false;
       }, 0);
     });
-    const link = card.querySelector(".keel-card__link");
-    if (link) {
+    for (const link of card.querySelectorAll(
+      ".keel-card__link, .keel-card__parent-link",
+    )) {
       link.addEventListener("click", (event) => {
         if (dragged) {
           event.preventDefault();

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_type.html" import type_chip %}
 {% block title %}{{ project.key }} schedules{% endblock %}
 {% block main %}
       <h1>{{ project.key }} schedules</h1>
@@ -42,7 +43,7 @@
           {% for item in series_list %}
           <tr>
             <td><a href="/projects/{{ project.key }}/schedules/{{ item.id }}">{{ item.title }}</a></td>
-            <td>{{ item.type | label }}</td>
+            <td>{{ type_chip(item.type) }}</td>
             <td>{{ summaries[item.id] }}</td>
             <td>{{ item.spawn_mode | label }}</td>
             <td>{{ item.state | label }}</td>

@@ -12,7 +12,10 @@ flowchart LR
     a1[Create/edit Epics, Stories, Subtasks]
     a2[Parent/child hierarchy + progress rollup]
     a3[Assign to a user, set status]
+    a3b[Set priority]
     a4[Comment on issues]
+    a5[Read field history]
+    a6[Label issues, filter by label]
   end
   subgraph Plan["Planning"]
     b1[Review the backlog]
@@ -51,7 +54,10 @@ flowchart LR
 * Roll up child progress and effort to parent issues.
 * Assign an issue to a user and set its reporter.
 * Set and change an issue's status within the shared workflow (see [ADR 004](../adr/ADR-004.md)).
+* Set and change an issue's priority on the five-level scale (see [ADR 030](../adr/ADR-030.md)).
 * Add and read comments on an issue. Issue descriptions and comment bodies render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
+* Add and remove labels on an issue, and filter the board and issue list by one label ([ADR 031](../adr/ADR-031.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)).
 
 ## Planning
 
@@ -66,8 +72,9 @@ flowchart LR
 ## Board & workflow
 
 * Present a project's issues on a Kanban board.
+* Show a Story or Subtask's parent key on its board card when it has a parent, and color Epic, Story, and Subtask distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * Derive board columns from the shared workflow statuses.
-* Restrict the board to chosen issue types, to a chosen assignee, and to a chosen sprint.
+* Restrict the board to chosen issue types, to a chosen assignee, to a chosen sprint, and to a chosen label.
 * Separate the board into a row of columns per sprint.
 * Change an issue's status by moving its card between columns.
 
@@ -94,3 +101,5 @@ flowchart LR
 * [API reference](../design/api.md)
 * [UI design](../design/ui.md)
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
+* [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
+* [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)

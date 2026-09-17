@@ -29,6 +29,10 @@ class SeriesCreate(BaseModel):
     ends_on: date | None = None
     occurrence_count: int | None = Field(default=None, ge=1)
     look_ahead_n: int = Field(default=1, ge=1)
+    start_offset_days: int = 0
+    start_minute_of_day: int = Field(default=0, ge=0, lt=1440)
+    due_offset_days: int = 0
+    due_minute_of_day: int = Field(default=0, ge=0, lt=1440)
     parent_id: int | None = None
     assignee_id: int | None = None
     seed_issue_id: int | None = None
@@ -52,6 +56,10 @@ class SeriesUpdate(BaseModel):
     ends_on: date | None = None
     occurrence_count: int | None = None
     look_ahead_n: int | None = Field(default=None, ge=1)
+    start_offset_days: int | None = None
+    start_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
+    due_offset_days: int | None = None
+    due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
     parent_id: int | None = None
     assignee_id: int | None = None
     state: SeriesState | None = None
@@ -69,6 +77,10 @@ class SeriesRead(BaseModel):
     spawn_mode: SeriesSpawnMode
     sprint_basis: SeriesSprintBasis
     look_ahead_n: int
+    start_offset_days: int
+    start_minute_of_day: int
+    due_offset_days: int
+    due_minute_of_day: int
     freq: RecurrenceFreq
     interval: int
     weekdays: str
@@ -95,6 +107,10 @@ class SeriesRead(BaseModel):
             spawn_mode=series.spawn_mode,
             sprint_basis=series.sprint_basis,
             look_ahead_n=series.look_ahead_n,
+            start_offset_days=series.start_offset_days,
+            start_minute_of_day=series.start_minute_of_day,
+            due_offset_days=series.due_offset_days,
+            due_minute_of_day=series.due_minute_of_day,
             freq=series.freq,
             interval=series.interval,
             weekdays=series.weekdays,

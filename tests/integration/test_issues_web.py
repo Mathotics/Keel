@@ -43,12 +43,18 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="description"' in page.text
     assert 'name="status"' in page.text
     assert ">Cancelled<" in page.text
+    assert 'name="priority"' in page.text
+    assert "P1 — Blocker" in page.text
+    assert "P3 — Major" in page.text
     assert 'name="assignee_id"' in page.text
     assert 'name="parent_id"' in page.text
     assert 'name="sprint_id"' in page.text
     assert 'name="due_at"' in page.text
+    assert 'name="start_at"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'class="keel-type-select"' in page.text
+    assert 'data-type="story"' in page.text
 
 
 def test_an_issue_is_created_and_lands_on_its_page(
@@ -117,6 +123,7 @@ def test_create_can_set_the_other_fields_at_birth(
             "title": "Full",
             "description": "Body text",
             "status": "in_progress",
+            "priority": "p1",
             "parent_id": str(parent_id),
             "assignee_id": str(tester),
             "sprint_id": str(sprint["id"]),
@@ -133,6 +140,7 @@ def test_create_can_set_the_other_fields_at_birth(
     assert "Full" in html
     assert "Body text" in html
     assert "In Progress" in html
+    assert "P1 — Blocker" in html
     assert 'value="2026-11-02T08:15"' in html
     assert f'value="{tester}" selected' in html or f'value="{tester}"selected' in html
     assert f'value="{parent_id}" selected' in html or (
@@ -318,6 +326,9 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert ">Edit<" not in page.text
     assert 'name="title"' in page.text
     assert 'name="type"' in page.text
+    assert 'name="priority"' in page.text
+    assert 'class="keel-type-select"' in page.text
+    assert 'data-type="story"' in page.text
     assert 'name="description"' in page.text
     assert 'name="parent_id"' in page.text
 
@@ -343,7 +354,16 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert due.headers["location"] == "/issues/KEEL-1"
     page = client.get("/issues/KEEL-1")
     assert "In Progress" in page.text
+    assert "P3 — Major" in page.text
     assert 'value="2026-11-02T08:15"' in page.text
+
+    ranked = client.post(
+        f"/web/issues/{issue_id}/priority",
+        data={"priority": "p1"},
+        follow_redirects=False,
+    )
+    assert ranked.headers["location"] == "/issues/KEEL-1"
+    assert "P1 — Blocker" in client.get("/issues/KEEL-1").text
 
 
 def test_the_old_edit_url_redirects_to_the_issue(
@@ -489,6 +509,33 @@ def test_due_date_can_be_changed_from_the_issue_page(
     )
     assert cleared.headers["location"] == "/issues/KEEL-1"
     assert client.get(f"/api/v1/issues/{issue_id}").json()["due_at"] is None
+
+
+def test_start_and_due_can_be_changed_together_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    response = client.post(
+        f"/web/issues/{issue_id}/dates",
+        data={"start_at": "2026-10-01T08:00", "due_at": "2026-10-01T17:00"},
+        follow_redirects=False,
+    )
+    assert response.headers["location"] == "/issues/KEEL-1"
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["start_at"].startswith("2026-10-01T08:00")
+    assert stored["due_at"].startswith("2026-10-01T17:00")
+
+    refused = client.post(
+        f"/web/issues/{issue_id}/dates",
+        data={"start_at": "2026-10-02T08:00", "due_at": "2026-10-01T17:00"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/issues/KEEL-1")
+    page = client.get(refused.headers["location"])
+    assert "Start cannot be after due" in page.text
 
 
 def test_an_unreadable_due_date_returns_to_the_issue_page(
@@ -680,3 +727,49 @@ def test_an_epic_page_shows_cancelled_descendants_separately(
         "Including descendants: 3h estimate, 2h remaining. 0 of 1 done, 1 cancelled."
         in page.text
     )
+
+
+def test_create_can_set_labels_at_birth(client: TestClient, project: Json) -> None:
+    created = client.post(
+        "/web/issues",
+        data={
+            "project_id": str(project["id"]),
+            "type": "story",
+            "title": "Tagged",
+            "labels": "Urgent, bug",
+        },
+        follow_redirects=False,
+    )
+    assert created.headers["location"] == "/issues/KEEL-1"
+    page = client.get("/issues/KEEL-1")
+    assert "bug" in page.text
+    assert "urgent" in page.text
+    assert 'name="labels"' in client.get(f"/create?project={project['key']}").text
+
+
+def test_labels_can_be_added_and_removed_on_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Work"},
+    ).json()
+    added = client.post(
+        f"/web/issues/{issue['id']}/labels",
+        data={"name": "Urgent"},
+        follow_redirects=False,
+    )
+    assert added.status_code == 303
+    page = client.get("/issues/KEEL-1")
+    assert "urgent" in page.text
+    assert "Tester — labels none → urgent" in page.text
+    catalog = client.get("/api/v1/labels").json()
+    label_id = catalog[0]["id"]
+    removed = client.post(
+        f"/web/issues/{issue['id']}/labels/{label_id}/delete",
+        follow_redirects=False,
+    )
+    assert removed.status_code == 303
+    page = client.get("/issues/KEEL-1")
+    assert "Tester — labels urgent → none" in page.text

@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Issue, Project
-from keel.domain.enums import IssueStatus, IssueType
+from keel.domain.enums import IssuePriority, IssueStatus, IssueType
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services.issues import IssueFilters
 
@@ -23,6 +25,7 @@ def _read(session: Session, issue: Issue) -> IssueRead:
         project,
         counts.get(issue.id, 0),
         issue_service.issue_rollup(session, issue.id),
+        labels=label_service.names_for_issue(session, issue.id),
     )
 
 
@@ -35,7 +38,8 @@ def _reads(
         session,
         [issue.id for issue in issues],
     )
-    return IssueRead.many(issues, project, counts)
+    labels = label_service.names_for_issues(session, [issue.id for issue in issues])
+    return IssueRead.many(issues, project, counts, labels)
 
 
 @router.get("/projects/{project_id}/issues", response_model=list[IssueRead])
@@ -44,10 +48,13 @@ def list_issues(
     session: SessionDep,
     type: IssueType | None = Query(default=None),
     status_: IssueStatus | None = Query(default=None, alias="status"),
+    priority: IssuePriority | None = Query(default=None),
     assignee_id: int | None = Query(default=None),
     parent_id: int | None = Query(default=None),
     sprint_id: int | None = Query(default=None),
     unscheduled: bool = Query(default=False),
+    label: str | None = Query(default=None),
+    unlabeled: bool = Query(default=False),
 ) -> list[IssueRead]:
     project = project_service.get_project(session, project_id)
     found = issue_service.list_issues(
@@ -56,10 +63,13 @@ def list_issues(
         IssueFilters(
             type=type,
             status=status_,
+            priority=priority,
             assignee_id=assignee_id,
             parent_id=parent_id,
             sprint_id=sprint_id,
             unscheduled=unscheduled,
+            label=_normalized_label(label),
+            unlabeled=unlabeled,
         ),
     )
     return _reads(session, found, project)
@@ -83,13 +93,16 @@ def create_issue(
         title=payload.title,
         description=payload.description,
         status=payload.status,
+        priority=payload.priority,
         parent_id=payload.parent_id,
         sprint_id=payload.sprint_id,
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
+        start_at=payload.start_at,
         due_at=payload.due_at,
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
+        labels=payload.labels,
     )
     return _read(session, issue)
 
@@ -112,8 +125,14 @@ def update_issue(
     issue_id: int,
     payload: IssueUpdate,
     session: SessionDep,
+    acting_user: ActingUserDep,
 ) -> IssueRead:
     supplied = payload.model_fields_set
+    actor_name = (
+        history_service.SYSTEM_ACTOR
+        if acting_user is None
+        else acting_user.display_name
+    )
     issue = issue_service.update_issue(
         session,
         issue_id,
@@ -121,12 +140,14 @@ def update_issue(
         title=payload.title,
         description=payload.description,
         status=payload.status,
+        priority=payload.priority,
         parent_id=payload.parent_id if "parent_id" in supplied else issue_service.UNSET,
         sprint_id=payload.sprint_id if "sprint_id" in supplied else issue_service.UNSET,
         assignee_id=(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),
         due_at=payload.due_at if "due_at" in supplied else issue_service.UNSET,
+        start_at=payload.start_at if "start_at" in supplied else issue_service.UNSET,
         estimate_minutes=(
             payload.estimate_minutes
             if "estimate_minutes" in supplied
@@ -137,6 +158,8 @@ def update_issue(
             if "remaining_minutes" in supplied
             else issue_service.UNSET
         ),
+        labels=(payload.labels or () if "labels" in supplied else issue_service.UNSET),
+        actor_name=actor_name,
     )
     return _read(session, issue)
 
@@ -144,3 +167,11 @@ def update_issue(
 @router.delete("/issues/{issue_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_issue(issue_id: int, session: SessionDep) -> None:
     issue_service.delete_issue(session, issue_id)
+
+
+def _normalized_label(raw: str | None) -> str | None:
+    if raw is None or not raw.strip():
+        return None
+    from keel.domain.labels import normalize_label_name
+
+    return normalize_label_name(raw)

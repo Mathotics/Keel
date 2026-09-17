@@ -7,6 +7,16 @@ class IssueType(StrEnum):
     SUBTASK = "subtask"
 
 
+class IssuePriority(StrEnum):
+    """Declaration order is rank: P1 is highest, P5 is lowest."""
+
+    P1 = "p1"
+    P2 = "p2"
+    P3 = "p3"
+    P4 = "p4"
+    P5 = "p5"
+
+
 class IssueStatus(StrEnum):
     """Declaration order is the workflow order the board renders in."""
 
@@ -49,6 +59,7 @@ class SeriesSpawnMode(StrEnum):
 
 class SeriesSprintBasis(StrEnum):
     DUE_ON = "due_on"
+    START_ON = "start_on"
     CREATED_ON = "created_on"
 
 
@@ -71,6 +82,7 @@ class DependencyKind(StrEnum):
 
 
 INITIAL_STATUS = IssueStatus.TODO
+INITIAL_PRIORITY = IssuePriority.P3
 COMPLETED_STATUS = IssueStatus.DONE
 CLOSED_STATUSES = frozenset({IssueStatus.DONE, IssueStatus.CANCELLED})
 
@@ -78,6 +90,11 @@ _LABELS = {
     IssueType.EPIC: "Epic",
     IssueType.STORY: "Story",
     IssueType.SUBTASK: "Subtask",
+    IssuePriority.P1: "P1 — Blocker",
+    IssuePriority.P2: "P2 — Critical",
+    IssuePriority.P3: "P3 — Major",
+    IssuePriority.P4: "P4 — Minor",
+    IssuePriority.P5: "P5 — Trivial",
     IssueStatus.TODO: "To Do",
     IssueStatus.IN_PROGRESS: "In Progress",
     IssueStatus.IN_REVIEW: "In Review",
@@ -100,6 +117,7 @@ _LABELS = {
     SeriesSpawnMode.CALENDAR: "On the calendar",
     SeriesSpawnMode.AFTER_CLOSED: "After the previous copy is closed",
     SeriesSprintBasis.DUE_ON: "Due date",
+    SeriesSprintBasis.START_ON: "Start date",
     SeriesSprintBasis.CREATED_ON: "Creation date",
     RecurrenceFreq.DAILY: "Daily",
     RecurrenceFreq.WEEKLY: "Weekly",
@@ -112,6 +130,7 @@ _LABELS = {
 
 Labeled = (
     IssueType
+    | IssuePriority
     | IssueStatus
     | SprintState
     | SprintCadence
@@ -134,6 +153,10 @@ def statuses_in_workflow_order() -> tuple[IssueStatus, ...]:
 
 def types_in_hierarchy_order() -> tuple[IssueType, ...]:
     return tuple(IssueType)
+
+
+def priorities_in_rank_order() -> tuple[IssuePriority, ...]:
+    return tuple(IssuePriority)
 
 
 def sprint_states_in_lifecycle_order() -> tuple[SprintState, ...]:

@@ -163,3 +163,29 @@ def test_the_board_lists_sprint_lanes(
 
 def test_an_unknown_project_board_is_not_found(client: TestClient) -> None:
     assert client.get("/api/v1/projects/404/board").status_code == 404
+
+
+def test_a_label_parameter_filters_the_board(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    create_issue(client, project_id, title="Tagged", labels=["urgent"])
+    create_issue(client, project_id, title="Bare")
+
+    tagged = client.get(
+        f"/api/v1/projects/{project_id}/board",
+        params={"label": "urgent"},
+    ).json()
+    bare = client.get(
+        f"/api/v1/projects/{project_id}/board",
+        params={"label": "unlabeled"},
+    ).json()
+
+    def titles(board: Json) -> list[str]:
+        return [
+            issue["title"] for column in board["columns"] for issue in column["issues"]
+        ]
+
+    assert titles(tagged) == ["Tagged"]
+    assert tagged["columns"][0]["issues"][0]["labels"] == ["urgent"]
+    assert titles(bare) == ["Bare"]

@@ -148,7 +148,14 @@ def start_sprint(session: Session, sprint_id: int) -> Sprint:
     return sprint
 
 
-def complete_sprint(session: Session, sprint_id: int) -> SprintCompletion:
+def complete_sprint(
+    session: Session,
+    sprint_id: int,
+    *,
+    actor_name: str | None = None,
+) -> SprintCompletion:
+    from keel.services import history as history_service
+
     sprint = get_sprint(session, sprint_id)
     if sprint.state is not SprintState.ACTIVE:
         raise SprintInvalidTransitionError(
@@ -163,15 +170,25 @@ def complete_sprint(session: Session, sprint_id: int) -> SprintCompletion:
         ),
     ).all()
     destination = _next_planned(session, sprint.project_id)
+    dest_id = None if destination is None else destination.id
+    who = actor_name if actor_name is not None else history_service.current_actor_name()
     for issue in unfinished:
-        issue.sprint_id = None if destination is None else destination.id
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_SPRINT,
+            from_value=history_service.sprint_label(session, issue.sprint_id),
+            to_value=history_service.sprint_label(session, dest_id),
+            actor_name=who,
+        )
+        issue.sprint_id = dest_id
     sprint.state = SprintState.COMPLETED
     sprint.completed_at = utc_now()
     session.flush()
     return SprintCompletion(
         sprint=sprint,
         carried_over=len(unfinished),
-        carried_to_sprint_id=None if destination is None else destination.id,
+        carried_to_sprint_id=dest_id,
     )
 
 

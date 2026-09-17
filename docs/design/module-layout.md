@@ -26,6 +26,7 @@ src/keel/
     hierarchy.py        parent type rules, ancestor cycle checks
     graph.py            blocks-graph cycle detection
     rollup.py           subtree effort and progress arithmetic
+    labels.py           label name normalization
 
   db/
     __init__.py
@@ -40,6 +41,8 @@ src/keel/
       board.py
       sprint.py
       issue.py
+      issue_history.py
+      label.py
       dependency.py
       comment.py
 
@@ -58,6 +61,8 @@ src/keel/
     home.py
     dependencies.py
     comments.py
+    history.py
+    labels.py
 
   schemas/
     __init__.py
@@ -68,6 +73,7 @@ src/keel/
     series.py
     dependency.py
     comment.py
+    label.py
     board.py
 
   api/
@@ -80,6 +86,7 @@ src/keel/
       users.py
       projects.py
       issues.py
+      labels.py
       boards.py
       sprints.py
       series.py
