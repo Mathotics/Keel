@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from fastapi import APIRouter, Query, Request
@@ -35,7 +36,7 @@ def _board_query(
     assignee: str | None,
     sprint: str | None,
     label: str | None,
-    by: str | None,
+    by: str | Sequence[str] | None,
 ) -> _BoardQuery:
     assignee_id, unassigned = board_service.parse_assignee_filter(assignee)
     sprint_id, unscheduled = board_service.parse_sprint_filter(sprint)
@@ -66,7 +67,7 @@ def master_board_page(
     assignee: str | None = Query(default=None),
     sprint: str | None = Query(default=None),
     label: str | None = Query(default=None),
-    by: str | None = Query(default=None),
+    by: list[str] = Query(default=[]),
     error: str | None = None,
 ) -> HTMLResponse:
     filters = _board_query(types, assignee, sprint, label, by)
@@ -129,7 +130,7 @@ def board_page(
     assignee: str | None = Query(default=None),
     sprint: str | None = Query(default=None),
     label: str | None = Query(default=None),
-    by: str | None = Query(default=None),
+    by: list[str] = Query(default=[]),
     error: str | None = None,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)

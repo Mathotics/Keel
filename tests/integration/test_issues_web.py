@@ -45,7 +45,8 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert ">Cancelled<" in page.text
     assert 'name="priority"' in page.text
     assert "P1 — Blocker" in page.text
-    assert "P3 — Major" in page.text
+    assert "P4 — Minor" in page.text
+    assert 'value="p4" selected' in page.text
     assert 'name="assignee_id"' in page.text
     assert 'name="parent_id"' in page.text
     assert 'name="sprint_id"' in page.text
@@ -354,7 +355,7 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert due.headers["location"] == "/issues/KEEL-1"
     page = client.get("/issues/KEEL-1")
     assert "In Progress" in page.text
-    assert "P3 — Major" in page.text
+    assert "P4 — Minor" in page.text
     assert 'value="2026-11-02T08:15"' in page.text
 
     ranked = client.post(

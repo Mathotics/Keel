@@ -95,17 +95,25 @@ def parse_project_filter(raw: str | None) -> str | None:
     return raw.strip()
 
 
-def parse_board_grouping(raw: str | None) -> str | None:
+def parse_board_grouping(raw: str | Sequence[str] | None) -> str | None:
     """Read the board's `by` query value.
 
-    Empty means one shared set of columns. `sprint` stacks a row per sprint.
+    Missing means stacked by sprint. `sprint` stacks a row per sprint.
+    `status` keeps one shared set of columns. Repeated values treat
+    `sprint` as winning so a checked box can sit after a hidden `status`.
     """
-    if raw is None or not raw.strip():
-        return None
-    cleaned = raw.strip()
-    if cleaned == "sprint":
+    if raw is None:
+        tokens: tuple[str, ...] = ()
+    elif isinstance(raw, str):
+        tokens = (raw,)
+    else:
+        tokens = tuple(raw)
+    cleaned = tuple(item.strip() for item in tokens if item.strip())
+    if not cleaned or "sprint" in cleaned:
         return "sprint"
-    raise InvalidIssueError(f"{cleaned} is not a valid board grouping.")
+    if all(item == "status" for item in cleaned):
+        return None
+    raise InvalidIssueError(f"{cleaned[-1]} is not a valid board grouping.")
 
 
 def card_count(board: Board) -> int:

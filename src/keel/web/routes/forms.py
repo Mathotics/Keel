@@ -7,6 +7,7 @@ from fastapi.responses import RedirectResponse
 
 from keel.domain.duration import parse_duration
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     DependencyKind,
     EditScope,
     IssuePriority,
@@ -209,7 +210,7 @@ def create_issue_from_page(
     title: Annotated[str, Form()] = "",
     description: Annotated[str, Form()] = "",
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
-    priority: Annotated[IssuePriority, Form()] = IssuePriority.P3,
+    priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     start_at: Annotated[str, Form()] = "",
@@ -259,7 +260,7 @@ def create_issue(
     title: Annotated[str, Form()],
     description: Annotated[str, Form()] = "",
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
-    priority: Annotated[IssuePriority, Form()] = IssuePriority.P3,
+    priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     reporter_id: Annotated[str, Form()] = "",
