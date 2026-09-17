@@ -28,7 +28,7 @@ def test_a_created_issue_carries_its_key(client: TestClient, project_id: int) ->
     assert issue["key"] == "KEEL-1"
     assert issue["number"] == 1
     assert issue["status"] == "todo"
-    assert issue["priority"] == "p3"
+    assert issue["priority"] == "p4"
 
 
 def test_the_reporter_defaults_to_the_acting_user(
@@ -402,12 +402,12 @@ def test_an_illegal_label_is_refused(client: TestClient, project_id: int) -> Non
     assert response.json()["detail"]["code"] == "issue.invalid"
 
 
-def test_priority_defaults_to_major_and_round_trips(
+def test_priority_defaults_to_minor_and_round_trips(
     client: TestClient,
     project_id: int,
 ) -> None:
     issue = create_issue(client, project_id)
-    assert issue["priority"] == "p3"
+    assert issue["priority"] == "p4"
 
     created = create_issue(client, project_id, title="Blocker", priority="p1")
     assert created["priority"] == "p1"

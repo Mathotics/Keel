@@ -53,7 +53,7 @@ A first-class container that scopes a body of work. Multiple projects coexist.
 The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtask; the parent relationship forms the Epic → Story → Subtask hierarchy. Modeled as one entity per [ADR 003](../adr/ADR-003.md).
 * Title; description.
 * Type — one of *Epic*, *Story*, *Subtask*.
-* Priority — one of *P1 — Blocker*, *P2 — Critical*, *P3 — Major*, *P4 — Minor*, *P5 — Trivial*; every issue has one, defaulting to *P3 — Major* ([ADR 030](../adr/ADR-030.md)).
+* Priority — one of *P1 — Blocker*, *P2 — Critical*, *P3 — Major*, *P4 — Minor*, *P5 — Trivial*; every issue has one, defaulting to *P4 — Minor* ([ADR 030](../adr/ADR-030.md)).
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/ADR-012.md)).
 * Status — one of the shared workflow statuses (see Status).
 * Optional start date/time; optional due date/time — when both are set, start must not be after due (see [ADR 029](../adr/ADR-029.md)).
