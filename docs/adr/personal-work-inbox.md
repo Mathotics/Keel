@@ -1,7 +1,7 @@
 # ADR 022: Home page as a personal work inbox
 
 * **Status:** Accepted
-* **Date:** 2026-09-15
+* **Date:** 2026-09-16
 
 > **Amendment.** [ADR 030](ADR-030.md) adds a Priority column on inbox rows so rank is visible next to type.
 
@@ -56,7 +56,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 * **Must** hide a section entirely when it has no rows.
 * **Must**, when every section is empty, show one quiet message and no section headings; if there are also no projects, that message **Must** include a link to `/projects`.
 * **Must** list under **Assigned to me** every unfinished issue assigned to the acting user, across all projects.
-* **Must** list under **Due or overdue** those unfinished assigned issues whose `due_at` calendar date is today or earlier; **Must Not** list issues with no due date in this section.
+* **Must** list under **Due or overdue** those unfinished assigned issues whose `due_at` calendar date is the local today or earlier; **Must Not** list issues due after local today, or issues with no due date, in this section. "Today" is the server's local calendar date, not the UTC date, so an evening in a US timezone does not pull in tomorrow's work.
 * **Must** list under **Blocked** unfinished assigned issues whose status is Blocked, or that have unresolved blockers, or both.
 * **Must** list under **In the active sprint** every issue assigned to the acting user whose sprint is currently active in its project, including *Done* and *Cancelled*.
 * **Must** list under **Waiting this cycle** unfinished spawned series copies assigned to the acting user whose `occurrence_on` is today or earlier; **Must Not** list future look-ahead copies in this section.
@@ -78,6 +78,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 * **Bad:** Assigned to me will repeat issues that also sit in other sections, so a busy user sees the same key more than once.
 * **Bad:** Closed items appear only in the active-sprint section, so `/` is not a single consistent "open work" list.
 * **Risk:** "Due today" by calendar date can still show an issue after its clock time has passed; users who think in timestamps may call that overdue. Accepted to avoid the section churning through the afternoon.
+* **Risk:** Local `date.today()` follows the server's timezone. If the app host is UTC while people enter datetime-local values in another zone, membership can still disagree with the wall calendar they used. Accepted while Keel has no per-user timezone.
 * **Risk:** Waiting this cycle uses `occurrence_on`, not due date or sprint overlap, so an unscheduled copy due later this week can appear here while a future look-ahead copy with a due date does not.
 
 ## System Design

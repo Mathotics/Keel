@@ -44,7 +44,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Work the board.** A user views a project's issues as cards in columns drawn from the shared workflow statuses.
 * **See a card's parent.** A user looking at a Story or Subtask sees **Parent {key}** when that issue has a parent, and can open the parent from the card. Epic, Story, and Subtask are colored distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * **Filter the board.** A user restricts the board to chosen issue types, to a chosen assignee including unassigned, and to a chosen sprint including unscheduled.
-* **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to.
+* **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to. The board opens this way by default; the user can turn it off to see one shared row of columns.
 * **Advance an issue.** A user moves a card from one column to the next, which changes the issue's status.
 
 ## Ticket dependencies

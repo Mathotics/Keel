@@ -59,7 +59,7 @@ def personal_inbox(
     today: date | None = None,
 ) -> HomeInbox:
     """Issues assigned to one user, partitioned into overlapping home sections."""
-    day = today or datetime.now(UTC).date()
+    day = today or date.today()
     found = session.execute(
         select(Issue, Project, Sprint)
         .join(Project, Issue.project_id == Project.id)
