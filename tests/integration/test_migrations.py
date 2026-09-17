@@ -61,6 +61,8 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     finally:
         engine.dispose()
     assert "due_at" in columns
+    assert "priority" in columns
+    assert "start_at" in columns
     assert "series_id" in columns
     assert "occurrence_on" in columns
     assert "sprint_id" in columns
@@ -93,10 +95,6 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     }
     assert labels == {"id", "name", "created_at"}
     assert issue_labels == {"issue_id", "label_id"}
-    labels = {column["name"] for column in inspect(engine).get_columns("labels")}
-    issue_labels = {
-        column["name"] for column in inspect(engine).get_columns("issue_labels")
-    }
     assert projects >= {
         "sprint_cadence",
         "sprint_cadence_days",
@@ -110,6 +108,10 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "look_ahead_n",
         "freq",
         "starts_on",
+        "start_offset_days",
+        "due_offset_days",
+        "start_minute_of_day",
+        "due_minute_of_day",
     }
 
 

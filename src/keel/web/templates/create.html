@@ -66,6 +66,14 @@
                 </select>
               </p>
               <p>
+                <label for="issue-priority">Priority</label>
+                <select id="issue-priority" name="priority">
+                  {% for value in priorities %}
+                  <option value="{{ value }}"{% if value == default_priority %} selected{% endif %}>{{ value | label }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+              <p>
                 <label for="issue-assignee">Assignee</label>
                 <select id="issue-assignee" name="assignee_id">
                   <option value="" selected>Unassigned</option>
@@ -102,8 +110,12 @@
             <legend>Dates and effort</legend>
             <div class="keel-fields">
               <p>
+                <label for="issue-start">Start date</label>
+                <input id="issue-start" name="start_at" type="datetime-local" data-keel-range="start"/>
+              </p>
+              <p>
                 <label for="issue-due">Due date</label>
-                <input id="issue-due" name="due_at" type="datetime-local"/>
+                <input id="issue-due" name="due_at" type="datetime-local" data-keel-range="end"/>
               </p>
               <p>
                 <label for="issue-estimate">Estimate</label>

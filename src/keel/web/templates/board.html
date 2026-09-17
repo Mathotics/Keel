@@ -15,6 +15,7 @@
                   <p class="keel-card__title">{{ card.issue.title }}</p>
                   <p class="keel-card__meta">
                     <span class="keel-chip keel-type" data-type="{{ card.issue.type.value }}">{{ card.issue.type | label }}</span>
+                    <span class="keel-chip keel-priority keel-priority--{{ card.issue.priority.value }}" title="{{ card.issue.priority | label }}">{{ card.issue.priority.value | upper }}</span>
                     <span>{{ card.assignee_name or "Unassigned" }}</span>
                   </p>
                   {% if card.parent_key %}
@@ -25,6 +26,9 @@
                   {% endif %}
                   {% if card.unresolved_blockers %}
                   <p class="keel-card__blockers keel-blockers" title="{{ card.unresolved_blockers }} unresolved blocker{% if card.unresolved_blockers != 1 %}s{% endif %}">{{ card.unresolved_blockers }} blocker{% if card.unresolved_blockers != 1 %}s{% endif %}</p>
+                  {% endif %}
+                  {% if card.issue.start_at %}
+                  <p class="keel-card__meta">Start {{ card.issue.start_at | when }}</p>
                   {% endif %}
                   {% if card.issue.due_at %}
                   <p class="keel-card__meta">Due {{ card.issue.due_at | when }}</p>

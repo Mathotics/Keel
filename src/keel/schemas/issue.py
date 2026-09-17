@@ -4,7 +4,13 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from keel.db.models import Issue, Project
-from keel.domain.enums import INITIAL_STATUS, IssueStatus, IssueType
+from keel.domain.enums import (
+    INITIAL_PRIORITY,
+    INITIAL_STATUS,
+    IssuePriority,
+    IssueStatus,
+    IssueType,
+)
 from keel.domain.rollup import Rollup
 
 
@@ -13,11 +19,13 @@ class IssueCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
     status: IssueStatus = INITIAL_STATUS
+    priority: IssuePriority = INITIAL_PRIORITY
     parent_id: int | None = None
     sprint_id: int | None = None
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    start_at: datetime | None = None
     due_at: datetime | None = None
     labels: list[str] = Field(default_factory=list)
 
@@ -34,11 +42,13 @@ class IssueUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = None
     status: IssueStatus | None = None
+    priority: IssuePriority | None = None
     parent_id: int | None = None
     sprint_id: int | None = None
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    start_at: datetime | None = None
     due_at: datetime | None = None
     labels: list[str] | None = None
 
@@ -72,15 +82,19 @@ class IssueRead(BaseModel):
     title: str
     description: str
     status: IssueStatus
+    priority: IssuePriority
     parent_id: int | None
     sprint_id: int | None
     reporter_id: int | None
     assignee_id: int | None
     estimate_minutes: int | None
     remaining_minutes: int | None
+    start_at: datetime | None
     due_at: datetime | None
     series_id: int | None = None
     occurrence_on: date | None = None
+    former_series_title: str | None = None
+    former_series_cadence: str | None = None
     unresolved_blockers: int
     rollup: RollupRead | None = None
     labels: list[str] = Field(default_factory=list)
@@ -105,15 +119,19 @@ class IssueRead(BaseModel):
             title=issue.title,
             description=issue.description,
             status=issue.status,
+            priority=issue.priority,
             parent_id=issue.parent_id,
             sprint_id=issue.sprint_id,
             reporter_id=issue.reporter_id,
             assignee_id=issue.assignee_id,
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
+            start_at=issue.start_at,
             due_at=issue.due_at,
             series_id=issue.series_id,
             occurrence_on=issue.occurrence_on,
+            former_series_title=issue.former_series_title,
+            former_series_cadence=issue.former_series_cadence,
             unresolved_blockers=unresolved_blockers,
             rollup=None if rollup is None else RollupRead.of(rollup),
             labels=list(labels),

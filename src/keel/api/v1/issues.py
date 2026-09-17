@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Issue, Project
-from keel.domain.enums import IssueStatus, IssueType
+from keel.domain.enums import IssuePriority, IssueStatus, IssueType
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
@@ -48,6 +48,7 @@ def list_issues(
     session: SessionDep,
     type: IssueType | None = Query(default=None),
     status_: IssueStatus | None = Query(default=None, alias="status"),
+    priority: IssuePriority | None = Query(default=None),
     assignee_id: int | None = Query(default=None),
     parent_id: int | None = Query(default=None),
     sprint_id: int | None = Query(default=None),
@@ -62,6 +63,7 @@ def list_issues(
         IssueFilters(
             type=type,
             status=status_,
+            priority=priority,
             assignee_id=assignee_id,
             parent_id=parent_id,
             sprint_id=sprint_id,
@@ -91,10 +93,12 @@ def create_issue(
         title=payload.title,
         description=payload.description,
         status=payload.status,
+        priority=payload.priority,
         parent_id=payload.parent_id,
         sprint_id=payload.sprint_id,
         reporter_id=None if acting_user is None else acting_user.id,
         assignee_id=payload.assignee_id,
+        start_at=payload.start_at,
         due_at=payload.due_at,
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
@@ -136,12 +140,14 @@ def update_issue(
         title=payload.title,
         description=payload.description,
         status=payload.status,
+        priority=payload.priority,
         parent_id=payload.parent_id if "parent_id" in supplied else issue_service.UNSET,
         sprint_id=payload.sprint_id if "sprint_id" in supplied else issue_service.UNSET,
         assignee_id=(
             payload.assignee_id if "assignee_id" in supplied else issue_service.UNSET
         ),
         due_at=payload.due_at if "due_at" in supplied else issue_service.UNSET,
+        start_at=payload.start_at if "start_at" in supplied else issue_service.UNSET,
         estimate_minutes=(
             payload.estimate_minutes
             if "estimate_minutes" in supplied

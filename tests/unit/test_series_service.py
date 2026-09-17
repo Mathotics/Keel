@@ -306,19 +306,59 @@ def test_pause_stops_new_copies_and_claiming_assigns_a_preview(
     assert preview.sprint_id == sprint.id
 
 
-def test_stop_leaves_existing_issues_and_cannot_resume(
+def test_delete_leaves_existing_issues_and_a_former_note(
     session: Session,
 ) -> None:
     project = _project(session)
     series = _weekly(session, project)
-    before = len(issue_service.list_issues(session, project.id))
-    series_service.set_state(session, series.id, SeriesState.STOPPED)
-    series_service.advance_series(session, series.id, date(2026, 9, 28))
-    assert len(issue_service.list_issues(session, project.id)) == before
+    copies = [
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    ]
+    assert copies
     with pytest.raises(SeriesStoppedError):
-        series_service.set_state(session, series.id, SeriesState.ACTIVE)
-    with pytest.raises(SeriesStoppedError):
-        series_service.update_series(session, series.id, title="Later trash")
+        series_service.set_state(session, series.id, SeriesState.STOPPED)
+    series_service.set_state(session, series.id, SeriesState.PAUSED)
+    series_id = series.id
+    series_service.delete_series(session, series_id)
+    remaining = issue_service.list_issues(session, project.id)
+    assert len(remaining) == len(copies)
+    for issue in remaining:
+        assert issue.series_id is None
+        assert issue.status is IssueStatus.TODO
+        assert issue.former_series_title == "Take out trash"
+        assert issue.former_series_cadence == "Weekly on Mon"
+    assert series_service.list_series(session, project.id) == []
+    with pytest.raises(NotFoundError):
+        series_service.get_series(session, series_id)
+
+
+def test_leftover_stopped_series_are_treated_as_deleted(
+    session: Session,
+) -> None:
+    project = _project(session)
+    series = _weekly(session, project)
+    copies = issue_service.list_issues(session, project.id)
+    seed = copies[0]
+    series_id = series.id
+    series.state = SeriesState.STOPPED
+    session.flush()
+    assert series_service.attached_series(session, seed) is None
+    session.refresh(seed)
+    assert seed.series_id is None
+    assert seed.former_series_title == "Take out trash"
+    assert seed.former_series_cadence == "Weekly on Mon"
+    assert series_service.attached_series(session, seed) is None
+    with pytest.raises(NotFoundError):
+        series_service.get_series(session, series_id)
+    leftover = _weekly(session, project, title="Old chore")
+    leftover_id = leftover.id
+    leftover.state = SeriesState.STOPPED
+    session.flush()
+    with pytest.raises(NotFoundError):
+        series_service.get_series(session, leftover_id)
+    assert series_service.list_series(session, project.id) == []
 
 
 def test_outlook_scopes_change_this_copy_or_the_recipe(
@@ -497,3 +537,109 @@ def test_deleting_the_same_occurrence_twice_is_idempotent(
         session, series.id, occurrence, date(2026, 9, 14)
     )
     assert issue_service.list_issues(session, project.id) == []
+
+
+def test_spawned_copies_get_start_and_due_from_offsets(
+    session: Session,
+) -> None:
+    from datetime import datetime
+
+    project = _project(session)
+    series = _weekly(
+        session,
+        project,
+        start_offset_days=-1,
+        start_minute_of_day=9 * 60,
+        due_offset_days=0,
+        due_minute_of_day=17 * 60,
+        sprint_basis=SeriesSprintBasis.CREATED_ON,
+        today=date(2026, 9, 14),
+    )
+    copy = next(
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    )
+    assert copy.occurrence_on == date(2026, 9, 14)
+    assert copy.start_at == datetime(2026, 9, 13, 9, 0)
+    assert copy.due_at == datetime(2026, 9, 14, 17, 0)
+
+
+def test_start_sprint_basis_uses_the_start_calendar_date(
+    session: Session,
+) -> None:
+    project = _project(session)
+    sprint = sprint_service.create_sprint(
+        session,
+        project.id,
+        name="Early window",
+        starts_on=date(2026, 9, 12),
+        ends_on=date(2026, 9, 13),
+    )
+    sprint_service.start_sprint(session, sprint.id)
+    series = _weekly(
+        session,
+        project,
+        start_offset_days=-1,
+        start_minute_of_day=9 * 60,
+        due_offset_days=0,
+        due_minute_of_day=17 * 60,
+        sprint_basis=SeriesSprintBasis.START_ON,
+        look_ahead_n=1,
+        today=date(2026, 9, 12),
+    )
+    in_sprint = [
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id and issue.sprint_id == sprint.id
+    ]
+    assert len(in_sprint) == 1
+    assert in_sprint[0].occurrence_on == date(2026, 9, 14)
+    assert in_sprint[0].start_at is not None
+    assert in_sprint[0].start_at.date() == date(2026, 9, 13)
+
+
+def test_outlook_scopes_rewrite_open_copy_dates(
+    session: Session,
+) -> None:
+    from datetime import datetime
+
+    project = _project(session)
+    series = _weekly(session, project, look_ahead_n=2)
+    copies = sorted(
+        [
+            issue
+            for issue in issue_service.list_issues(session, project.id)
+            if issue.series_id == series.id
+        ],
+        key=lambda issue: issue.occurrence_on or date.min,
+    )
+    first, second = copies[0], copies[1]
+    series_service.apply_occurrence_edit(
+        session,
+        first.id,
+        EditScope.THIS,
+        start_at=datetime(2026, 9, 13, 8, 0),
+        due_at=datetime(2026, 9, 14, 18, 0),
+    )
+    session.refresh(second)
+    session.refresh(series)
+    assert first.start_at == datetime(2026, 9, 13, 8, 0)
+    assert series.start_offset_days == 0
+    assert second.start_at == datetime(2026, 9, 21, 0, 0)
+    series_service.apply_occurrence_edit(
+        session,
+        second.id,
+        EditScope.FUTURE,
+        start_at=datetime(2026, 9, 20, 9, 0),
+        due_at=datetime(2026, 9, 21, 17, 0),
+    )
+    session.refresh(series)
+    session.refresh(first)
+    session.refresh(second)
+    assert series.start_offset_days == -1
+    assert series.start_minute_of_day == 9 * 60
+    assert series.due_minute_of_day == 17 * 60
+    assert first.start_at == datetime(2026, 9, 13, 8, 0)
+    assert second.start_at == datetime(2026, 9, 20, 9, 0)
+    assert second.due_at == datetime(2026, 9, 21, 17, 0)

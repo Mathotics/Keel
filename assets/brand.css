@@ -1207,6 +1207,31 @@ body {
   gap: 0.35rem;
 }
 
+.keel-priority--p1 {
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.keel-priority--p2 {
+  border-color: #b54708;
+  color: #b54708;
+}
+
+.keel-priority--p3 {
+  border-color: #a15c07;
+  color: #a15c07;
+}
+
+.keel-priority--p4 {
+  border-color: var(--keel-blue);
+  color: var(--keel-blue-deep);
+}
+
+.keel-priority--p5 {
+  border-color: color-mix(in srgb, var(--keel-blue-deep) 45%, var(--keel-sheet));
+  color: color-mix(in srgb, var(--keel-blue-deep) 55%, var(--keel-sheet));
+}
+
 .keel-type[data-type="epic"],
 .keel-type-select[data-type="epic"] {
   --keel-type: var(--keel-type-epic);

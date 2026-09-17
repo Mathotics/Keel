@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, IssueLabel, Label, Project
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     INITIAL_STATUS,
+    IssuePriority,
     IssueStatus,
     IssueType,
     statuses_in_workflow_order,
@@ -21,6 +23,7 @@ from keel.domain.errors import (
 from keel.domain.hierarchy import IssueRef, check_children, check_parent
 from keel.domain.labels import parse_label_names
 from keel.domain.rollup import EffortNode, Rollup, compute_rollup
+from keel.domain.schedule import check_start_due_window
 from keel.services import projects as project_service
 
 MAX_TITLE_LENGTH = 300
@@ -32,6 +35,7 @@ class IssueFilters:
     type: IssueType | None = None
     types: tuple[IssueType, ...] = ()
     status: IssueStatus | None = None
+    priority: IssuePriority | None = None
     assignee_id: int | None = None
     unassigned: bool = False
     parent_id: int | None = None
@@ -114,9 +118,11 @@ def create_issue(
     title: str,
     description: str = "",
     status: IssueStatus = INITIAL_STATUS,
+    priority: IssuePriority = INITIAL_PRIORITY,
     parent_id: int | None = None,
     reporter_id: int | None = None,
     assignee_id: int | None = None,
+    start_at: datetime | None = None,
     due_at: datetime | None = None,
     sprint_id: int | None = None,
     estimate_minutes: int | None = None,
@@ -129,6 +135,7 @@ def create_issue(
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
     wanted_labels = parse_label_names(labels) if labels else ()
+    check_start_due_window(start_at, due_at)
     if remaining_minutes is None:
         remaining_minutes = estimate_minutes
     issue = Issue(
@@ -138,8 +145,10 @@ def create_issue(
         title=_clean_title(title),
         description=description.strip(),
         status=status,
+        priority=priority,
         reporter_id=reporter_id,
         assignee_id=assignee_id,
+        start_at=start_at,
         due_at=due_at,
         estimate_minutes=estimate_minutes,
         remaining_minutes=remaining_minutes,
@@ -170,8 +179,10 @@ def update_issue(
     title: str | None = None,
     description: str | None = None,
     status: IssueStatus | None = None,
+    priority: IssuePriority | None = None,
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
+    start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
     sprint_id: int | None | object = UNSET,
     estimate_minutes: int | None | object = UNSET,
@@ -232,6 +243,16 @@ def update_issue(
             actor_name=who,
         )
         issue.status = status
+    if priority is not None and priority is not issue.priority:
+        history_service.record(
+            session,
+            issue.id,
+            field=history_service.FIELD_PRIORITY,
+            from_value=history_service.priority_label(issue.priority),
+            to_value=history_service.priority_label(priority),
+            actor_name=who,
+        )
+        issue.priority = priority
     if parent_id is not UNSET and parent_id != issue.parent_id:
         old_parent = history_service.parent_label(session, issue.parent_id)
         new_parent = history_service.parent_label(session, parent_id)  # type: ignore[arg-type]
@@ -254,6 +275,8 @@ def update_issue(
             actor_name=who,
         )
         issue.assignee_id = assignee_id  # type: ignore[assignment]
+    if start_at is not UNSET:
+        issue.start_at = start_at  # type: ignore[assignment]
     if due_at is not UNSET and due_at != issue.due_at:
         history_service.record(
             session,
@@ -264,6 +287,7 @@ def update_issue(
             actor_name=who,
         )
         issue.due_at = due_at  # type: ignore[assignment]
+    check_start_due_window(issue.start_at, issue.due_at)
     if sprint_id is not UNSET and sprint_id != issue.sprint_id:
         old_sprint = history_service.sprint_label(session, issue.sprint_id)
         new_sprint = history_service.sprint_label(session, sprint_id)  # type: ignore[arg-type]
@@ -404,6 +428,8 @@ def _apply_filters(
         query = query.where(Issue.type == filters.type)
     if filters.status is not None:
         query = query.where(Issue.status == filters.status)
+    if filters.priority is not None:
+        query = query.where(Issue.priority == filters.priority)
     if filters.unassigned:
         query = query.where(Issue.assignee_id.is_(None))
     elif filters.assignee_id is not None:
@@ -446,13 +472,22 @@ def _load_subtree(session: Session, root_id: int) -> Sequence[Issue]:
 
 def parse_due_at(raw: str) -> datetime | None:
     """Read a datetime-local or ISO string. Blank means no due date."""
+    return parse_datetime(raw, "Due date")
+
+
+def parse_start_at(raw: str) -> datetime | None:
+    """Read a datetime-local or ISO string. Blank means no start date."""
+    return parse_datetime(raw, "Start date")
+
+
+def parse_datetime(raw: str, field: str) -> datetime | None:
     cleaned = raw.strip()
     if not cleaned:
         return None
     try:
         parsed = datetime.fromisoformat(cleaned)
     except ValueError as exc:
-        raise InvalidIssueError("Due date could not be read.") from exc
+        raise InvalidIssueError(f"{field} could not be read.") from exc
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone(UTC).replace(tzinfo=None)
     return parsed

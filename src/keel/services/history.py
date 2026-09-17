@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, IssueHistory, Project, Sprint, User
 from keel.domain.duration import format_minutes
-from keel.domain.enums import IssueStatus, IssueType, label
+from keel.domain.enums import IssuePriority, IssueStatus, IssueType, label
 from keel.services.identity import acting_display_name
 
 SYSTEM_ACTOR = "Keel"
@@ -19,6 +19,7 @@ FIELD_REMAINING = "remaining"
 FIELD_DUE = "due date"
 FIELD_PARENT = "parent"
 FIELD_TYPE = "type"
+FIELD_PRIORITY = "priority"
 FIELD_TITLE = "title"
 FIELD_DESCRIPTION = "description"
 FIELD_LABELS = "labels"
@@ -73,6 +74,10 @@ def status_label(value: IssueStatus) -> str:
 
 
 def type_label(value: IssueType) -> str:
+    return label(value)
+
+
+def priority_label(value: IssuePriority) -> str:
     return label(value)
 
 

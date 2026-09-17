@@ -7,6 +7,7 @@ from keel.domain.enums import (
     RecurrenceFreq,
     SeriesSpawnMode,
     SeriesSprintBasis,
+    priorities_in_rank_order,
     statuses_in_workflow_order,
     types_in_hierarchy_order,
 )
@@ -49,7 +50,7 @@ def issue_page(
     ]
     series = None
     if issue.series_id is not None:
-        series = series_service.get_series(session, issue.series_id)
+        series = series_service.attached_series(session, issue)
     return get_templates().TemplateResponse(
         request,
         "issue_detail.html",
@@ -69,6 +70,7 @@ def issue_page(
             candidates=candidates,
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
+            priorities=priorities_in_rank_order(),
             issue_types=types_in_hierarchy_order(),
             child_type=child_type_of(issue.type),
             parents=[

@@ -35,6 +35,7 @@ class HomeRow:
 class HomeInbox:
     assigned: tuple[HomeRow, ...] = ()
     due: tuple[HomeRow, ...] = ()
+    starting: tuple[HomeRow, ...] = ()
     blocked: tuple[HomeRow, ...] = ()
     active_sprint: tuple[HomeRow, ...] = ()
     waiting: tuple[HomeRow, ...] = ()
@@ -44,6 +45,7 @@ class HomeInbox:
         return not (
             self.assigned
             or self.due
+            or self.starting
             or self.blocked
             or self.active_sprint
             or self.waiting
@@ -95,6 +97,14 @@ def personal_inbox(
                 and _calendar_day(item.issue.due_at) <= day
             ],
         ),
+        starting=_sorted_by_start(
+            [
+                item
+                for item in unfinished
+                if item.issue.start_at is not None
+                and _calendar_day(item.issue.start_at) <= day
+            ],
+        ),
         blocked=_sorted_by_key(
             [
                 item
@@ -144,6 +154,21 @@ def _sorted_by_due(items: Sequence[HomeRow]) -> tuple[HomeRow, ...]:
             items,
             key=lambda item: (
                 _as_naive_utc(item.issue.due_at) if item.issue.due_at else datetime.min,
+                item.project.key,
+                item.issue.number,
+            ),
+        ),
+    )
+
+
+def _sorted_by_start(items: Sequence[HomeRow]) -> tuple[HomeRow, ...]:
+    return tuple(
+        sorted(
+            items,
+            key=lambda item: (
+                _as_naive_utc(item.issue.start_at)
+                if item.issue.start_at
+                else datetime.min,
                 item.project.key,
                 item.issue.number,
             ),

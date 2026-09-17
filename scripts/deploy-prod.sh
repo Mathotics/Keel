@@ -53,16 +53,71 @@ install_prod() {
   "${py}" -m pip install -e "${PROD_ROOT}"
 }
 
-fetch_and_reset() {
-  local remote
-  if [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
-    git -C "${PROD_ROOT}" -c "http.extraHeader=Authorization: Bearer ${GITHUB_TOKEN}" \
-      fetch --force "https://github.com/${GITHUB_REPOSITORY}.git" "${GITHUB_SHA}"
+# GitHub git-over-HTTPS wants Basic x-access-token (as actions/checkout does),
+# not Bearer. An empty credential helper plus GIT_TERMINAL_PROMPT=0 stops the
+# Pi from prompting for a username and failing with "No such device or address".
+github_basic_extraheader() {
+  local b64
+  if command -v openssl >/dev/null 2>&1; then
+    b64="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | openssl base64 -A)"
   else
-    git -C "${PROD_ROOT}" fetch --force origin "${GITHUB_SHA}"
+    b64="$(
+      python3 -c 'import base64, os; print(base64.b64encode(("x-access-token:" + os.environ["GITHUB_TOKEN"]).encode()).decode())'
+    )"
   fi
-  git -C "${PROD_ROOT}" checkout --force -B main "${GITHUB_SHA}"
-  git -C "${PROD_ROOT}" reset --hard "${GITHUB_SHA}"
+  printf 'AUTHORIZATION: basic %s' "${b64}"
+}
+
+git_fetch() {
+  local -a conf=( -c credential.helper= )
+  while [[ "${1:-}" == -c ]]; do
+    conf+=(-c "$2")
+    shift 2
+  done
+  GIT_TERMINAL_PROMPT=0 git "${conf[@]}" -C "${PROD_ROOT}" fetch --force --update-shallow "$@"
+}
+
+fetch_from_workspace() {
+  local workspace
+  [[ -n "${GITHUB_WORKSPACE:-}" && -d "${GITHUB_WORKSPACE}/.git" ]] || return 1
+  workspace="$(cd "${GITHUB_WORKSPACE}" && pwd)"
+  log "Fetching ${GITHUB_SHA} from Actions workspace"
+  git_fetch "${workspace}" "+HEAD:refs/keel-deploy/incoming"
+}
+
+fetch_from_github() {
+  local header
+  [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]] || return 1
+  header="$(github_basic_extraheader)"
+  log "Fetching ${GITHUB_SHA} from GitHub"
+  if git_fetch -c "http.https://github.com/.extraheader=${header}" \
+    "https://github.com/${GITHUB_REPOSITORY}.git" \
+    "+${GITHUB_SHA}:refs/keel-deploy/incoming"; then
+    return 0
+  fi
+  git_fetch -c "http.https://github.com/.extraheader=${header}" \
+    "https://github.com/${GITHUB_REPOSITORY}.git" \
+    "+refs/heads/main:refs/remotes/origin/main"
+}
+
+fetch_from_origin() {
+  log "Fetching ${GITHUB_SHA} from origin"
+  git_fetch origin "+${GITHUB_SHA}:refs/keel-deploy/incoming" \
+    || git_fetch origin "+refs/heads/main:refs/remotes/origin/main"
+}
+
+fetch_and_reset() {
+  if fetch_from_workspace; then
+    :
+  elif fetch_from_github; then
+    :
+  elif fetch_from_origin; then
+    :
+  else
+    return 1
+  fi
+  git -C "${PROD_ROOT}" checkout --force -B main "${GITHUB_SHA}" || return 1
+  git -C "${PROD_ROOT}" reset --hard "${GITHUB_SHA}" || return 1
 }
 
 reset_to_sha() {
@@ -125,39 +180,45 @@ fail_after_restart() {
   exit 1
 }
 
-[[ -n "${GITHUB_SHA:-}" ]] || die "GITHUB_SHA is not set"
-[[ -d "${PROD_ROOT}/.git" ]] || die "production checkout not found: ${PROD_ROOT}"
-[[ -x "$(venv_python)" ]] || die "production venv missing; run scripts/bootstrap-prod.sh once"
+main() {
+  [[ -n "${GITHUB_SHA:-}" ]] || die "GITHUB_SHA is not set"
+  [[ -d "${PROD_ROOT}/.git" ]] || die "production checkout not found: ${PROD_ROOT}"
+  [[ -x "$(venv_python)" ]] || die "production venv missing; run scripts/bootstrap-prod.sh once"
 
-export_user_systemd
-load_prod_env
-cd "${PROD_ROOT}"
+  export_user_systemd
+  load_prod_env
+  cd "${PROD_ROOT}"
 
-PREVIOUS_SHA="$(git -C "${PROD_ROOT}" rev-parse HEAD)"
-log "Current HEAD ${PREVIOUS_SHA}; deploying ${GITHUB_SHA}"
+  PREVIOUS_SHA="$(git -C "${PROD_ROOT}" rev-parse HEAD)"
+  log "Current HEAD ${PREVIOUS_SHA}; deploying ${GITHUB_SHA}"
 
-if ! fetch_and_reset; then
-  die "git update to ${GITHUB_SHA} failed; checkout unchanged"
+  if ! fetch_and_reset; then
+    die "git update to ${GITHUB_SHA} failed; checkout unchanged"
+  fi
+
+  if ! install_prod; then
+    fail_keep_process "pip install failed"
+  fi
+
+  if ! backup_db; then
+    fail_keep_process "database backup failed"
+  fi
+
+  if ! upgrade_db; then
+    fail_keep_process "database upgrade failed"
+  fi
+
+  if ! restart_unit; then
+    fail_after_restart "systemctl restart ${UNIT_NAME} failed"
+  fi
+
+  if ! wait_for_health; then
+    fail_after_restart "health check failed at ${HEALTH_URL}"
+  fi
+
+  log "Deployed ${GITHUB_SHA}; ${HEALTH_URL} is healthy"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main
 fi
-
-if ! install_prod; then
-  fail_keep_process "pip install failed"
-fi
-
-if ! backup_db; then
-  fail_keep_process "database backup failed"
-fi
-
-if ! upgrade_db; then
-  fail_keep_process "database upgrade failed"
-fi
-
-if ! restart_unit; then
-  fail_after_restart "systemctl restart ${UNIT_NAME} failed"
-fi
-
-if ! wait_for_health; then
-  fail_after_restart "health check failed at ${HEALTH_URL}"
-fi
-
-log "Deployed ${GITHUB_SHA}; ${HEALTH_URL} is healthy"

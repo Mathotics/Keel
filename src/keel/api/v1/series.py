@@ -44,6 +44,10 @@ def create_series(
         ends_on=payload.ends_on,
         occurrence_count=payload.occurrence_count,
         look_ahead_n=payload.look_ahead_n,
+        start_offset_days=payload.start_offset_days,
+        start_minute_of_day=payload.start_minute_of_day,
+        due_offset_days=payload.due_offset_days,
+        due_minute_of_day=payload.due_minute_of_day,
         parent_id=payload.parent_id,
         assignee_id=payload.assignee_id,
         reporter_id=None if acting_user is None else acting_user.id,
@@ -79,6 +83,10 @@ def update_series(
         "interval",
         "starts_on",
         "look_ahead_n",
+        "start_offset_days",
+        "start_minute_of_day",
+        "due_offset_days",
+        "due_minute_of_day",
     ):
         if name in fields:
             kwargs[name] = getattr(payload, name)
@@ -116,8 +124,6 @@ def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
     )
 
 
-@router.post("/series/{series_id}/stop", response_model=SeriesRead)
-def stop_series(series_id: int, session: SessionDep) -> SeriesRead:
-    return SeriesRead.of(
-        series_service.set_state(session, series_id, SeriesState.STOPPED),
-    )
+@router.delete("/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_series(series_id: int, session: SessionDep) -> None:
+    series_service.delete_series(session, series_id)

@@ -28,8 +28,8 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 | Path | Template | Contents |
 | --- | --- | --- |
-| `/` | `home.html` | Personal inbox for the picker user: assigned, due or overdue, blocked, active sprint, and series copies waiting this cycle |
-| `/create` | `create.html` | Project, type, title, and the other create-time fields; comments and links wait until the issue exists |
+| `/` | `home.html` | Personal inbox for the picker user: assigned, due or overdue, starting or started, blocked, active sprint, and series copies waiting this cycle |
+| `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, and delete, issue counts by status |
 | `/projects/{key}/board` | `board.html` | Kanban columns, type, assignee, and sprint filters, optional rows per sprint, drag-and-drop |
@@ -37,7 +37,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/projects/{key}/sprints` | `sprints.html` | Sprints by state, auto-sprint status, create form |
 | `/projects/{key}/sprints/{id}` | `sprint_detail.html` | Sprint issues, start or complete |
 | `/projects/{key}/schedules` | `schedules.html` | Repeating series list; New series is a tab on the same URL (`?tab=new`) |
-| `/projects/{key}/schedules/{id}` | `schedule_detail.html` | Edit, pause, resume, or stop a series |
+| `/projects/{key}/schedules/{id}` | `schedule_detail.html` | Edit, pause, resume, or delete a series |
 | `/projects/{key}/issues/new` | — | Redirects to `/create?project={key}` |
 | `/issues/{key}-{number}` | `issue_detail.html` | Full issue view; repeating recipe in an overlay (`?repeat=1`); history above comments |
 | `/search` | `search.html` | Find results grouped by issues, projects, sprints, and users; exact keys and unique names jump instead |
@@ -46,7 +46,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 Web URLs address issues by key, as `/issues/KEEL-12`; the JSON API addresses them by internal identifier ([ADR 012](../adr/ADR-012.md)).
 
-Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md)): five stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
+Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md), [ADR 029](../adr/ADR-029.md)): stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
 
 ## Creation and editing forms
 
@@ -63,10 +63,12 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/projects/{project_id}/issues` | The same create, when extra fields are posted |
 | `POST` | `/web/issues/{issue_id}/title` | The issue page's title |
 | `POST` | `/web/issues/{issue_id}/type` | The issue page's type |
+| `POST` | `/web/issues/{issue_id}/priority` | The issue page's priority |
 | `POST` | `/web/issues/{issue_id}/description` | The issue page's description |
 | `POST` | `/web/issues/{issue_id}/parent` | The issue page's parent |
 | `POST` | `/web/issues/{issue_id}/children` | Create a child from the issue page |
-| `POST` | `/web/issues/{issue_id}/due` | The issue detail page's due date |
+| `POST` | `/web/issues/{issue_id}/dates` | The issue page's start and due |
+| `POST` | `/web/issues/{issue_id}/due` | Due only, still accepted for one-off issues |
 | `POST` | `/web/issues/{issue_id}/assignee` | The issue detail page's assignee |
 | `POST` | `/web/issues/{issue_id}/estimate` | The issue page's estimate |
 | `POST` | `/web/issues/{issue_id}/remaining` | The issue page's remaining time |
@@ -84,7 +86,7 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | `POST` | `/web/schedules/{series_id}/update` | The schedule detail recipe |
 | `POST` | `/web/schedules/{series_id}/pause` | Pause a series |
 | `POST` | `/web/schedules/{series_id}/resume` | Resume a series |
-| `POST` | `/web/schedules/{series_id}/stop` | Stop a series |
+| `POST` | `/web/schedules/{series_id}/delete` | Delete a series; spawned issues remain |
 | `POST` | `/web/issues/{issue_id}/repeat` | Make this issue repeating |
 | `POST` | `/web/issues/{issue_id}/series` | Outlook-scoped recipe edit |
 | `POST` | `/web/issues/{issue_id}/dependencies` | The issue page's add-link form |
@@ -94,13 +96,13 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 
 Six columns in workflow order — To Do, In Progress, In Review, Blocked, Done, Cancelled — generated from the status enumeration rather than stored ([ADR 013](../adr/ADR-013.md)).
 
-A card shows the issue key, title, type, assignee, its own estimate, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md)). When a Story has an Epic parent, or a Subtask has a Story parent, the card also shows **Parent {key}** as a link to that parent; cards with no parent omit the line. Epic, Story, and Subtask cards use a light wash and a matching type chip (brand blue, teal, amber) so type is visible at a glance; the same hues color type labels and type controls everywhere they appear ([ADR 027](../adr/ADR-027.md)). The issue key is a real link to the issue; it stretches over the card so a click anywhere on it opens that page, including when JavaScript has not run. The parent key is a separate link that does not start a drag, and it is not recolored to the parent's type. Dragging still changes status. All three issue types, every assignee, and every sprint appear by default. Filters above the board restrict which types, which assignee, which sprint, and which label are shown; they are applied at query time, not by hiding cards. The type filter labels use the same type hues. The assignee filter offers Anyone, Unassigned, or a specific person. The sprint filter offers Any sprint, Unscheduled, or a specific sprint. The label filter offers Any label, Unlabeled, or a specific name. Cards show their labels as chips when they have any ([ADR 028](../adr/ADR-028.md)). Separate by sprint stacks a six-column row per sprint, plus Unscheduled; dropping a card onto another sprint's row also schedules it there. Changing a filter submits the form immediately once `userpicker.js` has run; an Apply button remains for when it has not.
+A card shows the issue key, title, type, priority, assignee, its own estimate, start and due when set, and, when it has unresolved blockers, a marker counting them ([ADR 014](../adr/ADR-014.md), [ADR 030](../adr/ADR-030.md)). When a Story has an Epic parent, or a Subtask has a Story parent, the card also shows **Parent {key}** as a link to that parent; cards with no parent omit the line. Epic, Story, and Subtask cards use a light wash and a matching type chip (brand blue, teal, amber) so type is visible at a glance; the same hues color type labels and type controls everywhere they appear ([ADR 027](../adr/ADR-027.md)). The issue key is a real link to the issue; it stretches over the card so a click anywhere on it opens that page, including when JavaScript has not run. The parent key is a separate link that does not start a drag, and it is not recolored to the parent's type. Dragging still changes status. All three issue types, every assignee, and every sprint appear by default. Filters above the board restrict which types, which assignee, which sprint, and which label are shown; they are applied at query time, not by hiding cards. The type filter labels use the same type hues. The assignee filter offers Anyone, Unassigned, or a specific person. The sprint filter offers Any sprint, Unscheduled, or a specific sprint. The label filter offers Any label, Unlabeled, or a specific name. Cards show their labels as chips when they have any ([ADR 031](../adr/ADR-031.md)). Separate by sprint stacks a six-column row per sprint, plus Unscheduled; dropping a card onto another sprint's row also schedules it there. Changing a filter submits the form immediately once `userpicker.js` has run; an Apply button remains for when it has not.
 
 Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker and nav scripts use their own markers (`data-keel-js`, `data-keel-nav`) for the same reason: each loads on every page, and must not hide a fallback it did not enable.
 
 ## Backlog
 
-A flat table of the project's issues that have no sprint and are not closed, oldest first. There is no manual ordering: [ADR 013](../adr/ADR-013.md) removed backlog rank, so the backlog needs no drag-and-drop. Rows show the key, type, title, status, assignee, and a control to schedule an issue into a planned sprint. Changing that control submits immediately once `userpicker.js` has run; a Schedule button remains for when it has not.
+A flat table of the project's issues that have no sprint and are not closed, oldest first. There is no manual ordering: [ADR 013](../adr/ADR-013.md) removed backlog rank, so the backlog needs no drag-and-drop. Rows show the key, type, priority, title, status, assignee, start, due, and a control to schedule an issue into a planned sprint. Changing that control submits immediately once `userpicker.js` has run; a Schedule button remains for when it has not.
 
 ## Sprints
 
@@ -110,7 +112,7 @@ Project settings on the project page include sprint cadence: off, weekly, every 
 
 ## Schedules
 
-The schedules page lists a project's repeating series. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page. In the cadence group, day of month sits beside a month-name select so a yearly date is one pair; nth weekday is on the row below.
+The schedules page lists a project's repeating series. New series is a second tab on the same URL (`?tab=new`), so the list and the recipe form are not stacked. The tabs are ordinary links and work without JavaScript. A refused create returns to the New series tab with the error. A successful create still opens the series detail page. Pause and Resume halt and continue spawning. Delete, behind a confirmation that existing issues remain, removes the recipe from the list and leaves spawned issues on the board with a former-series note ([ADR 028](../adr/ADR-028.md)).
 
 ## Find
 
@@ -118,7 +120,7 @@ The find field submits GET `/search?q=…`, and `project` when the current page 
 
 ## Issue detail
 
-The issue's fields, including due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done (with cancelled descendants counted separately when any exist) alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its labels, added with an ordinary submit and removed per chip ([ADR 028](../adr/ADR-028.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; a History list of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, or labels, oldest first, immediately above Comments ([ADR 025](../adr/ADR-025.md), [ADR 028](../adr/ADR-028.md)); and the comment thread with a form to add one. Title, type, status, assignee, parent, sprint, due date, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. Repeating is not an always-open panel ([ADR 024](../adr/ADR-024.md)). An issue that is not in a series has a Make this repeating control; an issue that is in a series shows a short occurrence, cadence, and schedule-link line plus Edit series. Either control opens the existing recipe in a same-page overlay (`?repeat=1` without JavaScript). Recipe edits still require choosing this occurrence, this and all future, or the entire series, and are not autosubmitted. A refused recipe re-opens the overlay with the error inside it. Delete on a series issue skips that cycle. Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. An Epic or Story can also create a child from its own page: a title files a Story under an Epic, or a Subtask under a Story, and the parent page reloads so another can be filed. A Subtask has no such form. Comments and dependency links are added afterwards, because they need an id. Adding a comment, a child, or a label is an ordinary submit, not an autosubmit field. History is append-only: there is no remove control, and Find does not search it.
+The issue's fields, including start date, due date, created-on, and updated-on; its parent and children with the children's statuses; rolled-up estimate, remaining time, and a progress count of descendants done (with cancelled descendants counted separately when any exist) alongside the issue's own values, never replacing them ([ADR 012](../adr/ADR-012.md)); its labels, added with an ordinary submit and removed per chip ([ADR 031](../adr/ADR-031.md)); its dependencies grouped as blocks, blocked by, and relates to, with the project named for any issue in a different project; a History list of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, or labels, oldest first, immediately above Comments ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)); and the comment thread with a form to add one. Title, type, status, priority, assignee, parent, sprint, start and due, estimate, remaining time, and description are inputs on the issue page and submit as soon as they change, with a Save button only as the no-JavaScript fallback. Start and due are paired so the picker cannot offer a due before start; the service still refuses that combination. When the issue belongs to a repeating series, start and due do not autosubmit: saving them asks which copies to update. Repeating is not an always-open panel ([ADR 024](../adr/ADR-024.md)). An issue that is not in a series has a Make this repeating control; an issue that is in a series shows a short occurrence, cadence, and schedule-link line plus Edit series. Either control opens the existing recipe in a same-page overlay (`?repeat=1` without JavaScript). Recipe edits still require choosing this occurrence, this and all future, or the entire series, and are not autosubmitted. A refused recipe re-opens the overlay with the error inside it. Delete on a series issue skips that cycle. After the series itself is deleted, the issue keeps a former-series note (title and cadence) with no live recipe, and Make this repeating remains available ([ADR 028](../adr/ADR-028.md)). Description and comment bodies are stored as plain text and shown as Markdown ([ADR 017](../adr/ADR-017.md)): the issue page renders the formatted note and keeps the description source in an Edit control so it still works without JavaScript. There is no separate edit page: `/issues/{key}/edit` redirects to the issue. Created-on, updated-on, key, project, and reporter are metadata: they are shown, never offered as inputs. New issues are created from Create in the menu. That form takes every field that can be set at birth, with the same defaults the issue page would show; title is the only required one. An Epic or Story can also create a child from its own page: a title files a Story under an Epic, or a Subtask under a Story, and the parent page reloads so another can be filed. A Subtask has no such form. Comments, dependency links, and labels are added afterwards, because they need an id. Adding a comment, a child, or a label is an ordinary submit, not an autosubmit field. History is append-only: there is no remove control, and Find does not search it.
 
 ## JavaScript
 
@@ -155,6 +157,8 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 024: Issue-page repeating recipe in an overlay](../adr/ADR-024.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
 * [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)
+* [ADR 029: Issue start date/time and series start/due offsets](../adr/ADR-029.md)
+* [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [API reference](api.md)
 * [Brand colors](../brand-colors.md)
 * [Use cases](../architecture/use-cases.md)

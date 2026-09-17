@@ -67,6 +67,20 @@
           </dd>
         </div>
         <div class="keel-fact">
+          <dt>Priority</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/priority" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-priority">Priority</label>
+              <select id="issue-priority" name="priority">
+                {% for value in priorities %}
+                <option value="{{ value.value }}"{% if issue.priority == value %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
+        <div class="keel-fact">
           <dt>Assignee</dt>
           <dd>
             <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit>
@@ -113,12 +127,24 @@
           </dd>
         </div>
         <div class="keel-fact">
-          <dt>Due date</dt>
+          <dt>Dates</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/due" data-keel-autosubmit>
-              <label class="keel-visually-hidden" for="issue-due">Due date</label>
-              <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local }}"/>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}>
+              <label for="issue-start">Start date</label>
+              <input id="issue-start" name="start_at" type="datetime-local" value="{{ issue.start_at | datetime_local }}" data-keel-range="start"/>
+              <label for="issue-due">Due date</label>
+              <input id="issue-due" name="due_at" type="datetime-local" value="{{ issue.due_at | datetime_local }}" data-keel-range="end"/>
+              {% if series %}
+              <label for="issue-dates-scope">Apply to</label>
+              <select id="issue-dates-scope" name="scope" required>
+                {% for value in edit_scopes %}
+                <option value="{{ value.value }}">{{ value | label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Save</button>
+              {% else %}
               <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              {% endif %}
             </form>
           </dd>
         </div>
@@ -187,6 +213,16 @@
         </p>
       </section>
       {% else %}
+      {% if issue.former_series_title %}
+      <section class="keel-repeat">
+        <p class="keel-lede">
+          This issue was
+          {% if issue.occurrence_on %}occurrence {{ issue.occurrence_on }} of{% else %}part of{% endif %}
+          {{ issue.former_series_title }}
+          ({{ issue.former_series_cadence }}). The recipe is gone.
+        </p>
+      </section>
+      {% endif %}
       <p class="keel-actions keel-repeat">
         <a class="keel-button" href="/issues/{{ issue_key }}?repeat=1" data-keel-overlay-open>Make this repeating</a>
       </p>
@@ -247,18 +283,19 @@
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
-          <tr><th>Key</th><th>Type</th><th>Title</th><th>Status</th></tr>
+          <tr><th>Key</th><th>Type</th><th>Priority</th><th>Title</th><th>Status</th></tr>
         </thead>
         <tbody>
           {% for child in children %}
           <tr>
             <td><a href="/issues/{{ project.key }}-{{ child.number }}">{{ project.key }}-{{ child.number }}</a></td>
             <td>{{ type_chip(child.type) }}</td>
+            <td>{{ child.priority | label }}</td>
             <td>{{ child.title }}</td>
             <td>{{ child.status | label }}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="4">No children.</td></tr>
+          <tr><td class="keel-empty" colspan="5">No children.</td></tr>
           {% endfor %}
         </tbody>
       </table>

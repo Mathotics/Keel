@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Project
 from keel.domain.enums import (
+    IssuePriority,
     IssueStatus,
     IssueType,
     RecurrenceFreq,
@@ -109,6 +110,40 @@ def test_title_and_description_are_recorded(
         ("description", "none", "A note"),
     ]
     assert {event.actor_name for event in events} == {"Ada"}
+
+
+def test_priority_change_is_recorded(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(
+        session,
+        issue_id,
+        priority=IssuePriority.P1,
+        actor_name="Ada",
+    )
+    events = history_service.list_history(session, issue_id)
+    assert len(events) == 1
+    event = events[0]
+    assert event.actor_name == "Ada"
+    assert event.field == "priority"
+    assert event.from_value == "P3 — Major"
+    assert event.to_value == "P1 — Blocker"
+
+
+def test_a_noop_priority_save_does_not_append(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(
+        session,
+        issue_id,
+        priority=IssuePriority.P3,
+        actor_name="Ada",
+    )
+    assert list(history_service.list_history(session, issue_id)) == []
 
 
 def test_a_noop_title_and_description_save_does_not_append(
