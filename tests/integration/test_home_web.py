@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -93,6 +94,42 @@ def test_the_same_issue_can_appear_in_more_than_one_section(
     assert "KEEL-1" in assigned
     assert "KEEL-1" in due
     assert "KEEL-1" in blocked
+
+
+def test_home_lists_due_and_starting_before_assigned(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Late and begun",
+            "assignee_id": tester["id"],
+            "due_at": "2020-01-01T09:00:00",
+            "start_at": "2020-01-01T08:00:00",
+            "status": "blocked",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Just mine",
+            "assignee_id": tester["id"],
+        },
+    )
+
+    page = client.get("/")
+    headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
+    assert headings[:3] == [
+        "Due or overdue",
+        "Starting or started",
+        "Assigned to me",
+    ]
+    assert headings[3] == "Blocked"
 
 
 def test_home_lists_starting_or_started(client: TestClient) -> None:

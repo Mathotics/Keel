@@ -28,7 +28,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 | Path | Template | Contents |
 | --- | --- | --- |
-| `/` | `home.html` | Personal inbox for the picker user: assigned, due or overdue, starting or started, blocked, active sprint, and series copies waiting this cycle |
+| `/` | `home.html` | Personal inbox for the picker user: due or overdue, starting or started, assigned, blocked, active sprint, and series copies waiting this cycle |
 | `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, and delete, issue counts by status |

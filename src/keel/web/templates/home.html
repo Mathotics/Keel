@@ -64,12 +64,6 @@
       </div>
       {% endmacro %}
 
-      {% if inbox.assigned %}
-      <section>
-        <h2>Assigned to me</h2>
-        {{ inbox_rows("assigned", inbox.assigned, none) }}
-      </section>
-      {% endif %}
       {% if inbox.due %}
       <section>
         <h2>Due or overdue</h2>
@@ -80,6 +74,12 @@
       <section>
         <h2>Starting or started</h2>
         {{ inbox_rows("starting", inbox.starting, none) }}
+      </section>
+      {% endif %}
+      {% if inbox.assigned %}
+      <section>
+        <h2>Assigned to me</h2>
+        {{ inbox_rows("assigned", inbox.assigned, none) }}
       </section>
       {% endif %}
       {% if inbox.blocked %}
