@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import User
 from keel.domain.duration import format_minutes
-from keel.domain.enums import label
+from keel.domain.enums import INITIAL_PRIORITY, label
 from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
@@ -146,4 +146,5 @@ def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, An
         **extra,
     }
     context.setdefault("find_query", "")
+    context.setdefault("default_priority", INITIAL_PRIORITY)
     return context

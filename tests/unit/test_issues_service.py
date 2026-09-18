@@ -4,7 +4,13 @@ import pytest
 from sqlalchemy.orm import Session
 
 from keel.db.models import Project
-from keel.domain.enums import INITIAL_STATUS, IssuePriority, IssueStatus, IssueType
+from keel.domain.enums import (
+    INITIAL_PRIORITY,
+    INITIAL_STATUS,
+    IssuePriority,
+    IssueStatus,
+    IssueType,
+)
 from keel.domain.errors import (
     DomainError,
     InvalidIssueError,
@@ -79,7 +85,7 @@ def test_unresolvable_keys_are_not_found(
 def test_issues_start_in_the_first_status(session: Session, project: Project) -> None:
     issue = issue_service.get_issue(session, make(session, project))
     assert issue.status is INITIAL_STATUS is IssueStatus.TODO
-    assert issue.priority is IssuePriority.P3
+    assert issue.priority is INITIAL_PRIORITY is IssuePriority.P4
 
 
 def test_priority_can_be_set_and_filtered(session: Session, project: Project) -> None:

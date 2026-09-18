@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Project, Series
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     EditScope,
     IssuePriority,
     IssueStatus,
@@ -689,8 +690,8 @@ def test_outlook_scopes_rewrite_open_copy_priority(session: Session) -> None:
     first_after_this = first.priority
     second_after_this = second.priority
     assert first_after_this is IssuePriority.P1
-    assert recipe_after_this is IssuePriority.P3
-    assert second_after_this is IssuePriority.P3
+    assert recipe_after_this is INITIAL_PRIORITY
+    assert second_after_this is INITIAL_PRIORITY
     series_service.apply_occurrence_edit(
         session,
         second.id,

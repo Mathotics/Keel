@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Project
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     IssuePriority,
     IssueStatus,
     IssueType,
@@ -12,6 +13,7 @@ from keel.domain.enums import (
     SeriesSpawnMode,
     SeriesSprintBasis,
     SprintCadence,
+    label,
 )
 from keel.domain.errors import NotFoundError
 from keel.services import auto_sprint
@@ -128,7 +130,7 @@ def test_priority_change_is_recorded(
     event = events[0]
     assert event.actor_name == "Ada"
     assert event.field == "priority"
-    assert event.from_value == "P3 — Major"
+    assert event.from_value == label(INITIAL_PRIORITY)
     assert event.to_value == "P1 — Blocker"
 
 
@@ -140,7 +142,7 @@ def test_a_noop_priority_save_does_not_append(
     issue_service.update_issue(
         session,
         issue_id,
-        priority=IssuePriority.P3,
+        priority=INITIAL_PRIORITY,
         actor_name="Ada",
     )
     assert list(history_service.list_history(session, issue_id)) == []

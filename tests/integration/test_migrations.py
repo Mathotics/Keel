@@ -42,7 +42,8 @@ def test_migrations_and_models_agree(migrated: KeelSettings) -> None:
 def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     engine = create_db_engine(migrated.resolved_database_url())
     try:
-        columns = {column["name"] for column in inspect(engine).get_columns("issues")}
+        issue_columns = inspect(engine).get_columns("issues")
+        columns = {column["name"] for column in issue_columns}
         sprints = {column["name"] for column in inspect(engine).get_columns("sprints")}
         dependencies = {
             column["name"] for column in inspect(engine).get_columns("dependencies")
@@ -53,7 +54,8 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         projects = {
             column["name"] for column in inspect(engine).get_columns("projects")
         }
-        series = {column["name"] for column in inspect(engine).get_columns("series")}
+        series_columns = inspect(engine).get_columns("series")
+        series = {column["name"] for column in series_columns}
         labels = {column["name"] for column in inspect(engine).get_columns("labels")}
         issue_labels = {
             column["name"] for column in inspect(engine).get_columns("issue_labels")
@@ -62,6 +64,8 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         engine.dispose()
     assert "due_at" in columns
     assert "priority" in columns
+    priority = next(column for column in issue_columns if column["name"] == "priority")
+    assert "p4" in str(priority["default"])
     assert "start_at" in columns
     assert "series_id" in columns
     assert "occurrence_on" in columns
@@ -114,6 +118,10 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "due_minute_of_day",
         "priority",
     }
+    series_priority = next(
+        column for column in series_columns if column["name"] == "priority"
+    )
+    assert "p4" in str(series_priority["default"])
 
 
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:

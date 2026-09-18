@@ -97,8 +97,8 @@ def test_the_board_page_renders_every_column(
     assert "Cancelled" in page.text
     assert "KEEL-1" in page.text
     assert "Ready" in page.text
-    assert "keel-priority--p3" in page.text
-    assert ">P3<" in page.text
+    assert "keel-priority--p4" in page.text
+    assert ">P4<" in page.text
     assert 'action="/web/issues/' in page.text
     assert ">Move<" in page.text
     assert 'src="/assets/js/board.js"' in page.text
@@ -319,9 +319,10 @@ def test_separating_by_sprint_puts_cards_in_lanes(
         json={"type": "story", "title": "Waiting"},
     )
 
-    page = client.get("/projects/KEEL/board", params={"by": "sprint"})
+    page = client.get("/projects/KEEL/board")
     assert page.status_code == 200
     assert "Separate by sprint" in page.text
+    assert 'name="by" value="status"' in page.text
     assert 'name="by" value="sprint" checked' in page.text or (
         'name="by" value="sprint"checked' in page.text
     )
@@ -339,11 +340,18 @@ def test_separating_by_sprint_puts_cards_in_lanes(
     assert "Waiting" in rest
     assert "In sprint" not in rest
 
-    together = client.get("/projects/KEEL/board")
+    explicit = client.get("/projects/KEEL/board", params={"by": "sprint"})
+    assert 'class="keel-board__lane-title"' in explicit.text
+    assert "Sprint 1" in explicit.text
+
+    together = client.get("/projects/KEEL/board", params={"by": "status"})
     assert "keel-board__lane-title" not in together.text
     assert "data-sprint-id" not in together.text
     assert "In sprint" in together.text
     assert "Waiting" in together.text
+    assert 'name="by" value="sprint"' in together.text
+    assert 'name="by" value="sprint" checked' not in together.text
+    assert 'name="by" value="sprint"checked' not in together.text
 
 
 def test_the_board_filter_keeps_apply_without_javascript(
@@ -480,3 +488,117 @@ def test_the_label_filter_changes_what_the_board_queries(
     page = client.get("/projects/KEEL/board")
     assert "Any label" in page.text
     assert "Unlabeled" in page.text
+
+
+def test_the_master_board_is_reachable_without_a_project(client: TestClient) -> None:
+    header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
+    assert 'href="/board"' in header
+    assert "Board" in header.split("<nav", 1)[1].split("</nav>", 1)[0]
+    page = client.get("/board")
+    assert page.status_code == 200
+    assert "<h1>Board</h1>" in page.text
+    assert "Nothing to show yet." in page.text
+    assert 'href="/projects"' in page.text
+    header = page.text.split("<header", 1)[1].split("</header>", 1)[0]
+    assert 'href="/projects/KEEL/backlog"' not in header
+
+
+def test_the_master_board_mixes_projects_and_hides_completed_sprint_closed_work(
+    client: TestClient,
+) -> None:
+    keel = client.post("/api/v1/projects", json={"key": "KEEL", "name": "Keel"}).json()
+    house = client.post(
+        "/api/v1/projects",
+        json={"key": "HOUSE", "name": "House"},
+    ).json()
+    past = client.post(
+        f"/api/v1/projects/{keel['id']}/sprints",
+        json={"name": "Past"},
+    ).json()
+    finished = client.post(
+        f"/api/v1/projects/{keel['id']}/issues",
+        json={"type": "story", "title": "Finished past", "sprint_id": past["id"]},
+    ).json()
+    client.patch(f"/api/v1/issues/{finished['id']}", json={"status": "done"})
+    client.post(f"/api/v1/sprints/{past['id']}/start")
+    client.post(f"/api/v1/sprints/{past['id']}/complete")
+    client.post(
+        f"/api/v1/projects/{keel['id']}/issues",
+        json={"type": "story", "title": "Keel work"},
+    )
+    client.post(
+        f"/api/v1/projects/{house['id']}/issues",
+        json={"type": "story", "title": "House work"},
+    )
+
+    page = client.get("/board")
+    assert page.status_code == 200
+    assert "Keel work" in page.text
+    assert "House work" in page.text
+    assert "Finished past" not in page.text
+    assert "Finished past" in client.get("/projects/KEEL/board").text
+    assert "Any project" in page.text
+    assert 'name="project"' in page.text
+    assert "HOUSE / " in page.text or "KEEL / " in page.text
+    header = page.text.split("<header", 1)[1].split("</header>", 1)[0]
+    assert 'href="/board"' in header
+    find = header.split("keel-find", 1)[1].split("</form>", 1)[0]
+    assert 'name="project"' not in find
+
+
+def test_the_master_board_project_filter_and_prefixed_sprint_lanes(
+    client: TestClient,
+) -> None:
+    keel = client.post("/api/v1/projects", json={"key": "KEEL", "name": "Keel"}).json()
+    house = client.post(
+        "/api/v1/projects",
+        json={"key": "HOUSE", "name": "House"},
+    ).json()
+    keel_sprint = client.post(
+        f"/api/v1/projects/{keel['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    house_sprint = client.post(
+        f"/api/v1/projects/{house['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{keel['id']}/issues",
+        json={"type": "story", "title": "Keel card", "sprint_id": keel_sprint["id"]},
+    )
+    client.post(
+        f"/api/v1/projects/{house['id']}/issues",
+        json={"type": "story", "title": "House card", "sprint_id": house_sprint["id"]},
+    )
+
+    filtered = client.get("/board", params={"project": "HOUSE"})
+    assert "House card" in filtered.text
+    assert "Keel card" not in filtered.text
+    assert 'value="HOUSE" selected' in filtered.text or (
+        'value="HOUSE"selected' in filtered.text
+    )
+    assert "HOUSE / Sprint 1" in filtered.text
+    assert "KEEL / Sprint 1" not in filtered.text
+
+    lanes = client.get("/board", params={"by": "sprint"})
+    assert "HOUSE / Sprint 1" in lanes.text
+    assert "KEEL / Sprint 1" in lanes.text
+    assert 'data-sprint-id="' in lanes.text
+
+
+def test_the_fallback_form_returns_to_the_master_board(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Ready"},
+    ).json()
+    response = client.post(
+        f"/web/issues/{issue['id']}/status",
+        data={"status": "in_progress", "next": "/board"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/board"

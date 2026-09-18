@@ -21,7 +21,7 @@ def test_the_series_api_creates_and_pauses(client: TestClient) -> None:
     assert created.status_code == 201
     body = created.json()
     assert body["cadence_summary"] == "Daily"
-    assert body["priority"] == "p3"
+    assert body["priority"] == "p4"
     paused = client.post(f"/api/v1/series/{body['id']}/pause")
     assert paused.json()["state"] == "paused"
     listed = client.get(f"/api/v1/projects/{project['id']}/series").json()

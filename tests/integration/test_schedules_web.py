@@ -41,7 +41,8 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert "Create series" in form.text
     assert 'name="title"' in form.text
     assert 'name="priority"' in form.text
-    assert "P3 — Major" in form.text
+    assert 'value="p4" selected' in form.text
+    assert "P4 — Minor" in form.text
     cadence = form.text.split("<legend>Cadence</legend>", 1)[1].split("</fieldset>", 1)[
         0
     ]
@@ -60,7 +61,7 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     listing = client.get("/projects/HOME/schedules")
     assert "Take out trash" in listing.text
     assert "Weekly on Mon" in listing.text
-    assert "P3 — Major" in listing.text
+    assert "P4 — Minor" in listing.text
     detail = client.get(created.headers["location"])
     assert detail.status_code == 200
     assert "Pause" in detail.text

@@ -100,7 +100,7 @@ Indexes and constraints:
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `status` | TEXT | not null, default `'todo'`, `CHECK` in (`todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`) |
-| `priority` | TEXT | not null, default `'p3'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
+| `priority` | TEXT | not null, default `'p4'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `parent_id` | INTEGER | nullable, references `issues(id)` `ON DELETE RESTRICT` |
 | `sprint_id` | INTEGER | nullable, references `sprints(id)` `ON DELETE SET NULL` |
 | `reporter_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |
@@ -135,7 +135,7 @@ Indexes and constraints:
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `type` | TEXT | not null, `CHECK` in (`epic`, `story`, `subtask`) |
-| `priority` | TEXT | not null, default `'p3'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
+| `priority` | TEXT | not null, default `'p4'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `state` | TEXT | not null, default `'active'`, `CHECK` in (`active`, `paused`, `stopped`) |
 | `spawn_mode` | TEXT | not null, `CHECK` in (`calendar`, `after_closed`) |
 | `sprint_basis` | TEXT | not null, `CHECK` in (`due_on`, `start_on`, `created_on`) |
@@ -265,7 +265,8 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0013` | `issues.start_at` and series start/due offsets |
 | `0014` | `issues.priority` and `priority` on `issue_history.field` |
 | `0015` | `labels`, `issue_labels`, and `labels` on `issue_history.field` |
-| `0016` | `series.priority` |
+| `0016` | `issues.priority` server default `'p4'` |
+| `0017` | `series.priority` |
 
 ## Related documents
 

@@ -82,7 +82,7 @@ class DependencyKind(StrEnum):
 
 
 INITIAL_STATUS = IssueStatus.TODO
-INITIAL_PRIORITY = IssuePriority.P3
+INITIAL_PRIORITY = IssuePriority.P4
 COMPLETED_STATUS = IssueStatus.DONE
 CLOSED_STATUSES = frozenset({IssueStatus.DONE, IssueStatus.CANCELLED})
 

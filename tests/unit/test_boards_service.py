@@ -501,12 +501,114 @@ def test_the_unlabeled_filter_keeps_only_bare_cards(
     assert [card.issue.id for card in cards] == [bare.id]
 
 
-def test_parse_board_grouping_accepts_sprint_or_nothing() -> None:
-    assert board_service.parse_board_grouping(None) is None
-    assert board_service.parse_board_grouping("") is None
+def test_parse_board_grouping_defaults_to_sprint() -> None:
+    assert board_service.parse_board_grouping(None) == "sprint"
+    assert board_service.parse_board_grouping("") == "sprint"
+    assert board_service.parse_board_grouping([]) == "sprint"
     assert board_service.parse_board_grouping("sprint") == "sprint"
+    assert board_service.parse_board_grouping(["sprint"]) == "sprint"
+    assert board_service.parse_board_grouping(["status", "sprint"]) == "sprint"
+
+
+def test_parse_board_grouping_accepts_status_for_one_row() -> None:
+    assert board_service.parse_board_grouping("status") is None
+    assert board_service.parse_board_grouping(["status"]) is None
 
 
 def test_parse_board_grouping_rejects_an_unknown_value() -> None:
     with pytest.raises(InvalidIssueError):
         board_service.parse_board_grouping("assignee")
+    with pytest.raises(InvalidIssueError):
+        board_service.parse_board_grouping(["status", "assignee"])
+
+
+def _titles(board: board_service.Board) -> list[str]:
+    return [card.issue.title for column in board.columns for card in column.cards]
+
+
+def test_the_master_board_mixes_projects(
+    session: Session,
+    project: Project,
+) -> None:
+    house = project_service.create_project(session, "HOUSE", "House")
+    _issue(session, project, "Keel work")
+    _issue(session, house, "House work")
+
+    board = board_service.master_board(session)
+    assert board.project is None
+    assert _titles(board) == ["House work", "Keel work"]
+    keys = [card.key for column in board.columns for card in column.cards]
+    assert keys == ["HOUSE-1", "KEEL-1"]
+
+
+def test_the_master_board_hides_closed_work_in_completed_sprints(
+    session: Session,
+    project: Project,
+) -> None:
+    past = sprint_service.create_sprint(session, project.id, "Past")
+    _issue(
+        session,
+        project,
+        "Finished past",
+        status=IssueStatus.DONE,
+        sprint_id=past.id,
+    )
+    _issue(
+        session,
+        project,
+        "Dropped past",
+        status=IssueStatus.CANCELLED,
+        sprint_id=past.id,
+    )
+    _issue(session, project, "Unscheduled done", status=IssueStatus.DONE)
+    sprint_service.start_sprint(session, past.id)
+    sprint_service.complete_sprint(session, past.id)
+    current = sprint_service.create_sprint(session, project.id, "Now")
+    _issue(session, project, "Done now", status=IssueStatus.DONE, sprint_id=current.id)
+    sprint_service.start_sprint(session, current.id)
+
+    master = board_service.master_board(session)
+    project_view = board_service.project_board(session, project.id)
+
+    assert "Finished past" not in _titles(master)
+    assert "Dropped past" not in _titles(master)
+    assert "Unscheduled done" in _titles(master)
+    assert "Done now" in _titles(master)
+    assert "Finished past" in _titles(project_view)
+    assert "Dropped past" in _titles(project_view)
+
+
+def test_the_master_board_project_filter_keeps_one_project(
+    session: Session,
+    project: Project,
+) -> None:
+    house = project_service.create_project(session, "HOUSE", "House")
+    _issue(session, project, "Keel work")
+    _issue(session, house, "House work")
+
+    board = board_service.master_board(session, project_id=house.id)
+    assert _titles(board) == ["House work"]
+
+
+def test_master_lanes_prefix_sprint_names_with_the_project_key(
+    session: Session,
+    project: Project,
+) -> None:
+    house = project_service.create_project(session, "HOUSE", "House")
+    keel_sprint = sprint_service.create_sprint(session, project.id, "Sprint 1")
+    house_sprint = sprint_service.create_sprint(session, house.id, "Sprint 1")
+    _issue(session, project, "Keel card", sprint_id=keel_sprint.id)
+    _issue(session, house, "House card", sprint_id=house_sprint.id)
+
+    board = board_service.master_board(session)
+    assert [lane.name for lane in board.lanes] == [
+        "HOUSE / Sprint 1",
+        "KEEL / Sprint 1",
+        "Unscheduled",
+    ]
+
+
+def test_parse_project_filter_accepts_empty_or_a_key() -> None:
+    assert board_service.parse_project_filter(None) is None
+    assert board_service.parse_project_filter("") is None
+    assert board_service.parse_project_filter("  KEEL ") == "KEEL"

@@ -5,11 +5,11 @@
 
 ## Background
 
-Every issue has a required P1–P5 priority ([ADR 030](ADR-030.md)). Repeating work is a series recipe that spawns ordinary issues ([Repeating work via Scheduling Manager](repeating-work-scheduling-manager.md)). ADR 030 left priority off the recipe on purpose: spawned copies took the issue default (*P3 — Major*) until someone edited the copy. KEEL-15 asked for that rank to be set on the schedule, the same way type, title, and assignee already are.
+Every issue has a required P1–P5 priority ([ADR 030](ADR-030.md)). Repeating work is a series recipe that spawns ordinary issues ([Repeating work via Scheduling Manager](repeating-work-scheduling-manager.md)). ADR 030 left priority off the recipe on purpose: spawned copies took the issue default (*P4 — Minor*) until someone edited the copy. KEEL-15 asked for that rank to be set on the schedule, the same way type, title, and assignee already are.
 
 ## Problem Statement
 
-A weekly chore that is always *P2 — Critical* still appears as *P3 — Major* on every new copy. The create form, issue page, and JSON issue API can set rank, but the Scheduling Manager cannot. Rank has to be fixed after each spawn, which defeats the recipe.
+A weekly chore that is always *P2 — Critical* still appears as *P4 — Minor* on every new copy. The create form, issue page, and JSON issue API can set rank, but the Scheduling Manager cannot. Rank has to be fixed after each spawn, which defeats the recipe.
 
 ## Objective(s)
 
@@ -21,7 +21,7 @@ A weekly chore that is always *P2 — Critical* still appears as *P3 — Major* 
 
 ### In-Scope
 
-* A required `priority` attribute on Series, default *P3 — Major*.
+* A required `priority` attribute on Series, default *P4 — Minor*.
 * Create, read, and update through the series JSON API and the schedules pages.
 * Spawned copies inherit the recipe rank.
 * Making an existing issue repeating copies that issue's rank onto the recipe.
@@ -44,9 +44,9 @@ A weekly chore that is always *P2 — Critical* still appears as *P3 — Major* 
 
 * **Must** store series priority as a lowercase string guarded by a `CHECK` constraint, matching issues ([ADR 030](ADR-030.md)).
 * **Must** use the values `p1`–`p5` and the labels *P1 — Blocker* through *P5 — Trivial*.
-* **Must** default a new series to *P3 — Major* when the caller omits it; **Must** backfill existing series to *P3 — Major*; **Must Not** leave the column nullable.
+* **Must** default a new series to *P4 — Minor* when the caller omits it; **Must** backfill existing series to *P4 — Minor*; **Must Not** leave the column nullable.
 * **Must** expose `priority` on series create, read, and patch bodies; absent PATCH leaves the stored rank alone; **Must Not** treat `null` as a clear (rank is required).
-* **Must** show a Priority select on New series and on the recipe form, defaulting to *P3 — Major* on create.
+* **Must** show a Priority select on New series and on the recipe form, defaulting to *P4 — Minor* on create.
 * **Must** show the rank on the schedules list.
 * **Must** spawn each new copy with `priority` copied from the series.
 * **Must**, when an existing issue is made repeating, copy that issue's priority onto the recipe (the overlay does not ask again).
@@ -55,7 +55,7 @@ A weekly chore that is always *P2 — Critical* still appears as *P3 — Major* 
 
 ## Consequences
 
-* **Good:** A repeating job keeps the same urgency without a second pass on every copy. Existing series stay at P3, matching the issue default.
+* **Good:** A repeating job keeps the same urgency without a second pass on every copy. Existing series stay at P4, matching the issue default.
 * **Bad:** Saving the manager recipe does not rewrite already-spawned copies, so a rank change there only affects future ticks unless the user uses Outlook scopes from an occurrence.
 * **Risk:** The overlay's standalone issue priority control and the recipe priority can diverge on one occurrence. Accepted so this-occurrence exceptions stay possible, the same as assignee.
 

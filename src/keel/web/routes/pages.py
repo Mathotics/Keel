@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from keel.domain.enums import (
-    IssuePriority,
+    INITIAL_PRIORITY,
     IssueStatus,
     IssueType,
     priorities_in_rank_order,
@@ -76,7 +76,7 @@ def create_page(
             statuses=statuses_in_workflow_order(),
             default_status=IssueStatus.TODO,
             priorities=priorities_in_rank_order(),
-            default_priority=IssuePriority.P3,
+            default_priority=INITIAL_PRIORITY,
             parents=parents,
             sprints=sprints,
             error=error,

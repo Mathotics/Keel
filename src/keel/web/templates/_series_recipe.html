@@ -31,7 +31,7 @@
               <label for="{{ prefix }}-priority">Priority</label>
               <select id="{{ prefix }}-priority" name="priority">
                 {% for value in priorities %}
-                <option value="{{ value.value }}"{% if recipe and recipe.priority == value %} selected{% elif not recipe and value.value == 'p3' %} selected{% endif %}>{{ value | label }}</option>
+                <option value="{{ value.value }}"{% if recipe and recipe.priority == value %} selected{% elif not recipe and value == default_priority %} selected{% endif %}>{{ value | label }}</option>
                 {% endfor %}
               </select>
             </p>
