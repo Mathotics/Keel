@@ -4,7 +4,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Home
 
-* **Start the day.** A user opens `/` or the home icon and sees work assigned to them across projects: everything unfinished on them, what is due today or overdue, what is blocked, what sits in an active sprint (including closed items in that commitment), and repeating copies waiting this cycle. The same issue may appear in more than one list. Status can be changed from a row. With more than one project, Projects remains a directory rather than the starting point ([ADR 022](../adr/ADR-022.md)).
+* **Start the day.** A user opens `/` or the home icon and sees work assigned to them across projects. Time-sensitive lists come first — due today or overdue, then starting or started — followed by everything unfinished on them, what is blocked, what sits in an active sprint (including closed items in that commitment), and repeating copies waiting this cycle. The same issue may appear in more than one list. Status can be changed from a row. With more than one project, Projects remains a directory rather than the starting point ([ADR 022](../adr/personal-work-inbox.md)).
 * **Switch who I am.** Changing the picker reloads `/` for that person; unassigned work never appears there.
 
 ## Projects

@@ -1,9 +1,11 @@
 # ADR 022: Home page as a personal work inbox
 
 * **Status:** Accepted
-* **Date:** 2026-09-16
+* **Date:** 2026-09-18
 
 > **Amendment.** [ADR 030](ADR-030.md) adds a Priority column on inbox rows so rank is visible next to type.
+>
+> **Amendment.** [ADR 029](ADR-029.md) adds a Starting or started section. Time-sensitive sections render first: Due or overdue, then Starting or started, then Assigned to me.
 
 ## Background
 
@@ -27,7 +29,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 ### In-Scope
 
 * A real HTML page at `/` (no redirect) for the picker user.
-* Five titled sections: Assigned to me; Due or overdue; Blocked; In the active sprint; Waiting this cycle.
+* Six titled sections, in this order: Due or overdue; Starting or started; Assigned to me; Blocked; In the active sprint; Waiting this cycle.
 * Status change on each row, returning to `/`.
 * Empty-section hiding and a single quiet state when nothing matches.
 * Doc updates so the UI map and use cases match this page.
@@ -54,6 +56,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 * **Must** include in every section only issues whose assignee is the acting user; **Must Not** show unassigned issues on `/`.
 * **Must** allow the same issue to appear in more than one section when it matches more than one rule.
 * **Must** hide a section entirely when it has no rows.
+* **Must** render non-empty sections in this order: Due or overdue; Starting or started; Assigned to me; Blocked; In the active sprint; Waiting this cycle.
 * **Must**, when every section is empty, show one quiet message and no section headings; if there are also no projects, that message **Must** include a link to `/projects`.
 * **Must** list under **Assigned to me** every unfinished issue assigned to the acting user, across all projects.
 * **Must** list under **Due or overdue** those unfinished assigned issues whose `due_at` calendar date is the local today or earlier; **Must Not** list issues due after local today, or issues with no due date, in this section. "Today" is the server's local calendar date, not the UTC date, so an evening in a US timezone does not pull in tomorrow's work.
@@ -74,6 +77,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 ## Consequences
 
 * **Good:** Opening the app answers "what is on me?" instead of "which project exists?" The home icon finally lands on a page. `/projects` can stay a directory.
+* **Good:** Due or overdue and Starting or started sit at the top, so calendar-urgent work is visible before the full assigned list.
 * **Good:** Overlapping sections make an issue that is both overdue and blocked visible in both places without inventing a priority rank.
 * **Bad:** Assigned to me will repeat issues that also sit in other sections, so a busy user sees the same key more than once.
 * **Bad:** Closed items appear only in the active-sprint section, so `/` is not a single consistent "open work" list.
