@@ -40,6 +40,9 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert form.status_code == 200
     assert "Create series" in form.text
     assert 'name="title"' in form.text
+    assert 'name="priority"' in form.text
+    assert 'value="p4" selected' in form.text
+    assert "P4 — Minor" in form.text
     cadence = form.text.split("<legend>Cadence</legend>", 1)[1].split("</fieldset>", 1)[
         0
     ]
@@ -58,12 +61,35 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     listing = client.get("/projects/HOME/schedules")
     assert "Take out trash" in listing.text
     assert "Weekly on Mon" in listing.text
+    assert "P4 — Minor" in listing.text
     detail = client.get(created.headers["location"])
     assert detail.status_code == 200
     assert "Pause" in detail.text
     assert "Delete" in detail.text
     assert "Stop" not in detail.text
     assert "Save recipe" in detail.text
+
+
+def test_a_series_can_set_priority_for_spawned_copies(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    created = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(priority="p1"),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    listing = client.get("/projects/HOME/schedules")
+    assert "P1 — Blocker" in listing.text
+    page = client.get(created.headers["location"])
+    assert '<option value="p1" selected>P1 — Blocker</option>' in page.text
+    series_id = int(created.headers["location"].rsplit("/", 1)[1])
+    copies = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    spawned = [item for item in copies if item["series_id"] == series_id]
+    assert spawned
+    assert {item["priority"] for item in spawned} == {"p1"}
 
 
 def test_a_yearly_series_keeps_the_chosen_month(client: TestClient) -> None:
@@ -180,7 +206,7 @@ def test_an_issue_can_become_a_series_and_show_on_the_board(
     ).json()
     issue = client.post(
         f"/api/v1/projects/{project['id']}/issues",
-        json={"type": "story", "title": "Pay bills"},
+        json={"type": "story", "title": "Pay bills", "priority": "p2"},
     ).json()
     client.post(
         f"/web/issues/{issue['id']}/repeat",
@@ -207,6 +233,7 @@ def test_an_issue_can_become_a_series_and_show_on_the_board(
     opened = client.get(f"/issues/{issue['key']}?repeat=1")
     assert _overlay_is_open(opened.text)
     assert "Save series" in opened.text
+    assert '<option value="p2" selected>P2 — Critical</option>' in opened.text
     board = client.get("/projects/HOME/board")
     assert "Pay bills" in board.text
     backlog = client.get("/projects/HOME/backlog")

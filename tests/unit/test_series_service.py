@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Project, Series
 from keel.domain.enums import (
+    INITIAL_PRIORITY,
     EditScope,
+    IssuePriority,
     IssueStatus,
     IssueType,
     RecurrenceFreq,
@@ -643,3 +645,62 @@ def test_outlook_scopes_rewrite_open_copy_dates(
     assert first.start_at == datetime(2026, 9, 13, 8, 0)
     assert second.start_at == datetime(2026, 9, 20, 9, 0)
     assert second.due_at == datetime(2026, 9, 21, 17, 0)
+
+
+def test_spawned_copies_inherit_series_priority(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(
+        session,
+        project,
+        priority=IssuePriority.P1,
+        sprint_basis=SeriesSprintBasis.CREATED_ON,
+        today=date(2026, 9, 14),
+    )
+    copies = [
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    ]
+    assert copies
+    assert series.priority is IssuePriority.P1
+    assert {issue.priority for issue in copies} == {IssuePriority.P1}
+
+
+def test_outlook_scopes_rewrite_open_copy_priority(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(session, project, look_ahead_n=2)
+    copies = sorted(
+        [
+            issue
+            for issue in issue_service.list_issues(session, project.id)
+            if issue.series_id == series.id
+        ],
+        key=lambda issue: issue.occurrence_on or date.min,
+    )
+    first, second = copies[0], copies[1]
+    series_service.apply_occurrence_edit(
+        session,
+        first.id,
+        EditScope.THIS,
+        priority=IssuePriority.P1,
+    )
+    session.refresh(second)
+    session.refresh(series)
+    recipe_after_this = series.priority
+    first_after_this = first.priority
+    second_after_this = second.priority
+    assert first_after_this is IssuePriority.P1
+    assert recipe_after_this is INITIAL_PRIORITY
+    assert second_after_this is INITIAL_PRIORITY
+    series_service.apply_occurrence_edit(
+        session,
+        second.id,
+        EditScope.FUTURE,
+        priority=IssuePriority.P2,
+    )
+    session.refresh(series)
+    session.refresh(first)
+    session.refresh(second)
+    assert series.priority is IssuePriority.P2
+    assert first.priority is IssuePriority.P1
+    assert second.priority is IssuePriority.P2

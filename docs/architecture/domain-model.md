@@ -89,7 +89,7 @@ A time-boxed set of scheduled issues within a project. Sprint membership is an a
 
 ### Series
 A repeating recipe that spawns ordinary issues. Recurrence is not an issue type ([ADR 021](../adr/ADR-021.md)).
-* Title; default description; type; assignee; optional parent.
+* Title; default description; type; priority; assignee; optional parent.
 * Cadence (daily / weekly / monthly / yearly, with interval and optional end).
 * Spawn mode — on the calendar, or after the previous copy is closed.
 * Sprint assignment basis — creation date, due date, or start date; look-ahead N when no sprint overlaps.

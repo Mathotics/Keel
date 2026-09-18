@@ -27,6 +27,14 @@
               </select>
             </p>
             {% endif %}
+            <p>
+              <label for="{{ prefix }}-priority">Priority</label>
+              <select id="{{ prefix }}-priority" name="priority">
+                {% for value in priorities %}
+                <option value="{{ value.value }}"{% if recipe and recipe.priority == value %} selected{% elif not recipe and value == default_priority %} selected{% endif %}>{{ value | label }}</option>
+                {% endfor %}
+              </select>
+            </p>
             <p class="keel-fields__full">
               <label for="{{ prefix }}-title">Title</label>
               <input id="{{ prefix }}-title" name="title" type="text" maxlength="300" value="{{ recipe.title if recipe else '' }}" required/>

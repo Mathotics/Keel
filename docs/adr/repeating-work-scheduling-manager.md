@@ -60,7 +60,7 @@ Keel has no way to express repeating work. If the same issue were reset to To Do
 * **Must Not** reuse project `sprint_cadence` as the series recurrence; the two cadences are independent.
 * **Must** mix spawned issues into the same project board, backlog, and sprints as one-off work; today’s type/assignee/sprint filters remain the way to focus.
 * **Must** give each project a Scheduling Manager page in the same nav family as board, backlog, and sprints (not the auto-sprint controls on the project or sprints pages).
-* **Must** store on the series: type, title, default description, assignee, optional parent, cadence, spawn mode, sprint assignment basis (creation date or due date), and look-ahead **N**.
+* **Must** store on the series: type, priority, title, default description, assignee, optional parent, cadence, spawn mode, sprint assignment basis (creation date, start date, or due date), and look-ahead **N**.
 * **Must** show on each spawned issue that it belongs to a series, a human cadence summary, and a way to open that series on the manager page.
 * **Must Not** copy comments or dependency links from the template or from the previous copy onto the next issue.
 * **Must**, on save of a new series, immediately create copies that already fall in current overlapping sprints, or the next N if none do, subject to the creation-date vs due-date rules below.
@@ -73,7 +73,7 @@ Keel has no way to express repeating work. If the same issue were reset to To Do
 * **Must**, when sprint basis is **due date**, allow N-previews to sit unscheduled until a window covers `due_at`.
 * **Must**, when sprint basis is **creation date**, birth a future cycle only when that cycle is due (or after-closed), and assign it to the window overlapping the **birth day** — not pre-create it into the current sprint.
 * **Must** offer Outlook scopes for recipe-affecting edits: **This occurrence** | **This and all future** | **Entire series**.
-* **Must** treat title, default description, cadence, spawn mode, sprint basis, parent, and assignee-on-the-recipe as recipe fields that trigger those scopes when changed from an occurrence. Instance-only comments and **status** never do.
+* **Must** treat title, default description, cadence, spawn mode, sprint basis, parent, assignee-on-the-recipe, and priority-on-the-recipe as recipe fields that trigger those scopes when changed from an occurrence. Instance-only comments, **status**, and the issue page's own priority control never do.
 * **Must** implement **This occurrence** as an exception (this issue only). **This and all future** updates the series from this occurrence forward and already-spawned open copies in that range. **Entire series** updates the recipe and occurrences.
 * **Must** support pause (no new copies) and resume.
 * **Must Not** provide a bulk delete of every issue in the series in this feature. Delete of the series is the way to end the recipe ([ADR 028](ADR-028.md)); spawned issues remain. Delete on an issue is this occurrence only.

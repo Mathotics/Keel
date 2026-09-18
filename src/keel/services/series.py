@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 from keel.db.models import Issue, Series, SeriesSkip, Sprint
 from keel.domain.enums import (
     CLOSED_STATUSES,
+    INITIAL_PRIORITY,
     EditScope,
+    IssuePriority,
     IssueType,
     RecurrenceFreq,
     SeriesSpawnMode,
@@ -93,6 +95,7 @@ def create_series(
     freq: RecurrenceFreq,
     starts_on: date,
     description: str = "",
+    priority: IssuePriority = INITIAL_PRIORITY,
     interval: int = 1,
     weekdays: tuple[int, ...] = (),
     month_day: int | None = None,
@@ -130,6 +133,7 @@ def create_series(
         title=_clean_title(title),
         description=description.strip(),
         type=type,
+        priority=priority,
         spawn_mode=spawn_mode,
         sprint_basis=sprint_basis,
         look_ahead_n=_look_ahead(look_ahead_n),
@@ -166,6 +170,7 @@ def update_series(
     title: str | None = None,
     description: str | None = None,
     type: IssueType | None = None,
+    priority: IssuePriority | None = None,
     spawn_mode: SeriesSpawnMode | None = None,
     sprint_basis: SeriesSprintBasis | None = None,
     look_ahead_n: int | None = None,
@@ -194,6 +199,8 @@ def update_series(
         series.description = description.strip()
     if type is not None:
         series.type = type
+    if priority is not None:
+        series.priority = priority
     if spawn_mode is not None:
         series.spawn_mode = spawn_mode
     if sprint_basis is not None:
@@ -262,6 +269,7 @@ def apply_occurrence_edit(
     title: str | None = None,
     description: str | None = None,
     type: IssueType | None = None,
+    priority: IssuePriority | None = None,
     assignee_id: int | None | object = UNSET,
     parent_id: int | None | object = UNSET,
     spawn_mode: SeriesSpawnMode | None = None,
@@ -296,6 +304,7 @@ def apply_occurrence_edit(
             title=title,
             description=description,
             type=type,
+            priority=priority,
             assignee_id=assignee_id,
             parent_id=parent_id,
             start_at=start_at,
@@ -314,6 +323,7 @@ def apply_occurrence_edit(
         title=title,
         description=description,
         type=type,
+        priority=priority,
         spawn_mode=spawn_mode,
         sprint_basis=sprint_basis,
         look_ahead_n=look_ahead_n,
@@ -348,6 +358,7 @@ def apply_occurrence_edit(
             title=title,
             description=description,
             type=type,
+            priority=priority,
             assignee_id=assignee_id,
             parent_id=parent_id,
             actor_name=actor_name,
@@ -490,6 +501,7 @@ def _spawn_one(
         type=series.type,
         title=series.title,
         description=series.description,
+        priority=series.priority,
         parent_id=series.parent_id,
         reporter_id=series.reporter_id,
         assignee_id=series.assignee_id,
@@ -627,6 +639,7 @@ def _update_one_issue(
     title: str | None,
     description: str | None,
     type: IssueType | None,
+    priority: IssuePriority | None,
     assignee_id: int | None | object,
     parent_id: int | None | object,
     start_at: datetime | None | object = UNSET,
@@ -640,6 +653,8 @@ def _update_one_issue(
         kwargs["description"] = description
     if type is not None:
         kwargs["type"] = type
+    if priority is not None:
+        kwargs["priority"] = priority
     if assignee_id is not UNSET:
         kwargs["assignee_id"] = assignee_id
     if parent_id is not UNSET:
