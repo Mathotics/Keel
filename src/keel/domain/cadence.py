@@ -6,6 +6,9 @@ from datetime import date, timedelta
 from keel.domain.enums import SprintCadence
 from keel.domain.errors import InvalidSprintCadenceError
 
+MIN_SPRINT_AHEAD = 0
+MAX_SPRINT_AHEAD = 12
+
 
 def window_end(
     start: date,
@@ -40,6 +43,11 @@ def next_window_start(closed_end: date | None, today: date) -> date:
         return today
     start = closed_end + timedelta(days=1)
     return today if start < today else start
+
+
+def following_window_start(previous_end: date) -> date:
+    """Day after a window's last inclusive day, without catching up to today."""
+    return previous_end + timedelta(days=1)
 
 
 def window_name(starts_on: date, ends_on: date) -> str:

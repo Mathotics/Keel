@@ -68,6 +68,7 @@ def update_project(
     description: str | None = None,
     sprint_cadence: SprintCadence | object = UNSET,
     sprint_cadence_days: int | None | object = UNSET,
+    sprint_ahead: int | object = UNSET,
     today: date | None = None,
 ) -> Project:
     """The key is immutable once issues carry it, so it is not updatable."""
@@ -76,11 +77,15 @@ def update_project(
         project.name = _clean_name(name)
     if description is not None:
         project.description = description.strip()
-    if sprint_cadence is UNSET:
-        session.flush()
-        return project
     from keel.services import auto_sprint
 
+    if sprint_ahead is not UNSET:
+        auto_sprint.set_ahead(project, cast(int, sprint_ahead))
+    if sprint_cadence is UNSET:
+        session.flush()
+        if sprint_ahead is not UNSET:
+            auto_sprint.ensure_open(session, project.id, today)
+        return project
     assert isinstance(sprint_cadence, SprintCadence)
     days = (
         project.sprint_cadence_days

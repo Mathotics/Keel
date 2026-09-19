@@ -282,6 +282,18 @@ def test_the_sprints_page_shows_auto_sprint_status(
     assert "Next close:" in page.text
 
 
+def test_the_sprints_page_shows_sprints_kept_in_advance(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.patch(
+        f"/api/v1/projects/{project['id']}",
+        json={"sprint_cadence": "weekly", "sprint_ahead": 2},
+    )
+    page = client.get("/projects/KEEL/sprints")
+    assert "Keeping 2 upcoming sprints planned." in page.text
+
+
 def test_the_sprints_page_catches_up_an_overdue_window(
     client: TestClient,
     project: Json,

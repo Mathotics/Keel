@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from keel.domain.cadence import MAX_SPRINT_AHEAD, MIN_SPRINT_AHEAD
 from keel.domain.enums import SprintCadence
 
 KEY_PATTERN = r"^[A-Za-z][A-Za-z0-9]{1,9}$"
@@ -20,6 +21,11 @@ class ProjectUpdate(BaseModel):
     description: str | None = None
     sprint_cadence: SprintCadence | None = None
     sprint_cadence_days: int | None = Field(default=None, ge=1)
+    sprint_ahead: int | None = Field(
+        default=None,
+        ge=MIN_SPRINT_AHEAD,
+        le=MAX_SPRINT_AHEAD,
+    )
 
 
 class ProjectRead(BaseModel):
@@ -31,4 +37,5 @@ class ProjectRead(BaseModel):
     description: str
     sprint_cadence: SprintCadence
     sprint_cadence_days: int | None
+    sprint_ahead: int
     created_at: datetime

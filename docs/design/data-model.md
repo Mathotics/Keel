@@ -55,10 +55,11 @@ A user is refused deletion while referenced as a reporter, assignee, or comment 
 | `issue_seq` | INTEGER | not null, default 0 |
 | `sprint_cadence` | TEXT | not null, default `'off'`, `CHECK` in (`off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`) |
 | `sprint_cadence_days` | INTEGER | nullable, `CHECK` null or `>= 1` |
+| `sprint_ahead` | INTEGER | not null, default 0, `CHECK` between 0 and 12 |
 | `auto_sprint_notice` | TEXT | not null, default `''` |
 | `created_at` | TIMESTAMP | not null |
 
-`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/ADR-012.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/ADR-019.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
+`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/ADR-012.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/ADR-019.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
 
 ### boards
 
@@ -267,6 +268,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0015` | `labels`, `issue_labels`, and `labels` on `issue_history.field` |
 | `0016` | `issues.priority` server default `'p4'` |
 | `0017` | `series.priority` |
+| `0018` | `projects.sprint_ahead` |
 
 ## Related documents
 
@@ -274,6 +276,8 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 012: Issue realization](../adr/ADR-012.md)
 * [ADR 013: Planning realization](../adr/ADR-013.md)
 * [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
+* [ADR 019: Auto-sprint cadence](../adr/ADR-019.md)
+* [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)
 * [ADR 020: Cancelled status](../adr/ADR-020.md)
 * [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)

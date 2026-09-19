@@ -44,6 +44,7 @@ def sprints_page(
             states=sprint_states_in_lifecycle_order(),
             auto_sprint_on=auto_on,
             cadence_label=auto_sprint.cadence_label(project) if auto_on else None,
+            sprint_ahead=project.sprint_ahead if auto_on else 0,
             next_close=None if active is None else active.ends_on,
             error=error,
             notice=shown_notice,

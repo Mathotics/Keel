@@ -9,7 +9,7 @@
 
 ## Background
 
-Keel is a personal, Jira-flavored issue tracker for one owner plus up to two collaborators. Work is Epic / Story / Subtask ([ADR 003](ADR-003.md)), shown on a shared board, backlog, and sprints ([ADR 013](ADR-013.md)). *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](ADR-020.md)). Projects may opt into **auto-sprint** so a single dated window opens and closes on a cadence ([ADR 019](ADR-019.md)); that does not pre-create future sprints.
+Keel is a personal, Jira-flavored issue tracker for one owner plus up to two collaborators. Work is Epic / Story / Subtask ([ADR 003](ADR-003.md)), shown on a shared board, backlog, and sprints ([ADR 013](ADR-013.md)). *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](ADR-020.md)). Projects may opt into **auto-sprint** so a single dated window opens and closes on a cadence ([ADR 019](ADR-019.md)); they may also keep the next N windows planned in advance ([Auto-sprint lookahead](auto-sprint-lookahead.md)).
 
 That model fits one-off product work. It does not fit chores and other jobs that come back on a cadence, which is part of what Keel is for. Users still want those jobs in the **same** project and board as product work (custom boards are a far-future non-goal). Copies must be allowed to differ: “Pay bills” this month may need a different description and comments than last month.
 

@@ -94,6 +94,11 @@
                 <input id="project-cadence-days" name="sprint_cadence_days" type="number" min="1" step="1"
                        value="{{ project.sprint_cadence_days if project.sprint_cadence_days else '' }}"/>
               </p>
+              <p>
+                <label for="project-sprint-ahead">Sprints in advance</label>
+                <input id="project-sprint-ahead" name="sprint_ahead" type="number" min="0" max="{{ max_sprint_ahead }}" step="1"
+                       value="{{ project.sprint_ahead }}"/>
+              </p>
             </div>
           </fieldset>
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>

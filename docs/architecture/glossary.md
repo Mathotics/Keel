@@ -22,9 +22,9 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Project key** — a short uppercase identifier for a project, used to prefix its issue numbers.
 * **Relates-to** — a non-blocking association between two issues.
 * **Blocks** — a dependency asserting that one issue must progress before another; *blocks* links may not form a cycle.
-* **Sprint** — a time-boxed set of scheduled issues within a project; moves through *planned*, *active*, and *completed*. At most one sprint per project is active at a time. A project may opt into a cadence so those windows open and close automatically ([ADR 019](../adr/ADR-019.md)).
+* **Sprint** — a time-boxed set of scheduled issues within a project; moves through *planned*, *active*, and *completed*. At most one sprint per project is active at a time. A project may opt into a cadence so those windows open and close automatically, and may keep upcoming windows planned in advance ([ADR 019](../adr/ADR-019.md), [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 * **Series** — a repeating recipe that spawns ordinary issues on a cadence. The recipe is not a board card ([ADR 021](../adr/ADR-021.md)).
-* **Auto-sprint** — a per-project cadence (weekly, every two weeks, monthly, or every N days) that completes the active sprint after its last inclusive day and opens the next window.
+* **Auto-sprint** — a per-project cadence (weekly, every two weeks, monthly, or every N days) that completes the active sprint after its last inclusive day and opens the next window. An optional count keeps that many upcoming sprints planned ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 * **Start date/time** — optional instant when work on an issue is meant to begin; when due is also set, start must not be after due ([ADR 029](../adr/ADR-029.md)).
 * **Status** — a state in the shared, fixed workflow: *To Do*, *In Progress*, *In Review*, *Blocked*, *Done*, or *Cancelled*. *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](../adr/ADR-020.md)).
 * **Story** — a deliverable unit of work; may belong to an Epic and may contain Subtasks.

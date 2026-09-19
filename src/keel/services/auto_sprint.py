@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Project, Sprint
 from keel.db.session import session_factory_of
-from keel.domain.cadence import next_window_start, window_end, window_name
+from keel.domain.cadence import (
+    MAX_SPRINT_AHEAD,
+    MIN_SPRINT_AHEAD,
+    following_window_start,
+    next_window_start,
+    window_end,
+    window_name,
+)
 from keel.domain.enums import SprintCadence, SprintState, label
 from keel.domain.errors import InvalidSprintCadenceError
 from keel.services import projects as project_service
@@ -45,6 +52,10 @@ def apply_cadence(
     return project
 
 
+def set_ahead(project: Project, ahead: int) -> None:
+    project.sprint_ahead = _validate_ahead(ahead)
+
+
 def ensure_open(
     session: Session,
     project_id: int,
@@ -56,15 +67,20 @@ def ensure_open(
         return None
     today = today or date.today()
     active = sprint_service.active_sprint(session, project.id)
+    opened: Sprint
     if active is not None:
         if active.ends_on is None:
             active.ends_on = _end_from(today, project)
             session.flush()
-            return active
-        if active.ends_on < today:
-            return _rollover(session, project, active, today)
-        return active
-    return _open_now(session, project, today, closed_end=None)
+            opened = active
+        elif active.ends_on < today:
+            opened = _rollover(session, project, active, today)
+        else:
+            opened = active
+    else:
+        opened = _open_now(session, project, today, closed_end=None)
+    _ensure_ahead(session, project, today)
+    return opened
 
 
 def complete_sprint(
@@ -90,6 +106,7 @@ def complete_sprint(
     )
     if project.sprint_cadence is not SprintCadence.OFF:
         opened = _start_prepared(session, project, today)
+        _ensure_ahead(session, project, today)
         _note_rollover(project, result, opened)
     return result
 
@@ -195,22 +212,19 @@ def _prepare_next(
 
 
 def _start_prepared(session: Session, project: Project, today: date) -> Sprint:
-    planned = sprint_service.next_planned_sprint(session, project.id)
+    planned = _usable_planned(session, project.id, today)
     if planned is None:
-        return _open_now(session, project, today, closed_end=None)
-    if planned.ends_on is not None and planned.ends_on < today:
         return _open_now(session, project, today, closed_end=None)
     _fill_missing_dates(planned, project, today)
     return sprint_service.start_sprint(session, planned.id)
 
 
 def _usable_planned(session: Session, project_id: int, today: date) -> Sprint | None:
-    planned = sprint_service.next_planned_sprint(session, project_id)
-    if planned is None:
-        return None
-    if planned.ends_on is not None and planned.ends_on < today:
-        return None
-    return planned
+    planned = sprint_service.list_sprints(session, project_id, SprintState.PLANNED)
+    for sprint in planned:
+        if sprint.ends_on is None or sprint.ends_on >= today:
+            return sprint
+    return None
 
 
 def _fill_missing_dates(sprint: Sprint, project: Project, today: date) -> None:
@@ -222,6 +236,45 @@ def _fill_missing_dates(sprint: Sprint, project: Project, today: date) -> None:
 
 def _end_from(start: date, project: Project) -> date:
     return window_end(start, project.sprint_cadence, project.sprint_cadence_days)
+
+
+def _ensure_ahead(session: Session, project: Project, today: date) -> None:
+    """Keep N usable planned sprints when auto-sprint is on and N is set."""
+    if project.sprint_cadence is SprintCadence.OFF or project.sprint_ahead < 1:
+        return
+    active = sprint_service.active_sprint(session, project.id)
+    if active is not None:
+        _fill_missing_dates(active, project, today)
+    planned = sprint_service.list_sprints(session, project.id, SprintState.PLANNED)
+    usable = [
+        sprint
+        for sprint in planned
+        if sprint.ends_on is None or sprint.ends_on >= today
+    ]
+    anchor = None if active is None else active.ends_on
+    for sprint in usable:
+        if sprint.starts_on is None or sprint.ends_on is None:
+            start = following_window_start(anchor) if anchor is not None else today
+            if sprint.starts_on is None:
+                sprint.starts_on = start
+            if sprint.ends_on is None:
+                sprint.ends_on = _end_from(sprint.starts_on, project)
+            session.flush()
+        if sprint.ends_on is not None and (anchor is None or sprint.ends_on > anchor):
+            anchor = sprint.ends_on
+    missing = project.sprint_ahead - len(usable)
+    for _ in range(max(0, missing)):
+        start = following_window_start(anchor) if anchor is not None else today
+        end = _end_from(start, project)
+        created = sprint_service.create_sprint(
+            session,
+            project.id,
+            name=window_name(start, end),
+            goal="",
+            starts_on=start,
+            ends_on=end,
+        )
+        anchor = created.ends_on
 
 
 def _note_rollover(
@@ -258,3 +311,12 @@ def _validate(cadence: SprintCadence, n_days: int | None) -> None:
         SprintCadence.MONTHLY,
     }:
         raise InvalidSprintCadenceError("That is not a sprint cadence.")
+
+
+def _validate_ahead(ahead: int) -> int:
+    if ahead < MIN_SPRINT_AHEAD or ahead > MAX_SPRINT_AHEAD:
+        raise InvalidSprintCadenceError(
+            "Sprints in advance must be a whole number from "
+            f"{MIN_SPRINT_AHEAD} to {MAX_SPRINT_AHEAD}.",
+        )
+    return ahead

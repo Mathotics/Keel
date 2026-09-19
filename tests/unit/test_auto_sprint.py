@@ -3,7 +3,7 @@ from datetime import date
 import pytest
 from sqlalchemy.orm import Session
 
-from keel.db.models import Project
+from keel.db.models import Project, Sprint
 from keel.domain.enums import IssueStatus, IssueType, SprintCadence, SprintState
 from keel.domain.errors import InvalidSprintCadenceError
 from keel.services import auto_sprint
@@ -32,6 +32,7 @@ def _issue(session: Session, project: Project, title: str, sprint_id: int) -> in
 def test_a_new_project_has_auto_sprint_off(session: Session, project: Project) -> None:
     assert project.sprint_cadence is SprintCadence.OFF
     assert project.sprint_cadence_days is None
+    assert project.sprint_ahead == 0
 
 
 def test_turning_on_with_no_sprint_opens_a_window_from_today(
@@ -336,3 +337,210 @@ def test_manual_complete_with_auto_off_still_returns_work_to_the_backlog(
     assert result.carried_to_sprint_id is None
     assert issue_service.get_issue(session, work).sprint_id is None
     assert sprint_service.active_sprint(session, project.id) is None
+
+
+def _planned(session: Session, project: Project) -> list[Sprint]:
+    return [
+        item
+        for item in sprint_service.list_sprints(session, project.id)
+        if item.state is SprintState.PLANNED
+    ]
+
+
+def test_turning_on_with_ahead_creates_dated_planned_windows(
+    session: Session,
+    project: Project,
+) -> None:
+    project.sprint_ahead = 2
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+
+    active = sprint_service.active_sprint(session, project.id)
+    assert active is not None
+    planned = _planned(session, project)
+    assert [item.starts_on for item in planned] == [
+        date(2026, 9, 19),
+        date(2026, 9, 26),
+    ]
+    assert [item.ends_on for item in planned] == [
+        date(2026, 9, 25),
+        date(2026, 10, 2),
+    ]
+    assert [item.name for item in planned] == [
+        "19 Sep – 25 Sep 2026",
+        "26 Sep – 2 Oct 2026",
+    ]
+    assert all(item.goal == "" for item in planned)
+
+
+def test_raising_ahead_fills_the_buffer(
+    session: Session,
+    project: Project,
+) -> None:
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    assert _planned(session, project) == []
+
+    auto_sprint.set_ahead(project, 2)
+    auto_sprint.ensure_open(session, project.id, TODAY)
+
+    assert len(_planned(session, project)) == 2
+
+
+def test_lowering_ahead_leaves_extra_planned_sprints(
+    session: Session,
+    project: Project,
+) -> None:
+    project.sprint_ahead = 2
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    first_ids = {item.id for item in _planned(session, project)}
+
+    auto_sprint.set_ahead(project, 1)
+    auto_sprint.ensure_open(session, project.id, TODAY)
+
+    remaining = {item.id for item in _planned(session, project)}
+    assert remaining == first_ids
+
+
+def test_rollover_refills_the_ahead_buffer(
+    session: Session,
+    project: Project,
+) -> None:
+    project.sprint_ahead = 2
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    first = sprint_service.active_sprint(session, project.id)
+    assert first is not None
+    original = _planned(session, project)
+    nxt = original[0]
+
+    auto_sprint.advance_all(session, date(2026, 9, 19))
+
+    assert sprint_service.get_sprint(session, first.id).state is SprintState.COMPLETED
+    current = sprint_service.active_sprint(session, project.id)
+    assert current is not None
+    assert current.id == nxt.id
+    planned = _planned(session, project)
+    assert len(planned) == 2
+    assert planned[0].id == original[1].id
+    assert planned[1].starts_on == date(2026, 10, 3)
+    assert planned[1].ends_on == date(2026, 10, 9)
+
+
+def test_undated_planned_sprints_are_dated_from_the_active_window(
+    session: Session,
+    project: Project,
+) -> None:
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    undated = sprint_service.create_sprint(session, project.id, "Soon")
+    auto_sprint.set_ahead(project, 2)
+    auto_sprint.ensure_open(session, project.id, TODAY)
+
+    filled = sprint_service.get_sprint(session, undated.id)
+    assert filled.starts_on == date(2026, 9, 19)
+    assert filled.ends_on == date(2026, 9, 25)
+    planned = _planned(session, project)
+    assert len(planned) == 2
+    assert planned[0].id == undated.id
+    assert planned[1].starts_on == date(2026, 9, 26)
+
+
+def test_existing_planned_sprints_count_toward_ahead(
+    session: Session,
+    project: Project,
+) -> None:
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    already = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Already planned",
+        starts_on=date(2026, 9, 19),
+        ends_on=date(2026, 9, 25),
+    )
+    auto_sprint.set_ahead(project, 2)
+    auto_sprint.ensure_open(session, project.id, TODAY)
+
+    planned = _planned(session, project)
+    assert len(planned) == 2
+    assert planned[0].id == already.id
+    assert planned[0].name == "Already planned"
+    assert planned[1].starts_on == date(2026, 9, 26)
+
+
+def test_a_past_planned_sprint_does_not_count_toward_ahead(
+    session: Session,
+    project: Project,
+) -> None:
+    stale = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Stale",
+        starts_on=date(2026, 8, 1),
+        ends_on=date(2026, 8, 7),
+    )
+    project.sprint_ahead = 1
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+
+    planned = _planned(session, project)
+    assert stale.id in {item.id for item in planned}
+    usable = [item for item in planned if item.id != stale.id]
+    assert len(usable) == 1
+    assert usable[0].starts_on == date(2026, 9, 19)
+
+
+def test_catch_up_with_ahead_still_skips_missed_intervals(
+    session: Session,
+    project: Project,
+) -> None:
+    project.sprint_ahead = 2
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    first = sprint_service.active_sprint(session, project.id)
+    assert first is not None
+
+    auto_sprint.advance_all(session, date(2026, 10, 10))
+
+    listed = sprint_service.list_sprints(session, project.id)
+    completed = [item for item in listed if item.state is SprintState.COMPLETED]
+    active = [item for item in listed if item.state is SprintState.ACTIVE]
+    planned = [item for item in listed if item.state is SprintState.PLANNED]
+    assert [item.id for item in completed] == [first.id]
+    assert len(active) == 1
+    assert active[0].starts_on == date(2026, 10, 10)
+    usable = [
+        item
+        for item in planned
+        if item.ends_on is not None and item.ends_on >= date(2026, 10, 10)
+    ]
+    assert len(usable) == 2
+    assert usable[0].starts_on == date(2026, 10, 17)
+    assert len(planned) == 4
+
+
+def test_deleting_a_planned_ahead_sprint_refills_the_buffer(
+    session: Session,
+    project: Project,
+) -> None:
+    project.sprint_ahead = 2
+    auto_sprint.apply_cadence(session, project, SprintCadence.WEEKLY, None, TODAY)
+    first_planned = _planned(session, project)[0]
+
+    auto_sprint.delete_sprint(session, first_planned.id, TODAY)
+
+    planned = _planned(session, project)
+    assert len(planned) == 2
+    assert first_planned.id not in {item.id for item in planned}
+
+
+def test_ahead_is_refused_outside_the_allowed_range(
+    session: Session,
+    project: Project,
+) -> None:
+    with pytest.raises(InvalidSprintCadenceError) as caught:
+        auto_sprint.set_ahead(project, 13)
+    assert caught.value.code == "project.invalid_cadence"
+
+
+def test_ahead_does_nothing_while_auto_sprint_is_off(
+    session: Session,
+    project: Project,
+) -> None:
+    auto_sprint.set_ahead(project, 2)
+    auto_sprint.ensure_open(session, project.id, TODAY)
+    assert sprint_service.list_sprints(session, project.id) == []

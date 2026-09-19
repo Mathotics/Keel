@@ -31,7 +31,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Plan a sprint.** A user creates a time-boxed sprint and pulls backlog items into it.
 * **Start a sprint.** A user starts the sprint; its issues become the active committed work. Only one sprint per project may be active at a time.
 * **Complete a sprint.** A user completes the sprint; unfinished issues move into the next planned sprint, or return to the backlog if there is none.
-* **Run sprints on a cadence.** A user turns on auto-sprint for a project (weekly, every two weeks, monthly, or every N days). Keel keeps one sprint active, completing the current window after its last day and starting the next planned sprint — or creating one when none is planned ([ADR 019](../adr/ADR-019.md)).
+* **Run sprints on a cadence.** A user turns on auto-sprint for a project (weekly, every two weeks, monthly, or every N days) and may keep the next N sprints planned in advance. Keel keeps one sprint active, completing the current window after its last day and starting the next planned sprint — or creating one when none is planned ([ADR 019](../adr/ADR-019.md), [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 
 ## Repeating work
 

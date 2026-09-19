@@ -5,6 +5,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 
+from keel.domain.cadence import MAX_SPRINT_AHEAD, MIN_SPRINT_AHEAD
 from keel.domain.duration import parse_duration
 from keel.domain.enums import (
     INITIAL_PRIORITY,
@@ -199,6 +200,7 @@ def update_project(
     description: Annotated[str, Form()] = "",
     sprint_cadence: Annotated[str, Form()] = SprintCadence.OFF.value,
     sprint_cadence_days: Annotated[str, Form()] = "",
+    sprint_ahead: Annotated[str, Form()] = "0",
 ) -> RedirectResponse:
     try:
         project = project_service.update_project(
@@ -208,6 +210,7 @@ def update_project(
             description,
             sprint_cadence=_parse_cadence(sprint_cadence),
             sprint_cadence_days=_parse_cadence_days(sprint_cadence_days),
+            sprint_ahead=_parse_sprint_ahead(sprint_ahead),
         )
     except DomainError as exc:
         session.rollback()
@@ -1267,5 +1270,17 @@ def _parse_cadence_days(raw: str) -> int | None:
     if not cleaned.isdigit():
         raise InvalidSprintCadenceError(
             "Every N days needs a number of days of at least 1.",
+        )
+    return int(cleaned)
+
+
+def _parse_sprint_ahead(raw: str) -> int:
+    cleaned = raw.strip()
+    if not cleaned:
+        return MIN_SPRINT_AHEAD
+    if not cleaned.isdigit():
+        raise InvalidSprintCadenceError(
+            "Sprints in advance must be a whole number from "
+            f"{MIN_SPRINT_AHEAD} to {MAX_SPRINT_AHEAD}.",
         )
     return int(cleaned)

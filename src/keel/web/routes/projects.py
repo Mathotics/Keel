@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from keel.domain.cadence import MAX_SPRINT_AHEAD
 from keel.domain.enums import sprint_cadences_in_menu_order, statuses_in_workflow_order
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
@@ -55,6 +56,7 @@ def project_page(
             counts=issue_service.count_by_status(session, project.id),
             statuses=statuses_in_workflow_order(),
             cadences=sprint_cadences_in_menu_order(),
+            max_sprint_ahead=MAX_SPRINT_AHEAD,
             error=error,
             notice=notice,
         ),

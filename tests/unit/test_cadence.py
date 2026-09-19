@@ -4,6 +4,7 @@ import pytest
 
 from keel.domain.cadence import (
     add_one_month,
+    following_window_start,
     next_window_start,
     window_end,
     window_name,
@@ -52,6 +53,14 @@ def test_monthly_clamps_to_the_last_day_of_the_month() -> None:
 def test_off_has_no_window() -> None:
     with pytest.raises(InvalidSprintCadenceError):
         window_end(date(2026, 9, 12), SprintCadence.OFF)
+
+
+def test_a_following_window_starts_the_day_after_the_close() -> None:
+    assert following_window_start(date(2026, 9, 18)) == date(2026, 9, 19)
+
+
+def test_a_following_window_does_not_jump_to_today() -> None:
+    assert following_window_start(date(2026, 9, 1)) == date(2026, 9, 2)
 
 
 def test_a_timely_next_window_starts_the_day_after_the_close() -> None:

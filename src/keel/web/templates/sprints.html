@@ -16,6 +16,9 @@
         {% else %}
         Next close: none yet.
         {% endif %}
+        {% if sprint_ahead %}
+        Keeping {{ sprint_ahead }} upcoming sprint{% if sprint_ahead != 1 %}s{% endif %} planned.
+        {% endif %}
       </p>
       {% endif %}
 
