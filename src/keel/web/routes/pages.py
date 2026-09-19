@@ -15,6 +15,7 @@ from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.inbox import INBOX_COOKIE, encode_toggle, parse_collapsed
 
 router = APIRouter()
 
@@ -30,6 +31,11 @@ def home(
     inbox = home_service.HomeInbox()
     if chrome.current_user is not None:
         inbox = home_service.personal_inbox(session, chrome.current_user.id)
+    collapsed = parse_collapsed(request.cookies.get(INBOX_COOKIE))
+
+    def inbox_toggle(key: str) -> str:
+        return encode_toggle(collapsed, key)
+
     return get_templates().TemplateResponse(
         request,
         "home.html",
@@ -39,6 +45,8 @@ def home(
             inbox=inbox,
             has_projects=bool(project_service.list_projects(session)),
             statuses=statuses_in_workflow_order(),
+            collapsed_inbox=collapsed,
+            inbox_toggle=inbox_toggle,
             error=error,
         ),
     )

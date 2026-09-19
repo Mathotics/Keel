@@ -98,6 +98,7 @@ src/keel/
     context.py          shared template context and chrome dependency
     markdown.py         Markdown to sanitized HTML for issue notes
     nav.py              top-bar section order (cookie, not a user row)
+    inbox.py            collapsed home sections (cookie, not a user row)
     routes/
       __init__.py
       pages.py          home inbox, create, license
@@ -154,7 +155,7 @@ flowchart TD
 
 ## What the layout absorbed
 
-`keel/web/layout.py` was retired; the chrome it emitted moved into `base.html` ([ADR 009](../adr/ADR-009.md)). `keel/web/nav.py` holds the top-bar section order: a browser cookie, not a column on the user.
+`keel/web/layout.py` was retired; the chrome it emitted moved into `base.html` ([ADR 009](../adr/ADR-009.md)). `keel/web/nav.py` holds the top-bar section order: a browser cookie, not a column on the user. `keel/web/inbox.py` holds which home sections are collapsed, the same way.
 
 `keel/paths.py` gained `templates_dir()`, following its existing repository-root-then-package fallback, and `data_dir()` resolving the user-data directory through `platformdirs`.
 

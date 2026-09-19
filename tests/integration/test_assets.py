@@ -5,6 +5,7 @@ ASSETS = (
     "/assets/brand.css",
     "/assets/js/userpicker.js",
     "/assets/js/nav.js",
+    "/assets/js/inbox.js",
     "/assets/js/board.js",
     "/assets/js/overlay.js",
 )

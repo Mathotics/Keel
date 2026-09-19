@@ -243,6 +243,78 @@ body {
   font-weight: 650;
 }
 
+/* Home inbox sections collapse with native disclosure so Minimize works
+   without JavaScript. The heading stays in the summary when the table is
+   hidden. */
+.keel-inbox {
+  margin: 0;
+}
+
+.keel-inbox > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  margin: 1.75rem 0 0.7rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.keel-inbox > summary::-webkit-details-marker {
+  display: none;
+}
+
+.keel-inbox > summary::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--keel-blue);
+  border-bottom: 2px solid var(--keel-blue);
+  transform: rotate(-45deg);
+  translate: 0 -0.05rem;
+}
+
+.keel-inbox[open] > summary::before {
+  transform: rotate(45deg);
+  translate: 0 -0.15rem;
+}
+
+.keel-inbox > summary:focus-visible {
+  outline: 2px solid var(--keel-blue);
+  outline-offset: 2px;
+}
+
+.keel-inbox > summary > h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-inbox__count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.keel-inbox__fallback {
+  margin-left: auto;
+}
+
+.keel-inbox__fallback button {
+  height: var(--keel-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+}
+
+[data-keel-inbox] .keel-inbox__fallback {
+  display: none;
+}
+
 .keel-main > h3 {
   margin: 1.15rem 0 0.45rem;
   font-size: 0.875rem;

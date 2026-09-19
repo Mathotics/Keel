@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% from "_type.html" import type_chip %}
 {% block title %}Home{% endblock %}
+{% block scripts %}
+    {{ super() }}
+    <script src="/assets/js/inbox.js" defer></script>
+{% endblock %}
 {% block main %}
       <h1>Home</h1>
       {% if error %}
@@ -64,41 +68,38 @@
       </div>
       {% endmacro %}
 
+      {% macro inbox_section(key, title, rows, extra) %}
+      <details class="keel-inbox"{% if key not in collapsed_inbox %} open{% endif %} data-keel-inbox-panel="{{ key }}">
+        <summary>
+          <h2>{{ title }}</h2>
+          <span class="keel-inbox__count">{{ rows|length }}</span>
+          <form class="keel-inbox__fallback" method="post" action="/web/inbox">
+            <input type="hidden" name="next" value="/"/>
+            <input type="hidden" name="collapsed" value="{{ inbox_toggle(key) }}"/>
+            <button type="submit">{% if key in collapsed_inbox %}Expand{% else %}Minimize{% endif %}</button>
+          </form>
+        </summary>
+        {{ inbox_rows(key, rows, extra) }}
+      </details>
+      {% endmacro %}
+
       {% if inbox.due %}
-      <section>
-        <h2>Due or overdue</h2>
-        {{ inbox_rows("due", inbox.due, "due") }}
-      </section>
+      {{ inbox_section("due", "Due or overdue", inbox.due, "due") }}
       {% endif %}
       {% if inbox.starting %}
-      <section>
-        <h2>Starting or started</h2>
-        {{ inbox_rows("starting", inbox.starting, none) }}
-      </section>
+      {{ inbox_section("starting", "Starting or started", inbox.starting, none) }}
       {% endif %}
       {% if inbox.assigned %}
-      <section>
-        <h2>Assigned to me</h2>
-        {{ inbox_rows("assigned", inbox.assigned, none) }}
-      </section>
+      {{ inbox_section("assigned", "Assigned to me", inbox.assigned, none) }}
       {% endif %}
       {% if inbox.blocked %}
-      <section>
-        <h2>Blocked</h2>
-        {{ inbox_rows("blocked", inbox.blocked, none) }}
-      </section>
+      {{ inbox_section("blocked", "Blocked", inbox.blocked, none) }}
       {% endif %}
       {% if inbox.active_sprint %}
-      <section>
-        <h2>In the active sprint</h2>
-        {{ inbox_rows("sprint", inbox.active_sprint, "sprint") }}
-      </section>
+      {{ inbox_section("sprint", "In the active sprint", inbox.active_sprint, "sprint") }}
       {% endif %}
       {% if inbox.waiting %}
-      <section>
-        <h2>Waiting this cycle</h2>
-        {{ inbox_rows("waiting", inbox.waiting, "occurrence") }}
-      </section>
+      {{ inbox_section("waiting", "Waiting this cycle", inbox.waiting, "occurrence") }}
       {% endif %}
 
       {% endif %}

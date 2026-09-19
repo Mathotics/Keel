@@ -47,7 +47,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 Web URLs address issues by key, as `/issues/KEEL-12`; the JSON API addresses them by internal identifier ([ADR 012](../adr/ADR-012.md)).
 
-Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md), [ADR 029](../adr/ADR-029.md)): stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
+Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md), [ADR 029](../adr/ADR-029.md)): stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. Each non-empty section is a native disclosure: the heading and row count stay visible, Minimize/Expand persist the closed set in a `keel_inbox` cookie, and `inbox.js` saves a disclosure toggle without a round trip ([Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)). `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
 
 ## Creation and editing forms
 
@@ -57,6 +57,7 @@ The ordinary forms post to `/web` routes that call the same services as the JSON
 | --- | --- | --- |
 | `POST` | `/web/nav` | A dragged section order in the top bar |
 | `POST` | `/web/nav/move` | An Up or Down control beside a section link |
+| `POST` | `/web/inbox` | Collapsed home section keys in this browser |
 | `POST` | `/web/projects` | The project list's create form |
 | `POST` | `/web/projects/{project_id}/update` | The project page's settings form |
 | `POST` | `/web/projects/{project_id}/delete` | The project page, behind a confirmation naming what goes |
@@ -101,7 +102,7 @@ A card shows the issue key, title, type, priority, assignee, its own estimate, s
 
 `/board` is the master Kanban of every project ([ADR 032](../adr/ADR-032.md)). It reuses this page: heading **Board**, a Project filter (Any project or one project), sprint names and sprint-lane titles prefixed with the project key, and the same Move/drag behaviour. Done and Cancelled issues whose sprint is completed are omitted here; a project board still shows them. Dropping onto another project's sprint row is refused. `/board` has no current project, so Find is unscoped and Backlog / Sprints / Schedules stay off the bar. When there are no projects, a quiet message links to `/projects`; when filters match nothing, a quiet empty message is shown and the filters remain.
 
-Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker and nav scripts use their own markers (`data-keel-js`, `data-keel-nav`) for the same reason: each loads on every page, and must not hide a fallback it did not enable.
+Each card also carries a status select and a Move button inside a form posting to `/web/issues/{id}/status`. When `board.js` loads it sets `data-keel-board` on the document root, and CSS hides those controls — so the fallback is visible precisely when the script did not run. The picker and nav scripts use their own markers (`data-keel-js`, `data-keel-nav`) for the same reason: each loads on every page, and must not hide a fallback it did not enable. Home's inbox script uses `data-keel-inbox` and loads only on `/`.
 
 ## Backlog
 
@@ -127,11 +128,13 @@ The issue's fields, including start date, due date, created-on, and updated-on; 
 
 ## JavaScript
 
-Four scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker and the find submit button, `data-keel-nav` for the section order, `data-keel-board` for the board, `data-keel-overlay-js` for the issue repeating overlay.
+Five scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls: `data-keel-js` for the picker and the find submit button, `data-keel-nav` for the section order, `data-keel-inbox` for home Minimize/Expand, `data-keel-board` for the board, `data-keel-overlay-js` for the issue repeating overlay.
 
 `assets/js/userpicker.js` submits the picker form when the dropdown changes, replacing its Switch button. It also submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons. Type dropdowns marked `keel-type-select` keep `data-type` in sync with the current value so the closed control stays the type's color. Paired sprint date fields marked `data-keel-range` keep `min` and `max` in sync so the calendar cannot offer an end before the start.
 
 `assets/js/nav.js` is written against the browser's native HTML Drag and Drop API. It marks the section links draggable, reorders them in the bar on drop, and posts the visible order to `/web/nav`. Up and Down remain in the markup and are hidden only after the script has run. Reordering among the links that are on the page leaves hidden project-scoped slots (Backlog, Sprints, Schedules) where they were.
+
+`assets/js/inbox.js` loads on home. It posts the closed section keys to `/web/inbox` when a disclosure toggles. Minimize and Expand remain in the markup and are hidden only after the script has run, so the cookie can still change when JavaScript does not load.
 
 `assets/js/board.js` is written against the browser's native HTML Drag and Drop API. It marks cards draggable, handles `dragstart` to record the issue, `dragover` to accept a drop, and `drop` to send a `PATCH` to `/api/v1/issues/{id}` with the column's status, and the sprint when the board is stacked by sprint. On success it moves the card in the DOM; on failure it returns the card to its original column and shows the message from the coded error body ([ADR 010](../adr/ADR-010.md)).
 
@@ -156,6 +159,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 017: Render issue descriptions and comments as Markdown](../adr/ADR-017.md)
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
 * [ADR 022: Home page as a personal work inbox](../adr/ADR-022.md)
+* [Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)
 * [ADR 023: Help menu links to FastAPI API docs](../adr/ADR-023.md)
 * [ADR 024: Issue-page repeating recipe in an overlay](../adr/ADR-024.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
