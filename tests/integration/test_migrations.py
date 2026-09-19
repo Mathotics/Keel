@@ -102,6 +102,7 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     assert projects >= {
         "sprint_cadence",
         "sprint_cadence_days",
+        "sprint_ahead",
         "auto_sprint_notice",
     }
     assert series >= {

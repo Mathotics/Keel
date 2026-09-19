@@ -30,10 +30,10 @@ Collections are nested under their parent; single resources are flat, so a clien
 | `GET` | `/api/v1/projects` | List projects |
 | `POST` | `/api/v1/projects` | Create — `{key, name, description}`; also creates the board |
 | `GET` | `/api/v1/projects/{project_id}` | Read a project |
-| `PATCH` | `/api/v1/projects/{project_id}` | Rename, redescribe, or set sprint cadence; `key` is immutable |
+| `PATCH` | `/api/v1/projects/{project_id}` | Rename, redescribe, or set sprint cadence and sprints in advance; `key` is immutable |
 | `DELETE` | `/api/v1/projects/{project_id}` | Delete, cascading its contents |
 
-A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/ADR-019.md)).
+A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/ADR-019.md)). `sprint_ahead` is how many upcoming sprints to keep planned (0–12, default 0); 0 creates the next window only at rollover ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 
 ## Issues
 

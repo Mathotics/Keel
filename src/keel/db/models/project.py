@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from keel.db.base import Base
 from keel.db.models.user import utc_now
+from keel.domain.cadence import MAX_SPRINT_AHEAD, MIN_SPRINT_AHEAD
 from keel.domain.enums import SprintCadence
 
 KEY_MIN_LENGTH = 2
@@ -32,6 +33,10 @@ class Project(Base):
             "sprint_cadence_days is null or sprint_cadence_days >= 1",
             name="ck_projects_sprint_cadence_days_positive",
         ),
+        CheckConstraint(
+            f"sprint_ahead between {MIN_SPRINT_AHEAD} and {MAX_SPRINT_AHEAD}",
+            name="ck_projects_sprint_ahead_range",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -46,6 +51,11 @@ class Project(Base):
         server_default=SprintCadence.OFF.value,
     )
     sprint_cadence_days: Mapped[int | None] = mapped_column(Integer, default=None)
+    sprint_ahead: Mapped[int] = mapped_column(
+        Integer,
+        default=MIN_SPRINT_AHEAD,
+        server_default="0",
+    )
     auto_sprint_notice: Mapped[str] = mapped_column(
         Text,
         default="",

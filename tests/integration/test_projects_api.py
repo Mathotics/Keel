@@ -70,6 +70,7 @@ def test_a_new_project_has_auto_sprint_off(client: TestClient) -> None:
     created = create_project(client)
     assert created["sprint_cadence"] == "off"
     assert created["sprint_cadence_days"] is None
+    assert created["sprint_ahead"] == 0
 
 
 def test_a_project_can_enable_weekly_auto_sprint(client: TestClient) -> None:
@@ -84,6 +85,29 @@ def test_a_project_can_enable_weekly_auto_sprint(client: TestClient) -> None:
     sprints = client.get(f"/api/v1/projects/{created['id']}/sprints").json()
     assert len(sprints) == 1
     assert sprints[0]["state"] == "active"
+
+
+def test_a_project_can_keep_upcoming_sprints_planned(client: TestClient) -> None:
+    created = create_project(client)
+
+    updated = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"sprint_cadence": "weekly", "sprint_ahead": 2},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["sprint_ahead"] == 2
+    sprints = client.get(f"/api/v1/projects/{created['id']}/sprints").json()
+    assert len(sprints) == 3
+    assert [item["state"] for item in sprints] == ["active", "planned", "planned"]
+
+
+def test_sprint_ahead_above_the_limit_is_refused(client: TestClient) -> None:
+    created = create_project(client)
+    response = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"sprint_ahead": 13},
+    )
+    assert response.status_code == 422
 
 
 def test_every_n_days_without_a_count_is_refused(client: TestClient) -> None:

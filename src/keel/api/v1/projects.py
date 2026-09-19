@@ -53,6 +53,11 @@ def update_project(
             if "sprint_cadence_days" in supplied
             else project_service.UNSET
         ),
+        sprint_ahead=(
+            payload.sprint_ahead
+            if "sprint_ahead" in supplied
+            else project_service.UNSET
+        ),
     )
     return ProjectRead.model_validate(project)
 

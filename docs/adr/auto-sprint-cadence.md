@@ -1,7 +1,7 @@
 # ADR 019: Auto-sprint cadence
 
-* **Status:** Accepted
-* **Date:** 2026-09-12
+* **Status:** Accepted, amended by [Auto-sprint lookahead](auto-sprint-lookahead.md)
+* **Date:** 2026-09-19
 
 ## Background
 
@@ -67,6 +67,7 @@ Sprint open and close are only manual. A project that works in a regular rhythm 
 * **Must** show an in-page notice after an automatic rollover (same pattern as today’s complete notice).
 * **May** leave extra planned sprints in place, including ones whose dates are already past, for the user to edit or delete.
 * **May** let the user keep creating extra planned sprints while auto-sprint is on.
+* **May** keep a configured number of upcoming sprints planned in advance ([Auto-sprint lookahead](auto-sprint-lookahead.md)).
 * **Must Not** auto-schedule backlog issues into a new sprint except via existing carry-over of unfinished work.
 * **Must Not** allow two active sprints, or any lifecycle other than planned → active → completed.
 * **Must Not** send email or external notifications for rollover.
@@ -134,5 +135,6 @@ stateDiagram-v2
 
 * [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
 * [ADR 013: Planning realization — sprint lifecycle](ADR-013.md)
+* [Auto-sprint lookahead](auto-sprint-lookahead.md)
 * [UI design](../design/ui.md)
 * [v1 scope](../architecture/v1-scope.md)

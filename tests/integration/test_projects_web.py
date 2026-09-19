@@ -115,6 +115,7 @@ def test_the_project_form_saves_sprint_cadence(
     page = client.get("/projects/KEEL")
     assert 'name="sprint_cadence"' in page.text
     assert 'name="sprint_cadence_days"' in page.text
+    assert 'name="sprint_ahead"' in page.text
 
     saved = client.post(
         f"/web/projects/{project['id']}/update",
@@ -123,6 +124,7 @@ def test_the_project_form_saves_sprint_cadence(
             "description": "",
             "sprint_cadence": "weekly",
             "sprint_cadence_days": "",
+            "sprint_ahead": "2",
         },
         follow_redirects=False,
     )
@@ -132,10 +134,11 @@ def test_the_project_form_saves_sprint_cadence(
     follow = client.get(location)
     assert "Opened" in follow.text
     assert "automatically" in follow.text
-    assert (
-        client.get("/api/v1/projects/" + str(project["id"])).json()["sprint_cadence"]
-        == "weekly"
-    )
+    body = client.get("/api/v1/projects/" + str(project["id"])).json()
+    assert body["sprint_cadence"] == "weekly"
+    assert body["sprint_ahead"] == 2
+    sprints = client.get(f"/api/v1/projects/{project['id']}/sprints").json()
+    assert len(sprints) == 3
 
 
 def test_an_unknown_cadence_returns_to_the_project_with_the_message(
@@ -149,6 +152,7 @@ def test_an_unknown_cadence_returns_to_the_project_with_the_message(
             "description": "",
             "sprint_cadence": "whenever",
             "sprint_cadence_days": "abc",
+            "sprint_ahead": "0",
         },
         follow_redirects=False,
     )
@@ -169,6 +173,7 @@ def test_a_non_numeric_day_count_returns_to_the_project_with_the_message(
             "description": "",
             "sprint_cadence": "weekly",
             "sprint_cadence_days": "abc",
+            "sprint_ahead": "0",
         },
         follow_redirects=False,
     )
@@ -176,3 +181,24 @@ def test_a_non_numeric_day_count_returns_to_the_project_with_the_message(
     location = response.headers["location"]
     assert location.startswith("/projects/KEEL?error=")
     assert "at least 1" in client.get(location).text
+
+
+def test_a_non_numeric_ahead_count_returns_to_the_project_with_the_message(
+    client: TestClient,
+    project: Json,
+) -> None:
+    response = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={
+            "name": "Keel",
+            "description": "",
+            "sprint_cadence": "weekly",
+            "sprint_cadence_days": "",
+            "sprint_ahead": "abc",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    location = response.headers["location"]
+    assert location.startswith("/projects/KEEL?error=")
+    assert "Sprints in advance" in client.get(location).text
