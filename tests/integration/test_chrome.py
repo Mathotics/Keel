@@ -152,6 +152,7 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     html = client.get("/").text
     assert '<script src="/assets/js/userpicker.js" defer></script>' in html
     assert '<script src="/assets/js/nav.js" defer></script>' in html
+    assert '<script src="/assets/js/inbox.js" defer></script>' in html
     assert "keel-userpicker__fallback" in html
 
     script = client.get("/assets/js/userpicker.js")
@@ -171,6 +172,8 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert "display: none" in find_fallback
     nav_fallback = _rule(css, "[data-keel-nav] .keel-nav__fallback")
     assert "display: none" in nav_fallback
+    inbox_fallback = _rule(css, "[data-keel-inbox] .keel-inbox__fallback")
+    assert "display: none" in inbox_fallback
 
 
 def test_section_links_follow_the_nav_cookie(client: TestClient) -> None:
@@ -233,6 +236,15 @@ def test_nav_script_enables_drag_and_hides_the_fallback(client: TestClient) -> N
     assert 'addEventListener("dragstart"' in script.text
     assert 'fetch("/web/nav"' in script.text
     assert "data-keel-autosubmit" not in script.text
+
+
+def test_inbox_script_persists_closed_sections(client: TestClient) -> None:
+    script = client.get("/assets/js/inbox.js")
+    assert script.status_code == 200
+    assert "data-keel-inbox" in script.text
+    assert 'fetch("/web/inbox"' in script.text
+    assert 'addEventListener("toggle"' in script.text
+    assert 'src="/assets/js/inbox.js"' not in client.get("/projects").text
 
 
 def test_topbar_label_matches_the_control_height(client: TestClient) -> None:

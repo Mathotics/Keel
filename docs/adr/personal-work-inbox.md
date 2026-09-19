@@ -3,6 +3,8 @@
 * **Status:** Accepted
 * **Date:** 2026-09-18
 
+> **Amendment.** [Collapsible home inbox sections](collapsible-home-inbox-sections.md) lets each non-empty section fold behind its heading. The collapsed set is a browser cookie, restored after a reload or a status change on `/`.
+>
 > **Amendment.** [ADR 030](ADR-030.md) adds a Priority column on inbox rows so rank is visible next to type.
 >
 > **Amendment.** [ADR 029](ADR-029.md) adds a Starting or started section. Time-sensitive sections render first: Due or overdue, then Starting or started, then Assigned to me.
@@ -140,3 +142,4 @@ flowchart TD
 * [ADR 014: Cross-project dependencies and cycle detection](ADR-014.md)
 * [ADR 018: Phone layout of the existing site](ADR-018.md)
 * [ADR 021: Repeating work via Scheduling Manager](ADR-021.md)
+* [Collapsible home inbox sections](collapsible-home-inbox-sections.md)

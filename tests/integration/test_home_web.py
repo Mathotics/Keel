@@ -216,3 +216,90 @@ def test_switching_the_picker_changes_whose_inbox_is_shown(
     as_ada = client.get("/")
     assert "For Ada" in as_ada.text
     assert "For Tester" not in as_ada.text
+
+
+def _panel(html: str, key: str) -> str:
+    marker = f'data-keel-inbox-panel="{key}"'
+    start = html.index("<details")
+    while start != -1:
+        end = html.index(">", start)
+        tag = html[start : end + 1]
+        if marker in tag:
+            return tag
+        start = html.find("<details", end)
+    raise AssertionError(f"no inbox panel {key}")
+
+
+def _seed_assigned(client: TestClient) -> dict[str, Any]:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Mine",
+            "assignee_id": tester["id"],
+        },
+    ).json()
+    assert isinstance(issue, dict)
+    return issue
+
+
+def test_home_sections_are_open_disclosures_with_a_count(client: TestClient) -> None:
+    _seed_assigned(client)
+    page = client.get("/")
+    assigned = _panel(page.text, "assigned")
+    assert " open" in assigned
+    assert "<h2>Assigned to me</h2>" in page.text
+    assert "keel-inbox__count" in page.text
+    assert ">1<" in page.text.split("keel-inbox__count", 1)[1][:40]
+    assert "Minimize" in page.text
+    assert 'src="/assets/js/inbox.js"' in page.text
+    assert 'action="/web/inbox"' in page.text
+
+
+def test_the_inbox_cookie_closes_a_section_and_keeps_the_heading(
+    client: TestClient,
+) -> None:
+    _seed_assigned(client)
+    client.cookies.set("keel_inbox", "assigned.nope")
+    page = client.get("/")
+    assigned = _panel(page.text, "assigned")
+    assert " open" not in assigned
+    assert "<h2>Assigned to me</h2>" in page.text
+    assert "KEEL-1" in page.text
+    assert "Expand" in page.text
+    assert "Minimize" not in page.text
+
+
+def test_minimizing_a_home_section_sets_the_cookie_and_returns(
+    client: TestClient,
+) -> None:
+    _seed_assigned(client)
+    response = client.post(
+        "/web/inbox",
+        data={"collapsed": "assigned", "next": "/"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert client.cookies["keel_inbox"] == "assigned"
+    page = client.get("/")
+    assert " open" not in _panel(page.text, "assigned")
+
+
+def test_status_from_home_keeps_a_collapsed_section(client: TestClient) -> None:
+    issue = _seed_assigned(client)
+    client.cookies.set("keel_inbox", "assigned")
+    response = client.post(
+        f"/web/issues/{issue['id']}/status",
+        data={"status": "in_progress", "next": "/"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    page = client.get("/")
+    assert " open" not in _panel(page.text, "assigned")
+    assert "In Progress" in page.text

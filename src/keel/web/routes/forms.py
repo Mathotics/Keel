@@ -34,6 +34,12 @@ from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE
 from keel.web.context import Chrome, ChromeDep, SessionDep
+from keel.web.inbox import (
+    INBOX_COOKIE,
+    INBOX_COOKIE_MAX_AGE,
+    encode_collapsed,
+    parse_collapsed,
+)
 from keel.web.nav import (
     NAV_COOKIE,
     NAV_COOKIE_MAX_AGE,
@@ -102,6 +108,22 @@ def save_nav_order(
         order.split(","),
     )
     return _remember_nav(_back(return_to or "/"), merged)
+
+
+@router.post("/inbox")
+def save_inbox_collapsed(
+    collapsed: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    response = _back(return_to or "/")
+    response.set_cookie(
+        INBOX_COOKIE,
+        encode_collapsed(parse_collapsed(collapsed)),
+        max_age=INBOX_COOKIE_MAX_AGE,
+        path="/",
+        samesite="lax",
+    )
+    return response
 
 
 @router.post("/nav/move")
