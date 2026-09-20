@@ -28,9 +28,13 @@ def check_recipe_window(
     due_offset_days: int,
     due_minute_of_day: int,
 ) -> None:
+    if start_offset_days < 0:
+        raise InvalidSeriesError("Start offset is how many days before the occurrence.")
+    if due_offset_days < 0:
+        raise InvalidSeriesError("Due offset is how many days after the occurrence.")
     check_minute_of_day(start_minute_of_day)
     check_minute_of_day(due_minute_of_day)
-    start = start_offset_days * MINUTES_PER_DAY + start_minute_of_day
+    start = -start_offset_days * MINUTES_PER_DAY + start_minute_of_day
     due = due_offset_days * MINUTES_PER_DAY + due_minute_of_day
     if start > due:
         raise InvalidSeriesError("Start cannot be after due.")
@@ -47,11 +51,45 @@ def occurrence_at(
     return datetime(day.year, day.month, day.day, hours, minutes)
 
 
+def recipe_start_at(
+    occurrence_on: date,
+    start_offset_days: int,
+    start_minute_of_day: int,
+) -> datetime:
+    return occurrence_at(occurrence_on, -start_offset_days, start_minute_of_day)
+
+
+def recipe_due_at(
+    occurrence_on: date,
+    due_offset_days: int,
+    due_minute_of_day: int,
+) -> datetime:
+    return occurrence_at(occurrence_on, due_offset_days, due_minute_of_day)
+
+
 def offsets_from(occurrence_on: date, instant: datetime) -> tuple[int, int]:
     naive = _naive_utc(instant)
     offset_days = (naive.date() - occurrence_on).days
     minute_of_day = naive.hour * 60 + naive.minute
     return offset_days, minute_of_day
+
+
+def recipe_offsets_from(
+    occurrence_on: date,
+    start_at: datetime,
+    due_at: datetime,
+) -> tuple[int, int, int, int]:
+    signed_start_days, start_minute_of_day = offsets_from(occurrence_on, start_at)
+    signed_due_days, due_minute_of_day = offsets_from(occurrence_on, due_at)
+    start_offset_days = -signed_start_days
+    due_offset_days = signed_due_days
+    check_recipe_window(
+        start_offset_days,
+        start_minute_of_day,
+        due_offset_days,
+        due_minute_of_day,
+    )
+    return start_offset_days, start_minute_of_day, due_offset_days, due_minute_of_day
 
 
 def format_clock(minute_of_day: int) -> str:

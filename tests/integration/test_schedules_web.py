@@ -39,6 +39,8 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     form = client.get("/projects/HOME/schedules?tab=new")
     assert form.status_code == 200
     assert "Create series" in form.text
+    assert "Start offset (days before occurrence)" in form.text
+    assert "Due offset (days after occurrence)" in form.text
     assert 'name="title"' in form.text
     assert 'name="priority"' in form.text
     assert 'value="p4" selected' in form.text
@@ -133,6 +135,25 @@ def test_a_refused_series_returns_to_the_new_series_tab(client: TestClient) -> N
     page = client.get(location)
     assert "Create series" in page.text
     assert "A series needs a title." in page.text
+
+
+def test_a_negative_start_offset_is_refused(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    refused = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(start_offset_days="-1"),
+        follow_redirects=False,
+    )
+    assert refused.status_code == 303
+    location = refused.headers["location"]
+    assert location.startswith("/projects/HOME/schedules?tab=new")
+    page = client.get(location)
+    assert "Day offset cannot be negative." in page.text
+    listing = client.get("/projects/HOME/schedules")
+    assert "Take out trash" not in listing.text
 
 
 def test_a_series_can_be_paused_resumed_edited_and_deleted(

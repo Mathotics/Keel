@@ -141,10 +141,10 @@ Indexes and constraints:
 | `spawn_mode` | TEXT | not null, `CHECK` in (`calendar`, `after_closed`) |
 | `sprint_basis` | TEXT | not null, `CHECK` in (`due_on`, `start_on`, `created_on`) |
 | `look_ahead_n` | INTEGER | not null, default 1, `CHECK >= 1` |
-| `start_offset_days` | INTEGER | not null, default 0 |
+| `start_offset_days` | INTEGER | not null, default 0; days **before** `occurrence_on` |
 | `start_minute_of_day` | INTEGER | not null, default 0, `CHECK` 0–1439 |
-| `due_offset_days` | INTEGER | not null, default 0 |
-| `due_minute_of_day` | INTEGER | not null, default 0, `CHECK` 0–1439, and start offset+time must not be after due |
+| `due_offset_days` | INTEGER | not null, default 0; days **after** `occurrence_on` |
+| `due_minute_of_day` | INTEGER | not null, default 0, `CHECK` 0–1439, and start (occurrence minus start offset) must not be after due (occurrence plus due offset) |
 | `freq` | TEXT | not null, `CHECK` in (`daily`, `weekly`, `monthly`, `yearly`) |
 | `interval` | INTEGER | not null, default 1, `CHECK >= 1` |
 | `weekdays` | TEXT | not null, default `''` |
@@ -269,6 +269,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0016` | `issues.priority` server default `'p4'` |
 | `0017` | `series.priority` |
 | `0018` | `projects.sprint_ahead` |
+| `0019` | series start offset stored as days before occurrence |
 
 ## Related documents
 

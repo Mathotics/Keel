@@ -150,7 +150,7 @@ Completion returns what moved:
 | `POST` | `/api/v1/series/{series_id}/resume` | Resume spawning |
 | `DELETE` | `/api/v1/series/{series_id}` | Delete the recipe; existing issues stay |
 
-Issues spawned from a series include `series_id` and `occurrence_on`. Each series stores start and due as day offsets plus minutes-of-day from the occurrence date, `sprint_basis` may be `due_on`, `start_on`, or `created_on`, and `priority` is the same `p1`–`p5` rank copied onto each new copy ([ADR 021](../adr/ADR-021.md), [ADR 029](../adr/ADR-029.md), [Series recipe priority](../adr/series-recipe-priority.md)). After the series is deleted those become `null` and the issue keeps `former_series_title` and `former_series_cadence` ([ADR 028](../adr/ADR-028.md)).
+Issues spawned from a series include `series_id` and `occurrence_on`. Each series stores start as days **before** the occurrence plus minutes-of-day, and due as days **after** plus minutes-of-day. `sprint_basis` may be `due_on`, `start_on`, or `created_on`, and `priority` is the same `p1`–`p5` rank copied onto each new copy ([ADR 021](../adr/ADR-021.md), [ADR 029](../adr/ADR-029.md), [Series recipe priority](../adr/series-recipe-priority.md)). After the series is deleted those become `null` and the issue keeps `former_series_title` and `former_series_cadence` ([ADR 028](../adr/ADR-028.md)).
 
 ## Dependencies
 

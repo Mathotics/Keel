@@ -29,8 +29,10 @@ from keel.domain.recurrence import (
 )
 from keel.domain.schedule import (
     check_recipe_window,
-    occurrence_at,
     offsets_from,
+    recipe_due_at,
+    recipe_offsets_from,
+    recipe_start_at,
 )
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
@@ -674,12 +676,12 @@ def _update_one_issue(
 
 def occurrence_window(series: Series, occurrence_on: date) -> tuple[datetime, datetime]:
     return (
-        occurrence_at(
+        recipe_start_at(
             occurrence_on,
             series.start_offset_days,
             series.start_minute_of_day,
         ),
-        occurrence_at(
+        recipe_due_at(
             occurrence_on,
             series.due_offset_days,
             series.due_minute_of_day,
@@ -748,7 +750,8 @@ def _offsets_from_issue(
     start_days, start_minutes = (0, 0)
     due_days, due_minutes = (0, 0)
     if issue.start_at is not None:
-        start_days, start_minutes = offsets_from(occurrence_on, issue.start_at)
+        signed_start_days, start_minutes = offsets_from(occurrence_on, issue.start_at)
+        start_days = -signed_start_days
     if issue.due_at is not None:
         due_days, due_minutes = offsets_from(occurrence_on, issue.due_at)
     check_recipe_window(start_days, start_minutes, due_days, due_minutes)
@@ -766,10 +769,11 @@ def _offsets_from_datetimes(
     due = issue.due_at if due_at is UNSET else due_at
     if start is None or due is None:
         raise InvalidSeriesError("A series recipe needs both a start and a due.")
-    start_days, start_minutes = offsets_from(issue.occurrence_on, start)  # type: ignore[arg-type]
-    due_days, due_minutes = offsets_from(issue.occurrence_on, due)  # type: ignore[arg-type]
-    check_recipe_window(start_days, start_minutes, due_days, due_minutes)
-    return start_days, start_minutes, due_days, due_minutes
+    return recipe_offsets_from(
+        issue.occurrence_on,
+        start,  # type: ignore[arg-type]
+        due,  # type: ignore[arg-type]
+    )
 
 
 def _require_series(session: Session, series_id: int) -> Series:

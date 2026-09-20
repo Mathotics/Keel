@@ -70,7 +70,7 @@ class Series(Base):
             name="ck_series_due_minute_of_day",
         ),
         CheckConstraint(
-            "(start_offset_days * 1440 + start_minute_of_day) "
+            "(-start_offset_days * 1440 + start_minute_of_day) "
             "<= (due_offset_days * 1440 + due_minute_of_day)",
             name="ck_series_start_not_after_due",
         ),

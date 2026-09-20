@@ -32,9 +32,9 @@ class SeriesCreate(BaseModel):
     ends_on: date | None = None
     occurrence_count: int | None = Field(default=None, ge=1)
     look_ahead_n: int = Field(default=1, ge=1)
-    start_offset_days: int = 0
+    start_offset_days: int = Field(default=0, ge=0)
     start_minute_of_day: int = Field(default=0, ge=0, lt=1440)
-    due_offset_days: int = 0
+    due_offset_days: int = Field(default=0, ge=0)
     due_minute_of_day: int = Field(default=0, ge=0, lt=1440)
     parent_id: int | None = None
     assignee_id: int | None = None
@@ -60,9 +60,9 @@ class SeriesUpdate(BaseModel):
     ends_on: date | None = None
     occurrence_count: int | None = None
     look_ahead_n: int | None = Field(default=None, ge=1)
-    start_offset_days: int | None = None
+    start_offset_days: int | None = Field(default=None, ge=0)
     start_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
-    due_offset_days: int | None = None
+    due_offset_days: int | None = Field(default=None, ge=0)
     due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
     parent_id: int | None = None
     assignee_id: int | None = None
