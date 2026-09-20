@@ -28,7 +28,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 | Path | Template | Contents |
 | --- | --- | --- |
-| `/` | `home.html` | Personal inbox for the picker user: due or overdue, starting or started, assigned, blocked, active sprint, and series copies waiting this cycle |
+| `/` | `home.html` | Personal inbox for the picker user: due or overdue, starting or started, assigned, blocked, active sprint, series copies waiting this cycle, and completed today |
 | `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, sprints in advance, and delete, issue counts by status |
@@ -47,7 +47,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 
 Web URLs address issues by key, as `/issues/KEEL-12`; the JSON API addresses them by internal identifier ([ADR 012](../adr/ADR-012.md)).
 
-Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md), [ADR 029](../adr/ADR-029.md)): stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. Each non-empty section is a native disclosure: the heading and row count stay visible, Minimize/Expand persist the closed set in a `keel_inbox` cookie, and `inbox.js` saves a disclosure toggle without a round trip ([Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)). `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
+Every collection sits at its own path, so the project list lives at `/projects` beside `/users` rather than at the site root. `/` is the acting user's inbox ([ADR 022](../adr/ADR-022.md), [ADR 029](../adr/ADR-029.md), [Completed today on the home inbox](../adr/completed-today-home-panel.md)): stacked sections that can overlap, scoped to the picker, with unassigned work kept off the page. Empty sections are omitted; when nothing matches, one quiet message is shown, and it links to Projects if there are none yet. Each non-empty section is a native disclosure: the heading and row count stay visible, Minimize/Expand persist the closed set in a `keel_inbox` cookie, and `inbox.js` saves a disclosure toggle without a round trip ([Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)). `/projects` stays a directory people open on purpose. A status control on each row posts to the same `/web/issues/{id}/status` action as the board and returns here.
 
 ## Creation and editing forms
 
@@ -160,6 +160,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
 * [ADR 022: Home page as a personal work inbox](../adr/ADR-022.md)
 * [Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)
+* [Completed today on the home inbox](../adr/completed-today-home-panel.md)
 * [ADR 023: Help menu links to FastAPI API docs](../adr/ADR-023.md)
 * [ADR 024: Issue-page repeating recipe in an overlay](../adr/ADR-024.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)

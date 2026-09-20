@@ -291,6 +291,78 @@ def test_minimizing_a_home_section_sets_the_cookie_and_returns(
     assert " open" not in _panel(page.text, "assigned")
 
 
+def test_home_lists_completed_today_last(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Shipped",
+            "assignee_id": tester["id"],
+        },
+    ).json()
+    client.patch(f"/api/v1/issues/{issue['id']}", json={"status": "done"})
+
+    page = client.get("/")
+    headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
+    assert headings[-1] == "Completed today"
+    assert "<h2>Assigned to me</h2>" not in page.text
+    assert "Nothing assigned to you right now." not in page.text
+    completed = page.text.split("<h2>Completed today</h2>", 1)[1]
+    assert "KEEL-1" in completed
+    assert "Shipped" in completed
+    assert ">Completed<" in completed
+    assert 'data-keel-inbox-panel="completed"' in page.text
+
+
+def test_cancelled_stays_off_completed_today(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Dropped",
+            "assignee_id": tester["id"],
+        },
+    ).json()
+    client.patch(f"/api/v1/issues/{issue['id']}", json={"status": "cancelled"})
+
+    page = client.get("/")
+    assert "<h2>Completed today</h2>" not in page.text
+    assert "Dropped" not in page.text
+
+
+def test_the_inbox_cookie_closes_completed_today(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Shipped",
+            "assignee_id": tester["id"],
+        },
+    ).json()
+    client.patch(f"/api/v1/issues/{issue['id']}", json={"status": "done"})
+    client.cookies.set("keel_inbox", "completed")
+    page = client.get("/")
+    completed = _panel(page.text, "completed")
+    assert " open" not in completed
+    assert "<h2>Completed today</h2>" in page.text
+    assert "KEEL-1" in page.text
+
+
 def test_status_from_home_keeps_a_collapsed_section(client: TestClient) -> None:
     issue = _seed_assigned(client)
     client.cookies.set("keel_inbox", "assigned")

@@ -12,6 +12,7 @@ SECTIONS: tuple[str, ...] = (
     "blocked",
     "sprint",
     "waiting",
+    "completed",
 )
 KNOWN = frozenset(SECTIONS)
 

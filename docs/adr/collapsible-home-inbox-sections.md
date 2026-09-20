@@ -1,11 +1,11 @@
 # Collapsible home inbox sections
 
 * **Status:** Accepted
-* **Date:** 2026-09-18
+* **Date:** 2026-09-19
 
 ## Background
 
-`/` is the acting user's personal inbox ([ADR 022](personal-work-inbox.md), [ADR 029](ADR-029.md)): stacked sections for due or overdue, starting or started, assigned, blocked, active sprint, and waiting this cycle. Empty sections are omitted; a busy day still stacks several tables. Status changes post and re-render `/`. Top-bar section order already persists in a browser cookie, not a user row ([ADR 001](persistent-top-menu-bar.md)). Native disclosure already hides Help and the issue description editor without JavaScript ([ADR 023](ADR-023.md), [ADR 009](server-rendered-jinja2.md)).
+`/` is the acting user's personal inbox ([ADR 022](personal-work-inbox.md), [ADR 029](ADR-029.md), [Completed today on the home inbox](completed-today-home-panel.md)): stacked sections for due or overdue, starting or started, assigned, blocked, active sprint, waiting this cycle, and completed today. Empty sections are omitted; a busy day still stacks several tables. Status changes post and re-render `/`. Top-bar section order already persists in a browser cookie, not a user row ([ADR 001](persistent-top-menu-bar.md)). Native disclosure already hides Help and the issue description editor without JavaScript ([ADR 023](ADR-023.md), [ADR 009](server-rendered-jinja2.md)).
 
 KEEL-32 asks to minimize those home panels so people do not have to scroll past lists they are not looking at.
 
@@ -51,7 +51,7 @@ Every non-empty inbox section is always fully open. Assigned to me repeats issue
 * **Must** keep the heading visible when the section is collapsed; **Must Not** omit the section the way an empty section is omitted.
 * **Must** show the row count on the heading of every rendered section.
 * **Must** persist the collapsed set in a `keel_inbox` cookie on this browser, the same regardless of who is selected in the picker (same rule as `keel_nav`).
-* **Must** store only known section keys (`due`, `starting`, `assigned`, `blocked`, `sprint`, `waiting`), dotted, dropping unknowns; an empty cookie means nothing is collapsed.
+* **Must** store only known section keys (`due`, `starting`, `assigned`, `blocked`, `sprint`, `waiting`, `completed`), dotted, dropping unknowns; an empty cookie means nothing is collapsed.
 * **Must** restore collapsed/expanded from that cookie on every render of `/`, including after a status change that returns here.
 * **Must** work without JavaScript: a Minimize or Expand control posts to `/web/inbox` and redirects to `/`.
 * **May** hide that control after `inbox.js` has run and persist instead from the disclosure's `toggle` event.
@@ -107,6 +107,7 @@ flowchart TD
 * [UI design](../design/ui.md)
 * [Use cases](../architecture/use-cases.md)
 * [ADR 022: Home page as a personal work inbox](personal-work-inbox.md)
+* [Completed today on the home inbox](completed-today-home-panel.md)
 * [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](server-rendered-jinja2.md)
 * [ADR 018: Phone layout of the existing site](phone-layout.md)
 * [ADR 023: Help menu links to FastAPI API docs](ADR-023.md)

@@ -29,6 +29,7 @@
             {% if extra == "due" %}<th>Due</th>{% endif %}
             {% if extra == "sprint" %}<th>Sprint</th>{% endif %}
             {% if extra == "occurrence" %}<th>Occurrence</th>{% endif %}
+            {% if extra == "completed" %}<th>Completed</th>{% endif %}
             <th>Status</th>
           </tr>
         </thead>
@@ -49,6 +50,7 @@
             {% if extra == "due" %}<td>{{ item.issue.due_at | when }}</td>{% endif %}
             {% if extra == "sprint" %}<td>{{ item.sprint_name or "" }}</td>{% endif %}
             {% if extra == "occurrence" %}<td>{{ item.issue.occurrence_on | day }}</td>{% endif %}
+            {% if extra == "completed" %}<td>{% if item.completed_at %}{{ item.completed_at | when }}{% endif %}</td>{% endif %}
             <td>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ item.issue.id }}/status" data-keel-autosubmit>
                 <input type="hidden" name="next" value="/"/>
@@ -100,6 +102,9 @@
       {% endif %}
       {% if inbox.waiting %}
       {{ inbox_section("waiting", "Waiting this cycle", inbox.waiting, "occurrence") }}
+      {% endif %}
+      {% if inbox.completed %}
+      {{ inbox_section("completed", "Completed today", inbox.completed, "completed") }}
       {% endif %}
 
       {% endif %}

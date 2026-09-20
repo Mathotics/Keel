@@ -1,9 +1,10 @@
 from datetime import UTC, date, datetime
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Project
+from keel.db.models import IssueHistory, Project
 from keel.domain.enums import (
     DependencyKind,
     IssueStatus,
@@ -13,6 +14,7 @@ from keel.domain.enums import (
     SeriesSprintBasis,
 )
 from keel.services import dependencies as dependency_service
+from keel.services import history as history_service
 from keel.services import home as home_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
@@ -21,10 +23,28 @@ from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 
 TODAY = date(2026, 9, 13)
+TODAY_NOON = datetime(2026, 9, 13, 12, 0)
+YESTERDAY_NOON = datetime(2026, 9, 12, 12, 0)
 
 
 def _project(session: Session, key: str = "KEEL") -> Project:
     return project_service.create_project(session, key, key.title())
+
+
+def _complete_on(session: Session, issue_id: int, when: datetime) -> None:
+    issue_service.update_issue(session, issue_id, status=IssueStatus.DONE)
+    event = session.scalars(
+        select(IssueHistory)
+        .where(
+            IssueHistory.issue_id == issue_id,
+            IssueHistory.field == history_service.FIELD_STATUS,
+            IssueHistory.to_value == "Done",
+        )
+        .order_by(IssueHistory.id.desc()),
+    ).first()
+    assert event is not None
+    event.created_at = when
+    session.flush()
 
 
 def test_unassigned_and_other_people_stay_off_the_inbox(session: Session) -> None:
@@ -343,6 +363,164 @@ def test_waiting_this_cycle_excludes_future_look_ahead(session: Session) -> None
         assert item.issue.occurrence_on <= TODAY
 
 
+def test_completed_today_is_done_assigned_work_moved_today(
+    session: Session,
+) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    grace = user_service.create_user(session, "Grace")
+    finished = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Shipped today",
+        assignee_id=ada.id,
+    )
+    _complete_on(session, finished.id, TODAY_NOON)
+    yesterday = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Shipped yesterday",
+        assignee_id=ada.id,
+    )
+    _complete_on(session, yesterday.id, YESTERDAY_NOON)
+    issue_service.update_issue(session, yesterday.id, title="Edited after done")
+    cancelled = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Dropped",
+        assignee_id=ada.id,
+    )
+    issue_service.update_issue(session, cancelled.id, status=IssueStatus.CANCELLED)
+    reopened = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Reopened",
+        assignee_id=ada.id,
+    )
+    _complete_on(session, reopened.id, TODAY_NOON)
+    issue_service.update_issue(session, reopened.id, status=IssueStatus.IN_PROGRESS)
+    unassigned = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "No owner",
+    )
+    _complete_on(session, unassigned.id, TODAY_NOON)
+    grace_item = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Grace shipped",
+        assignee_id=grace.id,
+    )
+    _complete_on(session, grace_item.id, TODAY_NOON)
+    still_open = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Still open",
+        assignee_id=ada.id,
+    )
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert [item.issue.id for item in inbox.completed] == [finished.id]
+    assert inbox.completed[0].completed_at == TODAY_NOON
+    assert still_open.id in {item.issue.id for item in inbox.assigned}
+    assert finished.id not in {item.issue.id for item in inbox.assigned}
+
+
+def test_created_as_done_counts_as_completed_on_the_birth_day(
+    session: Session,
+) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    born_done = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Filed closed",
+        status=IssueStatus.DONE,
+        assignee_id=ada.id,
+    )
+    born_done.created_at = TODAY_NOON
+    session.flush()
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert [item.issue.id for item in inbox.completed] == [born_done.id]
+    assert inbox.completed[0].completed_at == TODAY_NOON
+
+
+def test_completed_today_sorts_newest_first(session: Session) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    earlier = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Morning",
+        assignee_id=ada.id,
+    )
+    later = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Afternoon",
+        assignee_id=ada.id,
+    )
+    _complete_on(session, earlier.id, datetime(2026, 9, 13, 9, 0))
+    _complete_on(session, later.id, datetime(2026, 9, 13, 16, 0))
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert [item.issue.title for item in inbox.completed] == ["Afternoon", "Morning"]
+
+
+def test_completed_today_can_overlap_the_active_sprint(session: Session) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    active = sprint_service.create_sprint(session, project.id, "This week")
+    sprint_service.start_sprint(session, active.id)
+    shipped = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Sprint done",
+        assignee_id=ada.id,
+        sprint_id=active.id,
+    )
+    _complete_on(session, shipped.id, TODAY_NOON)
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert [item.issue.id for item in inbox.completed] == [shipped.id]
+    assert shipped.id in {item.issue.id for item in inbox.active_sprint}
+
+
+def test_an_inbox_of_only_completed_today_is_not_empty(session: Session) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    finished = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Only this",
+        assignee_id=ada.id,
+    )
+    _complete_on(session, finished.id, TODAY_NOON)
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert inbox.empty is False
+    assert inbox.assigned == ()
+    assert [item.issue.id for item in inbox.completed] == [finished.id]
+
+
 def test_an_empty_inbox_has_no_sections(session: Session) -> None:
     ada = user_service.create_user(session, "Ada")
     _project(session)
@@ -355,6 +533,7 @@ def test_an_empty_inbox_has_no_sections(session: Session) -> None:
     assert inbox.blocked == ()
     assert inbox.active_sprint == ()
     assert inbox.waiting == ()
+    assert inbox.completed == ()
 
 
 def test_aware_due_timestamps_use_the_utc_calendar_day() -> None:
