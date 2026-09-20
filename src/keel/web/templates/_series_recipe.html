@@ -90,16 +90,16 @@
               <input id="{{ prefix }}-n" name="look_ahead_n" type="number" min="1" value="{{ recipe.look_ahead_n if recipe else 1 }}" required/>
             </p>
             <p>
-              <label for="{{ prefix }}-start-offset">Start offset (days from occurrence)</label>
-              <input id="{{ prefix }}-start-offset" name="start_offset_days" type="number" value="{{ recipe.start_offset_days if recipe else 0 }}" required/>
+              <label for="{{ prefix }}-start-offset">Start offset (days before occurrence)</label>
+              <input id="{{ prefix }}-start-offset" name="start_offset_days" type="number" min="0" value="{{ recipe.start_offset_days if recipe else 0 }}" required/>
             </p>
             <p>
               <label for="{{ prefix }}-start-time">Start time</label>
               <input id="{{ prefix }}-start-time" name="start_time" type="time" value="{{ recipe.start_minute_of_day | clock if recipe else '00:00' }}" required/>
             </p>
             <p>
-              <label for="{{ prefix }}-due-offset">Due offset (days from occurrence)</label>
-              <input id="{{ prefix }}-due-offset" name="due_offset_days" type="number" value="{{ recipe.due_offset_days if recipe else 0 }}" required/>
+              <label for="{{ prefix }}-due-offset">Due offset (days after occurrence)</label>
+              <input id="{{ prefix }}-due-offset" name="due_offset_days" type="number" min="0" value="{{ recipe.due_offset_days if recipe else 0 }}" required/>
             </p>
             <p>
               <label for="{{ prefix }}-due-time">Due time</label>

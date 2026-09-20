@@ -550,7 +550,7 @@ def test_spawned_copies_get_start_and_due_from_offsets(
     series = _weekly(
         session,
         project,
-        start_offset_days=-1,
+        start_offset_days=1,
         start_minute_of_day=9 * 60,
         due_offset_days=0,
         due_minute_of_day=17 * 60,
@@ -582,7 +582,7 @@ def test_start_sprint_basis_uses_the_start_calendar_date(
     series = _weekly(
         session,
         project,
-        start_offset_days=-1,
+        start_offset_days=1,
         start_minute_of_day=9 * 60,
         due_offset_days=0,
         due_minute_of_day=17 * 60,
@@ -639,7 +639,7 @@ def test_outlook_scopes_rewrite_open_copy_dates(
     session.refresh(series)
     session.refresh(first)
     session.refresh(second)
-    assert series.start_offset_days == -1
+    assert series.start_offset_days == 1
     assert series.start_minute_of_day == 9 * 60
     assert series.due_minute_of_day == 17 * 60
     assert first.start_at == datetime(2026, 9, 13, 8, 0)

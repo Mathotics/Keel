@@ -93,7 +93,7 @@ A repeating recipe that spawns ordinary issues. Recurrence is not an issue type 
 * Cadence (daily / weekly / monthly / yearly, with interval and optional end).
 * Spawn mode — on the calendar, or after the previous copy is closed.
 * Sprint assignment basis — creation date, due date, or start date; look-ahead N when no sprint overlaps.
-* Start and due for each copy — a day offset plus clock time from the occurrence day ([ADR 029](../adr/ADR-029.md)).
+* Start and due for each copy — start is days before the occurrence plus clock time; due is days after plus clock time ([ADR 029](../adr/ADR-029.md)).
 * State — *active* or *paused*. Delete removes the recipe; leftover *stopped* series are treated as deleted ([ADR 028](../adr/ADR-028.md)).
 * Relationships: belongs to one project; spawns many issue occurrences.
 

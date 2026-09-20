@@ -10,6 +10,9 @@ from keel.domain.schedule import (
     occurrence_at,
     offsets_from,
     parse_clock,
+    recipe_due_at,
+    recipe_offsets_from,
+    recipe_start_at,
 )
 
 
@@ -37,6 +40,26 @@ def test_occurrence_offsets_round_trip() -> None:
     instant = occurrence_at(occurrence, -1, 9 * 60)
     assert instant == datetime(2026, 9, 14, 9, 0)
     assert offsets_from(occurrence, instant) == (-1, 9 * 60)
+
+
+def test_recipe_start_is_days_before_and_due_is_days_after() -> None:
+    occurrence = date(2026, 9, 15)
+    start = recipe_start_at(occurrence, 1, 9 * 60)
+    due = recipe_due_at(occurrence, 2, 17 * 60)
+    assert start == datetime(2026, 9, 14, 9, 0)
+    assert due == datetime(2026, 9, 17, 17, 0)
+    assert recipe_offsets_from(occurrence, start, due) == (1, 9 * 60, 2, 17 * 60)
+
+
+def test_recipe_window_allows_start_the_day_before_due() -> None:
+    check_recipe_window(1, 17 * 60, 0, 9 * 60)
+
+
+def test_recipe_window_refuses_negative_offsets() -> None:
+    with pytest.raises(InvalidSeriesError, match="days before the occurrence"):
+        check_recipe_window(-1, 9 * 60, 0, 17 * 60)
+    with pytest.raises(InvalidSeriesError, match="days after the occurrence"):
+        check_recipe_window(0, 9 * 60, -1, 17 * 60)
 
 
 def test_recipe_window_refuses_start_after_due() -> None:

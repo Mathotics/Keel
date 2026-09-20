@@ -1233,15 +1233,18 @@ def _positive_int(raw: str, message: str) -> int:
 
 
 def _offset_days(raw: str) -> int:
+    from keel.domain.errors import InvalidSeriesError
+
     cleaned = raw.strip()
     if not cleaned:
         return 0
     try:
-        return int(cleaned)
+        value = int(cleaned)
     except ValueError as exc:
-        from keel.domain.errors import InvalidSeriesError
-
         raise InvalidSeriesError("Day offset could not be read.") from exc
+    if value < 0:
+        raise InvalidSeriesError("Day offset cannot be negative.")
+    return value
 
 
 def _end_date(end_mode: str, raw: str) -> date | None:
