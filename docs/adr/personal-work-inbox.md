@@ -1,15 +1,17 @@
 # ADR 022: Home page as a personal work inbox
 
 * **Status:** Accepted
-* **Date:** 2026-09-19
+* **Date:** 2026-09-20
 
 > **Amendment.** [Collapsible home inbox sections](collapsible-home-inbox-sections.md) lets each non-empty section fold behind its heading. The collapsed set is a browser cookie, restored after a reload or a status change on `/`.
 >
 > **Amendment.** [ADR 030](ADR-030.md) adds a Priority column on inbox rows so rank is visible next to type.
 >
-> **Amendment.** [ADR 029](ADR-029.md) adds a Starting or started section. Time-sensitive sections render first: Due or overdue, then Starting or started, then Assigned to me.
+> **Amendment.** [ADR 029](ADR-029.md) adds a Starting or started section. Time-sensitive sections render first: Due or overdue, then Due this week or this month, then Starting or started, then Assigned to me.
 >
-> **Amendment.** [Completed today on the home inbox](completed-today-home-panel.md) adds a seventh section at the bottom for assigned issues that became *Done* today.
+> **Amendment.** [Completed today on the home inbox](completed-today-home-panel.md) adds a section at the bottom for assigned issues that became *Done* today.
+>
+> **Amendment.** [Due this week or this month on the home inbox](due-this-week-or-this-month-home-panel.md) adds a look-ahead due section immediately after Due or overdue.
 
 ## Background
 
@@ -33,7 +35,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 ### In-Scope
 
 * A real HTML page at `/` (no redirect) for the picker user.
-* Seven titled sections, in this order: Due or overdue; Starting or started; Assigned to me; Blocked; In the active sprint; Waiting this cycle; Completed today.
+* Eight titled sections, in this order: Due or overdue; Due this week or this month; Starting or started; Assigned to me; Blocked; In the active sprint; Waiting this cycle; Completed today.
 * Status change on each row, returning to `/`.
 * Empty-section hiding and a single quiet state when nothing matches.
 * Doc updates so the UI map and use cases match this page.
@@ -60,14 +62,15 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 * **Must** include in every section only issues whose assignee is the acting user; **Must Not** show unassigned issues on `/`.
 * **Must** allow the same issue to appear in more than one section when it matches more than one rule.
 * **Must** hide a section entirely when it has no rows.
-* **Must** render non-empty sections in this order: Due or overdue; Starting or started; Assigned to me; Blocked; In the active sprint; Waiting this cycle; Completed today.
+* **Must** render non-empty sections in this order: Due or overdue; Due this week or this month; Starting or started; Assigned to me; Blocked; In the active sprint; Waiting this cycle; Completed today.
 * **Must**, when every section is empty, show one quiet message and no section headings; if there are also no projects, that message **Must** include a link to `/projects`.
 * **Must** list under **Assigned to me** every unfinished issue assigned to the acting user, across all projects.
 * **Must** list under **Due or overdue** those unfinished assigned issues whose `due_at` calendar date is the local today or earlier; **Must Not** list issues due after local today, or issues with no due date, in this section. "Today" is the server's local calendar date, not the UTC date, so an evening in a US timezone does not pull in tomorrow's work.
+* **Must** list under **Due this week or this month** unfinished assigned issues whose `due_at` calendar date is after local today and on or before the later of this ISO week's Sunday and this calendar month's last day ([Due this week or this month on the home inbox](due-this-week-or-this-month-home-panel.md)).
 * **Must** list under **Blocked** unfinished assigned issues whose status is Blocked, or that have unresolved blockers, or both.
 * **Must** list under **In the active sprint** every issue assigned to the acting user whose sprint is currently active in its project, including *Done* and *Cancelled*.
 * **Must** list under **Waiting this cycle** unfinished spawned series copies assigned to the acting user whose `occurrence_on` is today or earlier; **Must Not** list future look-ahead copies in this section.
-* **Must Not** list *Done* or *Cancelled* issues in Assigned, Due or overdue, Blocked, or Waiting this cycle.
+* **Must Not** list *Done* or *Cancelled* issues in Assigned, Due or overdue, Due this week or this month, Blocked, or Waiting this cycle.
 * **Must** list under **Completed today** assigned issues whose current status is *Done* and whose latest move to *Done* (or created-as-*Done*) falls on the local today; **Must Not** list *Cancelled* there ([Completed today on the home inbox](completed-today-home-panel.md)).
 * **Must** show each row as a table in the existing list style: issue key (link to the issue), type, priority, title, project, and a status control; **Must** show the unresolved-blocker marker when that count is non-zero.
 * **Must** include a status select and Move control on each row that posts to the existing issue status action and returns to `/`.
@@ -82,7 +85,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 ## Consequences
 
 * **Good:** Opening the app answers "what is on me?" instead of "which project exists?" The home icon finally lands on a page. `/projects` can stay a directory.
-* **Good:** Due or overdue and Starting or started sit at the top, so calendar-urgent work is visible before the full assigned list.
+* **Good:** Due or overdue, Due this week or this month, and Starting or started sit at the top, so calendar-urgent and near-horizon work is visible before the full assigned list.
 * **Good:** Overlapping sections make an issue that is both overdue and blocked visible in both places without inventing a priority rank.
 * **Bad:** Assigned to me will repeat issues that also sit in other sections, so a busy user sees the same key more than once.
 * **Bad:** Closed items appear in the active-sprint section and, when *Done* today, in Completed today, so `/` is not a single consistent "open work" list.
@@ -147,3 +150,4 @@ flowchart TD
 * [ADR 021: Repeating work via Scheduling Manager](ADR-021.md)
 * [Collapsible home inbox sections](collapsible-home-inbox-sections.md)
 * [Completed today on the home inbox](completed-today-home-panel.md)
+* [Due this week or this month on the home inbox](due-this-week-or-this-month-home-panel.md)

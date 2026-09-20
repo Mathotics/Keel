@@ -1,6 +1,9 @@
 import re
+from calendar import monthrange
+from datetime import date, timedelta
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
 Json = dict[str, Any]
@@ -130,6 +133,89 @@ def test_home_lists_due_and_starting_before_assigned(client: TestClient) -> None
         "Assigned to me",
     ]
     assert headings[3] == "Blocked"
+
+
+def _horizon_end(day: date) -> date:
+    week_end = day + timedelta(days=7 - day.isoweekday())
+    month_end = date(day.year, day.month, monthrange(day.year, day.month)[1])
+    return max(week_end, month_end)
+
+
+def test_home_lists_upcoming_due_after_due_or_overdue(client: TestClient) -> None:
+    today = date.today()
+    horizon = _horizon_end(today)
+    if today >= horizon:
+        pytest.skip("no look-ahead days remain in this week or month")
+    soon = today + timedelta(days=1)
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Late",
+            "assignee_id": tester["id"],
+            "due_at": "2020-01-01T09:00:00",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Soon",
+            "assignee_id": tester["id"],
+            "due_at": f"{soon.isoformat()}T09:00:00",
+        },
+    )
+
+    page = client.get("/")
+    headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
+    assert headings[:3] == [
+        "Due or overdue",
+        "Due this week or this month",
+        "Assigned to me",
+    ]
+    upcoming = page.text.split("<h2>Due this week or this month</h2>", 1)[1].split(
+        "<h2>",
+        1,
+    )[0]
+    due = page.text.split("<h2>Due or overdue</h2>", 1)[1].split("<h2>", 1)[0]
+    assert "Soon" in upcoming
+    assert "Late" not in upcoming
+    assert "Late" in due
+    assert "Soon" not in due
+    assert 'data-keel-inbox-panel="upcoming"' in page.text
+
+
+def test_the_inbox_cookie_closes_upcoming(client: TestClient) -> None:
+    today = date.today()
+    horizon = _horizon_end(today)
+    if today >= horizon:
+        pytest.skip("no look-ahead days remain in this week or month")
+    soon = today + timedelta(days=1)
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Soon",
+            "assignee_id": tester["id"],
+            "due_at": f"{soon.isoformat()}T09:00:00",
+        },
+    )
+    client.cookies.set("keel_inbox", "upcoming")
+    page = client.get("/")
+    upcoming = _panel(page.text, "upcoming")
+    assert " open" not in upcoming
+    assert "<h2>Due this week or this month</h2>" in page.text
+    assert "Soon" in page.text
 
 
 def test_home_lists_starting_or_started(client: TestClient) -> None:

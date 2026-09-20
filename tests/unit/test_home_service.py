@@ -111,6 +111,128 @@ def test_assigned_is_unfinished_work_across_projects(session: Session) -> None:
     assert {item.issue.id for item in inbox.assigned} == {later.id, first.id}
 
 
+def test_upcoming_is_after_today_through_week_or_month_end(session: Session) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Overdue",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 12, 9, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Due today",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 13, 23, 0),
+    )
+    later_this_month = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Later this month",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 30, 8, 0),
+    )
+    next_week_this_month = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Next Monday",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 14, 8, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Next month",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 1, 8, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "No date",
+        assignee_id=ada.id,
+    )
+    closed = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Closed upcoming",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 20, 8, 0),
+    )
+    issue_service.update_issue(session, closed.id, status=IssueStatus.DONE)
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert [item.issue.id for item in inbox.upcoming] == [
+        next_week_this_month.id,
+        later_this_month.id,
+    ]
+    assert {item.issue.title for item in inbox.due} == {"Overdue", "Due today"}
+    assert closed.id not in {item.issue.id for item in inbox.upcoming}
+
+
+def test_upcoming_includes_next_month_when_the_iso_week_spills(
+    session: Session,
+) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    spilled = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Next month this week",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 2, 9, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "After the week",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 5, 9, 0),
+    )
+
+    inbox = home_service.personal_inbox(session, ada.id, today=date(2026, 9, 30))
+
+    assert [item.issue.id for item in inbox.upcoming] == [spilled.id]
+
+
+def test_an_inbox_of_only_upcoming_is_not_empty(session: Session) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    soon = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Later this month",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 20, 9, 0),
+    )
+
+    inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
+
+    assert inbox.empty is False
+    assert inbox.due == ()
+    assert [item.issue.id for item in inbox.upcoming] == [soon.id]
+
+
+def test_horizon_end_is_the_later_of_iso_week_and_month() -> None:
+    assert home_service._horizon_end(date(2026, 9, 13)) == date(2026, 9, 30)
+    assert home_service._horizon_end(date(2026, 9, 16)) == date(2026, 9, 30)
+    assert home_service._horizon_end(date(2026, 9, 30)) == date(2026, 10, 4)
+
+
 def test_due_is_today_or_earlier_by_calendar_date(session: Session) -> None:
     project = _project(session)
     ada = user_service.create_user(session, "Ada")
@@ -530,6 +652,7 @@ def test_an_empty_inbox_has_no_sections(session: Session) -> None:
     assert inbox.empty is True
     assert inbox.assigned == ()
     assert inbox.due == ()
+    assert inbox.upcoming == ()
     assert inbox.blocked == ()
     assert inbox.active_sprint == ()
     assert inbox.waiting == ()

@@ -88,6 +88,9 @@
       {% if inbox.due %}
       {{ inbox_section("due", "Due or overdue", inbox.due, "due") }}
       {% endif %}
+      {% if inbox.upcoming %}
+      {{ inbox_section("upcoming", "Due this week or this month", inbox.upcoming, "due") }}
+      {% endif %}
       {% if inbox.starting %}
       {{ inbox_section("starting", "Starting or started", inbox.starting, none) }}
       {% endif %}

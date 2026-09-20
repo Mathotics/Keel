@@ -7,6 +7,7 @@ INBOX_COOKIE_MAX_AGE = 400 * 24 * 60 * 60
 
 SECTIONS: tuple[str, ...] = (
     "due",
+    "upcoming",
     "starting",
     "assigned",
     "blocked",
