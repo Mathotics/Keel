@@ -234,6 +234,76 @@ def test_a_completed_sprint_without_cards_is_not_a_lane(
     assert [lane.name for lane in board.lanes] == [later.name, "Unscheduled"]
 
 
+def test_closed_work_in_a_completed_sprint_is_not_on_the_board(
+    session: Session,
+    project: Project,
+) -> None:
+    past = sprint_service.create_sprint(session, project.id, "Past")
+    _issue(
+        session,
+        project,
+        "Finished past",
+        status=IssueStatus.DONE,
+        sprint_id=past.id,
+    )
+    _issue(session, project, "Still open")
+    sprint_service.start_sprint(session, past.id)
+    sprint_service.complete_sprint(session, past.id)
+
+    board = board_service.project_board(session, project.id)
+
+    assert [lane.name for lane in board.lanes] == ["Unscheduled"]
+    assert _titles(board) == ["Still open"]
+    choices = board_service.board_sprint_choices(
+        sprint_service.list_sprints(session, project.id),
+    )
+    assert [sprint.name for sprint in choices] == []
+
+
+def test_reopened_work_keeps_a_completed_sprint_on_the_board(
+    session: Session,
+    project: Project,
+) -> None:
+    past = sprint_service.create_sprint(session, project.id, "Past")
+    issue = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Came back",
+        sprint_id=past.id,
+    )
+    issue_service.update_issue(session, issue.id, status=IssueStatus.DONE)
+    sprint_service.start_sprint(session, past.id)
+    sprint_service.complete_sprint(session, past.id)
+    issue_service.update_issue(session, issue.id, status=IssueStatus.IN_PROGRESS)
+
+    board = board_service.project_board(session, project.id)
+
+    assert [lane.name for lane in board.lanes] == ["Past", "Unscheduled"]
+    assert "Came back" in _titles(board)
+
+
+def test_filtering_to_a_completed_sprint_does_not_add_an_empty_lane(
+    session: Session,
+    project: Project,
+) -> None:
+    past = sprint_service.create_sprint(session, project.id, "Past")
+    _issue(
+        session,
+        project,
+        "Finished past",
+        status=IssueStatus.DONE,
+        sprint_id=past.id,
+    )
+    sprint_service.start_sprint(session, past.id)
+    sprint_service.complete_sprint(session, past.id)
+
+    board = board_service.project_board(session, project.id, sprint_id=past.id)
+
+    assert board.lanes == ()
+    assert _titles(board) == []
+
+
 def test_the_sprint_filter_narrows_lanes(
     session: Session,
     project: Project,
@@ -574,8 +644,10 @@ def test_the_master_board_hides_closed_work_in_completed_sprints(
     assert "Dropped past" not in _titles(master)
     assert "Unscheduled done" in _titles(master)
     assert "Done now" in _titles(master)
-    assert "Finished past" in _titles(project_view)
-    assert "Dropped past" in _titles(project_view)
+    assert "Finished past" not in _titles(project_view)
+    assert "Dropped past" not in _titles(project_view)
+    assert not any("Past" in lane.name for lane in project_view.lanes)
+    assert not any("Past" in lane.name for lane in master.lanes)
 
 
 def test_the_master_board_project_filter_keeps_one_project(

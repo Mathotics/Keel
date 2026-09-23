@@ -120,6 +120,16 @@ def card_count(board: Board) -> int:
     return sum(len(column.cards) for column in board.columns)
 
 
+def board_sprint_choices(sprints: Sequence[Sprint]) -> tuple[Sprint, ...]:
+    """Sprints the board filter may offer.
+
+    Completed sprints stay on the Sprints page. They are not choices here.
+    """
+    return tuple(
+        sprint for sprint in sprints if sprint.state is not SprintState.COMPLETED
+    )
+
+
 def _parse_id_filter(
     raw: str | None,
     *,
@@ -153,7 +163,8 @@ def project_board(
     Type, assignee, sprint, and label filters are applied in the query so
     hidden cards are never loaded. Empty `types` means every type; omitting
     assignee, sprint, or label means every value. That matches the board's
-    default.
+    default. Done and Cancelled issues in a completed sprint are omitted, so
+    that sprint is not a lane unless it still holds open work.
     Lanes always regroup the same cards by sprint so the page can stack a
     row per sprint without a second query.
     """
@@ -169,6 +180,7 @@ def project_board(
             unscheduled=unscheduled,
             label=label,
             unlabeled=unlabeled,
+            hide_closed_in_completed_sprints=True,
         ),
     )
     return _board_from_issues(
@@ -338,16 +350,24 @@ def _lanes(
         state=None,
         columns=_columns_from(by_sprint.get(None, ())),
     )
+
+    def shown(sprint: Sprint) -> bool:
+        # A completed sprint is a lane only while it still has cards the
+        # board is showing (work reopened after the sprint closed).
+        owned = by_sprint.get(sprint.id, ())
+        return bool(owned) or sprint.state in (SprintState.PLANNED, SprintState.ACTIVE)
+
     if unscheduled:
         return (unscheduled_lane,)
     if sprint_id is not None:
-        chosen = [sprint for sprint in sprints if sprint.id == sprint_id]
+        chosen = [
+            sprint for sprint in sprints if sprint.id == sprint_id and shown(sprint)
+        ]
         return tuple(lane_for(sprint) for sprint in chosen)
 
     lanes: list[BoardLane] = []
     for sprint in sprints:
-        owned = by_sprint.get(sprint.id, ())
-        if owned or sprint.state in (SprintState.PLANNED, SprintState.ACTIVE):
+        if shown(sprint):
             lanes.append(lane_for(sprint))
     lanes.append(unscheduled_lane)
     return tuple(lanes)
