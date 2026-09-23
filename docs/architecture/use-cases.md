@@ -43,7 +43,8 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 ## Kanban board
 
 * **Work the board.** A user views a project's issues as cards in columns drawn from the shared workflow statuses.
-* **Work every project at once.** A user opens Board from Home (or any page with no current project) and sees current cards from every project on `/board`. Project, type, assignee, sprint, and label filters narrow the mix. Done and Cancelled issues that already sat in a completed sprint are omitted. From an issue or project page, Board still opens that project's board ([ADR 032](../adr/ADR-032.md)).
+* **Work every project at once.** A user opens Board from Home (or any page with no current project) and sees current cards from every project on `/board`. Project, type, assignee, sprint, and label filters narrow the mix. From an issue or project page, Board still opens that project's board ([ADR 032](../adr/ADR-032.md)).
+* **Leave a finished sprint.** When a sprint is completed, that sprint no longer appears on the Kanban. Done and Cancelled issues that stayed on it are omitted from both boards. The Sprints page still lists them ([Completed sprints off the board](../adr/completed-sprints-off-the-board.md)).
 * **See a card's parent.** A user looking at a Story or Subtask sees **Parent {key}** when that issue has a parent, and can open the parent from the card. Epic, Story, and Subtask are colored distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * **Filter the board.** A user restricts the board to chosen issue types, to a chosen assignee including unassigned, and to a chosen sprint including unscheduled.
 * **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to. The board opens this way by default; the user can turn it off to see one shared row of columns. On the master board those rows are named with the project key, and dropping a card onto another project's row is refused.
@@ -78,5 +79,6 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * [API reference](../design/api.md)
 * [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)
 * [ADR 032: Master board across all projects](../adr/ADR-032.md)
+* [Completed sprints off the board](../adr/completed-sprints-off-the-board.md)
 * [Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)
 * [Completed today on the home inbox](../adr/completed-today-home-panel.md)

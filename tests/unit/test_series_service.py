@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Self
 
 import pytest
 from sqlalchemy.orm import Session
@@ -29,6 +30,22 @@ from keel.services.issues import IssueFilters
 
 def _project(session: Session) -> Project:
     return project_service.create_project(session, "HOME", "Home")
+
+
+def _freeze_series_today(monkeypatch: pytest.MonkeyPatch, day: date) -> None:
+    """Pin `date.today()` inside the series service.
+
+    Deleting an occurrence advances the series with the wall clock. These
+    tests describe 14 Sep 2026 and must not spawn the next Monday once the
+    real day moves past it.
+    """
+
+    class FrozenDate(date):
+        @classmethod
+        def today(cls) -> Self:
+            return cls(day.year, day.month, day.day)
+
+    monkeypatch.setattr(series_service, "date", FrozenDate)
 
 
 def _weekly(
@@ -255,7 +272,9 @@ def test_a_completed_sprint_is_not_used_for_spawn(
 
 def test_deleting_an_occurrence_does_not_respawn_that_date(
     session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _freeze_series_today(monkeypatch, date(2026, 9, 14))
     project = _project(session)
     series_service.create_series(
         session,
@@ -523,7 +542,9 @@ def test_series_validation_and_missing_rows(session: Session) -> None:
 
 def test_deleting_the_same_occurrence_twice_is_idempotent(
     session: Session,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    _freeze_series_today(monkeypatch, date(2026, 9, 14))
     project = _project(session)
     series = _weekly(
         session,

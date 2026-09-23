@@ -93,6 +93,7 @@ def master_board_page(
         sprints = sprint_service.list_sprints(session, project_id)
     else:
         sprints = sprint_service.list_all_sprints(session)
+    sprints = board_service.board_sprint_choices(sprints)
     project_keys = {item.id: item.key for item in projects}
     return get_templates().TemplateResponse(
         request,
@@ -161,7 +162,9 @@ def board_page(
             selected_label=filters.selected_label,
             label_catalog=label_service.list_labels(session),
             separate_by_sprint=filters.grouping == "sprint",
-            sprints=sprint_service.list_sprints(session, project.id),
+            sprints=board_service.board_sprint_choices(
+                sprint_service.list_sprints(session, project.id),
+            ),
             prefix_sprints=False,
             error=error,
         ),

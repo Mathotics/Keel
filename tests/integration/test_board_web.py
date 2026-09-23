@@ -536,10 +536,14 @@ def test_the_master_board_mixes_projects_and_hides_completed_sprint_closed_work(
     assert "Keel work" in page.text
     assert "House work" in page.text
     assert "Finished past" not in page.text
-    assert "Finished past" in client.get("/projects/KEEL/board").text
+    assert "KEEL / Past (Completed)" not in page.text
+    project_board = client.get("/projects/KEEL/board")
+    assert "Finished past" not in project_board.text
+    assert "Past (Completed)" not in project_board.text
+    assert "Past" in client.get("/projects/KEEL/sprints").text
     assert "Any project" in page.text
     assert 'name="project"' in page.text
-    assert "HOUSE / " in page.text or "KEEL / " in page.text
+    assert "KEEL / Past" not in page.text
     header = page.text.split("<header", 1)[1].split("</header>", 1)[0]
     assert 'href="/board"' in header
     find = header.split("keel-find", 1)[1].split("</form>", 1)[0]
