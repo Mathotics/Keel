@@ -1,7 +1,9 @@
 # ADR 015: Database backup and restore via the CLI
 
 * **Status:** Accepted
-* **Date:** 2026-09-02
+* **Date:** 2026-10-01
+
+> **Amendment.** [Scheduled database backups](scheduled-database-backups.md) copies the production database daily, weekly, and monthly. This record still describes the CLI.
 
 ## Background
 
@@ -32,7 +34,7 @@ The owner's issues, sprints, and comments live in a single file that is easy to 
 - A web UI, download, or in-app backup.
 - `keel db path` (the live location stays documented in the README; backup and restore print the paths they used).
 - JSON or other export/import formats.
-- Scheduled or automatic backups.
+- Scheduled backups on a developer machine. Production copies are [Scheduled database backups](scheduled-database-backups.md).
 - Stopping, restarting, or detecting `keel serve` as a process.
 - Choosing “the latest backup” without a path.
 
