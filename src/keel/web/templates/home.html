@@ -13,6 +13,8 @@
 
       {% if inbox.empty %}
       <p class="keel-lede">Nothing assigned to you right now.{% if not has_projects %} <a href="/projects">Create a project</a> to get started.{% endif %}</p>
+      {% elif not home_panels %}
+      <p class="keel-lede">Every home panel is hidden.</p>
       {% else %}
 
       {% macro inbox_rows(section, rows, extra) %}
@@ -71,47 +73,55 @@
       {% endmacro %}
 
       {% macro inbox_section(key, title, rows, extra) %}
+      <div class="keel-home-item" data-keel-home-item="{{ key }}">
       <details class="keel-inbox"{% if key not in collapsed_inbox %} open{% endif %} data-keel-inbox-panel="{{ key }}">
         <summary>
           <h2>{{ title }}</h2>
           <span class="keel-inbox__count">{{ rows|length }}</span>
-          <form class="keel-inbox__fallback" method="post" action="/web/inbox">
-            <input type="hidden" name="next" value="/"/>
-            <input type="hidden" name="collapsed" value="{{ inbox_toggle(key) }}"/>
-            <button type="submit">{% if key in collapsed_inbox %}Expand{% else %}Minimize{% endif %}</button>
-          </form>
+          <span class="keel-inbox__tools">
+            <form class="keel-inbox__move" method="post" action="/web/home/move">
+              <input type="hidden" name="item" value="{{ key }}"/>
+              <input type="hidden" name="visible" value="{{ home_visible }}"/>
+              <input type="hidden" name="next" value="/"/>
+              <button name="direction" value="up">Up</button>
+              <button name="direction" value="down">Down</button>
+            </form>
+            <form method="post" action="/web/home/hide">
+              <input type="hidden" name="panel" value="{{ key }}"/>
+              <input type="hidden" name="next" value="/"/>
+              <button type="submit">Remove</button>
+            </form>
+            <form class="keel-inbox__fallback" method="post" action="/web/inbox">
+              <input type="hidden" name="next" value="/"/>
+              <input type="hidden" name="collapsed" value="{{ inbox_toggle(key) }}"/>
+              <button type="submit">{% if key in collapsed_inbox %}Expand{% else %}Minimize{% endif %}</button>
+            </form>
+          </span>
         </summary>
         {{ inbox_rows(key, rows, extra) }}
       </details>
+      </div>
       {% endmacro %}
 
-      {% if inbox.due %}
-      {{ inbox_section("due", "Due or overdue", inbox.due, "due") }}
-      {% endif %}
-      {% if inbox.due_week %}
-      {{ inbox_section("week", "Due this week", inbox.due_week, "due") }}
-      {% endif %}
-      {% if inbox.due_month %}
-      {{ inbox_section("month", "Due this month", inbox.due_month, "due") }}
-      {% endif %}
-      {% if inbox.starting %}
-      {{ inbox_section("starting", "Starting or started", inbox.starting, none) }}
-      {% endif %}
-      {% if inbox.assigned %}
-      {{ inbox_section("assigned", "Assigned to me", inbox.assigned, none) }}
-      {% endif %}
-      {% if inbox.blocked %}
-      {{ inbox_section("blocked", "Blocked", inbox.blocked, none) }}
-      {% endif %}
-      {% if inbox.active_sprint %}
-      {{ inbox_section("sprint", "In the active sprint", inbox.active_sprint, "sprint") }}
-      {% endif %}
-      {% if inbox.waiting %}
-      {{ inbox_section("waiting", "Waiting this cycle", inbox.waiting, "occurrence") }}
-      {% endif %}
-      {% if inbox.completed %}
-      {{ inbox_section("completed", "Completed today", inbox.completed, "completed") }}
-      {% endif %}
+      <div data-keel-home-root>
+      {% for key, title, rows, extra in home_panels %}
+      {{ inbox_section(key, title, rows, extra) }}
+      {% endfor %}
+      </div>
 
+      {% endif %}
+      {% if home_hidden %}
+      <form class="keel-form keel-home-add" method="post" action="/web/home/show">
+        <input type="hidden" name="next" value="/"/>
+        <p>
+          <label for="home-add">Add a panel</label>
+          <select id="home-add" name="panel">
+            {% for key, title in home_hidden %}
+            <option value="{{ key }}">{{ title }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">Add</button>
+        </p>
+      </form>
       {% endif %}
 {% endblock %}
