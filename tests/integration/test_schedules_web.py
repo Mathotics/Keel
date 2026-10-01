@@ -101,6 +101,32 @@ def test_a_series_can_set_priority_for_spawned_copies(client: TestClient) -> Non
     assert {item["priority"] for item in spawned} == {"p1"}
 
 
+def test_a_series_can_set_labels_for_spawned_copies(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    form = client.get("/projects/HOME/schedules?tab=new")
+    assert 'name="labels"' in form.text
+    assert 'placeholder="urgent, plumbing"' in form.text
+    created = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(labels="Urgent, plumbing"),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    listing = client.get("/projects/HOME/schedules")
+    assert "plumbing, urgent" in listing.text
+    page = client.get(created.headers["location"])
+    assert 'name="labels"' in page.text
+    assert 'value="plumbing, urgent"' in page.text
+    series_id = int(created.headers["location"].rsplit("/", 1)[1])
+    copies = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    spawned = [item for item in copies if item["series_id"] == series_id]
+    assert spawned
+    assert {tuple(item["labels"]) for item in spawned} == {("plumbing", "urgent")}
+
+
 def test_a_yearly_series_keeps_the_chosen_month(client: TestClient) -> None:
     project = client.post(
         "/api/v1/projects",

@@ -4,7 +4,7 @@ from typing import Self
 import pytest
 from sqlalchemy.orm import Session
 
-from keel.db.models import Project, Series
+from keel.db.models import Issue, Project, Series
 from keel.domain.enums import (
     INITIAL_PRIORITY,
     EditScope,
@@ -17,11 +17,13 @@ from keel.domain.enums import (
     SeriesState,
 )
 from keel.domain.errors import (
+    InvalidIssueError,
     InvalidSeriesError,
     NotFoundError,
     SeriesStoppedError,
 )
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
@@ -798,3 +800,90 @@ def test_outlook_scopes_rewrite_open_copy_priority(session: Session) -> None:
     assert series.priority is IssuePriority.P2
     assert first.priority is IssuePriority.P1
     assert second.priority is IssuePriority.P2
+
+
+def _copies(session: Session, project_id: int, series_id: int) -> list[Issue]:
+    return sorted(
+        [
+            issue
+            for issue in issue_service.list_issues(session, project_id)
+            if issue.series_id == series_id
+        ],
+        key=lambda issue: (issue.occurrence_on or date.min, issue.id),
+    )
+
+
+def test_spawned_copies_take_recipe_labels(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(session, project, labels=["Urgent", "plumbing"])
+    assert label_service.names_for_series(session, series.id) == ["plumbing", "urgent"]
+    copies = _copies(session, project.id, series.id)
+    assert copies
+    assert label_service.names_for_issue(session, copies[0].id) == [
+        "plumbing",
+        "urgent",
+    ]
+
+
+def test_saving_the_recipe_does_not_relabel_existing_copies(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(session, project, labels=["urgent"])
+    first = _copies(session, project.id, series.id)[0]
+    series_service.update_series(
+        session,
+        series.id,
+        labels=["later"],
+        look_ahead_n=2,
+    )
+    assert label_service.names_for_issue(session, first.id) == ["urgent"]
+    newer = [
+        issue
+        for issue in _copies(session, project.id, series.id)
+        if issue.id != first.id
+    ]
+    assert newer
+    assert label_service.names_for_issue(session, newer[0].id) == ["later"]
+
+
+def test_making_an_issue_repeating_copies_its_labels(session: Session) -> None:
+    project = _project(session)
+    issue = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Trash",
+    )
+    label_service.set_issue_labels(session, issue.id, ["chores"])
+    series = _weekly(session, project, seed_issue_id=issue.id)
+    assert label_service.names_for_series(session, series.id) == ["chores"]
+    assert label_service.names_for_issue(session, issue.id) == ["chores"]
+
+
+def test_outlook_scopes_rewrite_open_copy_labels(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(session, project, labels=["shared"], look_ahead_n=2)
+    first, second = _copies(session, project.id, series.id)[:2]
+    series_service.apply_occurrence_edit(
+        session,
+        first.id,
+        EditScope.THIS,
+        labels=["solo"],
+    )
+    assert label_service.names_for_issue(session, first.id) == ["solo"]
+    assert label_service.names_for_series(session, series.id) == ["shared"]
+    assert label_service.names_for_issue(session, second.id) == ["shared"]
+    series_service.apply_occurrence_edit(
+        session,
+        second.id,
+        EditScope.FUTURE,
+        labels=["next"],
+    )
+    assert label_service.names_for_series(session, series.id) == ["next"]
+    assert label_service.names_for_issue(session, first.id) == ["solo"]
+    assert label_service.names_for_issue(session, second.id) == ["next"]
+
+
+def test_an_illegal_recipe_label_is_refused(session: Session) -> None:
+    project = _project(session)
+    with pytest.raises(InvalidIssueError):
+        _weekly(session, project, labels=["!!!"])

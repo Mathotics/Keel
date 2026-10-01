@@ -22,6 +22,7 @@ from keel.domain.enums import (
 )
 from keel.domain.errors import DomainError, InvalidSprintCadenceError
 from keel.domain.hierarchy import child_type_of
+from keel.domain.labels import parse_label_names
 from keel.domain.schedule import parse_clock
 from keel.services import auto_sprint
 from keel.services import comments as comment_service
@@ -925,6 +926,7 @@ def create_schedule(
     occurrence_count: Annotated[str, Form()] = "",
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     project = project_service.get_project(session, project_id)
     form_tab = f"/projects/{project.key}/schedules?tab=new"
@@ -954,6 +956,7 @@ def create_schedule(
             due_minute_of_day=_optional_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
+            labels=parse_label_names(labels),
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
@@ -991,6 +994,7 @@ def update_schedule(
     occurrence_count: Annotated[str, Form()] = "",
     parent_id: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     series = series_service.get_series(session, series_id)
     project = project_service.get_project(session, series.project_id)
@@ -1021,6 +1025,7 @@ def update_schedule(
             due_minute_of_day=_optional_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
+            labels=parse_label_names(labels),
         )
     except DomainError as exc:
         session.rollback()
@@ -1142,6 +1147,7 @@ def update_issue_series(
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
+    labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
@@ -1168,6 +1174,7 @@ def update_issue_series(
             start_minute_of_day=_optional_clock(start_time),
             due_offset_days=_optional_offset(due_offset_days),
             due_minute_of_day=_optional_clock(due_time),
+            labels=parse_label_names(labels),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

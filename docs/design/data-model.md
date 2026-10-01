@@ -162,6 +162,15 @@ Indexes and constraints:
 
 `series_skips` records deleted occurrence dates so calendar mode does not recreate that cycle ([ADR 021](../adr/ADR-021.md)).
 
+### series_labels
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `series_id` | INTEGER | not null, references `series(id)` `ON DELETE CASCADE`, part of primary key |
+| `label_id` | INTEGER | not null, references `labels(id)` `ON DELETE CASCADE`, part of primary key |
+
+Index: `ix_series_labels_label_id` on (`label_id`). The catalog is the same global `labels` table as issues ([Series recipe labels](../adr/series-recipe-labels.md)). Deleting a series drops its links; unused catalog rows remain.
+
 ### dependencies
 
 | Column | Type | Constraints |
@@ -271,6 +280,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0018` | `projects.sprint_ahead` |
 | `0019` | series start offset stored as days before occurrence |
 | `0020` | series start and due offsets nullable |
+| `0021` | `series_labels` |
 
 ## Related documents
 
@@ -286,6 +296,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [ADR 031: Issue labels](../adr/ADR-031.md)
 * [Series recipe priority](../adr/series-recipe-priority.md)
+* [Series recipe labels](../adr/series-recipe-labels.md)
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)
