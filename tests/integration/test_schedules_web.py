@@ -41,6 +41,13 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert "Create series" in form.text
     assert "Start offset (days before occurrence)" in form.text
     assert "Due offset (days after occurrence)" in form.text
+    assert "Leave start or due blank" in form.text
+    start_time = form.text.split('name="start_time"', 1)[1].split(">", 1)[0]
+    due_offset = form.text.split('name="due_offset_days"', 1)[1].split(">", 1)[0]
+    assert "required" not in start_time
+    assert "required" not in due_offset
+    assert 'value=""' in start_time
+    assert 'value=""' in due_offset
     assert 'name="title"' in form.text
     assert 'name="priority"' in form.text
     assert 'value="p4" selected' in form.text
@@ -135,6 +142,50 @@ def test_a_refused_series_returns_to_the_new_series_tab(client: TestClient) -> N
     page = client.get(location)
     assert "Create series" in page.text
     assert "A series needs a title." in page.text
+
+
+def test_a_series_can_leave_start_and_due_unset(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    created = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(sprint_basis="created_on"),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    series_id = int(created.headers["location"].rsplit("/", 1)[1])
+    recipe = client.get(f"/api/v1/series/{series_id}").json()
+    assert recipe["start_offset_days"] is None
+    assert recipe["due_offset_days"] is None
+    copies = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    spawned = [item for item in copies if item["series_id"] == series_id]
+    assert spawned
+    assert {item["start_at"] for item in spawned} == {None}
+    assert {item["due_at"] for item in spawned} == {None}
+
+    dated = client.post(
+        f"/web/schedules/{series_id}/update",
+        data=_series_payload(
+            sprint_basis="created_on",
+            due_time="17:00",
+        ),
+        follow_redirects=False,
+    )
+    assert dated.status_code == 303
+    updated = client.get(f"/api/v1/series/{series_id}").json()
+    assert updated["start_offset_days"] is None
+    assert updated["due_offset_days"] == 0
+    assert updated["due_minute_of_day"] == 17 * 60
+    copies = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    spawned = [item for item in copies if item["series_id"] == series_id]
+    assert spawned
+    assert {item["start_at"] for item in spawned} == {None}
+    assert all(
+        item["due_at"].startswith("2026-") and "T17:00" in item["due_at"]
+        for item in spawned
+    )
 
 
 def test_a_negative_start_offset_is_refused(client: TestClient) -> None:

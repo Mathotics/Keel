@@ -668,6 +668,79 @@ def test_outlook_scopes_rewrite_open_copy_dates(
     assert second.due_at == datetime(2026, 9, 21, 17, 0)
 
 
+def test_a_recipe_can_omit_start_and_due(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(
+        session,
+        project,
+        start_offset_days=None,
+        start_minute_of_day=None,
+        due_offset_days=None,
+        due_minute_of_day=None,
+        sprint_basis=SeriesSprintBasis.DUE_ON,
+        today=date(2026, 9, 14),
+    )
+    copy = next(
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    )
+    assert series.start_offset_days is None
+    assert series.due_offset_days is None
+    assert copy.start_at is None
+    assert copy.due_at is None
+    assert copy.occurrence_on == date(2026, 9, 14)
+
+
+def test_clearing_recipe_dates_clears_open_copies(session: Session) -> None:
+    project = _project(session)
+    series = _weekly(session, project, look_ahead_n=1, today=date(2026, 9, 14))
+    copy = next(
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    )
+    assert copy.start_at is not None
+    assert copy.due_at is not None
+    series_service.update_series(
+        session,
+        series.id,
+        start_offset_days=None,
+        start_minute_of_day=None,
+        due_offset_days=None,
+        due_minute_of_day=None,
+    )
+    session.refresh(copy)
+    session.refresh(series)
+    assert series.start_offset_days is None
+    assert series.due_minute_of_day is None
+    assert copy.start_at is None
+    assert copy.due_at is None
+
+
+def test_a_due_without_a_start_does_not_invent_a_start(session: Session) -> None:
+    from datetime import datetime
+
+    project = _project(session)
+    series = _weekly(
+        session,
+        project,
+        start_offset_days=None,
+        start_minute_of_day=None,
+        due_offset_days=0,
+        due_minute_of_day=17 * 60,
+        sprint_basis=SeriesSprintBasis.DUE_ON,
+        today=date(2026, 9, 14),
+    )
+    copy = next(
+        issue
+        for issue in issue_service.list_issues(session, project.id)
+        if issue.series_id == series.id
+    )
+    assert copy.start_at is None
+    assert copy.due_at == datetime(2026, 9, 14, 17, 0)
+
+
 def test_spawned_copies_inherit_series_priority(session: Session) -> None:
     project = _project(session)
     series = _weekly(

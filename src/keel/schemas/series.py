@@ -32,10 +32,10 @@ class SeriesCreate(BaseModel):
     ends_on: date | None = None
     occurrence_count: int | None = Field(default=None, ge=1)
     look_ahead_n: int = Field(default=1, ge=1)
-    start_offset_days: int = Field(default=0, ge=0)
-    start_minute_of_day: int = Field(default=0, ge=0, lt=1440)
-    due_offset_days: int = Field(default=0, ge=0)
-    due_minute_of_day: int = Field(default=0, ge=0, lt=1440)
+    start_offset_days: int | None = Field(default=None, ge=0)
+    start_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
+    due_offset_days: int | None = Field(default=None, ge=0)
+    due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
     parent_id: int | None = None
     assignee_id: int | None = None
     seed_issue_id: int | None = None
@@ -82,10 +82,10 @@ class SeriesRead(BaseModel):
     spawn_mode: SeriesSpawnMode
     sprint_basis: SeriesSprintBasis
     look_ahead_n: int
-    start_offset_days: int
-    start_minute_of_day: int
-    due_offset_days: int
-    due_minute_of_day: int
+    start_offset_days: int | None
+    start_minute_of_day: int | None
+    due_offset_days: int | None
+    due_minute_of_day: int | None
     freq: RecurrenceFreq
     interval: int
     weekdays: str

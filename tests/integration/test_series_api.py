@@ -55,6 +55,45 @@ def test_the_series_api_creates_and_pauses(client: TestClient) -> None:
     assert missing.status_code == 404
 
 
+def test_the_series_api_can_omit_and_clear_start_and_due(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    created = client.post(
+        f"/api/v1/projects/{project['id']}/series",
+        json={
+            "title": "Backup",
+            "type": "story",
+            "spawn_mode": "calendar",
+            "sprint_basis": "created_on",
+            "freq": "daily",
+            "starts_on": "2026-09-12",
+            "look_ahead_n": 1,
+            "due_offset_days": 0,
+            "due_minute_of_day": 17 * 60,
+        },
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["start_offset_days"] is None
+    assert body["start_minute_of_day"] is None
+    assert body["due_offset_days"] == 0
+    assert body["due_minute_of_day"] == 17 * 60
+    cleared = client.patch(
+        f"/api/v1/series/{body['id']}",
+        json={"due_offset_days": None, "due_minute_of_day": None},
+    )
+    assert cleared.status_code == 200
+    assert cleared.json()["due_offset_days"] is None
+    assert cleared.json()["due_minute_of_day"] is None
+    copies = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    spawned = [item for item in copies if item["series_id"] == body["id"]]
+    assert spawned
+    assert {item["start_at"] for item in spawned} == {None}
+    assert {item["due_at"] for item in spawned} == {None}
+
+
 def test_the_series_api_stores_priority_on_spawned_copies(client: TestClient) -> None:
     project = client.post(
         "/api/v1/projects",

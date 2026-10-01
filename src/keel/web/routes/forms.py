@@ -916,10 +916,10 @@ def create_schedule(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
-    start_offset_days: Annotated[str, Form()] = "0",
-    start_time: Annotated[str, Form()] = "00:00",
-    due_offset_days: Annotated[str, Form()] = "0",
-    due_time: Annotated[str, Form()] = "00:00",
+    start_offset_days: Annotated[str, Form()] = "",
+    start_time: Annotated[str, Form()] = "",
+    due_offset_days: Annotated[str, Form()] = "",
+    due_time: Annotated[str, Form()] = "",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -948,10 +948,10 @@ def create_schedule(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
-            start_offset_days=_offset_days(start_offset_days),
-            start_minute_of_day=parse_clock(start_time),
-            due_offset_days=_offset_days(due_offset_days),
-            due_minute_of_day=parse_clock(due_time),
+            start_offset_days=_optional_offset(start_offset_days),
+            start_minute_of_day=_optional_clock(start_time),
+            due_offset_days=_optional_offset(due_offset_days),
+            due_minute_of_day=_optional_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
             reporter_id=(
@@ -982,10 +982,10 @@ def update_schedule(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
-    start_offset_days: Annotated[str, Form()] = "0",
-    start_time: Annotated[str, Form()] = "00:00",
-    due_offset_days: Annotated[str, Form()] = "0",
-    due_time: Annotated[str, Form()] = "00:00",
+    start_offset_days: Annotated[str, Form()] = "",
+    start_time: Annotated[str, Form()] = "",
+    due_offset_days: Annotated[str, Form()] = "",
+    due_time: Annotated[str, Form()] = "",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -1015,10 +1015,10 @@ def update_schedule(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
-            start_offset_days=_offset_days(start_offset_days),
-            start_minute_of_day=parse_clock(start_time),
-            due_offset_days=_offset_days(due_offset_days),
-            due_minute_of_day=parse_clock(due_time),
+            start_offset_days=_optional_offset(start_offset_days),
+            start_minute_of_day=_optional_clock(start_time),
+            due_offset_days=_optional_offset(due_offset_days),
+            due_minute_of_day=_optional_clock(due_time),
             parent_id=_optional_id(parent_id),
             assignee_id=_optional_id(assignee_id),
         )
@@ -1069,10 +1069,10 @@ def make_issue_repeating(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
-    start_offset_days: Annotated[str, Form()] = "0",
-    start_time: Annotated[str, Form()] = "00:00",
-    due_offset_days: Annotated[str, Form()] = "0",
-    due_time: Annotated[str, Form()] = "00:00",
+    start_offset_days: Annotated[str, Form()] = "",
+    start_time: Annotated[str, Form()] = "",
+    due_offset_days: Annotated[str, Form()] = "",
+    due_time: Annotated[str, Form()] = "",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -1099,10 +1099,10 @@ def make_issue_repeating(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
-            start_offset_days=_offset_days(start_offset_days),
-            start_minute_of_day=parse_clock(start_time),
-            due_offset_days=_offset_days(due_offset_days),
-            due_minute_of_day=parse_clock(due_time),
+            start_offset_days=_optional_offset(start_offset_days),
+            start_minute_of_day=_optional_clock(start_time),
+            due_offset_days=_optional_offset(due_offset_days),
+            due_minute_of_day=_optional_clock(due_time),
             parent_id=issue.parent_id,
             assignee_id=issue.assignee_id,
             reporter_id=(
@@ -1135,10 +1135,10 @@ def update_issue_series(
     nth_week: Annotated[str, Form()] = "",
     month: Annotated[str, Form()] = "",
     look_ahead_n: Annotated[str, Form()] = "1",
-    start_offset_days: Annotated[str, Form()] = "0",
-    start_time: Annotated[str, Form()] = "00:00",
-    due_offset_days: Annotated[str, Form()] = "0",
-    due_time: Annotated[str, Form()] = "00:00",
+    start_offset_days: Annotated[str, Form()] = "",
+    start_time: Annotated[str, Form()] = "",
+    due_offset_days: Annotated[str, Form()] = "",
+    due_time: Annotated[str, Form()] = "",
     end_mode: Annotated[str, Form()] = "never",
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
@@ -1164,10 +1164,10 @@ def update_issue_series(
             ends_on=_end_date(end_mode, ends_on),
             occurrence_count=_end_count(end_mode, occurrence_count),
             look_ahead_n=_positive_int(look_ahead_n, "Look-ahead must be at least 1."),
-            start_offset_days=_offset_days(start_offset_days),
-            start_minute_of_day=parse_clock(start_time),
-            due_offset_days=_offset_days(due_offset_days),
-            due_minute_of_day=parse_clock(due_time),
+            start_offset_days=_optional_offset(start_offset_days),
+            start_minute_of_day=_optional_clock(start_time),
+            due_offset_days=_optional_offset(due_offset_days),
+            due_minute_of_day=_optional_clock(due_time),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
@@ -1230,6 +1230,18 @@ def _positive_int(raw: str, message: str) -> int:
     if not cleaned.isdigit() or int(cleaned) < 1:
         raise InvalidSeriesError(message)
     return int(cleaned)
+
+
+def _optional_offset(raw: str) -> int | None:
+    if not raw.strip():
+        return None
+    return _offset_days(raw)
+
+
+def _optional_clock(raw: str) -> int | None:
+    if not raw.strip():
+        return None
+    return parse_clock(raw)
 
 
 def _offset_days(raw: str) -> int:
