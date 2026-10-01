@@ -84,6 +84,11 @@ def issue_page(
                 current_id=issue.sprint_id,
             ),
             series=series,
+            recipe_labels=(
+                ""
+                if series is None
+                else ", ".join(label_service.names_for_series(session, series.id))
+            ),
             series_summary=(
                 None if series is None else series_service.cadence_summary(series)
             ),

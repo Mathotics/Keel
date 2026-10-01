@@ -1,8 +1,11 @@
 from fastapi import APIRouter, status
+from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.db.models import Series
 from keel.domain.enums import SeriesState
 from keel.schemas.series import SeriesCreate, SeriesRead, SeriesUpdate
+from keel.services import labels as label_service
 from keel.services import series as series_service
 
 router = APIRouter(tags=["series"])
@@ -11,7 +14,7 @@ router = APIRouter(tags=["series"])
 @router.get("/projects/{project_id}/series", response_model=list[SeriesRead])
 def list_series(project_id: int, session: SessionDep) -> list[SeriesRead]:
     return [
-        SeriesRead.of(item) for item in series_service.list_series(session, project_id)
+        _read(session, item) for item in series_service.list_series(session, project_id)
     ]
 
 
@@ -53,13 +56,14 @@ def create_series(
         assignee_id=payload.assignee_id,
         reporter_id=None if acting_user is None else acting_user.id,
         seed_issue_id=payload.seed_issue_id,
+        labels=payload.labels if "labels" in payload.model_fields_set else None,
     )
-    return SeriesRead.of(series)
+    return _read(session, series)
 
 
 @router.get("/series/{series_id}", response_model=SeriesRead)
 def read_series(series_id: int, session: SessionDep) -> SeriesRead:
-    return SeriesRead.of(series_service.get_series(session, series_id))
+    return _read(session, series_service.get_series(session, series_id))
 
 
 @router.patch("/series/{series_id}", response_model=SeriesRead)
@@ -69,7 +73,8 @@ def update_series(
     session: SessionDep,
 ) -> SeriesRead:
     if payload.state is not None and len(payload.model_fields_set) == 1:
-        return SeriesRead.of(
+        return _read(
+            session,
             series_service.set_state(session, series_id, payload.state),
         )
     fields = payload.model_fields_set
@@ -102,26 +107,31 @@ def update_series(
         "occurrence_count",
         "parent_id",
         "assignee_id",
+        "labels",
     ):
         if name in fields:
             kwargs[name] = getattr(payload, name)
         # explicit null is a clear
+    if "labels" in kwargs and kwargs["labels"] is None:
+        kwargs["labels"] = []
     series = series_service.update_series(session, series_id, **kwargs)  # type: ignore[arg-type]
     if payload.state is not None:
         series = series_service.set_state(session, series_id, payload.state)
-    return SeriesRead.of(series)
+    return _read(session, series)
 
 
 @router.post("/series/{series_id}/pause", response_model=SeriesRead)
 def pause_series(series_id: int, session: SessionDep) -> SeriesRead:
-    return SeriesRead.of(
+    return _read(
+        session,
         series_service.set_state(session, series_id, SeriesState.PAUSED),
     )
 
 
 @router.post("/series/{series_id}/resume", response_model=SeriesRead)
 def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
-    return SeriesRead.of(
+    return _read(
+        session,
         series_service.set_state(session, series_id, SeriesState.ACTIVE),
     )
 
@@ -129,3 +139,10 @@ def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
 @router.delete("/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_series(series_id: int, session: SessionDep) -> None:
     series_service.delete_series(session, series_id)
+
+
+def _read(session: Session, series: Series) -> SeriesRead:
+    return SeriesRead.of(
+        series,
+        label_service.names_for_series(session, series.id),
+    )

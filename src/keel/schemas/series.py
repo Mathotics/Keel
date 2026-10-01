@@ -39,6 +39,7 @@ class SeriesCreate(BaseModel):
     parent_id: int | None = None
     assignee_id: int | None = None
     seed_issue_id: int | None = None
+    labels: list[str] = Field(default_factory=list)
 
 
 class SeriesUpdate(BaseModel):
@@ -66,6 +67,7 @@ class SeriesUpdate(BaseModel):
     due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
     parent_id: int | None = None
     assignee_id: int | None = None
+    labels: list[str] | None = None
     state: SeriesState | None = None
 
 
@@ -98,10 +100,11 @@ class SeriesRead(BaseModel):
     parent_id: int | None
     assignee_id: int | None
     reporter_id: int | None
+    labels: list[str]
     cadence_summary: str
 
     @classmethod
-    def of(cls, series: Series) -> "SeriesRead":
+    def of(cls, series: Series, labels: list[str] | None = None) -> "SeriesRead":
         return cls(
             id=series.id,
             project_id=series.project_id,
@@ -129,5 +132,6 @@ class SeriesRead(BaseModel):
             parent_id=series.parent_id,
             assignee_id=series.assignee_id,
             reporter_id=series.reporter_id,
+            labels=list(labels or ()),
             cadence_summary=cadence_summary(series),
         )

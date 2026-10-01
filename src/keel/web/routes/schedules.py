@@ -12,6 +12,7 @@ from keel.domain.enums import (
 from keel.domain.errors import NotFoundError
 from keel.domain.recurrence import MONTH_NAMES, WEEKDAY_NAMES, parse_weekdays
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import users as user_service
@@ -42,6 +43,10 @@ def schedules_page(
             new_series=tab == "new",
             series_list=found,
             summaries={item.id: series_service.cadence_summary(item) for item in found},
+            series_labels={
+                item.id: ", ".join(label_service.names_for_series(session, item.id))
+                for item in found
+            },
             issue_types=types_in_hierarchy_order(),
             priorities=priorities_in_rank_order(),
             spawn_modes=tuple(SeriesSpawnMode),
@@ -81,6 +86,7 @@ def schedule_detail_page(
             project=project,
             series=series,
             summary=series_service.cadence_summary(series),
+            recipe_labels=", ".join(label_service.names_for_series(session, series.id)),
             issue_types=types_in_hierarchy_order(),
             priorities=priorities_in_rank_order(),
             spawn_modes=tuple(SeriesSpawnMode),

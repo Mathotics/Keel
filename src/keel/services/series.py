@@ -34,7 +34,9 @@ from keel.domain.schedule import (
     recipe_due_at,
     recipe_start_at,
 )
+from keel.services import history as history_service
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 
@@ -114,6 +116,7 @@ def create_series(
     start_minute_of_day: int | None = 0,
     due_offset_days: int | None = 0,
     due_minute_of_day: int | None = 0,
+    labels: Sequence[str] | None = None,
     today: date | None = None,
 ) -> Series:
     project = project_service.get_project(session, project_id)
@@ -166,6 +169,14 @@ def create_series(
     )
     session.add(series)
     session.flush()
+    if labels is not None:
+        label_service.set_series_labels(session, series.id, labels)
+    elif seed_issue_id is not None:
+        label_service.set_series_labels(
+            session,
+            series.id,
+            label_service.names_for_issue(session, seed_issue_id),
+        )
     if seed_issue_id is not None:
         _attach_seed(session, series, seed_issue_id, today)
     _check_offsets(series)
@@ -199,6 +210,7 @@ def update_series(
     start_minute_of_day: int | None | object = UNSET,
     due_offset_days: int | None | object = UNSET,
     due_minute_of_day: int | None | object = UNSET,
+    labels: Sequence[str] | None = None,
     rewrite_from: date | None = None,
     today: date | None = None,
 ) -> Series:
@@ -241,6 +253,8 @@ def update_series(
         series.assignee_id = assignee_id  # type: ignore[assignment]
     _assign_start(series, start_offset_days, start_minute_of_day)
     _assign_due(series, due_offset_days, due_minute_of_day)
+    if labels is not None:
+        label_service.set_series_labels(session, series.id, labels)
     _check_offsets(series)
     occurrence_dates(recurrence_of(series), series.starts_on)
     session.flush()
@@ -294,6 +308,7 @@ def apply_occurrence_edit(
     due_minute_of_day: int | None | object = UNSET,
     start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
+    labels: Sequence[str] | None = None,
     today: date | None = None,
     actor_name: str | None = None,
 ) -> Issue:
@@ -313,6 +328,7 @@ def apply_occurrence_edit(
             parent_id=parent_id,
             start_at=start_at,
             due_at=due_at,
+            labels=labels,
             actor_name=actor_name,
         )
         return issue
@@ -346,6 +362,7 @@ def apply_occurrence_edit(
         start_minute_of_day=start_minute_of_day,
         due_offset_days=due_offset_days,
         due_minute_of_day=due_minute_of_day,
+        labels=labels,
         rewrite_from=cutoff if scope is EditScope.FUTURE else None,
         today=today,
     )
@@ -365,6 +382,7 @@ def apply_occurrence_edit(
             priority=priority,
             assignee_id=assignee_id,
             parent_id=parent_id,
+            labels=labels,
             actor_name=actor_name,
         )
     return issue
@@ -515,6 +533,14 @@ def _spawn_one(
         series_id=series.id,
         occurrence_on=occurrence_on,
     )
+    names = label_service.names_for_series(session, series.id)
+    if names:
+        label_service.set_issue_labels(
+            session,
+            issue.id,
+            names,
+            actor_name=history_service.SYSTEM_ACTOR,
+        )
     return issue
 
 
@@ -648,6 +674,7 @@ def _update_one_issue(
     parent_id: int | None | object,
     start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
+    labels: Sequence[str] | None = None,
     actor_name: str | None = None,
 ) -> None:
     kwargs: dict[str, object] = {}
@@ -667,6 +694,13 @@ def _update_one_issue(
         kwargs["start_at"] = start_at
     if due_at is not UNSET:
         kwargs["due_at"] = due_at
+    if labels is not None:
+        label_service.set_issue_labels(
+            session,
+            issue.id,
+            labels,
+            actor_name=actor_name,
+        )
     if kwargs:
         issue_service.update_issue(
             session,

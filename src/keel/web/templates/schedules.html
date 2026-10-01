@@ -35,6 +35,7 @@
             <th>Title</th>
             <th>Type</th>
             <th>Priority</th>
+            <th>Labels</th>
             <th>Cadence</th>
             <th>When copies appear</th>
             <th>State</th>
@@ -46,12 +47,13 @@
             <td><a href="/projects/{{ project.key }}/schedules/{{ item.id }}">{{ item.title }}</a></td>
             <td>{{ type_chip(item.type) }}</td>
             <td>{{ item.priority | label }}</td>
+            <td>{{ series_labels[item.id] }}</td>
             <td>{{ summaries[item.id] }}</td>
             <td>{{ item.spawn_mode | label }}</td>
             <td>{{ item.state | label }}</td>
           </tr>
           {% else %}
-          <tr><td class="keel-empty" colspan="6">No repeating series.</td></tr>
+          <tr><td class="keel-empty" colspan="7">No repeating series.</td></tr>
           {% endfor %}
         </tbody>
       </table>

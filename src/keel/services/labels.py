@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from keel.db.models import IssueLabel, Label
+from keel.db.models import IssueLabel, Label, SeriesLabel
 from keel.domain.labels import normalize_label_name, parse_label_names
 from keel.services import history as history_service
 from keel.services import issues as issue_service
@@ -42,6 +42,35 @@ def labels_for_issue(session: Session, issue_id: int) -> Sequence[Label]:
         .where(IssueLabel.issue_id == issue_id)
         .order_by(Label.name),
     ).all()
+
+
+def names_for_series(session: Session, series_id: int) -> list[str]:
+    rows = session.scalars(
+        select(Label.name)
+        .join(SeriesLabel, SeriesLabel.label_id == Label.id)
+        .where(SeriesLabel.series_id == series_id)
+        .order_by(Label.name),
+    ).all()
+    return list(rows)
+
+
+def set_series_labels(
+    session: Session,
+    series_id: int,
+    values: Sequence[str] | str,
+) -> list[str]:
+    """Replace the recipe's labels. Does not rewrite already-spawned copies."""
+    wanted = tuple(sorted(parse_label_names(values)))
+    current = tuple(names_for_series(session, series_id))
+    if wanted == current:
+        return list(current)
+    session.execute(delete(SeriesLabel).where(SeriesLabel.series_id == series_id))
+    session.flush()
+    for name in wanted:
+        label = _get_or_create(session, name)
+        session.add(SeriesLabel(series_id=series_id, label_id=label.id))
+    session.flush()
+    return list(wanted)
 
 
 def set_issue_labels(
