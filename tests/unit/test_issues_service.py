@@ -22,6 +22,7 @@ from keel.domain.errors import (
 )
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
+from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.issues import IssueFilters
 
@@ -498,3 +499,23 @@ def test_a_due_date_with_a_timezone_is_stored_naive_utc() -> None:
     parsed = issue_service.parse_due_at("2026-09-15T13:00:00-04:00")
     assert parsed == datetime(2026, 9, 15, 17, 0)
     assert parsed.tzinfo is None
+
+
+def test_an_issue_can_still_be_assigned_to_a_completed_sprint(
+    session: Session,
+    project: Project,
+) -> None:
+    past = sprint_service.create_sprint(session, project.id, "Past")
+    held = make(session, project, title="Held", sprint_id=past.id)
+    issue_service.update_issue(session, held, status=IssueStatus.DONE)
+    sprint_service.start_sprint(session, past.id)
+    sprint_service.complete_sprint(session, past.id)
+
+    waiting = make(session, project, title="Waiting")
+    issue_service.update_issue(session, waiting, sprint_id=past.id)
+    assert issue_service.get_issue(session, waiting).sprint_id == past.id
+    born = make(session, project, title="Born late", sprint_id=past.id)
+    assert issue_service.get_issue(session, born).sprint_id == past.id
+
+    issue_service.update_issue(session, held, title="Still held")
+    assert issue_service.get_issue(session, held).sprint_id == past.id

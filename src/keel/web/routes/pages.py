@@ -70,7 +70,7 @@ def create_page(
     sprints = []
     if chosen is not None:
         parents = list(issue_service.list_issues(session, chosen.id))
-        sprints = list(sprint_service.list_sprints(session, chosen.id))
+        sprints = list(sprint_service.list_assignable_sprints(session, chosen.id))
     return get_templates().TemplateResponse(
         request,
         "create.html",

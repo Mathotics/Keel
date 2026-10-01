@@ -774,3 +774,57 @@ def test_labels_can_be_added_and_removed_on_the_issue_page(
     assert removed.status_code == 303
     page = client.get("/issues/KEEL-1")
     assert "Tester — labels urgent → none" in page.text
+
+
+def test_sprint_choices_omit_completed_sprints(
+    client: TestClient,
+    project: Json,
+) -> None:
+    past = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Past"},
+    ).json()
+    held = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Held", "sprint_id": past["id"]},
+    ).json()
+    client.patch(f"/api/v1/issues/{held['id']}", json={"status": "done"})
+    client.post(f"/api/v1/sprints/{past['id']}/start")
+    client.post(f"/api/v1/sprints/{past['id']}/complete")
+    active = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Now"},
+    ).json()
+    client.post(f"/api/v1/sprints/{active['id']}/start")
+    client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Next"},
+    )
+
+    create = client.get(f"/create?project={project['key']}")
+    assert "Now (Active)" in create.text
+    assert "Next (Planned)" in create.text
+    assert "Past (Completed)" not in create.text
+
+    waiting = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting"},
+    ).json()
+    open_page = client.get(f"/issues/{project['key']}-{waiting['number']}")
+    assert "Now (Active)" in open_page.text
+    assert "Next (Planned)" in open_page.text
+    assert "Past (Completed)" not in open_page.text
+
+    held_page = client.get(f"/issues/{project['key']}-{held['number']}")
+    assert "Past (Completed)" in held_page.text
+    assert f'value="{past["id"]}" selected' in held_page.text
+
+    assigned = client.post(
+        f"/web/issues/{waiting['id']}/sprint",
+        data={"sprint_id": str(past["id"])},
+        follow_redirects=False,
+    )
+    assert assigned.status_code == 303
+    assert "error=" not in assigned.headers["location"]
+    moved = client.get(f"/api/v1/issues/{waiting['id']}").json()
+    assert moved["sprint_id"] == past["id"]

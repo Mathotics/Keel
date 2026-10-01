@@ -87,6 +87,65 @@ def test_the_sprints_page_creates_and_lists_a_sprint(
     assert "Plan a sprint" in listing.text
 
 
+def test_the_backlog_offers_the_active_sprint_and_not_a_completed_one(
+    client: TestClient,
+    project: Json,
+) -> None:
+    past = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Past"},
+    ).json()
+    client.post(f"/api/v1/sprints/{past['id']}/start")
+    client.post(f"/api/v1/sprints/{past['id']}/complete")
+    active = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Now"},
+    ).json()
+    client.post(f"/api/v1/sprints/{active['id']}/start")
+    future = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Next"},
+    ).json()
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting"},
+    ).json()
+
+    page = client.get("/projects/KEEL/backlog")
+    assert "Now (Active)" in page.text
+    assert "Next (Planned)" in page.text
+    assert "Past" not in page.text
+
+    scheduled = client.post(
+        f"/web/issues/{issue['id']}/sprint",
+        data={"sprint_id": str(active["id"]), "next": "/projects/KEEL/backlog"},
+        follow_redirects=False,
+    )
+    assert scheduled.status_code == 303
+    assert "Waiting" not in client.get("/projects/KEEL/backlog").text
+    assert future["id"] != active["id"]
+
+
+def test_the_backlog_says_when_no_sprint_can_be_assigned(
+    client: TestClient,
+    project: Json,
+) -> None:
+    past = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Past"},
+    ).json()
+    client.post(f"/api/v1/sprints/{past['id']}/start")
+    client.post(f"/api/v1/sprints/{past['id']}/complete")
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting"},
+    )
+
+    page = client.get("/projects/KEEL/backlog")
+    assert "No active or planned sprint" in page.text
+    assert "Past" not in page.text
+
+
 def test_the_backlog_schedules_an_issue_into_a_planned_sprint(
     client: TestClient,
     project: Json,

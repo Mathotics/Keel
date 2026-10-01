@@ -39,20 +39,20 @@
             <td>{% if item.issue.start_at %}{{ item.issue.start_at | when }}{% endif %}</td>
             <td>{% if item.issue.due_at %}{{ item.issue.due_at | when }}{% endif %}</td>
             <td>
-              {% if planned %}
+              {% if sprints %}
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ item.issue.id }}/sprint" data-keel-autosubmit>
                 <input type="hidden" name="next" value="/projects/{{ project.key }}/backlog"/>
                 <label class="keel-visually-hidden" for="backlog-sprint-{{ item.issue.id }}">Sprint for {{ project.key }}-{{ item.issue.number }}</label>
                 <select id="backlog-sprint-{{ item.issue.id }}" name="sprint_id">
                   <option value="" selected>Unscheduled</option>
-                  {% for sprint in planned %}
-                  <option value="{{ sprint.id }}">{{ sprint.name }}</option>
+                  {% for sprint in sprints %}
+                  <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.state | label }})</option>
                   {% endfor %}
                 </select>
                 <button class="keel-autosubmit__fallback" type="submit">Schedule</button>
               </form>
               {% else %}
-              No planned sprint
+              No active or planned sprint
               {% endif %}
             </td>
           </tr>

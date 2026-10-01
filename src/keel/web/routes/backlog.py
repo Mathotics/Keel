@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from keel.domain.enums import SprintState
 from keel.services import backlog as backlog_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -30,11 +29,7 @@ def backlog_page(
             project=project,
             issues=backlog_service.project_backlog(session, project.id),
             names=names,
-            planned=sprint_service.list_sprints(
-                session,
-                project.id,
-                SprintState.PLANNED,
-            ),
+            sprints=sprint_service.list_assignable_sprints(session, project.id),
             error=error,
         ),
     )
