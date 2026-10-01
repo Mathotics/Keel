@@ -301,3 +301,43 @@ def test_sprint_and_unscheduled_filters(session: Session, project: Project) -> N
 
     assert [item.id for item in in_sprint] == [scheduled]
     assert [item.id for item in waiting_list] == [waiting]
+
+
+def test_assignable_sprints_are_active_or_planned(
+    session: Session,
+    project: Project,
+) -> None:
+    past = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Past",
+        starts_on=date(2026, 8, 1),
+        ends_on=date(2026, 8, 14),
+    )
+    sprint_service.start_sprint(session, past.id)
+    sprint_service.complete_sprint(session, past.id)
+    active = sprint_service.create_sprint(
+        session,
+        project.id,
+        "Now",
+        starts_on=date(2026, 9, 1),
+        ends_on=date(2026, 9, 14),
+    )
+    sprint_service.start_sprint(session, active.id)
+    sprint_service.create_sprint(
+        session,
+        project.id,
+        "Next",
+        starts_on=date(2026, 9, 15),
+        ends_on=date(2026, 9, 28),
+    )
+
+    open_choices = sprint_service.list_assignable_sprints(session, project.id)
+    assert [item.name for item in open_choices] == ["Now", "Next"]
+
+    including_current = sprint_service.list_assignable_sprints(
+        session,
+        project.id,
+        current_id=past.id,
+    )
+    assert [item.name for item in including_current] == ["Past", "Now", "Next"]

@@ -103,7 +103,7 @@ Response body, with the fields the interface needs added:
 }
 ```
 
-`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/ADR-020.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)).
+`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/ADR-020.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)).
 
 ## Projections
 
