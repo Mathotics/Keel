@@ -23,6 +23,8 @@ def test_license_page_shows_full_license(app: FastAPI) -> None:
     html = TestClient(app).get("/license").text
     assert license_text().splitlines()[0] in html
     assert "No license is granted" in html
+    assert "No artificial intelligence system" in html
+    assert "explicit prior written permission" in html
     assert "keel-license" in html
     assert "keel-footer" in html
 
