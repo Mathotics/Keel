@@ -430,3 +430,31 @@ def test_priority_defaults_to_minor_and_round_trips(
         json={"priority": "p0"},
     )
     assert refused.status_code == 422
+
+
+def test_a_completed_sprint_can_still_be_assigned(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    past = client.post(
+        f"/api/v1/projects/{project_id}/sprints",
+        json={"name": "Past"},
+    ).json()
+    held = create_issue(client, project_id, title="Held", sprint_id=past["id"])
+    client.patch(f"/api/v1/issues/{held['id']}", json={"status": "done"})
+    assert client.post(f"/api/v1/sprints/{past['id']}/start").status_code == 200
+    assert client.post(f"/api/v1/sprints/{past['id']}/complete").status_code == 200
+
+    waiting = create_issue(client, project_id, title="Waiting")
+    moved = client.patch(
+        f"/api/v1/issues/{waiting['id']}",
+        json={"sprint_id": past["id"]},
+    )
+    assert moved.status_code == 200
+    assert moved.json()["sprint_id"] == past["id"]
+
+    born = create_issue(client, project_id, title="Born late", sprint_id=past["id"])
+    assert born["sprint_id"] == past["id"]
+
+    still_held = client.get(f"/api/v1/issues/{held['id']}").json()
+    assert still_held["sprint_id"] == past["id"]

@@ -78,7 +78,11 @@ def issue_page(
                 for candidate in issue_service.list_issues(session, project.id)
                 if candidate.id != issue.id
             ],
-            sprints=sprint_service.list_sprints(session, project.id),
+            sprints=sprint_service.list_assignable_sprints(
+                session,
+                project.id,
+                current_id=issue.sprint_id,
+            ),
             series=series,
             series_summary=(
                 None if series is None else series_service.cadence_summary(series)

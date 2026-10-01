@@ -41,6 +41,24 @@ def list_sprints(
     ).all()
 
 
+def list_assignable_sprints(
+    session: Session,
+    project_id: int,
+    *,
+    current_id: int | None = None,
+) -> Sequence[Sprint]:
+    """Active and planned sprints a person may assign an issue to.
+
+    A completed sprint stays in the list only when ``current_id`` is that
+    sprint, so an issue already there still shows its assignment.
+    """
+    return [
+        sprint
+        for sprint in list_sprints(session, project_id)
+        if sprint.state is not SprintState.COMPLETED or sprint.id == current_id
+    ]
+
+
 def list_all_sprints(session: Session) -> Sequence[Sprint]:
     """Every sprint, ordered by project key then the usual sprint order."""
     return session.scalars(
