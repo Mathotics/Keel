@@ -8,11 +8,11 @@ def test_a_blank_cookie_means_every_section_is_open() -> None:
 
 
 def test_unknown_keys_are_dropped_and_order_is_canonical() -> None:
-    parsed = parse_collapsed("waiting,nope,assigned.due.upcoming.completed")
+    parsed = parse_collapsed("waiting,nope,assigned.due.week.month.upcoming.completed")
     assert parsed == frozenset(
-        {"waiting", "assigned", "due", "upcoming", "completed"},
+        {"waiting", "assigned", "due", "week", "month", "completed"},
     )
-    assert encode_collapsed(parsed) == "due.upcoming.assigned.waiting.completed"
+    assert encode_collapsed(parsed) == "due.week.month.assigned.waiting.completed"
 
 
 def test_toggling_a_section_adds_or_removes_it() -> None:

@@ -135,17 +135,24 @@ def test_home_lists_due_and_starting_before_assigned(client: TestClient) -> None
     assert headings[3] == "Blocked"
 
 
-def _horizon_end(day: date) -> date:
+def _look_ahead(day: date) -> tuple[str, str] | None:
+    """Panel key and heading for tomorrow, when it is still this week or month."""
+    soon = day + timedelta(days=1)
     week_end = day + timedelta(days=7 - day.isoweekday())
     month_end = date(day.year, day.month, monthrange(day.year, day.month)[1])
-    return max(week_end, month_end)
+    if soon <= week_end:
+        return "week", "Due this week"
+    if soon <= month_end:
+        return "month", "Due this month"
+    return None
 
 
-def test_home_lists_upcoming_due_after_due_or_overdue(client: TestClient) -> None:
+def test_home_lists_look_ahead_due_after_due_or_overdue(client: TestClient) -> None:
     today = date.today()
-    horizon = _horizon_end(today)
-    if today >= horizon:
+    panel = _look_ahead(today)
+    if panel is None:
         pytest.skip("no look-ahead days remain in this week or month")
+    key, heading = panel
     soon = today + timedelta(days=1)
     project = client.post(
         "/api/v1/projects",
@@ -175,26 +182,25 @@ def test_home_lists_upcoming_due_after_due_or_overdue(client: TestClient) -> Non
     headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
     assert headings[:3] == [
         "Due or overdue",
-        "Due this week or this month",
+        heading,
         "Assigned to me",
     ]
-    upcoming = page.text.split("<h2>Due this week or this month</h2>", 1)[1].split(
-        "<h2>",
-        1,
-    )[0]
+    look_ahead = page.text.split(f"<h2>{heading}</h2>", 1)[1].split("<h2>", 1)[0]
     due = page.text.split("<h2>Due or overdue</h2>", 1)[1].split("<h2>", 1)[0]
-    assert "Soon" in upcoming
-    assert "Late" not in upcoming
+    assert "Soon" in look_ahead
+    assert "Late" not in look_ahead
     assert "Late" in due
     assert "Soon" not in due
-    assert 'data-keel-inbox-panel="upcoming"' in page.text
+    assert f'data-keel-inbox-panel="{key}"' in page.text
+    assert "Due this week or this month" not in page.text
 
 
-def test_the_inbox_cookie_closes_upcoming(client: TestClient) -> None:
+def test_the_inbox_cookie_closes_the_look_ahead_panel(client: TestClient) -> None:
     today = date.today()
-    horizon = _horizon_end(today)
-    if today >= horizon:
+    panel = _look_ahead(today)
+    if panel is None:
         pytest.skip("no look-ahead days remain in this week or month")
+    key, heading = panel
     soon = today + timedelta(days=1)
     project = client.post(
         "/api/v1/projects",
@@ -210,11 +216,11 @@ def test_the_inbox_cookie_closes_upcoming(client: TestClient) -> None:
             "due_at": f"{soon.isoformat()}T09:00:00",
         },
     )
-    client.cookies.set("keel_inbox", "upcoming")
+    client.cookies.set("keel_inbox", key)
     page = client.get("/")
-    upcoming = _panel(page.text, "upcoming")
-    assert " open" not in upcoming
-    assert "<h2>Due this week or this month</h2>" in page.text
+    look_ahead = _panel(page.text, key)
+    assert " open" not in look_ahead
+    assert f"<h2>{heading}</h2>" in page.text
     assert "Soon" in page.text
 
 
