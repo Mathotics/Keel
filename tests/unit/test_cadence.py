@@ -40,8 +40,34 @@ def test_n_days_refuses_a_missing_or_non_positive_count() -> None:
     assert caught.value.code == "project.invalid_cadence"
 
 
-def test_monthly_uses_the_same_day_next_month() -> None:
-    assert window_end(date(2026, 9, 12), SprintCadence.MONTHLY) == date(2026, 10, 12)
+def test_monthly_ends_the_day_before_the_same_day_next_month() -> None:
+    assert window_end(date(2026, 1, 1), SprintCadence.MONTHLY) == date(2026, 1, 31)
+    assert window_end(date(2026, 9, 12), SprintCadence.MONTHLY) == date(2026, 10, 11)
+    assert window_end(date(2026, 2, 1), SprintCadence.MONTHLY) == date(2026, 2, 28)
+
+
+def test_monthly_windows_keep_the_start_day() -> None:
+    start = date(2026, 1, 1)
+    expected_ends = (
+        date(2026, 1, 31),
+        date(2026, 2, 28),
+        date(2026, 3, 31),
+        date(2026, 4, 30),
+    )
+    for expected_end in expected_ends:
+        end = window_end(start, SprintCadence.MONTHLY)
+        assert end == expected_end
+        assert start.day == 1
+        start = following_window_start(end)
+    assert start == date(2026, 5, 1)
+
+
+def test_monthly_clamp_sticks_to_the_shorter_month_day() -> None:
+    end = window_end(date(2026, 1, 31), SprintCadence.MONTHLY)
+    assert end == date(2026, 2, 27)
+    nxt = following_window_start(end)
+    assert nxt == date(2026, 2, 28)
+    assert window_end(nxt, SprintCadence.MONTHLY) == date(2026, 3, 27)
 
 
 def test_monthly_clamps_to_the_last_day_of_the_month() -> None:

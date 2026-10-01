@@ -23,7 +23,9 @@ def window_end(
     if cadence is SprintCadence.EVERY_N_DAYS:
         return start + timedelta(days=_positive_days(n_days) - 1)
     if cadence is SprintCadence.MONTHLY:
-        return add_one_month(start)
+        # The anniversary belongs to the next window. Using it as an inclusive
+        # end makes the following start a day later and rolls the day forward.
+        return add_one_month(start) - timedelta(days=1)
     raise InvalidSprintCadenceError("Auto-sprint is off, so there is no window.")
 
 

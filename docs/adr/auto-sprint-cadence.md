@@ -1,7 +1,7 @@
 # ADR 019: Auto-sprint cadence
 
 * **Status:** Accepted, amended by [Auto-sprint lookahead](auto-sprint-lookahead.md)
-* **Date:** 2026-09-19
+* **Date:** 2026-10-01
 
 ## Background
 
@@ -55,7 +55,7 @@ Sprint open and close are only manual. A project that works in a regular rhythm 
 * **Must** treat `ends_on` as a full last day: the sprint stays active through that date; rollover runs at the start of the following calendar day.
 * **Must**, on rollover, complete the active sprint with the same unfinished-work rule as today, then start the earliest remaining planned sprint; if none is planned, create one and start it so carry-over lands in that window, not the backlog.
 * **Must** name an auto-created sprint with its date window (for example `12 Sep – 26 Sep 2026`) and leave the goal blank. The new sprint is otherwise empty except for carried unfinished work.
-* **Must** date an auto-created next window as start = day after the closed sprint’s end, end = that start plus one cadence (weekly = 7 inclusive days, two weeks = 14, N days = N inclusive days, monthly = same day-of-month next month, clamped to the last day of that month).
+* **Must** date an auto-created next window as start = day after the closed sprint’s end, end = that start plus one cadence (weekly = 7 inclusive days, two weeks = 14, N days = N inclusive days, monthly = the day before the same day-of-month next month). That anniversary is clamped to the last day of a short month, then the inclusive end is the day before it, so the next window starts on the anniversary and the day-of-month does not roll forward. A window that starts on the 1st therefore ends on the last day of that month, and the next starts on the 1st.
 * **Must**, when turning auto-sprint on with no active sprint, immediately start the next planned sprint, or create and start a window that starts today and lasts one cadence.
 * **Must**, if the already-active sprint has no end date when auto-sprint is turned on, set `ends_on` from today by the same inclusive cadence rule, and not change an existing start date.
 * **Must**, while auto-sprint is on, keep one sprint active: after a manual complete or after the active sprint is deleted, start or create the next window the same way, without waiting for the next calendar boundary.
@@ -80,7 +80,7 @@ Sprint open and close are only manual. A project that works in a regular rhythm 
 * **Bad:** Auto-created sprints have no goal and are not filled from the backlog, so planning for the new window is still a separate step.
 * **Bad:** Catch-up skips missed periods, so sprint history will not show empty sprints for downtime.
 * **Risk:** Changing dates by hand while auto-sprint is on can move the next close in ways that feel surprising; the sprints page must show the next close date clearly.
-* **Risk:** Monthly clamping (for example a window that started on the 31st) can make adjacent windows slightly different lengths.
+* **Risk:** Monthly clamping (for example a window that started on the 31st) shortens that window, and later windows stay on the clamped day rather than returning to the 31st.
 
 ## System Design
 
