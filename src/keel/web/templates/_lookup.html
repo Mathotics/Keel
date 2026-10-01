@@ -1,0 +1,4 @@
+<span class="keel-lookup" data-keel-lookup="{{ kind }}"{% if project_key %} data-keel-lookup-project="{{ project_key }}"{% endif %}{% if exclude_id %} data-keel-lookup-exclude="{{ exclude_id }}"{% endif %}{% if id_name %} data-keel-lookup-id="{{ id_name }}"{% endif %}{% if submit %} data-keel-lookup-submit{% endif %}>
+  <input id="{{ field_id }}" name="{{ query_name }}" type="text" value="{{ value|default('') }}"{% if placeholder %} placeholder="{{ placeholder }}"{% endif %} autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="{{ field_id }}-list"/>
+  <ul id="{{ field_id }}-list" class="keel-lookup__list" role="listbox" hidden></ul>
+</span>

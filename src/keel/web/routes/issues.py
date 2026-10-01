@@ -18,6 +18,7 @@ from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import labels as label_service
+from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
@@ -38,16 +39,6 @@ def issue_page(
 ) -> HTMLResponse:
     issue = issue_service.get_issue_by_key(session, key)
     project = project_service.get_project(session, issue.project_id)
-    projects = {item.id: item for item in project_service.list_projects(session)}
-    candidates = [
-        {
-            "id": other.id,
-            "key": issue_service.issue_key(other, projects[other.project_id]),
-            "title": other.title,
-        }
-        for other in issue_service.list_issues_globally(session)
-        if other.id != issue.id
-    ]
     series = None
     if issue.series_id is not None:
         series = series_service.attached_series(session, issue)
@@ -67,17 +58,16 @@ def issue_page(
             comments=_comment_views(session, issue.id),
             history=history_service.list_history(session, issue.id),
             rollup=issue_service.issue_rollup(session, issue.id),
-            candidates=candidates,
+            parent_label=lookup_service.parent_field_value(
+                session,
+                issue.parent_id,
+                project,
+            ),
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
             priorities=priorities_in_rank_order(),
             issue_types=types_in_hierarchy_order(),
             child_type=child_type_of(issue.type),
-            parents=[
-                candidate
-                for candidate in issue_service.list_issues(session, project.id)
-                if candidate.id != issue.id
-            ],
             sprints=sprint_service.list_assignable_sprints(
                 session,
                 project.id,

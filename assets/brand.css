@@ -524,6 +524,49 @@ body {
   color: var(--keel-blue-deep);
 }
 
+.keel-lookup {
+  position: relative;
+  display: inline-block;
+  min-width: 16rem;
+  max-width: 24rem;
+  vertical-align: middle;
+}
+
+.keel-lookup input {
+  width: 100%;
+}
+
+.keel-lookup__list {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  margin: 0;
+  padding: 0.25rem 0;
+  list-style: none;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.keel-lookup__option,
+.keel-lookup__empty {
+  padding: 0.25rem 0.5rem;
+}
+
+.keel-lookup__option {
+  cursor: pointer;
+}
+
+.keel-lookup__option[aria-selected="true"] {
+  background: var(--keel-blue);
+  color: var(--keel-white);
+}
+
 .keel-form input[type="checkbox"] {
   width: 1rem;
   height: 1rem;

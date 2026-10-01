@@ -84,12 +84,9 @@
               </p>
               <p>
                 <label for="issue-parent">Parent</label>
-                <select id="issue-parent" name="parent_id">
-                  <option value="" selected>No parent</option>
-                  {% for candidate in parents %}
-                  <option value="{{ candidate.id }}">{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
-                  {% endfor %}
-                </select>
+                {% with field_id="issue-parent", query_name="parent_query", value="", kind="issues", project_key=project.key, exclude_id="", id_name="parent_id", submit=false, placeholder="No parent" %}
+                {% include "_lookup.html" %}
+                {% endwith %}
               </p>
               <p>
                 <label for="issue-sprint">Sprint</label>
