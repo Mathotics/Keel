@@ -29,9 +29,9 @@ from keel.domain.recurrence import (
 )
 from keel.domain.schedule import (
     check_recipe_window,
-    offsets_from,
+    complete_offset_pair,
+    offsets_for_window,
     recipe_due_at,
-    recipe_offsets_from,
     recipe_start_at,
 )
 from keel.services import issues as issue_service
@@ -110,10 +110,10 @@ def create_series(
     assignee_id: int | None = None,
     reporter_id: int | None = None,
     seed_issue_id: int | None = None,
-    start_offset_days: int = 0,
-    start_minute_of_day: int = 0,
-    due_offset_days: int = 0,
-    due_minute_of_day: int = 0,
+    start_offset_days: int | None = 0,
+    start_minute_of_day: int | None = 0,
+    due_offset_days: int | None = 0,
+    due_minute_of_day: int | None = 0,
     today: date | None = None,
 ) -> Series:
     project = project_service.get_project(session, project_id)
@@ -130,6 +130,14 @@ def create_series(
         count=occurrence_count,
     )
     occurrence_dates(recurrence, starts_on)
+    start_offset_days, start_minute_of_day = complete_offset_pair(
+        start_offset_days,
+        start_minute_of_day,
+    )
+    due_offset_days, due_minute_of_day = complete_offset_pair(
+        due_offset_days,
+        due_minute_of_day,
+    )
     series = Series(
         project_id=project.id,
         title=_clean_title(title),
@@ -187,10 +195,10 @@ def update_series(
     occurrence_count: int | None | object = UNSET,
     parent_id: int | None | object = UNSET,
     assignee_id: int | None | object = UNSET,
-    start_offset_days: int | None = None,
-    start_minute_of_day: int | None = None,
-    due_offset_days: int | None = None,
-    due_minute_of_day: int | None = None,
+    start_offset_days: int | None | object = UNSET,
+    start_minute_of_day: int | None | object = UNSET,
+    due_offset_days: int | None | object = UNSET,
+    due_minute_of_day: int | None | object = UNSET,
     rewrite_from: date | None = None,
     today: date | None = None,
 ) -> Series:
@@ -231,14 +239,8 @@ def update_series(
         series.parent_id = parent_id  # type: ignore[assignment]
     if assignee_id is not UNSET:
         series.assignee_id = assignee_id  # type: ignore[assignment]
-    if start_offset_days is not None:
-        series.start_offset_days = start_offset_days
-    if start_minute_of_day is not None:
-        series.start_minute_of_day = start_minute_of_day
-    if due_offset_days is not None:
-        series.due_offset_days = due_offset_days
-    if due_minute_of_day is not None:
-        series.due_minute_of_day = due_minute_of_day
+    _assign_start(series, start_offset_days, start_minute_of_day)
+    _assign_due(series, due_offset_days, due_minute_of_day)
     _check_offsets(series)
     occurrence_dates(recurrence_of(series), series.starts_on)
     session.flush()
@@ -286,10 +288,10 @@ def apply_occurrence_edit(
     starts_on: date | None = None,
     ends_on: date | None | object = UNSET,
     occurrence_count: int | None | object = UNSET,
-    start_offset_days: int | None = None,
-    start_minute_of_day: int | None = None,
-    due_offset_days: int | None = None,
-    due_minute_of_day: int | None = None,
+    start_offset_days: int | None | object = UNSET,
+    start_minute_of_day: int | None | object = UNSET,
+    due_offset_days: int | None | object = UNSET,
+    due_minute_of_day: int | None | object = UNSET,
     start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
     today: date | None = None,
@@ -674,7 +676,10 @@ def _update_one_issue(
         )
 
 
-def occurrence_window(series: Series, occurrence_on: date) -> tuple[datetime, datetime]:
+def occurrence_window(
+    series: Series,
+    occurrence_on: date,
+) -> tuple[datetime | None, datetime | None]:
     return (
         recipe_start_at(
             occurrence_on,
@@ -723,10 +728,14 @@ def _sync_copy_dates(
 def _placement_day(series: Series, occurrence_on: date) -> date:
     start_at, due_at = occurrence_window(series, occurrence_on)
     if series.sprint_basis is SeriesSprintBasis.START_ON:
-        return start_at.date()
+        if start_at is not None:
+            return start_at.date()
+        return occurrence_on
     if series.sprint_basis is SeriesSprintBasis.CREATED_ON:
         return occurrence_on
-    return due_at.date()
+    if due_at is not None:
+        return due_at.date()
+    return occurrence_on
 
 
 def _claim_day(series: Series, issue: Issue) -> date:
@@ -735,44 +744,83 @@ def _claim_day(series: Series, issue: Issue) -> date:
     if series.sprint_basis is SeriesSprintBasis.START_ON:
         if issue.start_at is not None:
             return issue.start_at.date()
-        return occurrence_window(series, issue.occurrence_on)[0].date()
+        start_at, _due_at = occurrence_window(series, issue.occurrence_on)
+        if start_at is not None:
+            return start_at.date()
+        return issue.occurrence_on
     if series.sprint_basis is SeriesSprintBasis.CREATED_ON:
         return issue.occurrence_on
     if issue.due_at is not None:
         return issue.due_at.date()
-    return occurrence_window(series, issue.occurrence_on)[1].date()
+    _start_at, due_at = occurrence_window(series, issue.occurrence_on)
+    if due_at is not None:
+        return due_at.date()
+    return issue.occurrence_on
 
 
 def _offsets_from_issue(
     issue: Issue,
     occurrence_on: date,
-) -> tuple[int, int, int, int]:
-    start_days, start_minutes = (0, 0)
-    due_days, due_minutes = (0, 0)
-    if issue.start_at is not None:
-        signed_start_days, start_minutes = offsets_from(occurrence_on, issue.start_at)
-        start_days = -signed_start_days
-    if issue.due_at is not None:
-        due_days, due_minutes = offsets_from(occurrence_on, issue.due_at)
-    check_recipe_window(start_days, start_minutes, due_days, due_minutes)
-    return start_days, start_minutes, due_days, due_minutes
+) -> tuple[int | None, int | None, int | None, int | None]:
+    return offsets_for_window(occurrence_on, issue.start_at, issue.due_at)
 
 
 def _offsets_from_datetimes(
     issue: Issue,
     start_at: datetime | None | object,
     due_at: datetime | None | object,
-) -> tuple[int, int, int, int]:
+) -> tuple[int | None, int | None, int | None, int | None]:
     if issue.occurrence_on is None:
         raise InvalidSeriesError("This copy has no occurrence date.")
-    start = issue.start_at if start_at is UNSET else start_at
-    due = issue.due_at if due_at is UNSET else due_at
-    if start is None or due is None:
-        raise InvalidSeriesError("A series recipe needs both a start and a due.")
-    return recipe_offsets_from(
+    return offsets_for_window(
         issue.occurrence_on,
-        start,  # type: ignore[arg-type]
-        due,  # type: ignore[arg-type]
+        _optional_instant(start_at, issue.start_at),
+        _optional_instant(due_at, issue.due_at),
+    )
+
+
+def _optional_instant(
+    value: datetime | None | object,
+    current: datetime | None,
+) -> datetime | None:
+    if value is UNSET:
+        return current
+    if value is None or isinstance(value, datetime):
+        return value
+    raise InvalidSeriesError("A date could not be read.")
+
+
+def _merged_offset(value: int | None | object, current: int | None) -> int | None:
+    if value is UNSET:
+        return current
+    if value is None or isinstance(value, int):
+        return value
+    raise InvalidSeriesError("Day offset could not be read.")
+
+
+def _assign_start(
+    series: Series,
+    offset_days: int | None | object,
+    minute_of_day: int | None | object,
+) -> None:
+    if offset_days is UNSET and minute_of_day is UNSET:
+        return
+    series.start_offset_days, series.start_minute_of_day = complete_offset_pair(
+        _merged_offset(offset_days, series.start_offset_days),
+        _merged_offset(minute_of_day, series.start_minute_of_day),
+    )
+
+
+def _assign_due(
+    series: Series,
+    offset_days: int | None | object,
+    minute_of_day: int | None | object,
+) -> None:
+    if offset_days is UNSET and minute_of_day is UNSET:
+        return
+    series.due_offset_days, series.due_minute_of_day = complete_offset_pair(
+        _merged_offset(offset_days, series.due_offset_days),
+        _merged_offset(minute_of_day, series.due_minute_of_day),
     )
 
 

@@ -89,21 +89,24 @@
               <label for="{{ prefix }}-n">{{ look_ahead_label }}</label>
               <input id="{{ prefix }}-n" name="look_ahead_n" type="number" min="1" value="{{ recipe.look_ahead_n if recipe else 1 }}" required/>
             </p>
+            <p class="keel-fields__full">
+              <span class="keel-note">Leave start or due blank and copies are created without that date.</span>
+            </p>
             <p>
               <label for="{{ prefix }}-start-offset">Start offset (days before occurrence)</label>
-              <input id="{{ prefix }}-start-offset" name="start_offset_days" type="number" min="0" value="{{ recipe.start_offset_days if recipe else 0 }}" required/>
+              <input id="{{ prefix }}-start-offset" name="start_offset_days" type="number" min="0" value="{% if recipe and recipe.start_offset_days is not none %}{{ recipe.start_offset_days }}{% endif %}"/>
             </p>
             <p>
               <label for="{{ prefix }}-start-time">Start time</label>
-              <input id="{{ prefix }}-start-time" name="start_time" type="time" value="{{ recipe.start_minute_of_day | clock if recipe else '00:00' }}" required/>
+              <input id="{{ prefix }}-start-time" name="start_time" type="time" value="{% if recipe and recipe.start_minute_of_day is not none %}{{ recipe.start_minute_of_day | clock }}{% endif %}"/>
             </p>
             <p>
               <label for="{{ prefix }}-due-offset">Due offset (days after occurrence)</label>
-              <input id="{{ prefix }}-due-offset" name="due_offset_days" type="number" min="0" value="{{ recipe.due_offset_days if recipe else 0 }}" required/>
+              <input id="{{ prefix }}-due-offset" name="due_offset_days" type="number" min="0" value="{% if recipe and recipe.due_offset_days is not none %}{{ recipe.due_offset_days }}{% endif %}"/>
             </p>
             <p>
               <label for="{{ prefix }}-due-time">Due time</label>
-              <input id="{{ prefix }}-due-time" name="due_time" type="time" value="{{ recipe.due_minute_of_day | clock if recipe else '00:00' }}" required/>
+              <input id="{{ prefix }}-due-time" name="due_time" type="time" value="{% if recipe and recipe.due_minute_of_day is not none %}{{ recipe.due_minute_of_day | clock }}{% endif %}"/>
             </p>
           </div>
         </fieldset>
