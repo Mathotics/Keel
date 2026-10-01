@@ -296,11 +296,28 @@ body {
   opacity: 0.75;
 }
 
+.keel-inbox__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.keel-inbox__tools form {
+  margin: 0;
+}
+
 .keel-inbox__fallback {
   margin-left: auto;
 }
 
-.keel-inbox__fallback button {
+.keel-inbox__tools .keel-inbox__fallback {
+  margin-left: 0;
+}
+
+.keel-inbox__fallback button,
+.keel-inbox__tools button,
+.keel-home-add button {
   height: var(--keel-control-height);
   padding: 0 0.75rem;
   border: 1px solid var(--keel-blue);
@@ -311,8 +328,37 @@ body {
   line-height: 1;
 }
 
-[data-keel-inbox] .keel-inbox__fallback {
+[data-keel-inbox] .keel-inbox__fallback,
+[data-keel-inbox] .keel-inbox__move {
   display: none;
+}
+
+[data-keel-inbox] [data-keel-home-handle] {
+  cursor: grab;
+}
+
+[data-keel-inbox] .keel-home-item.is-dragging {
+  opacity: 0.55;
+}
+
+[data-keel-inbox] .keel-home-item.is-drop-target {
+  outline: 2px solid var(--keel-blue);
+  outline-offset: 2px;
+}
+
+.keel-home-add {
+  margin-top: 1.75rem;
+}
+
+.keel-home-add p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.keel-home-add select {
+  height: var(--keel-control-height);
 }
 
 .keel-main > h3 {

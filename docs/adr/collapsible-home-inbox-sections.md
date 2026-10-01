@@ -3,6 +3,8 @@
 * **Status:** Accepted
 * **Date:** 2026-10-01
 
+> **Amendment.** [Customizable home panels](customizable-home-panels.md) lets this browser remove and reorder those sections. Collapse is unchanged. The out-of-scope line below that forbids reordering or removing sections is superseded by that record.
+
 ## Background
 
 `/` is the acting user's personal inbox ([ADR 022](personal-work-inbox.md), [ADR 029](ADR-029.md), [Due this week and due this month as separate home panels](due-this-week-and-due-this-month-home-panels.md), [Completed today on the home inbox](completed-today-home-panel.md)): stacked sections for due or overdue, due this week, due this month, starting or started, assigned, blocked, active sprint, waiting this cycle, and completed today. Empty sections are omitted; a busy day still stacks several tables. Status changes post and re-render `/`. Top-bar section order already persists in a browser cookie, not a user row ([ADR 001](persistent-top-menu-bar.md)). Native disclosure already hides Help and the issue description editor without JavaScript ([ADR 023](ADR-023.md), [ADR 009](server-rendered-jinja2.md)).
@@ -33,7 +35,7 @@ Every non-empty inbox section is always fully open. Assigned to me repeats issue
 ### Out-of-Scope
 
 * Collapsing panels on other pages (board, issue, projects, schedules).
-* Reordering, renaming, or removing home sections.
+* Renaming home sections. Removing and reordering them is [Customizable home panels](customizable-home-panels.md).
 * Hiding a section with no heading, or changing which issues belong in which section.
 * Storing the preference on the user row or in the database.
 * Filters, tabs, or saved views on `/`.

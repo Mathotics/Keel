@@ -467,3 +467,66 @@ def test_status_from_home_keeps_a_collapsed_section(client: TestClient) -> None:
     page = client.get("/")
     assert " open" not in _panel(page.text, "assigned")
     assert "In Progress" in page.text
+
+
+def test_removing_a_home_panel_hides_it_until_it_is_added(
+    client: TestClient,
+) -> None:
+    _seed_assigned(client)
+    removed = client.post(
+        "/web/home/hide",
+        data={"panel": "assigned", "next": "/"},
+        follow_redirects=False,
+    )
+    assert removed.status_code == 303
+    assert removed.headers["location"] == "/"
+    page = client.get("/")
+    assert "<h2>Assigned to me</h2>" not in page.text
+    assert "Every home panel is hidden." in page.text
+    assert "Add a panel" in page.text
+    assert ">Assigned to me</option>" in page.text
+    added = client.post(
+        "/web/home/show",
+        data={"panel": "assigned", "next": "/"},
+        follow_redirects=False,
+    )
+    assert added.status_code == 303
+    restored = client.get("/")
+    assert "<h2>Assigned to me</h2>" in restored.text
+    assert "Add a panel" not in restored.text
+
+
+def test_moving_a_home_panel_up_changes_the_stack(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Late",
+            "assignee_id": tester["id"],
+            "due_at": "2020-01-01T09:00:00",
+        },
+    )
+    page = client.get("/")
+    headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
+    assert headings[:2] == ["Due or overdue", "Assigned to me"]
+    moved = client.post(
+        "/web/home/move",
+        data={
+            "item": "assigned",
+            "direction": "up",
+            "visible": "due,assigned",
+            "next": "/",
+        },
+        follow_redirects=False,
+    )
+    assert moved.status_code == 303
+    again = client.get("/")
+    assert re.findall(r"<h2>([^<]+)</h2>", again.text)[:2] == [
+        "Assigned to me",
+        "Due or overdue",
+    ]
