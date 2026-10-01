@@ -43,6 +43,10 @@
               <label for="{{ prefix }}-description">Default description</label>
               <textarea id="{{ prefix }}-description" name="description" rows="4">{{ recipe.description if recipe else '' }}</textarea>
             </p>
+            <p class="keel-fields__full">
+              <label for="{{ prefix }}-labels">Labels</label>
+              <input id="{{ prefix }}-labels" name="labels" type="text" maxlength="300" value="{{ recipe_labels|default('') }}" placeholder="urgent, plumbing"/>
+            </p>
             {% if include_people|default(false) %}
             <p>
               <label for="{{ prefix }}-assignee">Assignee</label>

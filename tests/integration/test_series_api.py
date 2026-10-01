@@ -124,3 +124,35 @@ def test_the_series_api_stores_priority_on_spawned_copies(client: TestClient) ->
         json={"priority": "p2"},
     )
     assert patched.json()["priority"] == "p2"
+
+
+def test_the_series_api_stores_labels_on_spawned_copies(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    created = client.post(
+        f"/api/v1/projects/{project['id']}/series",
+        json={
+            "title": "Labeled backup",
+            "type": "story",
+            "spawn_mode": "calendar",
+            "sprint_basis": "created_on",
+            "freq": "daily",
+            "starts_on": "2026-09-12",
+            "look_ahead_n": 1,
+            "labels": ["Urgent", "plumbing"],
+        },
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["labels"] == ["plumbing", "urgent"]
+    copies = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    spawned = [item for item in copies if item["series_id"] == body["id"]]
+    assert spawned
+    assert {tuple(item["labels"]) for item in spawned} == {("plumbing", "urgent")}
+    patched = client.patch(
+        f"/api/v1/series/{body['id']}",
+        json={"labels": []},
+    )
+    assert patched.json()["labels"] == []
