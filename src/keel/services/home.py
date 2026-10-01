@@ -38,7 +38,8 @@ class HomeRow:
 class HomeInbox:
     assigned: tuple[HomeRow, ...] = ()
     due: tuple[HomeRow, ...] = ()
-    upcoming: tuple[HomeRow, ...] = ()
+    due_week: tuple[HomeRow, ...] = ()
+    due_month: tuple[HomeRow, ...] = ()
     starting: tuple[HomeRow, ...] = ()
     blocked: tuple[HomeRow, ...] = ()
     active_sprint: tuple[HomeRow, ...] = ()
@@ -50,7 +51,8 @@ class HomeInbox:
         return not (
             self.assigned
             or self.due
-            or self.upcoming
+            or self.due_week
+            or self.due_month
             or self.starting
             or self.blocked
             or self.active_sprint
@@ -67,6 +69,8 @@ def personal_inbox(
 ) -> HomeInbox:
     """Issues assigned to one user, partitioned into overlapping home sections."""
     day = today or date.today()
+    week_end = _week_end(day)
+    month_end = _month_end(day)
     found = session.execute(
         select(Issue, Project, Sprint)
         .join(Project, Issue.project_id == Project.id)
@@ -105,12 +109,20 @@ def personal_inbox(
                 and _calendar_day(item.issue.due_at) <= day
             ],
         ),
-        upcoming=_sorted_by_due(
+        due_week=_sorted_by_due(
             [
                 item
                 for item in unfinished
                 if item.issue.due_at is not None
-                and day < _calendar_day(item.issue.due_at) <= _horizon_end(day)
+                and day < _calendar_day(item.issue.due_at) <= week_end
+            ],
+        ),
+        due_month=_sorted_by_due(
+            [
+                item
+                for item in unfinished
+                if item.issue.due_at is not None
+                and week_end < _calendar_day(item.issue.due_at) <= month_end
             ],
         ),
         starting=_sorted_by_start(
@@ -161,11 +173,13 @@ def _calendar_day(value: datetime) -> date:
     return value.date()
 
 
-def _horizon_end(day: date) -> date:
-    """Later of this ISO week's Sunday and this calendar month's last day."""
-    week_end = day + timedelta(days=7 - day.isoweekday())
-    month_end = date(day.year, day.month, monthrange(day.year, day.month)[1])
-    return max(week_end, month_end)
+def _week_end(day: date) -> date:
+    """Sunday of the ISO week that contains `day` (Monday–Sunday)."""
+    return day + timedelta(days=7 - day.isoweekday())
+
+
+def _month_end(day: date) -> date:
+    return date(day.year, day.month, monthrange(day.year, day.month)[1])
 
 
 def _as_naive_utc(value: datetime) -> datetime:

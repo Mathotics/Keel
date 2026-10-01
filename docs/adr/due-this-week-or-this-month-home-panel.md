@@ -1,7 +1,7 @@
 # Due this week or this month on the home inbox
 
-* **Status:** Accepted
-* **Date:** 2026-09-20
+* **Status:** Superseded by [Due this week and due this month as separate home panels](due-this-week-and-due-this-month-home-panels.md)
+* **Date:** 2026-10-01
 
 ## Background
 
