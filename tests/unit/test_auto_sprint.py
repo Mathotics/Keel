@@ -347,6 +347,37 @@ def _planned(session: Session, project: Project) -> list[Sprint]:
     ]
 
 
+def test_monthly_ahead_keeps_each_window_on_the_same_day(
+    session: Session,
+    project: Project,
+) -> None:
+    project.sprint_ahead = 3
+    auto_sprint.apply_cadence(
+        session,
+        project,
+        SprintCadence.MONTHLY,
+        None,
+        date(2026, 1, 1),
+    )
+
+    active = sprint_service.active_sprint(session, project.id)
+    assert active is not None
+    assert active.starts_on == date(2026, 1, 1)
+    assert active.ends_on == date(2026, 1, 31)
+    assert active.name == "1 Jan – 31 Jan 2026"
+    planned = _planned(session, project)
+    assert [item.starts_on for item in planned] == [
+        date(2026, 2, 1),
+        date(2026, 3, 1),
+        date(2026, 4, 1),
+    ]
+    assert [item.ends_on for item in planned] == [
+        date(2026, 2, 28),
+        date(2026, 3, 31),
+        date(2026, 4, 30),
+    ]
+
+
 def test_turning_on_with_ahead_creates_dated_planned_windows(
     session: Session,
     project: Project,
