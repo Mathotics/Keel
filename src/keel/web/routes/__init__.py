@@ -5,6 +5,7 @@ from keel.web.routes import (
     board,
     forms,
     issues,
+    lookup,
     pages,
     projects,
     schedules,
@@ -25,3 +26,4 @@ router.include_router(schedules.router)
 router.include_router(issues.router)
 router.include_router(users.router)
 router.include_router(forms.router)
+router.include_router(lookup.router)

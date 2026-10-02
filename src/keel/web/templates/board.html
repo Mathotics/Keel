@@ -110,13 +110,9 @@
         </label>
         <label>
           Label
-          <select name="label">
-            <option value=""{% if not selected_label %} selected{% endif %}>Any label</option>
-            <option value="unlabeled"{% if selected_label == "unlabeled" %} selected{% endif %}>Unlabeled</option>
-            {% for item in label_catalog %}
-            <option value="{{ item.name }}"{% if selected_label == item.name %} selected{% endif %}>{{ item.name }}</option>
-            {% endfor %}
-          </select>
+          {% with field_id="board-label", query_name="label", value=selected_label, kind="labels", project_key="", exclude_id="", id_name="", submit=true, placeholder="Any label" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
         </label>
         <input type="hidden" name="by" value="status"/>
         <label>

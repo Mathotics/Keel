@@ -486,8 +486,8 @@ def test_the_label_filter_changes_what_the_board_queries(
     assert "Bare" in bare.text
     assert "Tagged" not in bare.text
     page = client.get("/projects/KEEL/board")
-    assert "Any label" in page.text
-    assert "Unlabeled" in page.text
+    assert 'placeholder="Any label"' in page.text
+    assert 'data-keel-lookup="labels"' in page.text
 
 
 def test_the_master_board_is_reachable_without_a_project(client: TestClient) -> None:

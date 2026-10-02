@@ -3,10 +3,11 @@ from dataclasses import dataclass
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
 from keel.domain.enums import IssueType, types_in_hierarchy_order
 from keel.services import boards as board_service
-from keel.services import labels as label_service
+from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
@@ -57,6 +58,27 @@ def _board_query(
     )
 
 
+def _labeled_query(
+    session: Session,
+    types: list[IssueType],
+    assignee: str | None,
+    sprint: str | None,
+    label: str | None,
+    by: str | Sequence[str] | None,
+    error: str | None,
+) -> tuple[_BoardQuery, str, str | None]:
+    label_error = lookup_service.interpret_board_label(session, label)[2]
+    filters = _board_query(
+        types,
+        assignee,
+        sprint,
+        None if label_error else label,
+        by,
+    )
+    shown = (label or "").strip() if label_error else filters.selected_label
+    return filters, shown, error or label_error
+
+
 @router.get("/board", response_class=HTMLResponse)
 def master_board_page(
     request: Request,
@@ -70,7 +92,15 @@ def master_board_page(
     by: list[str] = Query(default=[]),
     error: str | None = None,
 ) -> HTMLResponse:
-    filters = _board_query(types, assignee, sprint, label, by)
+    filters, shown_label, error = _labeled_query(
+        session,
+        types,
+        assignee,
+        sprint,
+        label,
+        by,
+        error,
+    )
     projects = list(project_service.list_projects(session))
     selected_project = board_service.parse_project_filter(project)
     project_id = None
@@ -106,9 +136,8 @@ def master_board_page(
             selected_types=filters.selected_types,
             selected_assignee=filters.selected_assignee,
             selected_sprint=filters.selected_sprint,
-            selected_label=filters.selected_label,
+            selected_label=shown_label,
             selected_project=selected_project or "",
-            label_catalog=label_service.list_labels(session),
             separate_by_sprint=filters.grouping == "sprint",
             sprints=sprints,
             filter_projects=projects,
@@ -135,7 +164,15 @@ def board_page(
     error: str | None = None,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
-    filters = _board_query(types, assignee, sprint, label, by)
+    filters, shown_label, error = _labeled_query(
+        session,
+        types,
+        assignee,
+        sprint,
+        label,
+        by,
+        error,
+    )
     board = board_service.project_board(
         session,
         project.id,
@@ -159,8 +196,7 @@ def board_page(
             selected_types=filters.selected_types,
             selected_assignee=filters.selected_assignee,
             selected_sprint=filters.selected_sprint,
-            selected_label=filters.selected_label,
-            label_catalog=label_service.list_labels(session),
+            selected_label=shown_label,
             separate_by_sprint=filters.grouping == "sprint",
             sprints=board_service.board_sprint_choices(
                 sprint_service.list_sprints(session, project.id),

@@ -11,7 +11,6 @@ from keel.domain.enums import (
 )
 from keel.paths import license_text
 from keel.services import home as home_service
-from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
@@ -86,10 +85,8 @@ def create_page(
         chosen = project_service.get_project_by_key(session, project)
     elif len(projects) == 1:
         chosen = projects[0]
-    parents = []
     sprints = []
     if chosen is not None:
-        parents = list(issue_service.list_issues(session, chosen.id))
         sprints = list(sprint_service.list_assignable_sprints(session, chosen.id))
     return get_templates().TemplateResponse(
         request,
@@ -105,7 +102,6 @@ def create_page(
             default_status=IssueStatus.TODO,
             priorities=priorities_in_rank_order(),
             default_priority=INITIAL_PRIORITY,
-            parents=parents,
             sprints=sprints,
             error=error,
         ),

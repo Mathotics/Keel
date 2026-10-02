@@ -100,12 +100,9 @@
           <dd>
             <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/parent" data-keel-autosubmit>
               <label class="keel-visually-hidden" for="issue-parent">Parent</label>
-              <select id="issue-parent" name="parent_id">
-                <option value=""{% if not issue.parent_id %} selected{% endif %}>No parent</option>
-                {% for candidate in parents %}
-                <option value="{{ candidate.id }}"{% if issue.parent_id == candidate.id %} selected{% endif %}>{{ project.key }}-{{ candidate.number }} ({{ candidate.type | label }}) {{ candidate.title }}</option>
-                {% endfor %}
-              </select>
+              {% with field_id="issue-parent", query_name="parent_query", value=parent_label, kind="issues", project_key=project.key, exclude_id=issue.id, id_name="parent_id", submit=true, placeholder="No parent" %}
+              {% include "_lookup.html" %}
+              {% endwith %}
               <button class="keel-autosubmit__fallback" type="submit">Save</button>
             </form>
           </dd>
@@ -391,7 +388,6 @@
       </table>
       </div>
 
-      {% if candidates %}
       <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dependencies">
         <p>This issue</p>
         <label>
@@ -403,19 +399,13 @@
           </select>
         </label>
         <label>
-          <span class="keel-visually-hidden">Issue</span>
-          <select name="other_id" required>
-            <option value="">Choose an issue</option>
-            {% for candidate in candidates %}
-            <option value="{{ candidate.id }}">{{ candidate.key }} — {{ candidate.title }}</option>
-            {% endfor %}
-          </select>
+          <span class="keel-visually-hidden" for="issue-link">Issue</span>
+          {% with field_id="issue-link", query_name="other_query", value="", kind="issues", project_key="", exclude_id=issue.id, id_name="other_id", submit=false, placeholder="Choose an issue" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
         </label>
         <button class="keel-primary" type="submit">Add</button>
       </form>
-      {% else %}
-      <p>No other issues to link.</p>
-      {% endif %}
 
       <h2>History</h2>
       {% for event in history %}

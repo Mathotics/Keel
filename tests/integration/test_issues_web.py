@@ -48,7 +48,8 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert "P4 — Minor" in page.text
     assert 'value="p4" selected' in page.text
     assert 'name="assignee_id"' in page.text
-    assert 'name="parent_id"' in page.text
+    assert 'name="parent_query"' in page.text
+    assert 'data-keel-lookup="issues"' in page.text
     assert 'name="sprint_id"' in page.text
     assert 'name="due_at"' in page.text
     assert 'name="start_at"' in page.text
@@ -144,9 +145,7 @@ def test_create_can_set_the_other_fields_at_birth(
     assert "P1 — Blocker" in html
     assert 'value="2026-11-02T08:15"' in html
     assert f'value="{tester}" selected' in html or f'value="{tester}"selected' in html
-    assert f'value="{parent_id}" selected' in html or (
-        f'value="{parent_id}"selected' in html
-    )
+    assert 'value="KEEL-1 — Parent"' in html
     assert f'value="{sprint["id"]}" selected' in html or (
         f'value="{sprint["id"]}"selected' in html
     )
@@ -331,7 +330,8 @@ def test_an_issue_is_edited_on_its_page(client: TestClient, project: Json) -> No
     assert 'class="keel-type-select"' in page.text
     assert 'data-type="story"' in page.text
     assert 'name="description"' in page.text
-    assert 'name="parent_id"' in page.text
+    assert 'name="parent_query"' in page.text
+    assert 'data-keel-lookup="issues"' in page.text
 
     renamed = client.post(
         f"/web/issues/{issue_id}/title",

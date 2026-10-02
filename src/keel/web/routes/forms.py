@@ -30,6 +30,7 @@ from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import labels as label_service
+from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
@@ -84,6 +85,23 @@ def _back(
 
 def _optional_id(raw: str) -> int | None:
     return int(raw) if raw.strip().isdigit() else None
+
+
+def _posted_issue(
+    session: SessionDep,
+    raw_id: str,
+    raw_query: str,
+    *,
+    project_id: int | None,
+    message: str,
+) -> int | None:
+    return lookup_service.resolve_posted_issue(
+        session,
+        raw_id,
+        raw_query,
+        project_id=project_id,
+        message=message,
+    )
 
 
 def _remember_nav(
@@ -304,6 +322,7 @@ def create_issue_from_page(
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
     priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
     parent_id: Annotated[str, Form()] = "",
+    parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
@@ -326,7 +345,13 @@ def create_issue_from_page(
             description=description,
             status=status,
             priority=priority,
-            parent_id=_optional_id(parent_id),
+            parent_id=_posted_issue(
+                session,
+                parent_id,
+                parent_query,
+                project_id=project.id,
+                message=lookup_service.PARENT_MESSAGE,
+            ),
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
@@ -354,6 +379,7 @@ def create_issue(
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
     priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
     parent_id: Annotated[str, Form()] = "",
+    parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     reporter_id: Annotated[str, Form()] = "",
     start_at: Annotated[str, Form()] = "",
@@ -373,7 +399,13 @@ def create_issue(
             description=description,
             status=status,
             priority=priority,
-            parent_id=_optional_id(parent_id),
+            parent_id=_posted_issue(
+                session,
+                parent_id,
+                parent_query,
+                project_id=project_id,
+                message=lookup_service.PARENT_MESSAGE,
+            ),
             reporter_id=_optional_id(reporter_id),
             assignee_id=_optional_id(assignee_id),
             start_at=issue_service.parse_start_at(start_at),
@@ -514,13 +546,21 @@ def update_issue_parent(
     chrome: ChromeDep,
     issue_id: int,
     parent_id: Annotated[str, Form()] = "",
+    parent_query: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
     try:
+        issue = issue_service.get_issue(session, issue_id)
         issue_service.update_issue(
             session,
             issue_id,
-            parent_id=_optional_id(parent_id),
+            parent_id=_posted_issue(
+                session,
+                parent_id,
+                parent_query,
+                project_id=issue.project_id,
+                message=lookup_service.PARENT_MESSAGE,
+            ),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
@@ -752,12 +792,23 @@ def create_issue_dependency(
     session: SessionDep,
     issue_id: int,
     other_id: Annotated[str, Form()] = "",
+    other_query: Annotated[str, Form()] = "",
     relation: Annotated[str, Form()] = "blocks",
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
-    chosen = _optional_id(other_id)
+    try:
+        chosen = _posted_issue(
+            session,
+            other_id,
+            other_query,
+            project_id=None,
+            message=lookup_service.LINK_MESSAGE,
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
     if chosen is None:
-        return _back(here, "Choose an issue to link.")
+        return _back(here, lookup_service.LINK_MESSAGE)
     ends = _dependency_ends(issue_id, chosen, relation)
     if ends is None:
         return _back(here, "That is not a valid dependency kind.")
@@ -991,6 +1042,7 @@ def create_schedule(
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
     parent_id: Annotated[str, Form()] = "",
+    parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -1020,7 +1072,13 @@ def create_schedule(
             start_minute_of_day=_optional_clock(start_time),
             due_offset_days=_optional_offset(due_offset_days),
             due_minute_of_day=_optional_clock(due_time),
-            parent_id=_optional_id(parent_id),
+            parent_id=_posted_issue(
+                session,
+                parent_id,
+                parent_query,
+                project_id=project.id,
+                message=lookup_service.PARENT_MESSAGE,
+            ),
             assignee_id=_optional_id(assignee_id),
             labels=parse_label_names(labels),
             reporter_id=(
@@ -1059,6 +1117,7 @@ def update_schedule(
     ends_on: Annotated[str, Form()] = "",
     occurrence_count: Annotated[str, Form()] = "",
     parent_id: Annotated[str, Form()] = "",
+    parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -1089,7 +1148,13 @@ def update_schedule(
             start_minute_of_day=_optional_clock(start_time),
             due_offset_days=_optional_offset(due_offset_days),
             due_minute_of_day=_optional_clock(due_time),
-            parent_id=_optional_id(parent_id),
+            parent_id=_posted_issue(
+                session,
+                parent_id,
+                parent_query,
+                project_id=project.id,
+                message=lookup_service.PARENT_MESSAGE,
+            ),
             assignee_id=_optional_id(assignee_id),
             labels=parse_label_names(labels),
         )
