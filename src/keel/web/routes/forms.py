@@ -37,6 +37,17 @@ from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.identity import USER_COOKIE
 from keel.web.context import Chrome, ChromeDep, SessionDep
+from keel.web.home_layout import (
+    HOME_COOKIE,
+    HOME_COOKIE_MAX_AGE,
+    HomeLayout,
+    apply_move,
+    apply_posted_order,
+    encode_layout,
+    hide_panel,
+    parse_layout,
+    show_panel,
+)
 from keel.web.inbox import (
     INBOX_COOKIE,
     INBOX_COOKIE_MAX_AGE,
@@ -144,6 +155,61 @@ def save_inbox_collapsed(
         samesite="lax",
     )
     return response
+
+
+def _remember_home(response: RedirectResponse, layout: HomeLayout) -> RedirectResponse:
+    response.set_cookie(
+        HOME_COOKIE,
+        encode_layout(layout),
+        max_age=HOME_COOKIE_MAX_AGE,
+        path="/",
+        samesite="lax",
+    )
+    return response
+
+
+@router.post("/home/move")
+def move_home_panel(
+    request: Request,
+    item: Annotated[str, Form()],
+    direction: Annotated[str, Form()],
+    visible: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    layout = parse_layout(request.cookies.get(HOME_COOKIE))
+    moved = apply_move(layout, visible.split(","), item, direction)
+    return _remember_home(_back(return_to or "/"), moved)
+
+
+@router.post("/home/order")
+def save_home_order(
+    request: Request,
+    order: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    layout = parse_layout(request.cookies.get(HOME_COOKIE))
+    posted = apply_posted_order(layout, order.split(","))
+    return _remember_home(_back(return_to or "/"), posted)
+
+
+@router.post("/home/hide")
+def hide_home_panel(
+    request: Request,
+    panel: Annotated[str, Form()],
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    layout = parse_layout(request.cookies.get(HOME_COOKIE))
+    return _remember_home(_back(return_to or "/"), hide_panel(layout, panel))
+
+
+@router.post("/home/show")
+def show_home_panel(
+    request: Request,
+    panel: Annotated[str, Form()],
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    layout = parse_layout(request.cookies.get(HOME_COOKIE))
+    return _remember_home(_back(return_to or "/"), show_panel(layout, panel))
 
 
 @router.post("/nav/move")

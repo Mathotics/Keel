@@ -1,0 +1,47 @@
+name: Backup
+
+on:
+  schedule:
+    # UTC. A delayed run still uses the cron that fired.
+    - cron: "0 8 * * *"
+    - cron: "5 8 * * 0"
+    - cron: "10 8 1 * *"
+  workflow_dispatch:
+    inputs:
+      cadence:
+        description: Which backup to write
+        required: true
+        type: choice
+        options:
+          - daily
+          - weekly
+          - monthly
+
+jobs:
+  backup:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    concurrency:
+      group: keel-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backup production database
+        env:
+          BACKUP_CADENCE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.cadence || '' }}
+          BACKUP_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${BACKUP_CADENCE}" ]]; then
+            cadence="${BACKUP_CADENCE}"
+          elif [[ "${BACKUP_SCHEDULE}" == "10 8 1 * *" ]]; then
+            cadence="monthly"
+          elif [[ "${BACKUP_SCHEDULE}" == "5 8 * * 0" ]]; then
+            cadence="weekly"
+          else
+            cadence="daily"
+          fi
+          bash scripts/backup-prod.sh "${cadence}"
