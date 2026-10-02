@@ -174,8 +174,8 @@ def _calendar_day(value: datetime) -> date:
 
 
 def _week_end(day: date) -> date:
-    """Sunday of the ISO week that contains `day` (Monday–Sunday)."""
-    return day + timedelta(days=7 - day.isoweekday())
+    """Last day of the rolling week that starts the day after `day`."""
+    return day + timedelta(days=7)
 
 
 def _month_end(day: date) -> date:

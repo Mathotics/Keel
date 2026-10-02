@@ -1,7 +1,9 @@
 # Due this week and due this month as separate home panels
 
 * **Status:** Accepted
-* **Date:** 2026-10-01
+* **Date:** 2026-10-02
+
+> **Amendment.** KEEL-51: **Due this week** is the next seven days after local today, not the rest of the ISO week through Sunday. A due date inside that window was landing on **Due this month** whenever it fell after Sunday. **Due this month** is whatever remains of the calendar month after those seven days.
 
 ## Background
 
@@ -15,7 +17,7 @@ A single **Due this week or this month** list mixes the next few days with the r
 
 ## Objective(s)
 
-- Show unfinished assigned issues due later this ISO week in their own section.
+- Show unfinished assigned issues due in the next seven days in their own section.
 - Show unfinished assigned issues due later this calendar month, and after this week, in a second section.
 - Keep both sections on `/` immediately after Due or overdue, with the same row chrome, collapse, and status Move as the other sections.
 - Leave Due or overdue unchanged so today and overdue stay the first list.
@@ -25,8 +27,8 @@ A single **Due this week or this month** list mixes the next few days with the r
 ### In-Scope
 
 * Two home sections after Due or overdue and before Starting or started: **Due this week**, then **Due this month**.
-* Due this week: unfinished assigned issues whose `due_at` calendar date is after local today and on or before this ISO week's Sunday (Monday–Sunday).
-* Due this month: unfinished assigned issues whose `due_at` calendar date is after that Sunday and on or before the last day of the current calendar month.
+* Due this week: unfinished assigned issues whose `due_at` calendar date is after local today and on or before the day seven days later.
+* Due this month: unfinished assigned issues whose `due_at` calendar date is after that seventh day and on or before the last day of the current calendar month.
 * A Due column on those rows (same extra column as Due or overdue).
 * Collapse via `keel_inbox` keys `week` and `month`. The old `upcoming` key is no longer known.
 * Doc updates so the UI map and use cases name both sections.
@@ -35,7 +37,7 @@ A single **Due this week or this month** list mixes the next few days with the r
 
 * Repeating a this-week row again under Due this month.
 * Changing Due or overdue membership, or repeating today/overdue rows in either new section.
-* Rolling seven-day or Sunday-start weeks.
+* A Sunday-start calendar week. The seven-day window is rolling from local today.
 * A JSON inbox API, charts, or a user timezone picker.
 * Migrating a collapsed `upcoming` cookie into `week` or `month`.
 
@@ -50,11 +52,11 @@ A single **Due this week or this month** list mixes the next few days with the r
 * **Must** render **Due this week** and **Due this month** as separate sections, in that order, after Due or overdue and before Starting or started among non-empty sections.
 * **Must** include only issues whose assignee is the acting user; **Must Not** show unassigned issues in either section.
 * **Must** include only unfinished issues; **Must Not** list *Done* or *Cancelled*.
-* **Must** include a row in **Due this week** when `due_at` is set and its calendar date is after local today and on or before this ISO week's Sunday.
-* **Must** include a row in **Due this month** when `due_at` is set and its calendar date is after that Sunday and on or before the last day of the current calendar month.
-* **Must Not** include the same issue in both sections. A date on or before Sunday belongs to the week section even when that Sunday is still this month.
+* **Must** include a row in **Due this week** when `due_at` is set and its calendar date is after local today and on or before the day seven days later.
+* **Must** include a row in **Due this month** when `due_at` is set and its calendar date is after that seventh day and on or before the last day of the current calendar month.
+* **Must Not** include the same issue in both sections. A date inside the seven-day window belongs to the week section even when that day is still this month.
 * **Must Not** include issues due today or earlier (those stay in Due or overdue). **Must Not** include issues with no due date, or issues due after both bounds.
-* **Must**, when this ISO week continues into the next month, list those next-month days through Sunday under **Due this week** and **Must Not** list them under **Due this month**.
+* **Must**, when the seven-day window continues into the next month, list those next-month days under **Due this week** and **Must Not** list them under **Due this month**.
 * **Must** hide a section when it has no rows. A home that holds only one of these sections **Must** still render that section (not the quiet empty message).
 * **Must** allow the same issue to also appear in other sections (Assigned to me, Blocked, and so on) when those rules match.
 * **Must** show the existing inbox row (key, type, priority, title, project, start, status Move) plus a **Due** column with the due time.
@@ -70,13 +72,13 @@ A single **Due this week or this month** list mixes the next few days with the r
 * **Good:** Today and overdue stay a short list at the top; neither new section repeats them, and the two new sections do not repeat each other.
 * **Bad:** A browser that had collapsed the combined section opens both new sections until the owner minimizes them again.
 * **Risk:** Local `date.today()` follows the server's timezone, the same accepted risk as due/start membership.
-* **Risk:** ISO weeks start Monday. A Sunday-centric household may call Monday–Sunday "last week / this week" differently. Accepted to match recurrence weekday math already in Keel.
+* **Risk:** The week panel is seven days from today, not a Monday–Sunday calendar week, so the same due date can move from **Due this week** to **Due this month** as the window slides.
 
 ## System Design
 
 ### Technical Stack and Architecture
 
-This feature replaces the `upcoming` section of `/` with `due_week` and `due_month` on the same inbox. Membership still starts from issues assigned to the picker user ([ADR 022](personal-work-inbox.md)). Both bounds are local dates: ISO week Sunday and calendar month end. Collapse reuses `keel_inbox` and `/web/inbox`. Status Move still posts to `/web/issues/{id}/status` and returns to `/`.
+This feature replaces the `upcoming` section of `/` with `due_week` and `due_month` on the same inbox. Membership still starts from issues assigned to the picker user ([ADR 022](personal-work-inbox.md)). Both bounds are local dates: seven days after today, then calendar month end. Collapse reuses `keel_inbox` and `/web/inbox`. Status Move still posts to `/web/issues/{id}/status` and returns to `/`.
 
 ### UML Diagrams
 
@@ -87,7 +89,7 @@ flowchart TD
   dated{due_at set?}
   day[Calendar date of due_at]
   afterToday{After local today?}
-  week{On or before ISO week Sunday?}
+  week{On or before seven days from today?}
   month{On or before month end?}
   showWeek[Due this week row]
   showMonth[Due this month row]
