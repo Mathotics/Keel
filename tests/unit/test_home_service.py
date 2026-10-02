@@ -175,17 +175,14 @@ def test_due_this_month_follows_a_sunday_when_the_week_has_ended(
 
     inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
 
-    assert inbox.due_week == ()
-    assert [item.issue.id for item in inbox.due_month] == [
-        next_week_this_month.id,
-        later_this_month.id,
-    ]
+    assert [item.issue.id for item in inbox.due_week] == [next_week_this_month.id]
+    assert [item.issue.id for item in inbox.due_month] == [later_this_month.id]
     assert {item.issue.title for item in inbox.due} == {"Overdue", "Due today"}
     assert closed.id not in {item.issue.id for item in inbox.due_month}
 
 
 def test_this_week_and_this_month_do_not_share_rows(session: Session) -> None:
-    """Wednesday 16 Sep 2026: week ends Sunday 20; month ends the 30th."""
+    """Wednesday 16 Sep 2026: week ends the 23rd; month ends the 30th."""
     project = _project(session)
     ada = user_service.create_user(session, "Ada")
     today = date(2026, 9, 16)
@@ -213,6 +210,14 @@ def test_this_week_and_this_month_do_not_share_rows(session: Session) -> None:
         assignee_id=ada.id,
         due_at=datetime(2026, 9, 20, 9, 0),
     )
+    within_a_week = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "After Sunday",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 9, 22, 9, 0),
+    )
     this_month = issue_service.create_issue(
         session,
         project.id,
@@ -232,12 +237,16 @@ def test_this_week_and_this_month_do_not_share_rows(session: Session) -> None:
 
     inbox = home_service.personal_inbox(session, ada.id, today=today)
 
-    assert [item.issue.id for item in inbox.due_week] == [this_week.id, week_end.id]
+    assert [item.issue.id for item in inbox.due_week] == [
+        this_week.id,
+        week_end.id,
+        within_a_week.id,
+    ]
     assert [item.issue.id for item in inbox.due_month] == [this_month.id]
     assert {item.issue.title for item in inbox.due} == {"Due today"}
 
 
-def test_due_this_week_includes_next_month_when_the_iso_week_spills(
+def test_due_this_week_includes_the_next_seven_days_even_next_month(
     session: Session,
 ) -> None:
     project = _project(session)
@@ -250,19 +259,30 @@ def test_due_this_week_includes_next_month_when_the_iso_week_spills(
         assignee_id=ada.id,
         due_at=datetime(2026, 10, 2, 9, 0),
     )
+    still_this_week = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "After Sunday",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 5, 9, 0),
+    )
     issue_service.create_issue(
         session,
         project.id,
         IssueType.STORY,
         "After the week",
         assignee_id=ada.id,
-        due_at=datetime(2026, 10, 5, 9, 0),
+        due_at=datetime(2026, 10, 8, 9, 0),
     )
 
     inbox = home_service.personal_inbox(session, ada.id, today=date(2026, 9, 30))
 
     assert inbox.due_month == ()
-    assert [item.issue.id for item in inbox.due_week] == [spilled.id]
+    assert [item.issue.id for item in inbox.due_week] == [
+        spilled.id,
+        still_this_week.id,
+    ]
 
 
 def test_an_inbox_of_only_due_this_month_is_not_empty(session: Session) -> None:
@@ -274,7 +294,7 @@ def test_an_inbox_of_only_due_this_month_is_not_empty(session: Session) -> None:
         IssueType.STORY,
         "Later this month",
         assignee_id=ada.id,
-        due_at=datetime(2026, 9, 20, 9, 0),
+        due_at=datetime(2026, 9, 25, 9, 0),
     )
 
     inbox = home_service.personal_inbox(session, ada.id, today=TODAY)
@@ -285,11 +305,11 @@ def test_an_inbox_of_only_due_this_month_is_not_empty(session: Session) -> None:
     assert [item.issue.id for item in inbox.due_month] == [soon.id]
 
 
-def test_week_end_is_sunday_and_month_end_is_the_last_day() -> None:
-    assert home_service._week_end(date(2026, 9, 13)) == date(2026, 9, 13)
+def test_week_end_is_seven_days_out_and_month_end_is_the_last_day() -> None:
+    assert home_service._week_end(date(2026, 9, 13)) == date(2026, 9, 20)
     assert home_service._month_end(date(2026, 9, 13)) == date(2026, 9, 30)
-    assert home_service._week_end(date(2026, 9, 16)) == date(2026, 9, 20)
-    assert home_service._week_end(date(2026, 9, 30)) == date(2026, 10, 4)
+    assert home_service._week_end(date(2026, 9, 16)) == date(2026, 9, 23)
+    assert home_service._week_end(date(2026, 9, 30)) == date(2026, 10, 7)
     assert home_service._month_end(date(2026, 9, 30)) == date(2026, 9, 30)
 
 
