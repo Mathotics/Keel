@@ -9,6 +9,10 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Arrange the home page.** A user removes a panel, adds it back, or moves it up or down. Empty panels stay off the page. The layout is kept in this browser ([Customizable home panels](../adr/customizable-home-panels.md)).
 * **Switch who I am.** Changing the picker reloads `/` for that person; unassigned work never appears there. The collapsed headings stay as this browser last left them.
 
+## Calendar
+
+* **See the month.** A user opens Calendar and sees unfinished issues assigned to them, across projects, on the days they cover. Inside a project, Calendar shows that project's unfinished dated issues, whoever they are assigned to. A bar runs from the start day through the due day. Previous, Next, and the Month and Year dropdowns stay on the same view. Choosing a bar opens the issue ([Month calendar of assigned work](../adr/month-calendar.md)).
+
 ## Projects
 
 * **Create a project.** A user creates a named project to hold a body of work. Issues, boards, sprints, and the backlog all live inside a project. Multiple projects can exist side by side.

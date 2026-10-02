@@ -388,6 +388,141 @@ body {
   margin-top: -0.85rem;
 }
 
+.keel-cal__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1.25rem;
+  margin: 0 0 1rem;
+}
+
+.keel-cal__nav h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.keel-cal__jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.keel-cal__jump select {
+  height: var(--keel-control-height);
+  font: inherit;
+  font-size: var(--keel-control-font-size);
+  color: var(--keel-blue-deep);
+}
+
+.keel-cal {
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 0 0 1.25rem;
+}
+
+.keel-cal__sheet {
+  min-width: 42rem;
+}
+
+.keel-cal__weekdays,
+.keel-cal__days,
+.keel-cal__bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  column-gap: 0.35rem;
+}
+
+.keel-cal__weekdays {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.keel-cal__week + .keel-cal__week {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--keel-blue) 18%, transparent);
+}
+
+.keel-cal__day {
+  min-height: 1.4rem;
+  font-size: 0.8125rem;
+}
+
+.keel-cal__day--out {
+  opacity: 0.4;
+}
+
+.keel-cal__day--today span {
+  display: inline-block;
+  min-width: 1.4rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--keel-blue);
+  color: var(--keel-white);
+  text-align: center;
+}
+
+.keel-cal__bars {
+  grid-auto-rows: 1.65rem;
+  row-gap: 0.28rem;
+  margin-top: 0.2rem;
+}
+
+.keel-cal__bar {
+  display: block;
+  min-width: 0;
+  width: 100%;
+  justify-self: stretch;
+  overflow: hidden;
+  padding: 0 0.45rem;
+  border: 1px solid var(--keel-blue);
+  border-left-width: 4px;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--keel-blue) 16%, var(--keel-white));
+  color: var(--keel-blue-deep);
+  font-size: 0.8125rem;
+  line-height: 1.55rem;
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.keel-cal__bar[data-type="epic"] {
+  --keel-type: var(--keel-type-epic);
+}
+
+.keel-cal__bar[data-type="story"] {
+  --keel-type: var(--keel-type-story);
+}
+
+.keel-cal__bar[data-type="subtask"] {
+  --keel-type: var(--keel-type-subtask);
+}
+
+.keel-cal__bar[data-type] {
+  background: color-mix(in srgb, var(--keel-type) 22%, var(--keel-white));
+  border-color: color-mix(in srgb, var(--keel-type) 55%, var(--keel-white));
+  border-left-color: var(--keel-type);
+}
+
+.keel-cal__bar[data-type]:hover {
+  background: color-mix(in srgb, var(--keel-type) 32%, var(--keel-white));
+}
+
+.keel-cal__bar--continued {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.keel-cal__bar--continues {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 .keel-panel {
   max-width: 48rem;
   margin: 0 0 1.25rem;

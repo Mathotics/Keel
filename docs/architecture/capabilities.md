@@ -23,6 +23,7 @@ flowchart LR
     b3[Start / complete sprint]
     b4[Estimate time, track remaining]
     b5[Repeating series spawn issues]
+    b6[Month calendar of assigned work]
   end
   subgraph Board["Board & workflow"]
     c1[Kanban board per project]
@@ -69,6 +70,7 @@ flowchart LR
 * Record a time-based estimate on an issue and update its remaining time as work progresses.
 * View estimated and remaining time aggregated from child issues.
 * Define a repeating series that spawns ordinary issues on a cadence, including a recipe priority copied onto each copy ([ADR 021](../adr/ADR-021.md), [Series recipe priority](../adr/series-recipe-priority.md)).
+* Show the acting user's unfinished issues that have a start or due date on a month calendar at `/calendar`, and that project's unfinished dated issues at `/projects/{key}/calendar`, as a bar from the start day through the due day ([Month calendar of assigned work](../adr/month-calendar.md)).
 
 ## Board & workflow
 
