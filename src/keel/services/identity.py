@@ -3,10 +3,10 @@ from contextvars import ContextVar, Token
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
-from keel.services import users as user_service
+from keel.services import auth as auth_service
 
-USER_COOKIE = "keel_user"
-USER_HEADER = "X-Keel-User"
+SESSION_COOKIE = "keel_session"
+TOKEN_FLASH_COOKIE = "keel_token_flash"
 
 _acting_display_name: ContextVar[str | None] = ContextVar(
     "keel_acting_display_name",
@@ -37,18 +37,19 @@ def acting_display_name() -> str | None:
 def resolve_current_user(
     session: Session,
     *,
-    header: str | None,
-    cookie: str | None,
-    configured: str | None,
+    authorization: str | None,
+    session_cookie: str | None,
 ) -> User | None:
-    """Identity is declared, not verified: header, cookie, setting, then seed.
+    """The caller is a bearer token or a session cookie. Nothing else counts.
 
-    Both the pages and the JSON API resolve the acting user this way, so it
-    lives here rather than in either transport layer.
+    A present Authorization header that is not a valid token does not fall
+    through to the cookie.
     """
-    for token in (header, cookie, configured):
-        if token:
-            found = user_service.find_user(session, token)
-            if found is not None:
-                return found
-    return user_service.first_user(session)
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token.strip():
+            return None
+        return auth_service.user_for_api_token(session, token.strip())
+    if session_cookie:
+        return auth_service.user_for_session(session, session_cookie)
+    return None

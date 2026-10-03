@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Sign in — Keel</title>
+    <link rel="icon" href="/assets/favicon.ico" type="image/x-icon"/>
+    <link rel="stylesheet" href="/assets/brand.css"/>
+  </head>
+  <body>
+    <main class="keel-main">
+      <h1>Sign in</h1>
+      {% if needs_password %}
+      <p class="keel-note">No password is set yet. On the server, run <code>keel users set-password USERNAME</code>.</p>
+      {% endif %}
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      <div class="keel-panel">
+        <form class="keel-form keel-form--stacked" method="post" action="/login">
+          {% if next %}
+          <input type="hidden" name="next" value="{{ next }}"/>
+          {% endif %}
+          <div class="keel-fields">
+            <p class="keel-fields__full">
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" maxlength="100" required autocomplete="username" spellcheck="false" value="{{ username }}"/>
+            </p>
+            <p class="keel-fields__full">
+              <label for="password">Password</label>
+              <input id="password" name="password" type="password" required maxlength="128" autocomplete="current-password"/>
+            </p>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Sign in</button></p>
+        </form>
+      </div>
+    </main>
+    <footer class="keel-footer">
+      <a class="keel-footer__copyright" href="/license">{{ copyright_notice }}</a>
+      <p class="keel-footer__version">Keel {{ version }}</p>
+    </footer>
+  </body>
+</html>

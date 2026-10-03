@@ -18,12 +18,13 @@ def test_root_uses_shared_chrome(client: TestClient) -> None:
     assert 'href="/license"' in html
 
 
-def test_chrome_carries_the_user_picker(client: TestClient) -> None:
+def test_chrome_shows_the_signed_in_person(client: TestClient) -> None:
     html = client.get("/").text
-    assert 'action="/web/user"' in html
-    assert "keel-userpicker" in html
+    assert 'href="/profile"' in html
+    assert "keel-account" in html
     assert "Tester" in html
     assert 'href="/users"' in html
+    assert 'action="/logout"' in html
 
 
 def test_every_page_shares_the_same_chrome(client: TestClient) -> None:
@@ -32,7 +33,7 @@ def test_every_page_shares_the_same_chrome(client: TestClient) -> None:
         assert "keel-topbar" in html
         assert "keel-footer" in html
         assert "keel-help" in html
-        assert "keel-userpicker" in html
+        assert "keel-account" in html
 
 
 def test_health_has_no_menu_bar(client: TestClient) -> None:
@@ -93,7 +94,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
         < header.index("keel-topbar__nav")
         < header.index("keel-find")
         < header.index("keel-help")
-        < header.index("keel-userpicker")
+        < header.index("keel-account")
     )
     nav = header.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
     assert (
@@ -138,7 +139,7 @@ def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> N
     assert 'target="_blank"' in help_block
     assert 'rel="noopener"' in help_block
     assert help_block.index('href="/docs"') < help_block.index('href="/redoc"')
-    assert right.index("keel-help") < right.index("keel-userpicker")
+    assert right.index("keel-help") < right.index("keel-account")
 
     css = client.get("/assets/brand.css").text
     menu = _rule(css, ".keel-help__menu")
@@ -154,7 +155,6 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert '<script src="/assets/js/userpicker.js" defer></script>' in html
     assert '<script src="/assets/js/nav.js" defer></script>' in html
     assert '<script src="/assets/js/inbox.js" defer></script>' in html
-    assert "keel-userpicker__fallback" in html
 
     script = client.get("/assets/js/userpicker.js")
     assert script.status_code == 200
@@ -165,7 +165,7 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
     assert "keel-type-select" in script.text
 
     css = client.get("/assets/brand.css").text
-    hidden = _rule(css, "[data-keel-js] .keel-userpicker__fallback")
+    hidden = _rule(css, "[data-keel-js] .keel-find__fallback")
     assert "display: none" in hidden
     autosubmit = _rule(css, "[data-keel-js] .keel-autosubmit__fallback")
     assert "display: none" in autosubmit
@@ -250,7 +250,7 @@ def test_inbox_script_persists_closed_sections(client: TestClient) -> None:
 
 def test_topbar_label_matches_the_control_height(client: TestClient) -> None:
     """Centring boxes of different heights still looks ragged, so they must match."""
-    label = _rule(client.get("/assets/brand.css").text, ".keel-userpicker__label")
+    label = _rule(client.get("/assets/brand.css").text, ".keel-account__label")
     assert "var(--keel-control-height)" in label
     assert "var(--keel-control-font-size)" in label
 

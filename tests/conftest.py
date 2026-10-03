@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("KEEL_FAST_PASSWORD_HASH", "1")
+
 from collections.abc import Iterator
 from pathlib import Path
 

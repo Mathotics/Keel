@@ -1,19 +1,31 @@
 import argparse
+import getpass
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
 import uvicorn
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DatabaseError
+from sqlalchemy.orm import Session
 
 from keel.db.backup import BackupError, backup_database, restore_database
-from keel.db.engine import create_db_engine, database_file, ensure_database_directory
+from keel.db.engine import (
+    create_db_engine,
+    create_session_factory,
+    database_file,
+    ensure_database_directory,
+)
+from keel.db.models import User
 from keel.db.revision import (
     alembic_config,
     create_revision,
     schema_is_current,
     upgrade_to_head,
 )
+from keel.domain.errors import DomainError, NotFoundError
+from keel.services import auth as auth_service
+from keel.services import users as user_service
 from keel.settings import KeelSettings, get_settings
 
 STALE_SCHEMA = (
@@ -79,6 +91,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--yes",
         action="store_true",
         help="Overwrite the live database if it already exists",
+    )
+
+    people = subparsers.add_parser("users", help="Manage sign-in for people")
+    people_commands = people.add_subparsers(dest="users_command")
+    set_password = people_commands.add_parser(
+        "set-password",
+        help="Set a password and sign that person out everywhere",
+    )
+    set_password.add_argument("username", help="Username, matched case-insensitively")
+    set_password.add_argument(
+        "--password",
+        help="New password. Omit to be prompted twice",
+    )
+    create_token = people_commands.add_parser(
+        "create-token",
+        help="Create an API token and print the secret once",
+    )
+    create_token.add_argument("username", help="Username, matched case-insensitively")
+    create_token.add_argument(
+        "--label",
+        default="API token",
+        help="Label shown on the profile page",
     )
     return parser
 
@@ -174,6 +208,90 @@ def database(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     return 2
 
 
+def _with_user_session(username: str) -> tuple[Session, Engine, User] | None:
+    settings = get_settings()
+    if schema_is_stale(settings):
+        print(STALE_SCHEMA, file=sys.stderr)
+        return None
+    engine = create_db_engine(settings.resolved_database_url())
+    factory = create_session_factory(engine)
+    session = factory()
+    try:
+        user = user_service.find_by_username(session, username)
+        if user is None:
+            print(f"No user named {username}.", file=sys.stderr)
+            session.close()
+            engine.dispose()
+            return None
+        return session, engine, user
+    except Exception:
+        session.close()
+        engine.dispose()
+        raise
+
+
+def users_set_password(username: str, password: str | None) -> int:
+    if password is None:
+        password = getpass.getpass("New password: ")
+        again = getpass.getpass("Repeat password: ")
+        if password != again:
+            print("The passwords do not match.", file=sys.stderr)
+            return 1
+    opened = _with_user_session(username)
+    if opened is None:
+        return 1
+    session, engine, user = opened
+    login = user.username
+    try:
+        user_service.set_password(session, user, password)
+        auth_service.revoke_sessions(session, user.id)
+        session.commit()
+    except DomainError as exc:
+        session.rollback()
+        print(exc.message, file=sys.stderr)
+        return 1
+    finally:
+        session.close()
+        engine.dispose()
+    print(f"Password updated for {login}.")
+    return 0
+
+
+def users_create_token(username: str, label: str) -> int:
+    opened = _with_user_session(username)
+    if opened is None:
+        return 1
+    session, engine, user = opened
+    login = user.username
+    try:
+        issued = auth_service.create_token(session, user, label)
+        secret = issued.secret
+        prefix = issued.row.token_prefix
+        session.commit()
+    except (DomainError, NotFoundError) as exc:
+        session.rollback()
+        print(exc.message, file=sys.stderr)
+        return 1
+    finally:
+        session.close()
+        engine.dispose()
+    print(
+        f"Token created for {login} ({prefix}). This is the only time it is shown.",
+        file=sys.stderr,
+    )
+    print(secret)
+    return 0
+
+
+def users(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
+    if args.users_command == "set-password":
+        return users_set_password(args.username, args.password)
+    if args.users_command == "create-token":
+        return users_create_token(args.username, args.label)
+    parser.error("usage: keel users {set-password,create-token}")
+    return 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
@@ -184,6 +302,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return serve(args)
     if args.command == "db":
         return database(parser, args)
+    if args.command == "users":
+        return users(parser, args)
     parser.error(f"unknown command: {args.command}")
     return 2
 

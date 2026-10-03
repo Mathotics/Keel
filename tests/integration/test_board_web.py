@@ -3,6 +3,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 Json = dict[str, Any]
 
 
@@ -236,7 +238,10 @@ def test_the_assignee_filter_changes_what_the_board_queries(
     client: TestClient,
     project: Json,
 ) -> None:
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
     client.post(
         f"/api/v1/projects/{project['id']}/issues",
         json={"type": "story", "title": "Assigned to Ada", "assignee_id": ada["id"]},

@@ -11,6 +11,8 @@ erDiagram
   users ||--o{ issues : "reports"
   users ||--o{ issues : "is assigned"
   users ||--o{ comments : "authors"
+  users ||--o{ auth_sessions : "signs in"
+  users ||--o{ api_tokens : "issues"
   projects ||--o{ issues : "contains"
   projects ||--|| boards : "has"
   projects ||--o{ sprints : "has"
@@ -39,10 +41,41 @@ erDiagram
 | Column | Type | Constraints |
 | --- | --- | --- |
 | `id` | INTEGER | primary key |
+| `username` | TEXT | not null, unique on `lower(username)` |
 | `display_name` | TEXT | not null, unique |
+| `password_hash` | TEXT | nullable until a password is set |
 | `created_at` | TIMESTAMP | not null |
+| `updated_at` | TIMESTAMP | not null |
 
-A user is refused deletion while referenced as a reporter, assignee, or comment author (`user.in_use`). The referencing foreign keys use `ON DELETE RESTRICT`.
+A user is refused deletion while referenced as a reporter, assignee, or comment author (`user.in_use`), and a signed-in person cannot delete themselves (`user.self`). The referencing foreign keys use `ON DELETE RESTRICT`. `password_hash` is an Argon2id string and is never returned by the API. Sign-in is decided in [Password login](../adr/password-login.md); the field list is in [User profile](user-profile.md).
+
+### auth_sessions
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `user_id` | INTEGER | not null, references `users(id)` `ON DELETE CASCADE` |
+| `token_hash` | TEXT | not null, unique |
+| `created_at` | TIMESTAMP | not null |
+| `expires_at` | TIMESTAMP | not null |
+| `last_seen_at` | TIMESTAMP | not null |
+
+The browser cookie stores the random token. The row stores its SHA-256 hash. Sessions last 14 days from creation.
+
+### api_tokens
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `user_id` | INTEGER | not null, references `users(id)` `ON DELETE CASCADE` |
+| `label` | TEXT | not null |
+| `token_prefix` | TEXT | not null |
+| `token_hash` | TEXT | not null, unique |
+| `created_at` | TIMESTAMP | not null |
+| `last_used_at` | TIMESTAMP | nullable |
+| `revoked_at` | TIMESTAMP | nullable |
+
+The secret is returned once, at creation. Later reads show `token_prefix` only. A revoked token no longer authenticates.
 
 ### projects
 

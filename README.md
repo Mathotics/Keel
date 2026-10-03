@@ -35,7 +35,7 @@ Settings are read from the environment with the `KEEL_` prefix.
 | `KEEL_RELOAD` | `false` | Uvicorn auto-reload |
 | `KEEL_LOG_LEVEL` | `info` | Uvicorn log level |
 | `KEEL_DATABASE_URL` | SQLite in the user data directory | Where Keel stores its data |
-| `KEEL_DEFAULT_USER` | OS username | Who the app acts as before a picker choice |
+| `KEEL_DEFAULT_USER` | OS username | Display name of the first user when the database is empty. It does not sign anyone in |
 
 ## Database
 
@@ -78,7 +78,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/` (the acting user's inbox). Also `http://127.0.0.1:8000/projects` (the project directory, with a create form), `http://127.0.0.1:8000/create` (file an issue), `http://127.0.0.1:8000/users` (manage who Keel knows about) and `http://127.0.0.1:8000/health`. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, its backlog at `/projects/KEEL/backlog`, its sprints at `/projects/KEEL/sprints`, its schedules at `/projects/KEEL/schedules`, and an issue at `/issues/KEEL-1`. The find field in the menu jumps to an exact key or lists matches at `/search`. The issue page is where comments, estimates, remaining time, priority, and dependencies are edited.
+Then open `http://127.0.0.1:8000/login`. A fresh database has one user and no password yet; set it with `keel users set-password USERNAME`, then sign in. The inbox is `http://127.0.0.1:8000/`. Also `http://127.0.0.1:8000/projects` (the project directory, with a create form), `http://127.0.0.1:8000/create` (file an issue), `http://127.0.0.1:8000/users` (add people) and `http://127.0.0.1:8000/profile` (your name, password, and API tokens). `http://127.0.0.1:8000/health` stays public for a liveness check. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, its backlog at `/projects/KEEL/backlog`, its sprints at `/projects/KEEL/sprints`, its schedules at `/projects/KEEL/schedules`, and an issue at `/issues/KEEL-1`. The find field in the menu jumps to an exact key or lists matches at `/search`. The issue page is where comments, estimates, remaining time, priority, and dependencies are edited.
 
 ## Production
 
@@ -94,7 +94,16 @@ The app runs as a user systemd unit (`keel serve` from `/mnt/library/Keel/.venv`
 | `KEEL_LOG_LEVEL` | `info` |
 | `KEEL_DATABASE_URL` | `sqlite+pysqlite:////mnt/library/keel-data/keel.db` |
 
-Those keys are in [`deploy/keel.env.example`](deploy/keel.env.example). Bootstrap copies them to `/mnt/library/keel-data/keel.env` if that file is missing and does not overwrite an existing file. `KEEL_DEFAULT_USER` is left unset so the service account's OS username is used.
+Those keys are in [`deploy/keel.env.example`](deploy/keel.env.example). Bootstrap copies them to `/mnt/library/keel-data/keel.env` if that file is missing and does not overwrite an existing file. `KEEL_DEFAULT_USER` is left unset so the service account's OS username is used for the first user on an empty database.
+
+After `keel db upgrade` adds usernames, existing people have no password until you set one on the server. Until then the login page says so, and nothing else is reachable except `/health` and the login page.
+
+```bash
+keel users set-password "Each Existing Display Name"
+keel users create-token "Cursor" --label "Cursor agent"
+```
+
+The token is printed once. Put it in `KEEL_API_TOKEN` for the Cursor agent. Do not commit it.
 
 One-time setup on the Pi (Python 3.12, venv, data directory, linger, enable the unit):
 

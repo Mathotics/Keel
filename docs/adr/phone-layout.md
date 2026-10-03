@@ -52,7 +52,7 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 
 * **Must** keep the same URLs and the same pages; a phone must not need a different path to do the same work.
 * **Must** make every existing page operable on a phone-narrow viewport: navigate, read, create, edit, filter, start/complete sprints, comment, link dependencies, find, and manage users.
-* **Must** keep the top bar on every page, with the home icon, section links, Find, and the user picker all still present (they may wrap and shrink).
+* **Must** keep the top bar on every page, with the home icon, section links, Find, and the signed-in account all still present (they may wrap and shrink).
 * **Must** keep the top bar sticky; the wrapping bar may occupy more than one row.
 * **Must** present the board as columns in workflow order, with a readable card width; columns that do not fit are reached by swiping sideways, not by squeezing every column into one screen.
 * **Must** keep “separate by sprint” as stacked horizontal strips of columns, each strip swiped the same way.

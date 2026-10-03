@@ -56,7 +56,7 @@ def test_session_factory_round_trips_a_model(tmp_path: Path) -> None:
 def _insert_user(session: Session, name: str) -> None:
     from keel.db.models import User
 
-    session.add(User(display_name=name))
+    session.add(User(display_name=name, username=name))
 
 
 def _names(session: Session) -> list[str]:

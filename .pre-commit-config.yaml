@@ -38,6 +38,7 @@ repos:
           - types-Markdown==3.10.2.20260712
           - httpx==0.28.1
           - pytest==8.4.1
+          - argon2-cffi==25.1.0
         args: [src, tests]
         pass_filenames: false
   - repo: local

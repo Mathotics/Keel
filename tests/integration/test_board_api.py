@@ -3,6 +3,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 Json = dict[str, Any]
 
 
@@ -83,7 +85,10 @@ def test_an_assignee_parameter_filters_the_board(
     client: TestClient,
     project_id: int,
 ) -> None:
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
     create_issue(client, project_id, title="Ada's", assignee_id=ada["id"])
     create_issue(client, project_id, title="Open")
 

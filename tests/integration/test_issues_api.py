@@ -3,6 +3,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 
 @pytest.fixture
 def project_id(client: TestClient) -> int:
@@ -45,12 +47,19 @@ def test_the_reporter_follows_the_user_header(
     client: TestClient,
     project_id: int,
 ) -> None:
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
 
+    client.post(
+        "/login",
+        data={"username": "Ada", "password": TEST_PASSWORD},
+        follow_redirects=False,
+    )
     response = client.post(
         f"/api/v1/projects/{project_id}/issues",
         json={"type": "story", "title": "Something"},
-        headers={"X-Keel-User": "Ada"},
     )
     assert response.json()["reporter_id"] == ada["id"]
 
@@ -199,7 +208,10 @@ def test_a_referenced_user_cannot_be_deleted(
     client: TestClient,
     project_id: int,
 ) -> None:
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
     create_issue(client, project_id, assignee_id=ada["id"])
 
     response = client.delete(f"/api/v1/users/{ada['id']}")

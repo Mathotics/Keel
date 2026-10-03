@@ -1,6 +1,10 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from keel.app import app, create_app
+from keel.db.base import Base
+from keel.db.engine import create_db_engine
 from keel.settings import KeelSettings
 from keel.version import package_version
 
@@ -18,12 +22,13 @@ def test_module_app_is_fastapi() -> None:
     assert app.version == package_version()
 
 
-def test_docs_and_favicon_routes() -> None:
-    client = TestClient(create_app(KeelSettings(_env_file=None)))
-    assert client.get("/favicon.ico").status_code == 200
-    docs = client.get("/docs")
-    assert docs.status_code == 200
-    assert "/assets/favicon.ico" in docs.text
-    redoc = client.get("/redoc")
-    assert redoc.status_code == 200
-    assert "/assets/favicon.ico" in redoc.text
+def test_docs_require_sign_in_and_favicon_does_not(tmp_path: Path) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'docs.db').as_posix()}"
+    settings = KeelSettings(_env_file=None, database_url=url, default_user="Tester")
+    engine = create_db_engine(url)
+    Base.metadata.create_all(engine)
+    engine.dispose()
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/favicon.ico").status_code == 200
+        assert client.get("/docs").status_code == 401
+        assert client.get("/redoc").status_code == 401

@@ -1,7 +1,7 @@
 # ADR 011: Ambient identity without authentication
 
-* **Status:** Accepted
-* **Date:** 2026-08-31
+* **Status:** Superseded by [Password login](password-login.md)
+* **Date:** 2026-10-03
 
 ## Background
 
