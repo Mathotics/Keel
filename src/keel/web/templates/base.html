@@ -49,17 +49,14 @@
             <a class="keel-topbar__control" href="/redoc" target="_blank" rel="noopener">ReDoc</a>
           </div>
         </details>
-        {% if users %}
-        <form class="keel-userpicker" method="post" action="/web/user">
-          <input type="hidden" name="next" value="{{ request.url.path }}"/>
-          <label class="keel-userpicker__label" for="keel-user">Acting as</label>
-          <select class="keel-topbar__control" id="keel-user" name="user">
-            {% for user in users %}
-            <option value="{{ user.id }}"{% if current_user and user.id == current_user.id %} selected{% endif %}>{{ user.display_name }}</option>
-            {% endfor %}
-          </select>
-          <button class="keel-topbar__control keel-userpicker__fallback" type="submit">Switch</button>
-        </form>
+        {% if current_user %}
+        <div class="keel-account">
+          <span class="keel-account__label">Signed in</span>
+          <a class="keel-topbar__control" href="/profile">{{ current_user.display_name }}</a>
+          <form method="post" action="/logout">
+            <button class="keel-topbar__control" type="submit">Log out</button>
+          </form>
+        </div>
         {% endif %}
       </div>
     </header>

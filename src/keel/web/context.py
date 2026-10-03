@@ -16,8 +16,7 @@ from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
 from keel.services.auto_sprint import get_session
 from keel.services.identity import (
-    USER_COOKIE,
-    USER_HEADER,
+    SESSION_COOKIE,
     bind_acting_user,
     resolve_current_user,
 )
@@ -26,8 +25,7 @@ from keel.web.markdown import render_markdown
 from keel.web.nav import NAV_COOKIE, links_for, parse_order
 
 __all__ = [
-    "USER_COOKIE",
-    "USER_HEADER",
+    "SESSION_COOKIE",
     "Chrome",
     "ChromeDep",
     "SessionDep",
@@ -95,19 +93,20 @@ class Chrome:
     current_user: User | None
 
 
+def _current_user(request: Request, session: Session) -> User | None:
+    return resolve_current_user(
+        session,
+        authorization=request.headers.get("authorization"),
+        session_cookie=request.cookies.get(SESSION_COOKIE),
+    )
+
+
 def get_request_session(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> Session:
-    """Bind the picker user after auto-sprint catch-up so history names a person."""
-    bind_acting_user(
-        resolve_current_user(
-            session,
-            header=request.headers.get(USER_HEADER),
-            cookie=request.cookies.get(USER_COOKIE),
-            configured=request.app.state.settings.default_user,
-        ),
-    )
+    """Bind the signed-in user after auto-sprint catch-up so history names a person."""
+    bind_acting_user(_current_user(request, session))
     return session
 
 
@@ -117,12 +116,7 @@ def get_chrome(
 ) -> Chrome:
     return Chrome(
         users=user_service.list_users(session),
-        current_user=resolve_current_user(
-            session,
-            header=request.headers.get(USER_HEADER),
-            cookie=request.cookies.get(USER_COOKIE),
-            configured=request.app.state.settings.default_user,
-        ),
+        current_user=_current_user(request, session),
     )
 
 

@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 
 def test_seeded_user_is_present(client: TestClient) -> None:
     users = client.get("/api/v1/users").json()
@@ -7,9 +9,15 @@ def test_seeded_user_is_present(client: TestClient) -> None:
 
 
 def test_user_lifecycle(client: TestClient) -> None:
-    created = client.post("/api/v1/users", json={"display_name": "Ada"})
+    created = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    )
     assert created.status_code == 201
     user_id = created.json()["id"]
+
+    assert "password" not in created.json()
+    assert created.json()["username"] == "Ada"
 
     assert client.get(f"/api/v1/users/{user_id}").json()["display_name"] == "Ada"
 
@@ -24,8 +32,14 @@ def test_user_lifecycle(client: TestClient) -> None:
 
 
 def test_duplicate_name_returns_a_coded_conflict(client: TestClient) -> None:
-    client.post("/api/v1/users", json={"display_name": "Ada"})
-    conflict = client.post("/api/v1/users", json={"display_name": "Ada"})
+    client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    )
+    conflict = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    )
     assert conflict.status_code == 409
     detail = conflict.json()["detail"]
     assert detail["code"] == "user.duplicate_name"
@@ -34,6 +48,13 @@ def test_duplicate_name_returns_a_coded_conflict(client: TestClient) -> None:
 
 def test_blank_name_is_rejected_by_validation(client: TestClient) -> None:
     assert client.post("/api/v1/users", json={"display_name": ""}).status_code == 422
+
+
+def test_a_person_cannot_delete_themselves(client: TestClient) -> None:
+    tester = client.get("/api/v1/users").json()[0]
+    refused = client.delete(f"/api/v1/users/{tester['id']}")
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["code"] == "user.self"
 
 
 def test_missing_user_returns_not_found(client: TestClient) -> None:

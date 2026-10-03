@@ -2,6 +2,8 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 Json = dict[str, Any]
 
 
@@ -36,13 +38,20 @@ def test_comments_are_created_and_listed_oldest_first(client: TestClient) -> Non
 
 
 def test_a_comment_is_authored_by_the_acting_user(client: TestClient) -> None:
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
     issue = _issue(client, _project(client))
 
+    client.post(
+        "/login",
+        data={"username": "Ada", "password": TEST_PASSWORD},
+        follow_redirects=False,
+    )
     created = client.post(
         f"/api/v1/issues/{issue['id']}/comments",
         json={"body": "From Ada"},
-        headers={"X-Keel-User": "Ada"},
     )
     assert created.status_code == 201
     assert created.json()["author_id"] == ada["id"]
@@ -59,12 +68,24 @@ def test_a_blank_comment_is_refused(client: TestClient) -> None:
 
 
 def test_a_comment_author_cannot_be_deleted(client: TestClient) -> None:
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
     issue = _issue(client, _project(client))
+    client.post(
+        "/login",
+        data={"username": "Ada", "password": TEST_PASSWORD},
+        follow_redirects=False,
+    )
     client.post(
         f"/api/v1/issues/{issue['id']}/comments",
         json={"body": "From Ada"},
-        headers={"X-Keel-User": "Ada"},
+    )
+    client.post(
+        "/login",
+        data={"username": "Tester", "password": TEST_PASSWORD},
+        follow_redirects=False,
     )
 
     response = client.delete(f"/api/v1/users/{ada['id']}")

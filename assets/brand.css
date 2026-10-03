@@ -200,7 +200,7 @@ body {
   background: var(--keel-white);
 }
 
-.keel-userpicker {
+.keel-account {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -208,13 +208,12 @@ body {
 
 /* Marked forms submit themselves once the script runs, so the button is only
    needed when it did not. */
-[data-keel-js] .keel-userpicker__fallback,
 [data-keel-js] .keel-find__fallback,
 [data-keel-js] .keel-autosubmit__fallback {
   display: none;
 }
 
-.keel-userpicker__label {
+.keel-account__label {
   display: inline-flex;
   align-items: center;
   height: var(--keel-control-height);

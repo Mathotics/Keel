@@ -1,16 +1,22 @@
 import getpass
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Comment, Issue, User
+from keel.db.models.user import utc_now
 from keel.domain.errors import (
     DuplicateUserNameError,
+    DuplicateUsernameError,
+    InvalidPasswordError,
     InvalidUserNameError,
+    InvalidUsernameError,
     NotFoundError,
+    PasswordMismatchError,
     UserInUseError,
 )
+from keel.services.passwords import hash_password, validate_password
 
 MAX_NAME_LENGTH = 100
 
@@ -31,7 +37,7 @@ def get_user(session: Session, user_id: int) -> User:
 
 
 def find_user(session: Session, token: str) -> User | None:
-    """Resolve a user by identifier or by display name, for header and cookie values."""
+    """Resolve a user by identifier or by display name."""
     if token.isdigit():
         by_id = session.get(User, int(token))
         if by_id is not None:
@@ -39,10 +45,47 @@ def find_user(session: Session, token: str) -> User | None:
     return session.scalars(select(User).where(User.display_name == token)).first()
 
 
-def create_user(session: Session, display_name: str) -> User:
+def find_by_username(session: Session, username: str) -> User | None:
+    login = username.strip().casefold()
+    if not login:
+        return None
+    return session.scalars(
+        select(User).where(func.lower(User.username) == login),
+    ).first()
+
+
+def any_password_set(session: Session) -> bool:
+    found = session.scalars(
+        select(User.id).where(User.password_hash.is_not(None)).limit(1),
+    ).first()
+    return found is not None
+
+
+def create_user(
+    session: Session,
+    display_name: str,
+    username: str | None = None,
+    password: str | None = None,
+    *,
+    confirm: str | None = None,
+    require_password: bool = False,
+) -> User:
     name = _clean_name(display_name)
+    login = _clean_username(name if username is None else username)
     _reject_duplicate(session, name)
-    user = User(display_name=name)
+    _reject_duplicate_username(session, login)
+    password_hash = _password_for_create(
+        password,
+        confirm,
+        login,
+        require_password=require_password,
+    )
+    user = User(
+        display_name=name,
+        username=login,
+        password_hash=password_hash,
+        updated_at=utc_now(),
+    )
     session.add(user)
     session.flush()
     return user
@@ -54,6 +97,36 @@ def rename_user(session: Session, user_id: int, display_name: str) -> User:
     if name != user.display_name:
         _reject_duplicate(session, name)
         user.display_name = name
+        user.updated_at = utc_now()
+    session.flush()
+    return user
+
+
+def update_identity(
+    session: Session,
+    user_id: int,
+    *,
+    display_name: str,
+    username: str,
+) -> User:
+    user = get_user(session, user_id)
+    name = _clean_name(display_name)
+    login = _clean_username(username)
+    if name != user.display_name:
+        _reject_duplicate(session, name)
+        user.display_name = name
+    if login.casefold() != user.username.casefold() or login != user.username:
+        _reject_duplicate_username(session, login, except_id=user.id)
+        user.username = login
+    user.updated_at = utc_now()
+    session.flush()
+    return user
+
+
+def set_password(session: Session, user: User, password: str) -> User:
+    validate_password(password, user.username)
+    user.password_hash = hash_password(password)
+    user.updated_at = utc_now()
     session.flush()
     return user
 
@@ -91,7 +164,7 @@ def _reject_while_referenced(session: Session, user: User) -> None:
 
 
 def ensure_default_user(session: Session, preferred: str | None) -> User:
-    """Guarantee the picker is never empty on a fresh database."""
+    """Guarantee a person exists on a fresh database. They still need a password."""
     existing = first_user(session)
     if existing is not None:
         return existing
@@ -122,3 +195,50 @@ def _reject_duplicate(session: Session, name: str) -> None:
     taken = session.scalars(select(User).where(User.display_name == name)).first()
     if taken is not None:
         raise DuplicateUserNameError(f"{name} is already taken.", display_name=name)
+
+
+def _clean_username(username: str) -> str:
+    name = username.strip()
+    if not name:
+        raise InvalidUsernameError("A user needs a username.")
+    if len(name) > MAX_NAME_LENGTH:
+        raise InvalidUsernameError(
+            f"A username may be at most {MAX_NAME_LENGTH} characters.",
+            limit=MAX_NAME_LENGTH,
+        )
+    if any(ord(character) < 32 for character in name):
+        raise InvalidUsernameError("A username cannot contain control characters.")
+    return name
+
+
+def _reject_duplicate_username(
+    session: Session,
+    username: str,
+    *,
+    except_id: int | None = None,
+) -> None:
+    taken = session.scalars(
+        select(User).where(func.lower(User.username) == username.casefold()),
+    ).first()
+    if taken is not None and taken.id != except_id:
+        raise DuplicateUsernameError(
+            f"{username} is already taken.",
+            username=username,
+        )
+
+
+def _password_for_create(
+    password: str | None,
+    confirm: str | None,
+    username: str,
+    *,
+    require_password: bool,
+) -> str | None:
+    if not password:
+        if require_password:
+            raise InvalidPasswordError("A password is required.")
+        return None
+    if confirm is not None and password != confirm:
+        raise PasswordMismatchError("The passwords do not match.")
+    validate_password(password, username)
+    return hash_password(password)

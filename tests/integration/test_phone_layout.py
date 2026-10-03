@@ -64,7 +64,7 @@ def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
     assert "keel-topbar__nav" in header
     assert "keel-find" in header
     assert "keel-help" in header
-    assert "keel-userpicker" in header
+    assert "keel-account" in header
     assert "FastAPI Docs" in header
     assert "ReDoc" in header
     assert 'href="/projects"' in header

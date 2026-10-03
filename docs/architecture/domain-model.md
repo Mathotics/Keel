@@ -38,7 +38,7 @@ erDiagram
 Each entity lists its attributes in domain terms only.
 
 ### User
-The owner or a collaborator. In v1 there are no roles and no authentication.
+The owner or a collaborator. There are no roles. Each person signs in with a username and password ([Password login](../adr/password-login.md)).
 * Display name.
 * Relationships: reports many issues; is assigned many issues; authors many comments.
 

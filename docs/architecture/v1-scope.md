@@ -17,7 +17,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 
 * **Projects** — a first-class container; issues, boards, sprints, and backlog are scoped to a project. Multiple projects are supported from the start.
 * **Shared fixed workflow** — a single small status set shared across projects ([ADR 004](../adr/ADR-004.md)).
-* **Users** — a minimal notion of people for assignee/reporter, with no authentication (see below).
+* **Users** — people for assignee and reporter, each with a username and password ([Password login](../adr/password-login.md)).
 * **Comments** — notes on issues; descriptions and comments render as Markdown on the issue page ([ADR 017](../adr/ADR-017.md)).
 * **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)).
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
@@ -32,7 +32,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 | Deferred item | Reasoning |
 | --- | --- |
-| **Authentication & identity** | v1 assumes a trusted local/small-group context. No login, roles, permission matrices, or SSO. Users are still recorded for attribution, with identity declared rather than verified ([ADR 011](../adr/ADR-011.md)). To be designed in a later version. |
+| **Roles, permission matrices, and SSO** | Signed-in people are still trusted equals. Login is username and password plus personal API tokens ([Password login](../adr/password-login.md)). Per-user restrictions and external identity providers stay deferred. |
 | **Configurable / per-project workflows** | A fixed shared workflow is proportional to a personal tool ([ADR 004](../adr/ADR-004.md)). Custom statuses, transitions, and swimlanes other than sprint are deferred. |
 | **Components, releases/versions** | Extra classification beyond issue type, parent, and labels is not needed for 1–3 users yet. Labels are in v1 ([ADR 031](../adr/ADR-031.md)). |
 | **Attachments** | File handling adds storage and lifecycle concerns beyond v1's core. |

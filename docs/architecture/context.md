@@ -11,7 +11,7 @@ Scope is deliberately proportional to a personal tool. Keel has **no organizatio
 | **Owner** | The primary user. Creates projects, plans work, runs sprints, works the board. Full run of the tool. |
 | **Collaborator** | One or two trusted people who share the same projects. Same abilities as the owner in v1 (no roles or per-user restrictions). |
 
-In v1 all users are trusted equals in a shared local/small-group context. There is **no authentication** — see [v1 scope](v1-scope.md) and the deferral noted below.
+In v1 all signed-in users are trusted equals in a shared local/small-group context. There are **no roles and no SSO** — see [v1 scope](v1-scope.md). Sign-in is a username and password ([Password login](../adr/password-login.md)).
 
 ## External systems
 

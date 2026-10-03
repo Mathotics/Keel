@@ -20,7 +20,11 @@ from keel.domain.enums import (
     SeriesState,
     SprintCadence,
 )
-from keel.domain.errors import DomainError, InvalidSprintCadenceError
+from keel.domain.errors import (
+    CannotDeleteSelfError,
+    DomainError,
+    InvalidSprintCadenceError,
+)
 from keel.domain.hierarchy import child_type_of
 from keel.domain.labels import parse_label_names
 from keel.domain.schedule import parse_clock
@@ -35,7 +39,6 @@ from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
-from keel.services.identity import USER_COOKIE
 from keel.web.context import Chrome, ChromeDep, SessionDep
 from keel.web.home_layout import (
     HOME_COOKIE,
@@ -115,16 +118,6 @@ def _remember_nav(
         path="/",
         samesite="lax",
     )
-    return response
-
-
-@router.post("/user")
-def switch_user(
-    user: Annotated[str, Form()],
-    return_to: Annotated[str, Form(alias="next")] = "/",
-) -> RedirectResponse:
-    response = _back(return_to or "/")
-    response.set_cookie(USER_COOKIE, user, samesite="lax")
     return response
 
 
@@ -229,9 +222,19 @@ def move_nav_item(
 def create_user(
     session: SessionDep,
     display_name: Annotated[str, Form()],
+    password: Annotated[str, Form()] = "",
+    confirm: Annotated[str, Form()] = "",
+    username: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     try:
-        user_service.create_user(session, display_name)
+        user_service.create_user(
+            session,
+            display_name,
+            username.strip() or None,
+            password,
+            confirm=confirm,
+            require_password=True,
+        )
     except DomainError as exc:
         session.rollback()
         return _back("/users", exc.message)
@@ -253,7 +256,16 @@ def rename_user(
 
 
 @router.post("/users/{user_id}/delete")
-def delete_user(session: SessionDep, user_id: int) -> RedirectResponse:
+def delete_user(
+    session: SessionDep,
+    chrome: ChromeDep,
+    user_id: int,
+) -> RedirectResponse:
+    if chrome.current_user is not None and chrome.current_user.id == user_id:
+        refused = CannotDeleteSelfError(
+            "Sign in as someone else before deleting this account.",
+        )
+        return _back("/users", refused.message)
     try:
         user_service.delete_user(session, user_id)
     except DomainError as exc:

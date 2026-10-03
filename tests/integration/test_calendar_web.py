@@ -3,6 +3,8 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 Json = dict[str, Any]
 
 
@@ -78,7 +80,10 @@ def test_the_month_lists_assigned_dated_work_and_links_the_issue(
         json={"key": "SITE", "name": "Site"},
     ).json()
     tester = _tester(client)
-    grace = client.post("/api/v1/users", json={"display_name": "Grace"}).json()
+    grace = client.post(
+        "/api/v1/users",
+        json={"display_name": "Grace", "password": TEST_PASSWORD},
+    ).json()
     client.post(
         f"/api/v1/projects/{project['id']}/issues",
         json={

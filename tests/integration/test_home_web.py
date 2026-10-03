@@ -6,6 +6,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 Json = dict[str, Any]
 
 
@@ -282,7 +284,10 @@ def test_switching_the_picker_changes_whose_inbox_is_shown(
         json={"key": "KEEL", "name": "Keel"},
     ).json()
     tester = _tester(client)
-    ada = client.post("/api/v1/users", json={"display_name": "Ada"}).json()
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada", "password": TEST_PASSWORD},
+    ).json()
     client.post(
         f"/api/v1/projects/{project['id']}/issues",
         json={
@@ -304,7 +309,11 @@ def test_switching_the_picker_changes_whose_inbox_is_shown(
     assert "For Tester" in as_tester.text
     assert "For Ada" not in as_tester.text
 
-    client.post("/web/user", data={"user": str(ada["id"]), "next": "/"})
+    client.post(
+        "/login",
+        data={"username": "Ada", "password": TEST_PASSWORD},
+        follow_redirects=False,
+    )
     as_ada = client.get("/")
     assert "For Ada" in as_ada.text
     assert "For Tester" not in as_ada.text

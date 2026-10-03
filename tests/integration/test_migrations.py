@@ -9,6 +9,8 @@ from keel.app import create_app
 from keel.db.engine import create_db_engine
 from keel.settings import KeelSettings
 
+OWNER_PASSWORD = "owner-password-1"
+
 
 @pytest.fixture
 def migrated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> KeelSettings:
@@ -19,10 +21,23 @@ def migrated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> KeelSettings:
     return settings
 
 
+def _sign_in(client: TestClient) -> None:
+    assert (
+        cli.main(["users", "set-password", "Owner", "--password", OWNER_PASSWORD]) == 0
+    )
+    signed = client.post(
+        "/login",
+        data={"username": "Owner", "password": OWNER_PASSWORD},
+        follow_redirects=False,
+    )
+    assert signed.status_code == 303
+
+
 def test_the_app_runs_on_a_migrated_database(migrated: KeelSettings) -> None:
     """The path a real install takes: keel db upgrade, then keel serve."""
     with TestClient(create_app(migrated)) as client:
         assert client.get("/health").json() == {"status": "ok"}
+        _sign_in(client)
         assert client.get("/").status_code == 200
         assert [u["display_name"] for u in client.get("/api/v1/users").json()] == [
             "Owner"
@@ -36,7 +51,14 @@ def test_migrations_and_models_agree(migrated: KeelSettings) -> None:
         columns = {column["name"] for column in inspect(engine).get_columns("users")}
     finally:
         engine.dispose()
-    assert columns == {"id", "display_name", "created_at"}
+    assert columns == {
+        "id",
+        "username",
+        "display_name",
+        "password_hash",
+        "created_at",
+        "updated_at",
+    }
 
 
 def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
@@ -128,5 +150,6 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:
     for _ in range(2):
         with TestClient(create_app(migrated)) as client:
+            _sign_in(client)
             users = client.get("/api/v1/users").json()
     assert len(users) == 1

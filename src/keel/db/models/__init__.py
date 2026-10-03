@@ -1,3 +1,5 @@
+from keel.db.models.api_token import ApiToken
+from keel.db.models.auth_session import AuthSession
 from keel.db.models.board import Board
 from keel.db.models.comment import Comment
 from keel.db.models.dependency import Dependency
@@ -10,6 +12,8 @@ from keel.db.models.sprint import Sprint
 from keel.db.models.user import User
 
 __all__ = [
+    "ApiToken",
+    "AuthSession",
     "Board",
     "Comment",
     "Dependency",

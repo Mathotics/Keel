@@ -45,6 +45,39 @@ class UserInUseError(DomainError):
     code = "user.in_use"
 
 
+class CannotDeleteSelfError(DomainError):
+    code = "user.self"
+
+
+class DuplicateUsernameError(DomainError):
+    code = "user.duplicate_username"
+
+
+class InvalidUsernameError(DomainError):
+    code = "user.invalid_username"
+    status_code = 422
+
+
+class InvalidPasswordError(DomainError):
+    code = "user.invalid_password"
+    status_code = 422
+
+
+class PasswordMismatchError(DomainError):
+    code = "user.password_mismatch"
+    status_code = 422
+
+
+class CurrentPasswordError(DomainError):
+    code = "user.current_password"
+    status_code = 422
+
+
+class InvalidTokenLabelError(DomainError):
+    code = "user.invalid_token_label"
+    status_code = 422
+
+
 class DuplicateProjectKeyError(DomainError):
     code = "project.duplicate_key"
 

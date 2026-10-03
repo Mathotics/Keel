@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block main %}
+      <h1>Profile</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% if notice %}
+      <p class="keel-note">{{ notice }}</p>
+      {% endif %}
+      {% if new_token %}
+      <p class="keel-note" role="status">New token: <code>{{ new_token }}</code></p>
+      {% endif %}
+      <div class="keel-panel">
+        <h2>Name</h2>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/profile">
+          <div class="keel-fields">
+            <p class="keel-fields__full">
+              <label for="display-name">Display name</label>
+              <input id="display-name" name="display_name" type="text" maxlength="100" required value="{{ profile.display_name }}"/>
+            </p>
+            <p class="keel-fields__full">
+              <label for="username">Username</label>
+              <input id="username" name="username" type="text" maxlength="100" required autocomplete="username" spellcheck="false" value="{{ profile.username }}"/>
+            </p>
+          </div>
+          <p class="keel-note">Member since {{ profile.created_at|when }}.</p>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
+        </form>
+      </div>
+      <div class="keel-panel">
+        <h2>Password</h2>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/profile/password">
+          <div class="keel-fields">
+            <p class="keel-fields__full">
+              <label for="current-password">Current password</label>
+              <input id="current-password" name="current_password" type="password" required maxlength="128" autocomplete="current-password"/>
+            </p>
+            <p class="keel-fields__full">
+              <label for="new-password">New password</label>
+              <input id="new-password" name="new_password" type="password" required minlength="12" maxlength="128" autocomplete="new-password"/>
+            </p>
+            <p class="keel-fields__full">
+              <label for="confirm-password">Confirm new password</label>
+              <input id="confirm-password" name="confirm_password" type="password" required minlength="12" maxlength="128" autocomplete="new-password"/>
+            </p>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Change password</button></p>
+        </form>
+      </div>
+      <div class="keel-panel">
+        <h2>API tokens</h2>
+        <p class="keel-note">A token signs in as you. Send it as <code>Authorization: Bearer</code>. The secret is shown once.</p>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/profile/tokens">
+          <div class="keel-fields">
+            <p class="keel-fields__full">
+              <label for="token-label">Label</label>
+              <input id="token-label" name="label" type="text" maxlength="100" required placeholder="Cursor agent"/>
+            </p>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Create token</button></p>
+        </form>
+        <div class="keel-table-scroll">
+          <table class="keel-table">
+            <thead>
+              <tr><th>Label</th><th>Prefix</th><th>Last used</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for token in tokens %}
+              <tr>
+                <td>{{ token.label }}</td>
+                <td><code>{{ token.token_prefix }}</code></td>
+                <td>{% if token.last_used_at %}{{ token.last_used_at|when }}{% else %}Never{% endif %}</td>
+                <td>
+                  <form class="keel-form keel-form--inline keel-form--danger" method="post" action="/web/profile/tokens/{{ token.id }}/revoke">
+                    <button type="submit">Revoke</button>
+                  </form>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td class="keel-empty" colspan="4">No tokens yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+{% endblock %}

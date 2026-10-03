@@ -1,6 +1,7 @@
 from fastapi import APIRouter, status
 
-from keel.api.v1.deps import SessionDep
+from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.domain.errors import CannotDeleteSelfError
 from keel.schemas.user import UserCreate, UserRead, UserUpdate
 from keel.services import users as user_service
 
@@ -14,7 +15,13 @@ def list_users(session: SessionDep) -> list[UserRead]:
 
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, session: SessionDep) -> UserRead:
-    user = user_service.create_user(session, payload.display_name)
+    user = user_service.create_user(
+        session,
+        payload.display_name,
+        payload.username,
+        payload.password,
+        require_password=True,
+    )
     return UserRead.model_validate(user)
 
 
@@ -30,5 +37,13 @@ def update_user(user_id: int, payload: UserUpdate, session: SessionDep) -> UserR
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int, session: SessionDep) -> None:
+def delete_user(
+    user_id: int,
+    session: SessionDep,
+    acting: ActingUserDep,
+) -> None:
+    if acting is not None and acting.id == user_id:
+        raise CannotDeleteSelfError(
+            "Sign in as someone else before deleting this account.",
+        )
     user_service.delete_user(session, user_id)

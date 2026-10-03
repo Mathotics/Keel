@@ -9,7 +9,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 * All request and response bodies are JSON. Timestamps are ISO 8601 in UTC.
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
-* The acting user is resolved per [ADR 011](../adr/ADR-011.md) — the `X-Keel-User` header takes precedence, then the `keel_user` cookie, then `KEEL_DEFAULT_USER`, then the seeded default user. It defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
+* The acting user is the signed-in person ([Password login](../adr/password-login.md)). Browsers send the `keel_session` cookie. Scripts send `Authorization: Bearer`. A bearer header that does not match a live token does not fall through to the cookie. `X-Keel-User` is ignored. The acting user defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
 * Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; priorities `p1`, `p2`, `p3`, `p4`, `p5`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `start_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
 * There is no pagination; collections return in full, which is proportional to the scale described in [context](../architecture/context.md).
 
@@ -18,10 +18,16 @@ Collections are nested under their parent; single resources are flat, so a clien
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/v1/users` | List users |
-| `POST` | `/api/v1/users` | Create a user — `{display_name}` |
+| `POST` | `/api/v1/users` | Create a user — `{display_name, password, username?}`. `username` defaults to the display name |
 | `GET` | `/api/v1/users/{user_id}` | Read a user |
-| `PATCH` | `/api/v1/users/{user_id}` | Rename a user |
-| `DELETE` | `/api/v1/users/{user_id}` | Delete, refused while referenced |
+| `PATCH` | `/api/v1/users/{user_id}` | Rename a user's display name |
+| `DELETE` | `/api/v1/users/{user_id}` | Delete, refused while referenced or when deleting yourself |
+| `GET` | `/api/v1/profile` | The signed-in user |
+| `PATCH` | `/api/v1/profile` | Change your display name and username — `{display_name, username}` |
+| `POST` | `/api/v1/profile/password` | Change your password — `{current_password, new_password, confirm_password}` |
+| `GET` | `/api/v1/profile/tokens` | List your API tokens (prefix, label, timestamps; no secret) |
+| `POST` | `/api/v1/profile/tokens` | Create a token — `{label}`. The response includes `token` once |
+| `DELETE` | `/api/v1/profile/tokens/{token_id}` | Revoke a token |
 
 ## Projects
 
@@ -209,8 +215,15 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `dependency.self_link` | 409 | Source and target are the same issue |
 | `dependency.duplicate` | 409 | An identical link already exists |
 | `user.in_use` | 409 | Deleting a user still referenced anywhere |
+| `user.self` | 409 | Deleting the signed-in user |
 | `user.duplicate_name` | 409 | A display name is already taken |
+| `user.duplicate_username` | 409 | A username is already taken |
 | `user.invalid_name` | 422 | A display name is blank or over 100 characters |
+| `user.invalid_username` | 422 | A username is blank, over 100 characters, or contains a control character |
+| `user.invalid_password` | 422 | A password is missing, too short, too long, or matches the username |
+| `user.password_mismatch` | 422 | The two new passwords differ |
+| `user.current_password` | 422 | The current password is wrong |
+| `user.invalid_token_label` | 422 | A token label is blank or over 100 characters |
 
 ## Form routes
 
@@ -218,7 +231,13 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| `POST` | `/web/user` | Set the `keel_user` cookie from the top-bar picker |
+| `GET` | `/login` | Username and password. Public |
+| `POST` | `/login` | Sign in and set the `keel_session` cookie |
+| `POST` | `/logout` | End the session |
+| `POST` | `/web/profile` | Update your display name and username |
+| `POST` | `/web/profile/password` | Change your password |
+| `POST` | `/web/profile/tokens` | Create an API token; the secret is shown once on the next profile view |
+| `POST` | `/web/profile/tokens/{token_id}/revoke` | Revoke one of your tokens |
 | `POST` | `/web/nav` | Set the `keel_nav` cookie (section keys, dotted) from a dragged order |
 | `POST` | `/web/nav/move` | Swap one visible section with its neighbour (no-JavaScript) |
 | `POST` | `/web/inbox` | Set the `keel_inbox` cookie (collapsed home section keys, dotted) |
