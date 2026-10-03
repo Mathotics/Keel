@@ -18,7 +18,7 @@ def test_an_empty_month_still_shows_the_grid(client: TestClient) -> None:
     page = client.get("/calendar?month=2026-10")
     assert page.status_code == 200
     assert "<h1>Calendar</h1>" in page.text
-    assert "<h2>October 2026</h2>" in page.text
+    assert "<h2>" not in page.text
     assert "Nothing dated falls in this month." in page.text
     assert ">Mon<" in page.text
     assert ">Sun<" in page.text
@@ -32,9 +32,10 @@ def test_an_empty_month_still_shows_the_grid(client: TestClient) -> None:
     assert 'action="/calendar"' in page.text
     assert "Show" in page.text
     jumped = client.get("/calendar?year=2024&month_num=3")
-    assert "<h2>March 2024</h2>" in jumped.text
+    assert "<h2>" not in jumped.text
     assert '<option value="3" selected>March</option>' in jumped.text
     assert '<option value="2024" selected>2024</option>' in jumped.text
+    assert 'href="/calendar?view=week&amp;week=2024-03-01"' in jumped.text
     assert "keel-cal__day" in page.text
 
 
@@ -54,9 +55,13 @@ def test_an_invalid_month_falls_back_to_the_current_month(client: TestClient) ->
         "November",
         "December",
     )
-    label = f"{names[today.month - 1]} {today.year}"
     page = client.get("/calendar?month=nope")
-    assert f"<h2>{label}</h2>" in page.text
+    assert (
+        f'<option value="{today.month}" selected>{names[today.month - 1]}</option>'
+        in page.text
+    )
+    assert f'<option value="{today.year}" selected>{today.year}</option>' in page.text
+    assert "<h2>" not in page.text
     assert "Nothing dated falls in this month." in page.text
 
 
@@ -220,8 +225,53 @@ def test_a_project_calendar_lists_that_projects_dated_work(
     assert 'href="/projects/KEEL/calendar?month=2026-11"' in page.text
     assert 'action="/projects/KEEL/calendar"' in page.text
     jumped = client.get("/projects/KEEL/calendar?year=2024&month_num=3")
-    assert "<h2>March 2024</h2>" in jumped.text
+    assert "<h2>" not in jumped.text
+    assert '<option value="3" selected>March</option>' in jumped.text
+    assert '<option value="2024" selected>2024</option>' in jumped.text
     assert 'action="/projects/KEEL/calendar"' in jumped.text
     master = client.get("/calendar?month=2026-10")
     assert "In project" not in master.text
     assert "Other project" in master.text
+
+
+def test_the_week_view_steps_seven_days_on_the_same_calendar(
+    client: TestClient,
+) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "This week",
+            "assignee_id": tester["id"],
+            "start_at": "2026-10-14T09:00:00",
+            "due_at": "2026-10-16T17:00:00",
+        },
+    )
+    page = client.get("/calendar?view=week&week=2026-10-15")
+    assert page.status_code == 200
+    assert "<h2>October 12–18, 2026</h2>" in page.text
+    assert "This week" in page.text
+    assert "Nothing dated falls in this week." not in page.text
+    assert 'href="/calendar?view=week&amp;week=2026-10-05"' in page.text
+    assert 'href="/calendar?view=week&amp;week=2026-10-19"' in page.text
+    assert 'href="/calendar?view=week"' in page.text
+    assert 'name="view" value="week"' in page.text
+    assert 'aria-current="page">Week</a>' in page.text
+    assert "Oct 12" in page.text
+    jumped = client.get("/calendar?view=week&year=2024&month_num=3")
+    assert "<h2>February 26 – March 3, 2024</h2>" in jumped.text
+    assert 'name="view" value="week"' in jumped.text
+    assert "Nothing dated falls in this week." in jumped.text
+    project_week = client.get("/projects/KEEL/calendar?view=week&week=2026-10-15")
+    assert "This week" in project_week.text
+    assert 'action="/projects/KEEL/calendar"' in project_week.text
+    assert (
+        'href="/projects/KEEL/calendar?view=week&amp;week=2026-10-19"'
+        in project_week.text
+    )
+    assert 'name="view" value="week"' in project_week.text

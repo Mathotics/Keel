@@ -2,10 +2,19 @@
 {% block title %}Calendar{% endblock %}
 {% block main %}
       <h1>Calendar</h1>
-      <nav class="keel-cal__nav" aria-label="Month">
-        <a href="{{ calendar.base }}?month={{ calendar.prev_month }}">Previous</a>
+      <nav class="keel-tabs" aria-label="Calendar view">
+        <a class="keel-tabs__tab" href="{{ calendar.month_href }}"{% if calendar.view == "month" %} aria-current="page"{% endif %}>Month</a>
+        <a class="keel-tabs__tab" href="{{ calendar.week_href }}"{% if calendar.view == "week" %} aria-current="page"{% endif %}>Week</a>
+      </nav>
+      <nav class="keel-cal__nav" aria-label="When">
+        <a href="{{ calendar.prev_href }}">Previous</a>
+        {% if calendar.view == "week" %}
         <h2>{{ calendar.label }}</h2>
+        {% endif %}
         <form class="keel-cal__jump" method="get" action="{{ calendar.base }}" data-keel-autosubmit>
+          {% if calendar.view == "week" %}
+          <input type="hidden" name="view" value="week">
+          {% endif %}
           <label class="keel-visually-hidden" for="cal-month">Month</label>
           <select id="cal-month" name="month_num">
             {% for name in calendar.month_names %}
@@ -20,11 +29,11 @@
           </select>
           <button class="keel-autosubmit__fallback" type="submit">Show</button>
         </form>
-        <a href="{{ calendar.base }}?month={{ calendar.next_month }}">Next</a>
-        <a href="{{ calendar.base }}">Today</a>
+        <a href="{{ calendar.next_href }}">Next</a>
+        <a href="{{ calendar.today_href }}">Today</a>
       </nav>
       {% if calendar.empty %}
-      <p class="keel-lede">Nothing dated falls in this month.</p>
+      <p class="keel-lede">{{ calendar.empty_note }}</p>
       {% endif %}
       <div class="keel-cal">
         <div class="keel-cal__sheet">
@@ -42,7 +51,7 @@
             <div class="keel-cal__days">
               {% for day in week.days %}
               <div class="keel-cal__day{% if not day.in_month %} keel-cal__day--out{% endif %}{% if day.is_today %} keel-cal__day--today{% endif %}">
-                <span>{{ day.date.day }}</span>
+                <span>{% if day.mark %}{{ day.mark }} {% endif %}{{ day.date.day }}</span>
               </div>
               {% endfor %}
             </div>

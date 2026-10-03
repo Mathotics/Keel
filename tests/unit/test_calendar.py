@@ -358,3 +358,79 @@ def test_a_month_with_nothing_dated_still_has_its_grid(session: Session) -> None
     assert blank.empty is True
     assert blank.label == "October 2026"
     assert any(day.is_today for week in blank.weeks for day in week.days)
+
+
+def test_a_week_runs_monday_through_sunday_around_the_chosen_day() -> None:
+    today = date(2026, 10, 15)
+    assert (
+        calendar_service.chosen_week(None, year=None, month_num=None, today=today)
+        == today
+    )
+    assert (
+        calendar_service.chosen_week("nope", year=None, month_num=None, today=today)
+        == today
+    )
+    assert calendar_service.parse_day("2026-02-31", today) == today
+    shown = calendar_service.blank_week(today, today=today)
+    assert shown.view == "week"
+    assert len(shown.weeks) == 1
+    assert shown.weeks[0].days[0].date == date(2026, 10, 12)
+    assert shown.weeks[0].days[6].date == date(2026, 10, 18)
+    assert shown.label == "October 12–18, 2026"
+    assert shown.weeks[0].days[0].mark == "Oct"
+    assert shown.weeks[0].days[1].mark == ""
+    assert shown.prev_href == "/calendar?view=week&week=2026-10-05"
+    assert shown.next_href == "/calendar?view=week&week=2026-10-19"
+    assert shown.today_href == "/calendar?view=week"
+    focus = calendar_service.chosen_week(None, year=2024, month_num=3, today=today)
+    assert focus == date(2024, 3, 1)
+    marched = calendar_service.blank_week(focus, today=today)
+    assert marched.weeks[0].days[0].date == date(2024, 2, 26)
+    assert marched.label == "February 26 – March 3, 2024"
+    assert marched.month_number == 3
+    assert marched.weeks[0].days[0].mark == "Feb"
+    assert marched.weeks[0].days[4].mark == "Mar"
+    nye = calendar_service.blank_week(date(2025, 12, 31), today=today)
+    assert nye.label == "December 29, 2025 – January 4, 2026"
+    month = calendar_service.blank_month(OCTOBER, today=today)
+    assert month.week_href == "/calendar?view=week&week=2026-10-15"
+    other = calendar_service.blank_month(date(2024, 3, 1), today=today)
+    assert other.week_href == "/calendar?view=week&week=2024-03-01"
+
+
+def test_a_week_clips_a_bar_to_those_seven_days(session: Session) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    ada = user_service.create_user(session, "Ada")
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "This week",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 10, 14, 9, 0),
+        due_at=datetime(2026, 10, 20, 17, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Earlier",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 5, 9, 0),
+    )
+
+    view = calendar_service.week_calendar(
+        session,
+        ada.id,
+        focus=date(2026, 10, 15),
+        today=TODAY,
+    )
+
+    span = _span(view, "KEEL-1")
+    assert (span.column, span.length, span.continues_before, span.continues_after) == (
+        3,
+        5,
+        False,
+        True,
+    )
+    assert all(item.title != "Earlier" for week in view.weeks for item in week.spans)

@@ -82,24 +82,20 @@ def calendar_page(
     month: str | None = None,
     year: int | None = None,
     month_num: int | None = None,
+    view: str | None = None,
+    week: str | None = None,
 ) -> HTMLResponse:
-    """Month view of unfinished issues assigned to the acting user."""
-    today = date.today()
-    first = calendar_service.chosen_month(
-        month,
+    """Month or week of unfinished issues assigned to the acting user."""
+    shown = calendar_service.open_calendar(
+        session,
+        None if chrome.current_user is None else chrome.current_user.id,
+        view=view,
+        month=month,
+        week=week,
         year=year,
         month_num=month_num,
-        today=today,
+        today=date.today(),
     )
-    if chrome.current_user is None:
-        shown = calendar_service.blank_month(first, today=today)
-    else:
-        shown = calendar_service.month_calendar(
-            session,
-            chrome.current_user.id,
-            month=first,
-            today=today,
-        )
     return get_templates().TemplateResponse(
         request,
         "calendar.html",
