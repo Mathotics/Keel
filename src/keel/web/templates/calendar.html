@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block main %}
+      <h1>Calendar</h1>
+      <nav class="keel-tabs" aria-label="Calendar view">
+        <a class="keel-tabs__tab" href="{{ calendar.month_href }}"{% if calendar.view == "month" %} aria-current="page"{% endif %}>Month</a>
+        <a class="keel-tabs__tab" href="{{ calendar.week_href }}"{% if calendar.view == "week" %} aria-current="page"{% endif %}>Week</a>
+        <a class="keel-tabs__tab" href="{{ calendar.day_href }}"{% if calendar.view == "day" %} aria-current="page"{% endif %}>Day</a>
+      </nav>
+      <nav class="keel-cal__nav" aria-label="When">
+        <a href="{{ calendar.prev_href }}">Previous</a>
+        {% if calendar.view != "month" %}
+        <h2>{{ calendar.label }}</h2>
+        {% endif %}
+        <form class="keel-cal__jump" method="get" action="{{ calendar.base }}" data-keel-autosubmit>
+          {% if calendar.view != "month" %}
+          <input type="hidden" name="view" value="{{ calendar.view }}">
+          {% endif %}
+          <label class="keel-visually-hidden" for="cal-month">Month</label>
+          <select id="cal-month" name="month_num">
+            {% for name in calendar.month_names %}
+            <option value="{{ loop.index }}"{% if loop.index == calendar.month_number %} selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+          {% if calendar.view == "day" %}
+          <label class="keel-visually-hidden" for="cal-day">Day</label>
+          <select id="cal-day" name="day_num">
+            {% for number in range(1, calendar.days_in_month + 1) %}
+            <option value="{{ number }}"{% if number == calendar.day_number %} selected{% endif %}>{{ number }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
+          <label class="keel-visually-hidden" for="cal-year">Year</label>
+          <select id="cal-year" name="year">
+            {% for y in calendar.years %}
+            <option value="{{ y }}"{% if y == calendar.year %} selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          <button class="keel-autosubmit__fallback" type="submit">Show</button>
+        </form>
+        <a href="{{ calendar.next_href }}">Next</a>
+        <a href="{{ calendar.today_href }}">Today</a>
+      </nav>
+      {% if calendar.empty %}
+      <p class="keel-lede">{{ calendar.empty_note }}</p>
+      {% endif %}
+      <div class="keel-cal{% if calendar.view != 'month' %} keel-cal--hours{% endif %}{% if calendar.view == 'day' %} keel-cal--day{% endif %}">
+        <div class="keel-cal__sheet">
+          {% if calendar.view == "month" %}
+          <div class="keel-cal__weekdays">
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+            <span>Sun</span>
+          </div>
+          {% for week in calendar.weeks %}
+          <section class="keel-cal__week">
+            <div class="keel-cal__days">
+              {% for day in week.days %}
+              <div class="keel-cal__day{% if not day.in_month %} keel-cal__day--out{% endif %}{% if day.is_today %} keel-cal__day--today{% endif %}">
+                <span>{% if day.mark %}{{ day.mark }} {% endif %}{{ day.date.day }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% if week.spans %}
+            <div class="keel-cal__bars">
+              {% for span in week.spans %}
+              <a class="keel-cal__bar{% if span.continues_before %} keel-cal__bar--continued{% endif %}{% if span.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ span.type }}" href="/issues/{{ span.key }}" style="grid-column: {{ span.column }} / span {{ span.length }}; grid-row: {{ span.lane }};">{{ span.project_key }} {{ span.key }} {{ span.title }}</a>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </section>
+          {% endfor %}
+          {% else %}
+          <div class="keel-cal__agenda keel-cal__agenda--head">
+            <div></div>
+            {% for day in calendar.weeks[0].days %}
+            <div class="keel-cal__day{% if day.is_today %} keel-cal__day--today{% endif %}">
+              {% if calendar.view == "week" %}
+              <span class="keel-cal__dow">{{ ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")[loop.index0] }}</span>
+              {% endif %}
+              <span>{% if day.mark %}{{ day.mark }} {% endif %}{{ day.date.day }}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="keel-cal__scroll">
+            <div class="keel-cal__agenda">
+              <div class="keel-cal__gutter">
+                {% for label in calendar.hours %}
+                <span>{{ label }}</span>
+                {% endfor %}
+              </div>
+              {% for day in calendar.weeks[0].days %}
+              <div class="keel-cal__hour-col{% if day.is_today %} keel-cal__hour-col--today{% endif %}">
+                {% for label in calendar.hours %}
+                <div class="keel-cal__slot"></div>
+                {% endfor %}
+                {% for block in day.blocks %}
+                <a class="keel-cal__bar{% if block.continues_before %} keel-cal__bar--continued{% endif %}{% if block.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ block.type }}" href="/issues/{{ block.key }}" style="top: {{ block.start_minute / 14.4 }}%; height: {{ (block.end_minute - block.start_minute) / 14.4 }}%; left: calc({{ block.lane }} * (100% / {{ block.lanes }})); width: calc(100% / {{ block.lanes }});">{{ block.project_key }} {{ block.key }} {{ block.title }}</a>
+                {% endfor %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+{% endblock %}

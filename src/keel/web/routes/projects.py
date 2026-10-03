@@ -1,3 +1,4 @@
+from datetime import date
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
@@ -5,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from keel.domain.cadence import MAX_SPRINT_AHEAD
 from keel.domain.enums import sprint_cadences_in_menu_order, statuses_in_workflow_order
+from keel.services import calendar as calendar_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -70,3 +72,39 @@ def new_issue_page(key: str, error: str | None = None) -> RedirectResponse:
     if error:
         params["error"] = error
     return RedirectResponse(url=f"/create?{urlencode(params)}", status_code=303)
+
+
+@router.get("/{key}/calendar", response_class=HTMLResponse)
+def project_calendar_page(
+    key: str,
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    month: str | None = None,
+    year: int | None = None,
+    month_num: int | None = None,
+    view: str | None = None,
+    week: str | None = None,
+    day: str | None = None,
+    day_num: int | None = None,
+) -> HTMLResponse:
+    """Month, week, or day of one project's unfinished dated issues."""
+    project = project_service.get_project_by_key(session, key)
+    shown = calendar_service.open_calendar(
+        session,
+        view=view,
+        month=month,
+        week=week,
+        day=day,
+        year=year,
+        month_num=month_num,
+        day_num=day_num,
+        today=date.today(),
+        project_id=project.id,
+        base=f"/projects/{project.key}/calendar",
+    )
+    return get_templates().TemplateResponse(
+        request,
+        "calendar.html",
+        page_context(request, chrome, project=project, calendar=shown),
+    )

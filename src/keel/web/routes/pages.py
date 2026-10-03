@@ -1,3 +1,5 @@
+from datetime import date
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
@@ -10,6 +12,7 @@ from keel.domain.enums import (
     types_in_hierarchy_order,
 )
 from keel.paths import license_text
+from keel.services import calendar as calendar_service
 from keel.services import home as home_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -68,6 +71,39 @@ def home(
             home_visible=",".join(key for key, _title, _rows, _extra in panels),
             error=error,
         ),
+    )
+
+
+@router.get("/calendar", response_class=HTMLResponse)
+def calendar_page(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    month: str | None = None,
+    year: int | None = None,
+    month_num: int | None = None,
+    view: str | None = None,
+    week: str | None = None,
+    day: str | None = None,
+    day_num: int | None = None,
+) -> HTMLResponse:
+    """Month, week, or day of unfinished issues assigned to the acting user."""
+    shown = calendar_service.open_calendar(
+        session,
+        None if chrome.current_user is None else chrome.current_user.id,
+        view=view,
+        month=month,
+        week=week,
+        day=day,
+        year=year,
+        month_num=month_num,
+        day_num=day_num,
+        today=date.today(),
+    )
+    return get_templates().TemplateResponse(
+        request,
+        "calendar.html",
+        page_context(request, chrome, calendar=shown),
     )
 
 
