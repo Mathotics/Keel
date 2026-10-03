@@ -85,16 +85,20 @@ def project_calendar_page(
     month_num: int | None = None,
     view: str | None = None,
     week: str | None = None,
+    day: str | None = None,
+    day_num: int | None = None,
 ) -> HTMLResponse:
-    """Month or week of one project's unfinished dated issues."""
+    """Month, week, or day of one project's unfinished dated issues."""
     project = project_service.get_project_by_key(session, key)
     shown = calendar_service.open_calendar(
         session,
         view=view,
         month=month,
         week=week,
+        day=day,
         year=year,
         month_num=month_num,
+        day_num=day_num,
         today=date.today(),
         project_id=project.id,
         base=f"/projects/{project.key}/calendar",

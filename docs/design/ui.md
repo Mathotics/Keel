@@ -29,8 +29,8 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | Path | Template | Contents |
 | --- | --- | --- |
 | `/` | `home.html` | Personal inbox for the picker user: due or overdue, due this week, due this month, starting or started, assigned, blocked, active sprint, series copies waiting this cycle, and completed today |
-| `/calendar` | `calendar.html` | Master month or week of the picker user's unfinished dated issues, across projects; bars from start through due, colored by type as on the board; Month and Week, Previous, Next, Today, and Month and Year dropdowns |
-| `/projects/{key}/calendar` | `calendar.html` | That project's unfinished dated issues, whoever they are assigned to; same month and week controls |
+| `/calendar` | `calendar.html` | Master month, week, or day of the picker user's unfinished dated issues, across projects. The month is a day grid. Week and day are broken into hours, and a bar runs from the start time through the due time. Bars are colored by type as on the board. Month, Week, and Day; Previous, Next, Today, and date dropdowns |
+| `/projects/{key}/calendar` | `calendar.html` | That project's unfinished dated issues, whoever they are assigned to; same month, week, and day controls |
 | `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, sprints in advance, and delete, issue counts by status |

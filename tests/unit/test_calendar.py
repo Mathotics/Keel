@@ -382,6 +382,7 @@ def test_a_week_runs_monday_through_sunday_around_the_chosen_day() -> None:
     assert shown.prev_href == "/calendar?view=week&week=2026-10-05"
     assert shown.next_href == "/calendar?view=week&week=2026-10-19"
     assert shown.today_href == "/calendar?view=week"
+    assert shown.day_href == "/calendar?view=day&day=2026-10-15"
     focus = calendar_service.chosen_week(None, year=2024, month_num=3, today=today)
     assert focus == date(2024, 3, 1)
     marched = calendar_service.blank_week(focus, today=today)
@@ -394,8 +395,10 @@ def test_a_week_runs_monday_through_sunday_around_the_chosen_day() -> None:
     assert nye.label == "December 29, 2025 – January 4, 2026"
     month = calendar_service.blank_month(OCTOBER, today=today)
     assert month.week_href == "/calendar?view=week&week=2026-10-15"
+    assert month.day_href == "/calendar?view=day&day=2026-10-15"
     other = calendar_service.blank_month(date(2024, 3, 1), today=today)
     assert other.week_href == "/calendar?view=week&week=2024-03-01"
+    assert other.day_href == "/calendar?view=day&day=2024-03-01"
 
 
 def test_a_week_clips_a_bar_to_those_seven_days(session: Session) -> None:
@@ -426,11 +429,176 @@ def test_a_week_clips_a_bar_to_those_seven_days(session: Session) -> None:
         today=TODAY,
     )
 
-    span = _span(view, "KEEL-1")
-    assert (span.column, span.length, span.continues_before, span.continues_after) == (
-        3,
-        5,
-        False,
-        True,
+    wednesday = _block(view, "KEEL-1", date(2026, 10, 14))
+    assert (wednesday.start_minute, wednesday.end_minute) == (9 * 60, 24 * 60)
+    assert wednesday.continues_before is False
+    assert wednesday.continues_after is True
+    thursday = _block(view, "KEEL-1", date(2026, 10, 15))
+    assert (thursday.start_minute, thursday.end_minute) == (0, 24 * 60)
+    assert thursday.continues_before is True
+    assert thursday.continues_after is True
+    assert view.hours[0] == "12 AM"
+    assert view.hours[-1] == "11 PM"
+    assert all(
+        block.title != "Earlier"
+        for week in view.weeks
+        for day in week.days
+        for block in day.blocks
     )
-    assert all(item.title != "Earlier" for week in view.weeks for item in week.spans)
+
+
+def _block(
+    view: calendar_service.MonthCalendar,
+    key: str,
+    on: date,
+) -> calendar_service.HourBlock:
+    found = [
+        block
+        for week in view.weeks
+        for day in week.days
+        if day.date == on
+        for block in day.blocks
+        if block.key == key
+    ]
+    assert len(found) == 1
+    return found[0]
+
+
+def test_a_day_is_that_date_and_clamps_past_the_end_of_the_month() -> None:
+    today = date(2026, 10, 15)
+    assert (
+        calendar_service.chosen_day(
+            None,
+            year=None,
+            month_num=None,
+            day_num=None,
+            today=today,
+        )
+        == today
+    )
+    assert (
+        calendar_service.chosen_day(
+            "nope",
+            year=None,
+            month_num=None,
+            day_num=None,
+            today=today,
+        )
+        == today
+    )
+    shown = calendar_service.blank_day(today, today=today)
+    assert shown.view == "day"
+    assert shown.label == "Thursday"
+    assert len(shown.weeks) == 1
+    assert shown.weeks[0].days[0].date == today
+    assert shown.weeks[0].days[0].is_today is True
+    assert shown.day_number == 15
+    assert shown.days_in_month == 31
+    assert shown.prev_href == "/calendar?view=day&day=2026-10-14"
+    assert shown.next_href == "/calendar?view=day&day=2026-10-16"
+    assert shown.today_href == "/calendar?view=day"
+    assert shown.week_href == "/calendar?view=week&week=2026-10-15"
+    assert shown.month_href == "/calendar?month=2026-10"
+    clamped = calendar_service.chosen_day(
+        "2026-10-15",
+        year=2024,
+        month_num=2,
+        day_num=31,
+        today=today,
+    )
+    assert clamped == date(2024, 2, 29)
+    february = calendar_service.blank_day(clamped, today=today)
+    assert february.label == "Thursday"
+    assert february.day_number == 29
+    assert february.days_in_month == 29
+    assert february.month_number == 2
+
+
+def test_a_day_keeps_a_bar_that_covers_that_date(session: Session) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    ada = user_service.create_user(session, "Ada")
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Across",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 10, 14, 9, 0),
+        due_at=datetime(2026, 10, 16, 17, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Earlier",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 5, 9, 0),
+    )
+
+    view = calendar_service.day_calendar(
+        session,
+        ada.id,
+        focus=date(2026, 10, 15),
+        today=TODAY,
+    )
+
+    block = _block(view, "KEEL-1", date(2026, 10, 15))
+    assert (block.start_minute, block.end_minute) == (0, 24 * 60)
+    assert block.continues_before is True
+    assert block.continues_after is True
+    assert all(
+        item.title != "Earlier"
+        for week in view.weeks
+        for day in week.days
+        for item in day.blocks
+    )
+
+
+def test_a_same_day_issue_occupies_its_hours_and_shares_a_lane(
+    session: Session,
+) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    ada = user_service.create_user(session, "Ada")
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Morning",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 10, 15, 9, 0),
+        due_at=datetime(2026, 10, 15, 17, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Overlap",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 10, 15, 10, 0),
+        due_at=datetime(2026, 10, 15, 11, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Due only",
+        assignee_id=ada.id,
+        due_at=datetime(2026, 10, 15, 10, 30),
+    )
+
+    view = calendar_service.day_calendar(
+        session,
+        ada.id,
+        focus=TODAY,
+        today=TODAY,
+    )
+
+    morning = _block(view, "KEEL-1", TODAY)
+    assert (morning.start_minute, morning.end_minute) == (9 * 60, 17 * 60)
+    assert morning.continues_before is False
+    assert morning.continues_after is False
+    overlap = _block(view, "KEEL-2", TODAY)
+    assert overlap.lanes == 3
+    assert overlap.lane != morning.lane
+    due_only = _block(view, "KEEL-3", TODAY)
+    assert (due_only.start_minute, due_only.end_minute) == (10 * 60 + 30, 11 * 60 + 30)

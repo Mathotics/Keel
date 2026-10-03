@@ -1,9 +1,9 @@
-"""Month and week calendars of dated work."""
+"""Month, week, and day calendars of dated work."""
 
 from calendar import monthrange
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import date, timedelta
+from dataclasses import dataclass, replace
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,6 +27,42 @@ _MONTHS = (
     "November",
     "December",
 )
+_WEEKDAYS = (
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+)
+_HOUR_LABELS = (
+    "12 AM",
+    "1 AM",
+    "2 AM",
+    "3 AM",
+    "4 AM",
+    "5 AM",
+    "6 AM",
+    "7 AM",
+    "8 AM",
+    "9 AM",
+    "10 AM",
+    "11 AM",
+    "12 PM",
+    "1 PM",
+    "2 PM",
+    "3 PM",
+    "4 PM",
+    "5 PM",
+    "6 PM",
+    "7 PM",
+    "8 PM",
+    "9 PM",
+    "10 PM",
+    "11 PM",
+)
+_DAY_MINUTES = 24 * 60
 _MONTHS_SHORT = (
     "Jan",
     "Feb",
@@ -59,11 +95,28 @@ class CalendarSpan:
 
 
 @dataclass(frozen=True)
+class HourBlock:
+    """One issue clipped to the hours of a single day."""
+
+    key: str
+    title: str
+    project_key: str
+    type: str
+    start_minute: int
+    end_minute: int
+    lane: int
+    lanes: int
+    continues_before: bool
+    continues_after: bool
+
+
+@dataclass(frozen=True)
 class CalendarDay:
     date: date
     in_month: bool
     is_today: bool
     mark: str = ""
+    blocks: tuple[HourBlock, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -74,12 +127,14 @@ class CalendarWeek:
 
 @dataclass(frozen=True)
 class MonthCalendar:
-    """The month page or the week page."""
+    """The month page, the week page, or the day page."""
 
     label: str
     view: str
     month: str
     month_number: int
+    day_number: int
+    days_in_month: int
     year: int
     years: tuple[int, ...]
     month_names: tuple[str, ...]
@@ -90,10 +145,12 @@ class MonthCalendar:
     today_href: str
     month_href: str
     week_href: str
+    day_href: str
     weeks: tuple[CalendarWeek, ...]
     empty: bool
     empty_note: str
     base: str
+    hours: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -105,6 +162,8 @@ class _Bar:
     number: int
     start: date
     end: date
+    start_at: datetime
+    end_at: datetime
 
 
 def chosen_month(
@@ -130,6 +189,24 @@ def chosen_week(
     """The day that selects a week. Dropdowns win, then `YYYY-MM-DD`, else today."""
     if year is not None and month_num is not None:
         return parse_month(f"{year}-{month_num}", today)
+    return parse_day(raw, today)
+
+
+def chosen_day(
+    raw: str | None,
+    *,
+    year: int | None,
+    month_num: int | None,
+    day_num: int | None,
+    today: date,
+) -> date:
+    """The shown day. Dropdowns win, then `YYYY-MM-DD`, else today."""
+    if year is not None and month_num is not None:
+        first = parse_month(f"{year}-{month_num}", today)
+        if day_num is None or day_num < 1:
+            return first
+        last = monthrange(first.year, first.month)[1]
+        return date(first.year, first.month, min(day_num, last))
     return parse_day(raw, today)
 
 
@@ -169,18 +246,38 @@ def open_calendar(
     view: str | None,
     month: str | None,
     week: str | None,
+    day: str | None,
     year: int | None,
     month_num: int | None,
+    day_num: int | None,
     today: date,
     project_id: int | None = None,
     base: str = "/calendar",
 ) -> MonthCalendar:
-    """The month or week page for one person, one project, or a signed-out grid."""
+    """Month, week, or day for one person, one project, or a signed-out grid."""
     if view == "week":
         focus = chosen_week(week, year=year, month_num=month_num, today=today)
         if project_id is None and assignee_id is None:
             return blank_week(focus, today=today, base=base)
         return week_calendar(
+            session,
+            assignee_id,
+            focus=focus,
+            today=today,
+            project_id=project_id,
+            base=base,
+        )
+    if view == "day":
+        focus = chosen_day(
+            day,
+            year=year,
+            month_num=month_num,
+            day_num=day_num,
+            today=today,
+        )
+        if project_id is None and assignee_id is None:
+            return blank_day(focus, today=today, base=base)
+        return day_calendar(
             session,
             assignee_id,
             focus=focus,
@@ -238,6 +335,23 @@ def week_calendar(
     return _describe_week(focus, day, bars, base)
 
 
+def day_calendar(
+    session: Session,
+    assignee_id: int | None = None,
+    *,
+    focus: date,
+    today: date | None = None,
+    project_id: int | None = None,
+    base: str = "/calendar",
+) -> MonthCalendar:
+    """Unfinished dated issues for one person, or for one project, on one day."""
+    day = today or date.today()
+    bars = _bars(session, assignee_id, project_id, focus, focus)
+    if bars is None:
+        return blank_day(focus, today=day, base=base)
+    return _describe_day(focus, day, bars, base)
+
+
 def blank_month(
     month: date,
     *,
@@ -258,6 +372,17 @@ def blank_week(
     """The same week with no issues, for a page that has no acting user."""
     day = today or date.today()
     return _describe_week(focus, day, (), base)
+
+
+def blank_day(
+    focus: date,
+    *,
+    today: date | None = None,
+    base: str = "/calendar",
+) -> MonthCalendar:
+    """The same day with no issues, for a page that has no acting user."""
+    day = today or date.today()
+    return _describe_day(focus, day, (), base)
 
 
 def _bars(
@@ -285,6 +410,7 @@ def _bars(
         bar_start, bar_end = window
         if bar_end < start or bar_start > end:
             continue
+        start_at, end_at = _clock_span(issue)
         bars.append(
             _Bar(
                 key=issue_service.issue_key(issue, project),
@@ -294,6 +420,8 @@ def _bars(
                 number=issue.number,
                 start=bar_start,
                 end=bar_end,
+                start_at=start_at,
+                end_at=end_at,
             ),
         )
     bars.sort(key=lambda bar: (bar.start, bar.project_key, bar.number))
@@ -313,6 +441,24 @@ def _window(issue: Issue) -> tuple[date, date] | None:
     return start, due
 
 
+def _clock(value: datetime) -> datetime:
+    """The same clock Home uses for a calendar day, kept as a naive datetime."""
+    if value.tzinfo is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
+
+
+def _clock_span(issue: Issue) -> tuple[datetime, datetime]:
+    start = _clock(issue.start_at) if issue.start_at is not None else None
+    due = _clock(issue.due_at) if issue.due_at is not None else None
+    if start is None:
+        assert due is not None
+        return due, due
+    if due is None:
+        return start, start
+    return start, due
+
+
 def _describe_month(
     first: date,
     today: date,
@@ -321,11 +467,14 @@ def _describe_month(
 ) -> MonthCalendar:
     weeks = _weeks(first, today, bars)
     anchor = _week_anchor(first, today)
+    length = monthrange(first.year, first.month)[1]
     return MonthCalendar(
         label=f"{_MONTHS[first.month - 1]} {first.year}",
         view="month",
         month=_token(first),
         month_number=first.month,
+        day_number=anchor.day,
+        days_in_month=length,
         year=first.year,
         years=_year_choices(today, first),
         month_names=_MONTHS,
@@ -336,6 +485,7 @@ def _describe_month(
         today_href=base,
         month_href=f"{base}?month={_token(first)}",
         week_href=f"{base}?view=week&week={anchor.isoformat()}",
+        day_href=f"{base}?view=day&day={anchor.isoformat()}",
         weeks=weeks,
         empty=not any(week.spans for week in weeks),
         empty_note="Nothing dated falls in this month.",
@@ -352,15 +502,16 @@ def _describe_week(
     monday = _monday(focus)
     previous = _shift_week(monday, -1)
     following = _shift_week(monday, 1)
-    week = CalendarWeek(
-        days=_days(monday, today, month=None, mark_edges=True),
-        spans=_place(bars, monday, monday + timedelta(days=6)),
-    )
+    days = _with_hours(_days(monday, today, month=None, mark_edges=True), bars)
+    week = CalendarWeek(days=days, spans=())
+    length = monthrange(focus.year, focus.month)[1]
     return MonthCalendar(
         label=_week_label(monday),
         view="week",
         month=_token(focus),
         month_number=focus.month,
+        day_number=focus.day,
+        days_in_month=length,
         year=focus.year,
         years=_year_choices(today, focus),
         month_names=_MONTHS,
@@ -371,10 +522,133 @@ def _describe_week(
         today_href=f"{base}?view=week",
         month_href=f"{base}?month={_token(focus)}",
         week_href=f"{base}?view=week&week={focus.isoformat()}",
+        day_href=f"{base}?view=day&day={focus.isoformat()}",
         weeks=(week,),
-        empty=not week.spans,
+        empty=not any(day.blocks for day in days),
         empty_note="Nothing dated falls in this week.",
         base=base,
+        hours=_HOUR_LABELS,
+    )
+
+
+def _describe_day(
+    focus: date,
+    today: date,
+    bars: Sequence[_Bar],
+    base: str,
+) -> MonthCalendar:
+    previous = _shift_day(focus, -1)
+    following = _shift_day(focus, 1)
+    shown_day = replace(
+        CalendarDay(date=focus, in_month=True, is_today=focus == today),
+        blocks=_blocks_on(bars, focus),
+    )
+    shown = CalendarWeek(days=(shown_day,), spans=())
+    return MonthCalendar(
+        label=_WEEKDAYS[focus.weekday()],
+        view="day",
+        month=_token(focus),
+        month_number=focus.month,
+        day_number=focus.day,
+        days_in_month=monthrange(focus.year, focus.month)[1],
+        year=focus.year,
+        years=_year_choices(today, focus),
+        month_names=_MONTHS,
+        prev_month=previous.isoformat(),
+        next_month=following.isoformat(),
+        prev_href=f"{base}?view=day&day={previous.isoformat()}",
+        next_href=f"{base}?view=day&day={following.isoformat()}",
+        today_href=f"{base}?view=day",
+        month_href=f"{base}?month={_token(focus)}",
+        week_href=f"{base}?view=week&week={focus.isoformat()}",
+        day_href=f"{base}?view=day&day={focus.isoformat()}",
+        weeks=(shown,),
+        empty=not shown_day.blocks,
+        empty_note="Nothing dated falls on this day.",
+        base=base,
+        hours=_HOUR_LABELS,
+    )
+
+
+def _with_hours(
+    days: tuple[CalendarDay, ...],
+    bars: Sequence[_Bar],
+) -> tuple[CalendarDay, ...]:
+    return tuple(replace(day, blocks=_blocks_on(bars, day.date)) for day in days)
+
+
+def _blocks_on(bars: Sequence[_Bar], day: date) -> tuple[HourBlock, ...]:
+    day_start = datetime(day.year, day.month, day.day)
+    day_end = day_start + timedelta(days=1)
+    pieces: list[tuple[_Bar, int, int, bool, bool]] = []
+    for bar in bars:
+        if bar.end_at < day_start or bar.start_at >= day_end:
+            continue
+        if bar.start_at == bar.end_at:
+            if not day_start <= bar.start_at < day_end:
+                continue
+            start_minute = bar.start_at.hour * 60 + bar.start_at.minute
+            pieces.append(
+                (bar, start_minute, min(_DAY_MINUTES, start_minute + 60), False, False),
+            )
+            continue
+        shown_start = max(bar.start_at, day_start)
+        shown_end = min(bar.end_at, day_end)
+        if shown_end <= shown_start:
+            continue
+        pieces.append(
+            (
+                bar,
+                _minute(day_start, shown_start),
+                _minute(day_start, shown_end, end=True),
+                bar.start_at < day_start,
+                bar.end_at > day_end,
+            ),
+        )
+    pieces.sort(key=lambda piece: (piece[1], piece[0].project_key, piece[0].number))
+    return _hour_lanes(pieces)
+
+
+def _minute(origin: datetime, moment: datetime, *, end: bool = False) -> int:
+    seconds = max(0, (moment - origin).total_seconds())
+    if end:
+        return min(_DAY_MINUTES, int((seconds + 59) // 60))
+    return min(_DAY_MINUTES, int(seconds // 60))
+
+
+def _hour_lanes(
+    pieces: Sequence[tuple[_Bar, int, int, bool, bool]],
+) -> tuple[HourBlock, ...]:
+    until: list[int] = []
+    placed: list[tuple[_Bar, int, int, bool, bool, int]] = []
+    for bar, start_minute, end_minute, before, after in pieces:
+        if end_minute <= start_minute:
+            end_minute = min(_DAY_MINUTES, start_minute + 1)
+        lane: int | None = None
+        for index, occupied in enumerate(until):
+            if start_minute >= occupied:
+                until[index] = end_minute
+                lane = index
+                break
+        if lane is None:
+            until.append(end_minute)
+            lane = len(until) - 1
+        placed.append((bar, start_minute, end_minute, before, after, lane))
+    count = max(len(until), 1)
+    return tuple(
+        HourBlock(
+            key=bar.key,
+            title=bar.title,
+            project_key=bar.project_key,
+            type=bar.type,
+            start_minute=start_minute,
+            end_minute=end_minute,
+            lane=lane,
+            lanes=count,
+            continues_before=before,
+            continues_after=after,
+        )
+        for bar, start_minute, end_minute, before, after, lane in placed
     )
 
 
@@ -512,6 +786,16 @@ def _shift_week(monday: date, delta: int) -> date:
         shifted = monday + timedelta(days=7 * delta)
     except OverflowError:
         return monday
+    if shifted < date(1, 1, 1):
+        return date(1, 1, 1)
+    return shifted
+
+
+def _shift_day(shown: date, delta: int) -> date:
+    try:
+        shifted = shown + timedelta(days=delta)
+    except OverflowError:
+        return shown
     if shifted < date(1, 1, 1):
         return date(1, 1, 1)
     return shifted

@@ -11,7 +11,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Calendar
 
-* **See the month or the week.** A user opens Calendar and sees unfinished issues assigned to them, across projects, on the days they cover. Inside a project, Calendar shows that project's unfinished dated issues, whoever they are assigned to. A bar runs from the start day through the due day. Month and Week, and Previous, Next, and the Month and Year dropdowns, stay on the same view. Choosing a bar opens the issue ([Calendar of assigned work](../adr/month-calendar.md)).
+* **See the month, the week, or the day.** A user opens Calendar and sees unfinished issues assigned to them, across projects, on the days they cover. Inside a project, Calendar shows that project's unfinished dated issues, whoever they are assigned to. A bar runs from the start day through the due day. On a week or a day, the same bar follows the hours between the start time and the due time. Month, Week, and Day, and Previous, Next, and the date dropdowns, stay on the same view. Choosing a bar opens the issue ([Calendar of assigned work](../adr/month-calendar.md)).
 
 ## Projects
 

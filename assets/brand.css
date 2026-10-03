@@ -425,6 +425,15 @@ body {
   min-width: 42rem;
 }
 
+.keel-cal--day .keel-cal__sheet {
+  min-width: 0;
+}
+
+.keel-cal--day .keel-cal__days,
+.keel-cal--day .keel-cal__bars {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .keel-cal__weekdays,
 .keel-cal__days,
 .keel-cal__bars {
@@ -521,6 +530,99 @@ body {
 .keel-cal__bar--continues {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
+}
+
+.keel-cal--hours .keel-cal__sheet {
+  min-width: 52rem;
+}
+
+.keel-cal--hours.keel-cal--day .keel-cal__sheet {
+  min-width: 0;
+}
+
+.keel-cal__agenda {
+  display: grid;
+  grid-template-columns: 4.25rem repeat(7, minmax(0, 1fr));
+}
+
+.keel-cal--day .keel-cal__agenda {
+  grid-template-columns: 4.25rem minmax(0, 1fr);
+}
+
+.keel-cal__agenda--head {
+  margin: 0 0 0.35rem;
+}
+
+.keel-cal__agenda--head .keel-cal__day {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+}
+
+.keel-cal__dow {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.keel-cal__scroll {
+  max-height: 36rem;
+  overflow: auto;
+  border-top: 1px solid color-mix(in srgb, var(--keel-blue) 18%, transparent);
+}
+
+.keel-cal__gutter,
+.keel-cal__hour-col {
+  display: grid;
+  grid-template-rows: repeat(24, 2.75rem);
+}
+
+.keel-cal__gutter span {
+  font-size: 0.7rem;
+  line-height: 1;
+  text-align: right;
+  padding-right: 0.45rem;
+  opacity: 0.7;
+}
+
+.keel-cal__hour-col {
+  position: relative;
+  border-left: 1px solid color-mix(in srgb, var(--keel-blue) 18%, transparent);
+}
+
+.keel-cal__hour-col--today {
+  background: color-mix(in srgb, var(--keel-blue) 7%, transparent);
+}
+
+.keel-cal__slot {
+  border-top: 1px solid color-mix(in srgb, var(--keel-blue) 12%, transparent);
+}
+
+.keel-cal__hour-col .keel-cal__bar {
+  position: absolute;
+  z-index: 1;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0.3rem;
+  line-height: 1.15rem;
+  white-space: nowrap;
+}
+
+.keel-cal--hours .keel-cal__bar--continued {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 0.35rem;
+  border-bottom-right-radius: 0.35rem;
+}
+
+.keel-cal--hours .keel-cal__bar--continues {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0.35rem;
+  border-top-right-radius: 0.35rem;
 }
 
 .keel-panel {

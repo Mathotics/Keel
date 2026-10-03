@@ -36,6 +36,7 @@ def test_an_empty_month_still_shows_the_grid(client: TestClient) -> None:
     assert '<option value="3" selected>March</option>' in jumped.text
     assert '<option value="2024" selected>2024</option>' in jumped.text
     assert 'href="/calendar?view=week&amp;week=2024-03-01"' in jumped.text
+    assert 'href="/calendar?view=day&amp;day=2024-03-01"' in jumped.text
     assert "keel-cal__day" in page.text
 
 
@@ -263,6 +264,8 @@ def test_the_week_view_steps_seven_days_on_the_same_calendar(
     assert 'name="view" value="week"' in page.text
     assert 'aria-current="page">Week</a>' in page.text
     assert "Oct 12" in page.text
+    assert "12 AM" in page.text
+    assert "11 PM" in page.text
     jumped = client.get("/calendar?view=week&year=2024&month_num=3")
     assert "<h2>February 26 – March 3, 2024</h2>" in jumped.text
     assert 'name="view" value="week"' in jumped.text
@@ -275,3 +278,52 @@ def test_the_week_view_steps_seven_days_on_the_same_calendar(
         in project_week.text
     )
     assert 'name="view" value="week"' in project_week.text
+
+
+def test_the_day_view_steps_one_day_on_the_same_calendar(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "This day",
+            "assignee_id": tester["id"],
+            "start_at": "2026-10-14T09:00:00",
+            "due_at": "2026-10-16T17:00:00",
+        },
+    )
+    page = client.get("/calendar?view=day&day=2026-10-15")
+    assert page.status_code == 200
+    assert "<h2>Thursday</h2>" in page.text
+    assert "This day" in page.text
+    assert "Nothing dated falls on this day." not in page.text
+    assert 'href="/calendar?view=day&amp;day=2026-10-14"' in page.text
+    assert 'href="/calendar?view=day&amp;day=2026-10-16"' in page.text
+    assert 'href="/calendar?view=day"' in page.text
+    assert 'name="view" value="day"' in page.text
+    assert 'name="day_num"' in page.text
+    assert '<option value="15" selected>15</option>' in page.text
+    assert 'aria-current="page">Day</a>' in page.text
+    assert "keel-cal--day" in page.text
+    assert "12 AM" in page.text
+    assert "9 AM" in page.text
+    missed = client.get("/calendar?view=day&day=2026-10-13")
+    assert "This day" not in missed.text
+    assert "Nothing dated falls on this day." in missed.text
+    jumped = client.get("/calendar?view=day&year=2024&month_num=2&day_num=31")
+    assert "<h2>Thursday</h2>" in jumped.text
+    assert '<option value="2" selected>February</option>' in jumped.text
+    assert '<option value="29" selected>29</option>' in jumped.text
+    assert '<option value="2024" selected>2024</option>' in jumped.text
+    assert "Nothing dated falls on this day." in jumped.text
+    project_day = client.get("/projects/KEEL/calendar?view=day&day=2026-10-15")
+    assert "This day" in project_day.text
+    assert 'action="/projects/KEEL/calendar"' in project_day.text
+    assert (
+        'href="/projects/KEEL/calendar?view=day&amp;day=2026-10-16"' in project_day.text
+    )
+    assert 'name="view" value="day"' in project_day.text
