@@ -138,7 +138,7 @@ def test_home_lists_due_and_starting_before_assigned(client: TestClient) -> None
 def _look_ahead(day: date) -> tuple[str, str] | None:
     """Panel key and heading for tomorrow, when it is still this week or month."""
     soon = day + timedelta(days=1)
-    week_end = day + timedelta(days=7 - day.isoweekday())
+    week_end = day + timedelta(days=7)
     month_end = date(day.year, day.month, monthrange(day.year, day.month)[1])
     if soon <= week_end:
         return "week", "Due this week"
