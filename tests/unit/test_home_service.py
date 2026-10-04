@@ -565,6 +565,25 @@ def test_waiting_this_cycle_excludes_future_look_ahead(session: Session) -> None
         assert item.issue.occurrence_on <= TODAY
 
 
+def test_completed_today_uses_the_local_date_of_a_utc_timestamp(
+    session: Session,
+) -> None:
+    project = _project(session)
+    ada = user_service.create_user(session, "Ada")
+    finished = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Shipped this evening",
+        assignee_id=ada.id,
+    )
+    _complete_on(session, finished.id, datetime.now(UTC).replace(tzinfo=None))
+
+    inbox = home_service.personal_inbox(session, ada.id, today=date.today())
+
+    assert [item.issue.id for item in inbox.completed] == [finished.id]
+
+
 def test_completed_today_is_done_assigned_work_moved_today(
     session: Session,
 ) -> None:

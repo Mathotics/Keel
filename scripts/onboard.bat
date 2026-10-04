@@ -92,7 +92,7 @@ if not defined VENV_POE (
 )
 
 echo Configuring Poe...
-"%VENV_POE%" _list
+"%VENV_POE%" _list_tasks
 if errorlevel 1 exit /b 1
 
 echo Configuring pre-commit (git hooks and environments)...
@@ -114,9 +114,10 @@ echo.
 echo Onboarding complete.
 echo.
 echo Activate the virtual environment:
-echo   Windows PowerShell:  .\.venv\Scripts\Activate.ps1
-echo   Windows cmd:         .venv\Scripts\activate.bat
-echo   Unix / Git Bash:     source .venv/bin/activate
+if exist ".venv\Scripts\Activate.ps1" echo   Windows PowerShell:  .\.venv\Scripts\Activate.ps1
+if exist ".venv\Scripts\activate.bat" echo   Windows cmd:         .venv\Scripts\activate.bat
+if exist ".venv\Scripts\activate" echo   Git Bash:            source .venv/Scripts/activate
+if exist ".venv\bin\activate" echo   Unix:                source .venv/bin/activate
 echo.
 echo Then run: poe serve
 exit /b 0

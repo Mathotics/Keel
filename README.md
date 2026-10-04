@@ -26,6 +26,12 @@ chmod +x scripts/onboard.sh
 source .venv/bin/activate
 ```
 
+Git Bash on Windows uses the Windows virtual environment layout:
+
+```bash
+source .venv/Scripts/activate
+```
+
 Settings are read from the environment with the `KEEL_` prefix.
 
 | Variable | Default | Description |

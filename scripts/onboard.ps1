@@ -79,7 +79,7 @@ if (Test-Path ".venv\Scripts\poe.exe") {
 }
 
 Write-Host "Configuring Poe..."
-& $VenvPoe _list
+& $VenvPoe _list_tasks
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Configuring pre-commit (git hooks and environments)..."
@@ -97,14 +97,21 @@ if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
     Write-Host "Created .env from .env.example"
 }
 
-Write-Host @"
-
-Onboarding complete.
-
-Activate the virtual environment:
-  Windows PowerShell:  .\.venv\Scripts\Activate.ps1
-  Windows cmd:         .venv\Scripts\activate.bat
-  Unix / Git Bash:     source .venv/bin/activate
-
-Then run: poe serve
-"@
+Write-Host ""
+Write-Host "Onboarding complete."
+Write-Host ""
+Write-Host "Activate the virtual environment:"
+if (Test-Path ".venv\Scripts\Activate.ps1") {
+    Write-Host "  Windows PowerShell:  .\.venv\Scripts\Activate.ps1"
+}
+if (Test-Path ".venv\Scripts\activate.bat") {
+    Write-Host "  Windows cmd:         .venv\Scripts\activate.bat"
+}
+if (Test-Path ".venv\Scripts\activate") {
+    Write-Host "  Git Bash:            source .venv/Scripts/activate"
+}
+if (Test-Path ".venv/bin/activate") {
+    Write-Host "  Unix:                source .venv/bin/activate"
+}
+Write-Host ""
+Write-Host "Then run: poe serve"
