@@ -12,6 +12,7 @@ from keel.db.models import Issue, Project
 from keel.domain.enums import CLOSED_STATUSES
 from keel.services import issues as issue_service
 from keel.services.home import _calendar_day
+from keel.services.issues import IssueFilters
 
 _MONTHS = (
     "January",
@@ -253,6 +254,7 @@ def open_calendar(
     today: date,
     project_id: int | None = None,
     base: str = "/calendar",
+    filters: IssueFilters | None = None,
 ) -> MonthCalendar:
     """Month, week, or day for one person, one project, or a signed-out grid."""
     if view == "week":
@@ -266,6 +268,7 @@ def open_calendar(
             today=today,
             project_id=project_id,
             base=base,
+            filters=filters,
         )
     if view == "day":
         focus = chosen_day(
@@ -284,6 +287,7 @@ def open_calendar(
             today=today,
             project_id=project_id,
             base=base,
+            filters=filters,
         )
     first = chosen_month(month, year=year, month_num=month_num, today=today)
     if project_id is None and assignee_id is None:
@@ -295,6 +299,7 @@ def open_calendar(
         today=today,
         project_id=project_id,
         base=base,
+        filters=filters,
     )
 
 
@@ -306,12 +311,13 @@ def month_calendar(
     today: date | None = None,
     project_id: int | None = None,
     base: str = "/calendar",
+    filters: IssueFilters | None = None,
 ) -> MonthCalendar:
     """Unfinished dated issues for one person, or for one project, on one month."""
     day = today or date.today()
     first = date(month.year, month.month, 1)
     grid_start, grid_end = _grid(first)
-    bars = _bars(session, assignee_id, project_id, grid_start, grid_end)
+    bars = _bars(session, assignee_id, project_id, grid_start, grid_end, filters)
     if bars is None:
         return blank_month(first, today=day, base=base)
     return _describe_month(first, day, bars, base)
@@ -325,11 +331,19 @@ def week_calendar(
     today: date | None = None,
     project_id: int | None = None,
     base: str = "/calendar",
+    filters: IssueFilters | None = None,
 ) -> MonthCalendar:
     """Unfinished dated issues for one person, or for one project, on one week."""
     day = today or date.today()
     monday = _monday(focus)
-    bars = _bars(session, assignee_id, project_id, monday, monday + timedelta(days=6))
+    bars = _bars(
+        session,
+        assignee_id,
+        project_id,
+        monday,
+        monday + timedelta(days=6),
+        filters,
+    )
     if bars is None:
         return blank_week(focus, today=day, base=base)
     return _describe_week(focus, day, bars, base)
@@ -343,10 +357,11 @@ def day_calendar(
     today: date | None = None,
     project_id: int | None = None,
     base: str = "/calendar",
+    filters: IssueFilters | None = None,
 ) -> MonthCalendar:
     """Unfinished dated issues for one person, or for one project, on one day."""
     day = today or date.today()
-    bars = _bars(session, assignee_id, project_id, focus, focus)
+    bars = _bars(session, assignee_id, project_id, focus, focus, filters)
     if bars is None:
         return blank_day(focus, today=day, base=base)
     return _describe_day(focus, day, bars, base)
@@ -391,6 +406,7 @@ def _bars(
     project_id: int | None,
     start: date,
     end: date,
+    filters: IssueFilters | None = None,
 ) -> list[_Bar] | None:
     statement = select(Issue, Project).join(Project, Issue.project_id == Project.id)
     if project_id is not None:
@@ -399,6 +415,8 @@ def _bars(
         statement = statement.where(Issue.assignee_id == assignee_id)
     else:
         return None
+    if filters is not None:
+        statement = issue_service.restrict(statement, filters)
     found = session.execute(statement).all()
     bars: list[_Bar] = []
     for issue, project in found:

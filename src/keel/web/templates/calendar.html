@@ -2,13 +2,20 @@
 {% block title %}Calendar{% endblock %}
 {% block main %}
       <h1>Calendar</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% include "_filters.html" %}
+      {% macro carry(href, query) -%}
+        {%- if query -%}{{ href ~ ('&' if '?' in href else '?') ~ query }}{%- else -%}{{ href }}{%- endif -%}
+      {%- endmacro %}
       <nav class="keel-tabs" aria-label="Calendar view">
-        <a class="keel-tabs__tab" href="{{ calendar.month_href }}"{% if calendar.view == "month" %} aria-current="page"{% endif %}>Month</a>
-        <a class="keel-tabs__tab" href="{{ calendar.week_href }}"{% if calendar.view == "week" %} aria-current="page"{% endif %}>Week</a>
-        <a class="keel-tabs__tab" href="{{ calendar.day_href }}"{% if calendar.view == "day" %} aria-current="page"{% endif %}>Day</a>
+        <a class="keel-tabs__tab" href="{{ carry(calendar.month_href, bar.query) }}"{% if calendar.view == "month" %} aria-current="page"{% endif %}>Month</a>
+        <a class="keel-tabs__tab" href="{{ carry(calendar.week_href, bar.query) }}"{% if calendar.view == "week" %} aria-current="page"{% endif %}>Week</a>
+        <a class="keel-tabs__tab" href="{{ carry(calendar.day_href, bar.query) }}"{% if calendar.view == "day" %} aria-current="page"{% endif %}>Day</a>
       </nav>
       <nav class="keel-cal__nav" aria-label="When">
-        <a href="{{ calendar.prev_href }}">Previous</a>
+        <a href="{{ carry(calendar.prev_href, bar.query) }}">Previous</a>
         {% if calendar.view != "month" %}
         <h2>{{ calendar.label }}</h2>
         {% endif %}
@@ -36,10 +43,13 @@
             <option value="{{ y }}"{% if y == calendar.year %} selected{% endif %}>{{ y }}</option>
             {% endfor %}
           </select>
+          {% for name, value in bar.fields %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}"/>
+          {% endfor %}
           <button class="keel-autosubmit__fallback" type="submit">Show</button>
         </form>
-        <a href="{{ calendar.next_href }}">Next</a>
-        <a href="{{ calendar.today_href }}">Today</a>
+        <a href="{{ carry(calendar.next_href, bar.query) }}">Next</a>
+        <a href="{{ carry(calendar.today_href, bar.query) }}">Today</a>
       </nav>
       {% if calendar.empty %}
       <p class="keel-lede">{{ calendar.empty_note }}</p>

@@ -1,0 +1,132 @@
+      <form class="keel-form keel-board__filter keel-filters" method="get" action="{{ filter_action }}" data-keel-autosubmit>
+        <input type="hidden" name="filters" value="1"/>
+        {% for name, value in preserve %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}"/>
+        {% endfor %}
+        {% set type_names = [] %}
+        {% for issue_type in issue_types %}
+          {% if issue_type in bar.types %}{% set _ = type_names.append(issue_type | label) %}{% endif %}
+        {% endfor %}
+        <details class="keel-multi">
+          <summary>{{ type_names | join(', ') if type_names else 'Type' }}</summary>
+          <div class="keel-multi__panel">
+            {% for issue_type in issue_types %}
+            <label class="keel-type" data-type="{{ issue_type.value }}">
+              <input type="checkbox" name="type" value="{{ issue_type.value }}"{% if issue_type in bar.types %} checked{% endif %}/>
+              {{ issue_type | label }}
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+        {% set status_names = [] %}
+        {% for status in workflow_statuses %}
+          {% if status in bar.statuses %}{% set _ = status_names.append(status | label) %}{% endif %}
+        {% endfor %}
+        <details class="keel-multi">
+          <summary>{{ status_names | join(', ') if status_names else 'Status' }}</summary>
+          <div class="keel-multi__panel">
+            {% for status in workflow_statuses %}
+            <label>
+              <input type="checkbox" name="status" value="{{ status.value }}"{% if status in bar.statuses %} checked{% endif %}/>
+              {{ status | label }}
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+        {% set priority_names = [] %}
+        {% for priority in priority_levels %}
+          {% if priority in bar.priorities %}{% set _ = priority_names.append(priority | label) %}{% endif %}
+        {% endfor %}
+        <details class="keel-multi">
+          <summary>{{ priority_names | join(', ') if priority_names else 'Priority' }}</summary>
+          <div class="keel-multi__panel">
+            {% for priority in priority_levels %}
+            <label>
+              <input type="checkbox" name="priority" value="{{ priority.value }}"{% if priority in bar.priorities %} checked{% endif %}/>
+              {{ priority | label }}
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+        {% set sprint_names = [] %}
+        {% if bar.unscheduled %}{% set _ = sprint_names.append('Unscheduled') %}{% endif %}
+        {% for sprint in sprints %}
+          {% if sprint.id in bar.sprint_ids %}
+            {% set sprint_label = (project_keys[sprint.project_id] ~ ' / ' if prefix_sprints else '') ~ sprint.name %}
+            {% set _ = sprint_names.append(sprint_label) %}
+          {% endif %}
+        {% endfor %}
+        <details class="keel-multi">
+          <summary>{{ sprint_names | join(', ') if sprint_names else 'Sprint' }}</summary>
+          <div class="keel-multi__panel">
+            <label>
+              <input type="checkbox" name="sprint" value="unscheduled"{% if bar.unscheduled %} checked{% endif %}/>
+              Unscheduled
+            </label>
+            {% for sprint in sprints %}
+            <label>
+              <input type="checkbox" name="sprint" value="{{ sprint.id }}"{% if sprint.id in bar.sprint_ids %} checked{% endif %}/>
+              {% if prefix_sprints %}{{ project_keys[sprint.project_id] }} / {% endif %}{{ sprint.name }} ({{ sprint.state | label }})
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+        <div class="keel-filters__lookup">
+          <span class="keel-filters__name">Label</span>
+          <span class="keel-filters__chips">
+            {% for chip in bar.label_chips %}
+            <span class="keel-chip">{{ chip.label }} <a href="{{ chip.remove_href }}">Remove</a></span>
+            <input type="hidden" name="label" value="{{ chip.value }}"/>
+            {% endfor %}
+          </span>
+          {% with field_id="filter-label", query_name="label_add", value=bar.label_draft, kind="labels", project_key="", exclude_id="", id_name="", submit=true, placeholder="Add a label" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
+        </div>
+        <div class="keel-filters__lookup">
+          <span class="keel-filters__name">Assignee</span>
+          <span class="keel-filters__chips">
+            {% for chip in bar.assignee_chips %}
+            <span class="keel-chip">{{ chip.label }} <a href="{{ chip.remove_href }}">Remove</a></span>
+            <input type="hidden" name="assignee" value="{{ chip.value }}"/>
+            {% endfor %}
+          </span>
+          {% with field_id="filter-assignee", query_name="assignee_add", value=bar.assignee_draft, kind="users", project_key="", exclude_id="", id_name="", submit=true, placeholder="Add a person" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
+        </div>
+        <div class="keel-filters__lookup">
+          <span class="keel-filters__name">Created by</span>
+          <span class="keel-filters__chips">
+            {% for chip in bar.reporter_chips %}
+            <span class="keel-chip">{{ chip.label }} <a href="{{ chip.remove_href }}">Remove</a></span>
+            <input type="hidden" name="reporter" value="{{ chip.value }}"/>
+            {% endfor %}
+          </span>
+          {% with field_id="filter-reporter", query_name="reporter_add", value=bar.reporter_draft, kind="users", project_key="", exclude_id="", id_name="", empty="none", submit=true, placeholder="Add a person" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
+        </div>
+        {% if show_project %}
+        <div class="keel-filters__lookup">
+          <span class="keel-filters__name">Project</span>
+          <span class="keel-filters__chips">
+            {% for chip in bar.project_chips %}
+            <span class="keel-chip">{{ chip.label }} <a href="{{ chip.remove_href }}">Remove</a></span>
+            <input type="hidden" name="project" value="{{ chip.value }}"/>
+            {% endfor %}
+          </span>
+          {% with field_id="filter-project", query_name="project_add", value=bar.project_draft, kind="projects", project_key="", exclude_id="", id_name="", submit=true, placeholder="Add a project" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
+        </div>
+        {% endif %}
+        {% if show_layout %}
+        <input type="hidden" name="by" value="status"/>
+        <label>
+          <input type="checkbox" name="by" value="sprint"{% if separate_by_sprint %} checked{% endif %}/>
+          Separate by sprint
+        </label>
+        {% endif %}
+        <button class="keel-autosubmit__fallback" type="submit">Apply</button>
+      </form>

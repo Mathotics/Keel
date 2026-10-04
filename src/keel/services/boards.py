@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -157,6 +157,7 @@ def project_board(
     unscheduled: bool = False,
     label: str | None = None,
     unlabeled: bool = False,
+    filters: IssueFilters | None = None,
 ) -> Board:
     """Group a project's issues by status in workflow order.
 
@@ -169,27 +170,26 @@ def project_board(
     row per sprint without a second query.
     """
     project = project_service.get_project(session, project_id)
-    found = issue_service.list_issues(
-        session,
-        project.id,
-        IssueFilters(
-            types=tuple(types),
-            assignee_id=assignee_id,
-            unassigned=unassigned,
-            sprint_id=sprint_id,
-            unscheduled=unscheduled,
-            label=label,
-            unlabeled=unlabeled,
-            hide_closed_in_completed_sprints=True,
-        ),
+    chosen = filters or IssueFilters(
+        types=tuple(types),
+        assignee_id=assignee_id,
+        unassigned=unassigned,
+        sprint_id=sprint_id,
+        unscheduled=unscheduled,
+        label=label,
+        unlabeled=unlabeled,
+        hide_closed_in_completed_sprints=True,
     )
+    found = issue_service.list_issues(session, project.id, chosen)
+    limit, sprint_ids, include_unscheduled = _lane_limit(chosen)
     return _board_from_issues(
         session,
         found,
         project=project,
         sprints=sprint_service.list_sprints(session, project.id),
-        sprint_id=sprint_id,
-        unscheduled=unscheduled,
+        limit_sprints=limit,
+        sprint_ids=sprint_ids,
+        include_unscheduled=include_unscheduled,
     )
 
 
@@ -204,35 +204,48 @@ def master_board(
     unscheduled: bool = False,
     label: str | None = None,
     unlabeled: bool = False,
+    filters: IssueFilters | None = None,
 ) -> Board:
     """Group issues from every project, omitting closed completed-sprint work."""
-    found = issue_service.list_issues(
-        session,
-        project_id,
-        IssueFilters(
-            types=tuple(types),
-            assignee_id=assignee_id,
-            unassigned=unassigned,
-            sprint_id=sprint_id,
-            unscheduled=unscheduled,
-            label=label,
-            unlabeled=unlabeled,
-            hide_closed_in_completed_sprints=True,
-        ),
+    chosen = filters or IssueFilters(
+        types=tuple(types),
+        assignee_id=assignee_id,
+        unassigned=unassigned,
+        sprint_id=sprint_id,
+        unscheduled=unscheduled,
+        label=label,
+        unlabeled=unlabeled,
+        hide_closed_in_completed_sprints=True,
     )
-    if project_id is not None:
-        sprints = sprint_service.list_sprints(session, project_id)
+    scope = None if filters is not None else project_id
+    if filters is not None and project_id is not None and not chosen.project_ids:
+        chosen = replace(chosen, project_ids=(project_id,))
+    found = issue_service.list_issues(session, scope, chosen)
+    if chosen.project_ids:
+        projects = {
+            item_id: project_service.get_project(session, item_id)
+            for item_id in chosen.project_ids
+        }
+        sprints = [
+            sprint
+            for item_id in chosen.project_ids
+            for sprint in sprint_service.list_sprints(session, item_id)
+        ]
+    elif project_id is not None:
+        sprints = list(sprint_service.list_sprints(session, project_id))
         projects = {project_id: project_service.get_project(session, project_id)}
     else:
-        sprints = sprint_service.list_all_sprints(session)
+        sprints = list(sprint_service.list_all_sprints(session))
         projects = {item.id: item for item in project_service.list_projects(session)}
+    limit, sprint_ids, include_unscheduled = _lane_limit(chosen)
     return _board_from_issues(
         session,
         found,
         project=None,
         sprints=sprints,
-        sprint_id=sprint_id,
-        unscheduled=unscheduled,
+        limit_sprints=limit,
+        sprint_ids=sprint_ids,
+        include_unscheduled=include_unscheduled,
         projects=projects,
         prefix_project=True,
     )
@@ -244,8 +257,9 @@ def _board_from_issues(
     *,
     project: Project | None,
     sprints: Sequence[Sprint],
-    sprint_id: int | None,
-    unscheduled: bool,
+    limit_sprints: bool,
+    sprint_ids: tuple[int, ...],
+    include_unscheduled: bool,
     projects: dict[int, Project] | None = None,
     prefix_project: bool = False,
 ) -> Board:
@@ -277,8 +291,9 @@ def _board_from_issues(
         lanes=_lanes(
             cards,
             sprints,
-            sprint_id=sprint_id,
-            unscheduled=unscheduled,
+            limit_sprints=limit_sprints,
+            sprint_ids=sprint_ids,
+            include_unscheduled=include_unscheduled,
             projects=by_id,
             prefix_project=prefix_project,
         ),
@@ -318,12 +333,24 @@ def _columns_from(cards: Sequence[BoardCard]) -> tuple[BoardColumn, ...]:
     )
 
 
+def _lane_limit(filters: IssueFilters) -> tuple[bool, tuple[int, ...], bool]:
+    """Whether sprint lanes shrink, which sprint ids remain, and Unscheduled."""
+    if filters.sprint_any:
+        return True, filters.sprint_ids, filters.unscheduled
+    if filters.unscheduled:
+        return True, (), True
+    if filters.sprint_id is not None:
+        return True, (filters.sprint_id,), False
+    return False, (), False
+
+
 def _lanes(
     cards: Sequence[BoardCard],
     sprints: Sequence[Sprint],
     *,
-    sprint_id: int | None,
-    unscheduled: bool,
+    limit_sprints: bool,
+    sprint_ids: tuple[int, ...],
+    include_unscheduled: bool,
     projects: dict[int, Project] | None = None,
     prefix_project: bool = False,
 ) -> tuple[BoardLane, ...]:
@@ -357,13 +384,16 @@ def _lanes(
         owned = by_sprint.get(sprint.id, ())
         return bool(owned) or sprint.state in (SprintState.PLANNED, SprintState.ACTIVE)
 
-    if unscheduled:
-        return (unscheduled_lane,)
-    if sprint_id is not None:
-        chosen = [
-            sprint for sprint in sprints if sprint.id == sprint_id and shown(sprint)
+    if limit_sprints:
+        chosen_ids = set(sprint_ids)
+        limited = [
+            lane_for(sprint)
+            for sprint in sprints
+            if sprint.id in chosen_ids and shown(sprint)
         ]
-        return tuple(lane_for(sprint) for sprint in chosen)
+        if include_unscheduled:
+            limited.append(unscheduled_lane)
+        return tuple(limited)
 
     lanes: list[BoardLane] = []
     for sprint in sprints:

@@ -167,12 +167,26 @@ def user_field_value(session: Session, user_id: int | None) -> str:
     return user.display_name
 
 
-def suggest_users(session: Session, query: str) -> list[UserSuggestion]:
-    """People by display name or username, plus Unassigned while it matches."""
+def suggest_users(
+    session: Session,
+    query: str,
+    *,
+    empty: str = "unassigned",
+) -> list[UserSuggestion]:
+    """People by display name or username, plus an empty-value row while it matches.
+
+    ``empty="none"`` offers None (no reporter) instead of Unassigned.
+    """
     needle = query.strip().lower()
+    if empty == "none":
+        token = "none"
+        caption = "None"
+    else:
+        token = UNASSIGNED
+        caption = UNASSIGNED_LABEL
     results: list[UserSuggestion] = []
-    if not needle or UNASSIGNED.startswith(needle):
-        results.append(UserSuggestion(id=None, label=UNASSIGNED_LABEL))
+    if not needle or token.startswith(needle) or caption.lower().startswith(needle):
+        results.append(UserSuggestion(id=None, label=caption))
     if needle:
         pattern = _like_pattern(needle)
         people = session.scalars(
@@ -187,7 +201,7 @@ def suggest_users(session: Session, query: str) -> list[UserSuggestion]:
             .limit(LIMIT),
         )
         for user in people:
-            if user.display_name.casefold() == UNASSIGNED:
+            if user.display_name.casefold() == token:
                 continue
             results.append(UserSuggestion(id=user.id, label=user.display_name))
             if len(results) >= LIMIT:

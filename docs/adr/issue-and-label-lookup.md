@@ -70,7 +70,7 @@ Suggestion reads live on the web app, not under `/api/v1`:
 
 * `GET /web/lookup/issues?q=&project=&exclude=` returns up to 10 `{id, key, title}`. `project` limits parent search. `exclude` drops the current issue. `q` is matched against key and title only.
 * `GET /web/lookup/labels?q=` returns up to 10 names, plus `unlabeled` when the query is empty or a prefix of that word.
-* `GET /web/lookup/users?q=` returns up to 10 `{id, label}` rows. `id` is null and `label` is `Unassigned` when the query is empty or a prefix of that word. Other rows match display name or username and label the display name.
+* `GET /web/lookup/users?q=` returns up to 10 `{id, label}` rows. `id` is null and `label` is `Unassigned` when the query is empty or a prefix of that word. `empty=none` offers `None` instead, for the created-by filter. Other rows match display name or username and label the display name.
 * `GET /web/lookup/projects?q=` returns up to 10 `{id, key, name}` rows matched on key or name. An empty query returns none.
 
 Posted fields:
@@ -78,7 +78,7 @@ Posted fields:
 * JavaScript adds a hidden id (`parent_id`, `other_id`, or `assignee_id`) when a row is picked, and removes it when the text changes or the box is cleared. The server uses that id when it is present. The board assignee filter has no hidden id; the text is the query, the same way the label filter works.
 * The text field is always submitted (`parent_query`, `other_query`, `label`, `assignee_query`, `assignee` on the board, or `project`). If the hidden id is absent, the server treats the text as an exact key, `KEY — title`, an exact label name, `unlabeled`, an exact display name or username, `Unassigned`, an exact project key, `KEY — name`, a unique project name, or empty. Any other text is the existing form error path ("Choose an issue to link." / the parent, label, person, and project equivalents).
 
-The relation dropdown, Add, and the current dependency tables stay. Issue-page parent and the board filter keep `data-keel-autosubmit`, but the script submits on pick or clear, not on each keystroke. Create and the series recipe keep their existing submit button.
+The relation dropdown, Add, and the current dependency tables stay. Issue-page parent and the shared filter bar keep `data-keel-autosubmit`, but the script submits on pick or clear, not on each keystroke. Create and the series recipe keep their existing submit button. The shared board and calendar bar ([Common filtering](common-filtering.md)) keeps several label, person, and project choices as chips. Parent, linking, and Create stay one value.
 
 ### UML Diagrams
 

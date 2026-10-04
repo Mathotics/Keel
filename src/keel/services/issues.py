@@ -1,8 +1,9 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from typing import Any
 
-from sqlalchemy import Select, exists, func, select
+from sqlalchemy import Select, exists, false, func, or_, select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, IssueLabel, Label, Project, Sprint
@@ -46,6 +47,19 @@ class IssueFilters:
     label: str | None = None
     unlabeled: bool = False
     hide_closed_in_completed_sprints: bool = False
+    require_type: bool = False
+    statuses: tuple[IssueStatus, ...] = ()
+    priorities: tuple[IssuePriority, ...] = ()
+    assignee_any: bool = False
+    assignee_ids: tuple[int, ...] = ()
+    sprint_any: bool = False
+    sprint_ids: tuple[int, ...] = ()
+    label_any: bool = False
+    labels: tuple[str, ...] = ()
+    reporter_any: bool = False
+    reporter_ids: tuple[int, ...] = ()
+    reporter_none: bool = False
+    project_ids: tuple[int, ...] = ()
 
 
 def issue_key(issue: Issue, project: Project) -> str:
@@ -426,42 +440,92 @@ def _assign_sprint(session: Session, issue: Issue, sprint_id: int | None) -> Non
     issue.sprint_id = sprint_id
 
 
-def _apply_filters(
-    query: Select[tuple[Issue]],
-    filters: IssueFilters,
-) -> Select[tuple[Issue]]:
-    if filters.types:
+def restrict(query: Select[Any], filters: IssueFilters) -> Select[Any]:
+    """Apply the same issue narrowing a list uses, on any issue select."""
+    return _apply_filters(query, filters)
+
+
+def _has_label(name: str) -> Any:
+    return exists(
+        select(IssueLabel.issue_id)
+        .join(Label, Label.id == IssueLabel.label_id)
+        .where(IssueLabel.issue_id == Issue.id, Label.name == name),
+    )
+
+
+def _has_no_label() -> Any:
+    return ~exists(
+        select(IssueLabel.issue_id).where(IssueLabel.issue_id == Issue.id),
+    )
+
+
+def _apply_filters(query: Select[Any], filters: IssueFilters) -> Select[Any]:
+    if filters.require_type:
+        if filters.types:
+            query = query.where(Issue.type.in_(tuple(filters.types)))
+        else:
+            query = query.where(false())
+    elif filters.types:
         chosen = set(filters.types)
         if chosen != set(IssueType):
             query = query.where(Issue.type.in_(filters.types))
     elif filters.type is not None:
         query = query.where(Issue.type == filters.type)
-    if filters.status is not None:
+    if filters.statuses:
+        query = query.where(Issue.status.in_(tuple(filters.statuses)))
+    elif filters.status is not None:
         query = query.where(Issue.status == filters.status)
-    if filters.priority is not None:
+    if filters.priorities:
+        query = query.where(Issue.priority.in_(tuple(filters.priorities)))
+    elif filters.priority is not None:
         query = query.where(Issue.priority == filters.priority)
-    if filters.unassigned:
+    if filters.assignee_any:
+        people: list[Any] = []
+        if filters.unassigned:
+            people.append(Issue.assignee_id.is_(None))
+        if filters.assignee_ids:
+            people.append(Issue.assignee_id.in_(tuple(filters.assignee_ids)))
+        if people:
+            query = query.where(or_(*people))
+    elif filters.unassigned:
         query = query.where(Issue.assignee_id.is_(None))
     elif filters.assignee_id is not None:
         query = query.where(Issue.assignee_id == filters.assignee_id)
+    if filters.reporter_any:
+        reporters: list[Any] = []
+        if filters.reporter_none:
+            reporters.append(Issue.reporter_id.is_(None))
+        if filters.reporter_ids:
+            reporters.append(Issue.reporter_id.in_(tuple(filters.reporter_ids)))
+        if reporters:
+            query = query.where(or_(*reporters))
     if filters.parent_id is not None:
         query = query.where(Issue.parent_id == filters.parent_id)
-    if filters.unscheduled:
+    if filters.sprint_any:
+        windows: list[Any] = []
+        if filters.unscheduled:
+            windows.append(Issue.sprint_id.is_(None))
+        if filters.sprint_ids:
+            windows.append(Issue.sprint_id.in_(tuple(filters.sprint_ids)))
+        if windows:
+            query = query.where(or_(*windows))
+    elif filters.unscheduled:
         query = query.where(Issue.sprint_id.is_(None))
     elif filters.sprint_id is not None:
         query = query.where(Issue.sprint_id == filters.sprint_id)
-    if filters.unlabeled:
-        query = query.where(
-            ~exists(
-                select(IssueLabel.issue_id).where(IssueLabel.issue_id == Issue.id),
-            ),
-        )
+    if filters.label_any:
+        marks: list[Any] = []
+        if filters.unlabeled:
+            marks.append(_has_no_label())
+        marks.extend(_has_label(name) for name in filters.labels)
+        if marks:
+            query = query.where(or_(*marks))
+    elif filters.unlabeled:
+        query = query.where(_has_no_label())
     elif filters.label is not None:
-        query = (
-            query.join(IssueLabel, IssueLabel.issue_id == Issue.id)
-            .join(Label, Label.id == IssueLabel.label_id)
-            .where(Label.name == filters.label)
-        )
+        query = query.where(_has_label(filters.label))
+    if filters.project_ids:
+        query = query.where(Issue.project_id.in_(tuple(filters.project_ids)))
     if filters.hide_closed_in_completed_sprints:
         query = query.where(
             ~exists(
