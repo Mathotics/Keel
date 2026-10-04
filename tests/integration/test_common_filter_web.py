@@ -139,5 +139,6 @@ def test_the_calendar_uses_the_same_bar(client: TestClient) -> None:
     assert "Dated epic" in narrowed.text
     assert "Dated story" not in narrowed.text
     assert "month=2026-09&amp;filters=1&amp;type=epic" in narrowed.text
+    assert 'keel-filters__reset" href="/calendar?month=2026-10"' in narrowed.text
     assert 'data-keel-lookup="projects"' not in project_page.text
     assert "Dated story" in project_page.text

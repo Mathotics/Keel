@@ -365,14 +365,27 @@ def test_separating_by_sprint_puts_cards_in_lanes(
     assert 'name="by" value="sprint"checked' not in together.text
 
 
-def test_the_board_filter_keeps_apply_without_javascript(
+def test_the_board_filter_applies_when_the_menu_closes(
     client: TestClient,
     project: Json,
 ) -> None:
     page = client.get("/projects/KEEL/board")
-    assert "data-keel-autosubmit" in page.text
+    assert 'class="keel-form keel-board__filter keel-filters"' in page.text
+    assert "data-keel-autosubmit" not in page.text
     assert "keel-autosubmit__fallback" in page.text
     assert ">Apply<" in page.text
+
+    master = client.get("/board")
+    text = master.text
+    assert text.index(">Sprint<") < text.index(">Project<") < text.index(">Label<")
+    assert text.index(">Label<") < text.index(">Reset all<")
+    assert 'class="keel-button keel-filters__reset" href="/board"' in text
+
+    kept = client.get("/projects/KEEL/board", params={"by": "status", "type": "epic"})
+    assert (
+        'class="keel-button keel-filters__reset" href="/projects/KEEL/board?by=status"'
+        in kept.text
+    )
 
 
 def test_the_fallback_form_moves_a_card(
@@ -497,7 +510,7 @@ def test_the_label_filter_changes_what_the_board_queries(
     assert "Bare" in bare.text
     assert "Tagged" not in bare.text
     page = client.get("/projects/KEEL/board")
-    assert 'placeholder="Add a label"' in page.text
+    assert 'placeholder="Any label"' in page.text
     assert 'data-keel-lookup="labels"' in page.text
 
 
@@ -552,7 +565,7 @@ def test_the_master_board_mixes_projects_and_hides_completed_sprint_closed_work(
     assert "Finished past" not in project_board.text
     assert "Past (Completed)" not in project_board.text
     assert "Past" in client.get("/projects/KEEL/sprints").text
-    assert 'placeholder="Add a project"' in page.text
+    assert 'placeholder="Any project"' in page.text
     assert 'name="project_add"' in page.text
     assert 'data-keel-lookup="projects"' in page.text
     assert 'data-keel-lookup="projects"' not in project_board.text

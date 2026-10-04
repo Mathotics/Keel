@@ -103,6 +103,18 @@
         ensureHidden(row.id);
       }
       close(input, list);
+      const picked = new CustomEvent("keel-lookup-pick", {
+        bubbles: true,
+        cancelable: true,
+        detail: row,
+      });
+      box.dispatchEvent(picked);
+      if (picked.defaultPrevented) {
+        input.value = "";
+        committed = "";
+        clearHidden();
+        return;
+      }
       if (submitOnPick) {
         form.submit();
       }
