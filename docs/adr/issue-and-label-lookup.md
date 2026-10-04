@@ -2,11 +2,11 @@
 
 * **Status:** Accepted
 * **Date:** 2026-10-01
-* **Updated:** 2026-10-04 — assignee fields use this same lookup.
+* **Updated:** 2026-10-04 — assignee and project fields use this same lookup.
 
 ## Background
 
-Linking an issue, choosing a parent, and filtering the board by label use `<select>` lists. The dependency list is every other issue in every project (`src/keel/web/routes/issues.py` builds `candidates` from `list_issues_globally`). Parent lists every other issue in the project on the issue page, Create, and the series recipe. The board label filter lists the whole catalog plus Any label and Unlabeled. Type, status, priority, relation, sprint, and project stay short or were left as dropdowns. Assignee joined this lookup on 2026-10-04.
+Linking an issue, choosing a parent, and filtering the board by label use `<select>` lists. The dependency list is every other issue in every project (`src/keel/web/routes/issues.py` builds `candidates` from `list_issues_globally`). Parent lists every other issue in the project on the issue page, Create, and the series recipe. The board label filter lists the whole catalog plus Any label and Unlabeled. Type, status, priority, relation, and sprint stay short or were left as dropdowns. Assignee and project joined this lookup on 2026-10-04.
 
 ## Problem Statement
 
@@ -14,8 +14,8 @@ Those lists grow with no fixed end. A dropdown forces someone to scroll the whol
 
 ## Objective(s)
 
-- Find an issue, label, or person by typing, with suggestions from the server.
-- Keep the same outcomes: add a dependency, set or clear a parent, filter the board by label, set or clear an assignee, and filter the board by assignee.
+- Find an issue, label, person, or project by typing, with suggestions from the server.
+- Keep the same outcomes: add a dependency, set or clear a parent, filter the board by label, set or clear an assignee, filter the board by assignee, choose the project on Create, and filter the master board by project.
 - Keep the page usable when JavaScript has not run.
 
 ## Scope and Deliverables
@@ -26,10 +26,11 @@ Those lists grow with no fixed end. A dropdown forces someone to scroll the whol
 * Parent on the issue page, Create (`src/keel/web/templates/create.html`), and the series recipe (`src/keel/web/templates/_series_recipe.html`).
 * Board label filter (`src/keel/web/templates/board.html`).
 * Assignee on the issue page, Create, and the series recipe, and the board assignee filter (`board.html`).
+* Project on Create (`create.html`) and the master board project filter (`board.html`).
 
 ### Out-of-Scope
 
-* Sprint, project, and every fixed list (type, status, priority, relation, cadence, recurrence).
+* Sprint and every fixed list (type, status, priority, relation, cadence, recurrence).
 * The top-bar Find field and the issue Labels text field.
 * Changing how dependencies, parents, or labels are stored.
 * A public JSON resource for this lookup.
@@ -41,11 +42,11 @@ Those lists grow with no fixed end. A dropdown forces someone to scroll the whol
 
 ## Technical Requirements
 
-* **Must** suggest issues by key or title, labels by name, and people by display name or username, from the server as the person types. The page must not embed the full issue, label, or user list.
+* **Must** suggest issues by key or title, labels by name, people by display name or username, and projects by key or name, from the server as the person types. The page must not embed the full issue, label, user, or project list.
 * **Must** require a picked row before a non-empty value is submitted while JavaScript is running. A typed key or name that was not picked is refused in the browser.
-* **Must** allow an empty box. Empty parent means no parent. Empty assignee on an issue means unassigned. Empty label filter means any label. Empty assignee filter means anyone.
-* **Must** save the issue-page parent and assignee, and apply the board label and assignee filters, as soon as a row is picked or the box is cleared. Linking still waits for Add. Create and the series recipe still wait for their own submit button.
-* **Must** work without JavaScript as a plain text field: an exact issue key (`HOME-12`), an exact label name, `unlabeled`, an exact display name or username, or `Unassigned`. The server resolves that text. A title alone is refused.
+* **Must** allow an empty box. Empty parent means no parent. Empty assignee on an issue means unassigned. Empty label filter means any label. Empty assignee filter means anyone. Empty project filter means any project. Empty project on Create means no project is chosen yet.
+* **Must** save the issue-page parent and assignee, and apply the board label, assignee, and project filters, as soon as a row is picked or the box is cleared. The Create project box reloads the form the same way. Linking still waits for Add. Create's issue fields and the series recipe still wait for their own submit button.
+* **Must** work without JavaScript as a plain text field: an exact issue key (`HOME-12`), an exact label name, `unlabeled`, an exact display name or username, `Unassigned`, an exact project key, or `KEY — name`. The server resolves that text. A title alone is refused. A unique project name also resolves.
 * **Must** keep parent results in the current project and link results across projects. Omit the issue being edited.
 * **Must** return at most 10 suggestions.
 * **May** accept `KEY — title` on the server by reading the key before the separator, so a copied suggestion still resolves.
@@ -70,11 +71,12 @@ Suggestion reads live on the web app, not under `/api/v1`:
 * `GET /web/lookup/issues?q=&project=&exclude=` returns up to 10 `{id, key, title}`. `project` limits parent search. `exclude` drops the current issue. `q` is matched against key and title only.
 * `GET /web/lookup/labels?q=` returns up to 10 names, plus `unlabeled` when the query is empty or a prefix of that word.
 * `GET /web/lookup/users?q=` returns up to 10 `{id, label}` rows. `id` is null and `label` is `Unassigned` when the query is empty or a prefix of that word. Other rows match display name or username and label the display name.
+* `GET /web/lookup/projects?q=` returns up to 10 `{id, key, name}` rows matched on key or name. An empty query returns none.
 
 Posted fields:
 
 * JavaScript adds a hidden id (`parent_id`, `other_id`, or `assignee_id`) when a row is picked, and removes it when the text changes or the box is cleared. The server uses that id when it is present. The board assignee filter has no hidden id; the text is the query, the same way the label filter works.
-* The text field is always submitted (`parent_query`, `other_query`, `label`, `assignee_query`, or `assignee` on the board). If the hidden id is absent, the server treats the text as an exact key, `KEY — title`, an exact label name, `unlabeled`, an exact display name or username, `Unassigned`, or empty. Any other text is the existing form error path ("Choose an issue to link." / the parent, label, and person equivalents).
+* The text field is always submitted (`parent_query`, `other_query`, `label`, `assignee_query`, `assignee` on the board, or `project`). If the hidden id is absent, the server treats the text as an exact key, `KEY — title`, an exact label name, `unlabeled`, an exact display name or username, `Unassigned`, an exact project key, `KEY — name`, a unique project name, or empty. Any other text is the existing form error path ("Choose an issue to link." / the parent, label, person, and project equivalents).
 
 The relation dropdown, Add, and the current dependency tables stay. Issue-page parent and the board filter keep `data-keel-autosubmit`, but the script submits on pick or clear, not on each keystroke. Create and the series recipe keep their existing submit button.
 

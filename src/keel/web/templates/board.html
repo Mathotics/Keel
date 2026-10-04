@@ -80,12 +80,9 @@
         {% if filter_projects is defined %}
         <label>
           Project
-          <select name="project">
-            <option value=""{% if not selected_project %} selected{% endif %}>Any project</option>
-            {% for item in filter_projects %}
-            <option value="{{ item.key }}"{% if selected_project == item.key %} selected{% endif %}>{{ item.key }}</option>
-            {% endfor %}
-          </select>
+          {% with field_id="board-project", query_name="project", value=selected_project, kind="projects", project_key="", exclude_id="", id_name="", submit=true, placeholder="Any project" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
         </label>
         {% endif %}
         <label>
