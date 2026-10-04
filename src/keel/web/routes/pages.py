@@ -14,6 +14,7 @@ from keel.domain.enums import (
 from keel.paths import license_text
 from keel.services import calendar as calendar_service
 from keel.services import home as home_service
+from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
@@ -117,10 +118,16 @@ def create_page(
 ) -> HTMLResponse:
     projects = project_service.list_projects(session)
     chosen = None
-    if project:
-        chosen = project_service.get_project_by_key(session, project)
+    project_label = ""
+    project_error = None
+    if project and project.strip():
+        chosen, project_label, project_error = lookup_service.interpret_project(
+            session,
+            project,
+        )
     elif len(projects) == 1:
         chosen = projects[0]
+        project_label = lookup_service.project_field_value(chosen)
     sprints = []
     if chosen is not None:
         sprints = list(sprint_service.list_assignable_sprints(session, chosen.id))
@@ -132,6 +139,8 @@ def create_page(
             chrome,
             projects=projects,
             project=chosen,
+            project_label=project_label,
+            error=error or project_error,
             issue_types=types_in_hierarchy_order(),
             default_type=IssueType.STORY,
             statuses=statuses_in_workflow_order(),
@@ -139,7 +148,6 @@ def create_page(
             priorities=priorities_in_rank_order(),
             default_priority=INITIAL_PRIORITY,
             sprints=sprints,
-            error=error,
         ),
     )
 

@@ -1,4 +1,4 @@
-// Suggests issues, labels, or people for [data-keel-lookup] fields. A non-empty
+// Suggests issues, labels, people, or projects for [data-keel-lookup] fields. A non-empty
 // value has to be picked from the list before it can be submitted. An empty
 // box is a clear. Fields marked data-keel-lookup-submit save on pick or clear,
 // and their change events do not also trip the autosubmit listener.
@@ -68,6 +68,9 @@
       if (kind === "users") {
         return "Pick a person from the list.";
       }
+      if (kind === "projects") {
+        return "Pick a project from the list.";
+      }
       return "Pick an issue from the list.";
     };
 
@@ -109,7 +112,7 @@
       active = -1;
       list.replaceChildren();
       if (!items.length) {
-        if (kind === "issues" && !input.value.trim()) {
+        if ((kind === "issues" || kind === "projects") && !input.value.trim()) {
           close(input, list);
           return;
         }
@@ -152,7 +155,7 @@
 
     const run = async () => {
       const q = input.value.trim();
-      if (kind === "issues" && !q) {
+      if ((kind === "issues" || kind === "projects") && !q) {
         close(input, list);
         return;
       }
@@ -173,7 +176,9 @@
           ? "/web/lookup/labels"
           : kind === "users"
             ? "/web/lookup/users"
-            : "/web/lookup/issues";
+            : kind === "projects"
+              ? "/web/lookup/projects"
+              : "/web/lookup/issues";
       try {
         const response = await fetch(`${path}?${params.toString()}`, {
           signal: controller.signal,
@@ -188,6 +193,13 @@
           render(payload.map((name) => ({ label: name, id: null })));
         } else if (kind === "users") {
           render(payload.map((row) => ({ label: row.label, id: row.id })));
+        } else if (kind === "projects") {
+          render(
+            payload.map((row) => ({
+              label: `${row.key}${separator}${row.name}`,
+              id: null,
+            })),
+          );
         } else {
           render(
             payload.map((row) => ({

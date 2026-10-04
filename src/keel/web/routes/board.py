@@ -108,12 +108,12 @@ def master_board_page(
         error,
     )
     projects = list(project_service.list_projects(session))
-    selected_project = board_service.parse_project_filter(project)
-    project_id = None
-    if selected_project:
-        chosen = project_service.get_project_by_key(session, selected_project)
-        project_id = chosen.id
-        selected_project = chosen.key
+    chosen, shown_project, project_error = lookup_service.interpret_project(
+        session,
+        project,
+    )
+    project_id = None if chosen is None else chosen.id
+    error = error or project_error
     board = board_service.master_board(
         session,
         filters.types,
@@ -143,7 +143,7 @@ def master_board_page(
             selected_assignee=filters.selected_assignee,
             selected_sprint=filters.selected_sprint,
             selected_label=shown_label,
-            selected_project=selected_project or "",
+            selected_project=shown_project,
             separate_by_sprint=filters.grouping == "sprint",
             sprints=sprints,
             filter_projects=projects,

@@ -38,7 +38,16 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert page.status_code == 200
     assert 'name="title"' in page.text
     assert 'name="project"' in page.text
+    assert 'data-keel-lookup="projects"' in page.text
+    assert 'value="KEEL — Keel"' in page.text
     assert 'name="project_id"' in page.text
+    named = client.get("/create", params={"project": "Keel"})
+    assert 'value="KEEL — Keel"' in named.text
+    assert 'name="title"' in named.text
+    missing = client.get("/create", params={"project": "nope"})
+    assert missing.status_code == 200
+    assert "Choose a project from the list." in missing.text
+    assert 'name="title"' not in missing.text
     assert "Epic" in page.text
     assert 'name="description"' in page.text
     assert 'name="status"' in page.text
@@ -77,7 +86,7 @@ def test_create_from_the_menu_needs_only_a_title(
     project: Json,
 ) -> None:
     page = client.get(f"/create?project={project['key']}")
-    assert f'value="{project["key"]}" selected' in page.text
+    assert f'value="{project["key"]} — {project["name"]}"' in page.text
     assert f'name="project_id" value="{project["id"]}"' in page.text
 
     created = client.post(

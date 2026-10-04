@@ -17,14 +17,9 @@
             <p class="keel-fields__full">
               <label for="issue-project">Project</label>
               <span class="keel-control-row">
-                <select id="issue-project" name="project" required>
-                  {% if not project %}
-                  <option value="" selected>Choose a project</option>
-                  {% endif %}
-                  {% for item in projects %}
-                  <option value="{{ item.key }}"{% if project and item.id == project.id %} selected{% endif %}>{{ item.key }} — {{ item.name }}</option>
-                  {% endfor %}
-                </select>
+                {% with field_id="issue-project", query_name="project", value=project_label, kind="projects", project_key="", exclude_id="", id_name="", submit=true, placeholder="Choose a project" %}
+                {% include "_lookup.html" %}
+                {% endwith %}
                 <button class="keel-autosubmit__fallback" type="submit">Use this project</button>
               </span>
             </p>

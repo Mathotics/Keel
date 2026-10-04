@@ -22,6 +22,7 @@ LABEL_MESSAGE = "Choose a label from the list."
 UNASSIGNED = "unassigned"
 UNASSIGNED_LABEL = "Unassigned"
 USER_MESSAGE = "Choose a person from the list."
+PROJECT_MESSAGE = "Choose a project from the list."
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,13 @@ class IssueSuggestion:
 class UserSuggestion:
     id: int | None
     label: str
+
+
+@dataclass(frozen=True)
+class ProjectSuggestion:
+    id: int
+    key: str
+    name: str
 
 
 def issue_display(key: str, title: str) -> str:
@@ -226,6 +234,57 @@ def interpret_board_assignee(
     return user.id, False, user.display_name, None
 
 
+def project_field_value(project: Project | None) -> str:
+    if project is None:
+        return ""
+    return issue_display(project.key, project.name)
+
+
+def suggest_projects(session: Session, query: str) -> list[ProjectSuggestion]:
+    """Projects by key or name. An empty query lists nothing."""
+    needle = query.strip()
+    if not needle:
+        return []
+    pattern = _like_pattern(needle)
+    found = session.scalars(
+        select(Project)
+        .where(
+            or_(
+                Project.key.ilike(pattern, escape="\\"),
+                Project.name.ilike(pattern, escape="\\"),
+            ),
+        )
+        .order_by(Project.key)
+        .limit(LIMIT),
+    )
+    return [
+        ProjectSuggestion(id=project.id, key=project.key, name=project.name)
+        for project in found
+    ]
+
+
+def interpret_project(
+    session: Session,
+    raw: str | None,
+) -> tuple[Project | None, str, str | None]:
+    """The project, the text to show, and a message when it is not a project.
+
+    Empty means none. A key, `KEY — name`, or a unique project name resolves.
+    """
+    if raw is None or not raw.strip():
+        return None, "", None
+    cleaned = raw.strip()
+    key = cleaned.split(SEPARATOR, 1)[0].strip()
+    found: Project | None
+    try:
+        found = project_service.get_project_by_key(session, key)
+    except NotFoundError:
+        found = _project_named(session, cleaned)
+    if found is None:
+        return None, cleaned, PROJECT_MESSAGE
+    return found, project_field_value(found), None
+
+
 def project_id_for_key(session: Session, key: str | None) -> int | None:
     if key is None or not key.strip():
         return None
@@ -233,6 +292,17 @@ def project_id_for_key(session: Session, key: str | None) -> int | None:
         return project_service.get_project_by_key(session, key).id
     except NotFoundError:
         return None
+
+
+def _project_named(session: Session, text: str) -> Project | None:
+    matches = list(
+        session.scalars(
+            select(Project).where(func.lower(Project.name) == text.casefold()),
+        ),
+    )
+    if len(matches) == 1:
+        return matches[0]
+    return None
 
 
 def _is_unassigned_text(text: str) -> bool:

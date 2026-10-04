@@ -58,6 +58,9 @@ def test_lookup_routes_return_short_lists(client: TestClient) -> None:
     assert people.json() == [{"id": None, "label": "Unassigned"}]
     found_person = client.get("/web/lookup/users", params={"q": "ada"})
     assert found_person.json() == [{"id": ada["id"], "label": "Ada Lovelace"}]
+    assert client.get("/web/lookup/projects", params={"q": ""}).json() == []
+    found_project = client.get("/web/lookup/projects", params={"q": "hom"})
+    assert found_project.json() == [{"id": home["id"], "key": "HOME", "name": "Home"}]
 
 
 def test_a_parent_can_be_set_from_a_key_without_javascript(

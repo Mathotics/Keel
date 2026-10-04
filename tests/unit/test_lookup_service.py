@@ -241,3 +241,28 @@ def test_user_suggestions_match_name_and_keep_unassigned(session: Session) -> No
     )
     missing = lookup_service.interpret_board_assignee(session, "Nope")
     assert missing[3] == lookup_service.USER_MESSAGE
+
+
+def test_project_suggestions_match_key_and_name(session: Session) -> None:
+    keel = _project(session)
+    home = _project(session, "HOME")
+
+    assert lookup_service.suggest_projects(session, "") == []
+    by_key = lookup_service.suggest_projects(session, "hom")
+    assert [hit.key for hit in by_key] == ["HOME"]
+    assert by_key[0].name == "Home"
+    assert lookup_service.project_field_value(None) == ""
+    assert lookup_service.project_field_value(keel) == "KEEL — Keel"
+
+    found, shown, message = lookup_service.interpret_project(session, "KEEL — Keel")
+    assert found is not None and found.id == keel.id
+    assert shown == "KEEL — Keel"
+    assert message is None
+    named, shown_name, _message = lookup_service.interpret_project(session, "home")
+    assert named is not None and named.id == home.id
+    assert shown_name == "HOME — Home"
+    assert lookup_service.interpret_project(session, None) == (None, "", None)
+    missed, typed, refused = lookup_service.interpret_project(session, "nope")
+    assert missed is None
+    assert typed == "nope"
+    assert refused == lookup_service.PROJECT_MESSAGE

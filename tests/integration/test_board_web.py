@@ -553,6 +553,15 @@ def test_the_master_board_mixes_projects_and_hides_completed_sprint_closed_work(
     assert "Past" in client.get("/projects/KEEL/sprints").text
     assert "Any project" in page.text
     assert 'name="project"' in page.text
+    assert 'data-keel-lookup="projects"' in page.text
+    by_name = client.get("/board", params={"project": "House"})
+    assert "House work" in by_name.text
+    assert "Keel work" not in by_name.text
+    assert 'value="HOUSE — House"' in by_name.text
+    unknown = client.get("/board", params={"project": "nope"})
+    assert unknown.status_code == 200
+    assert "Choose a project from the list." in unknown.text
+    assert "Keel work" in unknown.text
     assert "KEEL / Past" not in page.text
     header = page.text.split("<header", 1)[1].split("</header>", 1)[0]
     assert 'href="/board"' in header
@@ -588,9 +597,7 @@ def test_the_master_board_project_filter_and_prefixed_sprint_lanes(
     filtered = client.get("/board", params={"project": "HOUSE"})
     assert "House card" in filtered.text
     assert "Keel card" not in filtered.text
-    assert 'value="HOUSE" selected' in filtered.text or (
-        'value="HOUSE"selected' in filtered.text
-    )
+    assert 'value="HOUSE — House"' in filtered.text
     assert "HOUSE / Sprint 1" in filtered.text
     assert "KEEL / Sprint 1" not in filtered.text
 
