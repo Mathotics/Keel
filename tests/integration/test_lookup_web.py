@@ -2,6 +2,8 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
+from tests.integration.conftest import TEST_PASSWORD
+
 Json = dict[str, Any]
 
 
@@ -48,6 +50,14 @@ def test_lookup_routes_return_short_lists(client: TestClient) -> None:
     assert labels.json() == ["unlabeled"]
     plumbing = client.get("/web/lookup/labels", params={"q": "plumb"})
     assert plumbing.json() == ["plumbing"]
+    ada = client.post(
+        "/api/v1/users",
+        json={"display_name": "Ada Lovelace", "password": TEST_PASSWORD},
+    ).json()
+    people = client.get("/web/lookup/users", params={"q": ""})
+    assert people.json() == [{"id": None, "label": "Unassigned"}]
+    found_person = client.get("/web/lookup/users", params={"q": "ada"})
+    assert found_person.json() == [{"id": ada["id"], "label": "Ada Lovelace"}]
 
 
 def test_a_parent_can_be_set_from_a_key_without_javascript(

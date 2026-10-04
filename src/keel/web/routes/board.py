@@ -34,12 +34,13 @@ class _BoardQuery:
 
 def _board_query(
     types: list[IssueType],
-    assignee: str | None,
+    assignee_id: int | None,
+    unassigned: bool,
+    selected_assignee: str,
     sprint: str | None,
     label: str | None,
     by: str | Sequence[str] | None,
 ) -> _BoardQuery:
-    assignee_id, unassigned = board_service.parse_assignee_filter(assignee)
     sprint_id, unscheduled = board_service.parse_sprint_filter(sprint)
     label_name, unlabeled = board_service.parse_label_filter(label)
     return _BoardQuery(
@@ -53,7 +54,7 @@ def _board_query(
         grouping=board_service.parse_board_grouping(by),
         selected_types=set(types),
         selected_label="unlabeled" if unlabeled else (label_name or ""),
-        selected_assignee=assignee.strip() if assignee else "",
+        selected_assignee=selected_assignee,
         selected_sprint=sprint.strip() if sprint else "",
     )
 
@@ -67,16 +68,21 @@ def _labeled_query(
     by: str | Sequence[str] | None,
     error: str | None,
 ) -> tuple[_BoardQuery, str, str | None]:
+    assignee_id, unassigned, shown_assignee, assignee_error = (
+        lookup_service.interpret_board_assignee(session, assignee)
+    )
     label_error = lookup_service.interpret_board_label(session, label)[2]
     filters = _board_query(
         types,
-        assignee,
+        None if assignee_error else assignee_id,
+        False if assignee_error else unassigned,
+        shown_assignee,
         sprint,
         None if label_error else label,
         by,
     )
     shown = (label or "").strip() if label_error else filters.selected_label
-    return filters, shown, error or label_error
+    return filters, shown, error or assignee_error or label_error
 
 
 @router.get("/board", response_class=HTMLResponse)

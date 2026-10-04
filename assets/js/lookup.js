@@ -1,7 +1,7 @@
-// Suggests issues or labels for [data-keel-lookup] fields. A non-empty value
-// has to be picked from the list before it can be submitted. An empty box is
-// a clear. Fields marked data-keel-lookup-submit save on pick or clear, and
-// their change events do not also trip the autosubmit listener.
+// Suggests issues, labels, or people for [data-keel-lookup] fields. A non-empty
+// value has to be picked from the list before it can be submitted. An empty
+// box is a clear. Fields marked data-keel-lookup-submit save on pick or clear,
+// and their change events do not also trip the autosubmit listener.
 (() => {
   const boxes = document.querySelectorAll("[data-keel-lookup]");
   if (!boxes.length) {
@@ -61,10 +61,15 @@
       hidden.value = String(id);
     };
 
-    const message = () =>
-      kind === "labels"
-        ? "Pick a label from the list."
-        : "Pick an issue from the list.";
+    const message = () => {
+      if (kind === "labels") {
+        return "Pick a label from the list.";
+      }
+      if (kind === "users") {
+        return "Pick a person from the list.";
+      }
+      return "Pick an issue from the list.";
+    };
 
     const blocked = () => {
       if (!input.value.trim()) {
@@ -163,7 +168,12 @@
       if (exclude) {
         params.set("exclude", exclude);
       }
-      const path = kind === "labels" ? "/web/lookup/labels" : "/web/lookup/issues";
+      const path =
+        kind === "labels"
+          ? "/web/lookup/labels"
+          : kind === "users"
+            ? "/web/lookup/users"
+            : "/web/lookup/issues";
       try {
         const response = await fetch(`${path}?${params.toString()}`, {
           signal: controller.signal,
@@ -176,6 +186,8 @@
         const payload = await response.json();
         if (kind === "labels") {
           render(payload.map((name) => ({ label: name, id: null })));
+        } else if (kind === "users") {
+          render(payload.map((row) => ({ label: row.label, id: row.id })));
         } else {
           render(
             payload.map((row) => ({
@@ -210,7 +222,7 @@
     });
 
     input.addEventListener("focus", () => {
-      if (kind === "labels" || input.value.trim()) {
+      if (kind === "labels" || kind === "users" || input.value.trim()) {
         schedule();
       }
     });

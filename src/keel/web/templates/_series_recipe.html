@@ -50,12 +50,9 @@
             {% if include_people|default(false) %}
             <p>
               <label for="{{ prefix }}-assignee">Assignee</label>
-              <select id="{{ prefix }}-assignee" name="assignee_id">
-                <option value=""{% if not recipe or not recipe.assignee_id %} selected{% endif %}>Unassigned</option>
-                {% for person in users %}
-                <option value="{{ person.id }}"{% if recipe and recipe.assignee_id == person.id %} selected{% endif %}>{{ person.display_name }}</option>
-                {% endfor %}
-              </select>
+              {% with field_id=prefix ~ "-assignee", query_name="assignee_query", value=assignee_label|default(''), kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=false, placeholder="Unassigned" %}
+              {% include "_lookup.html" %}
+              {% endwith %}
             </p>
             <p>
               <label for="{{ prefix }}-parent">Parent</label>

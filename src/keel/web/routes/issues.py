@@ -63,6 +63,10 @@ def issue_page(
                 issue.parent_id,
                 project,
             ),
+            assignee_label=lookup_service.user_field_value(
+                session,
+                issue.assignee_id,
+            ),
             reporter=_named(session, issue.reporter_id, empty="None"),
             statuses=statuses_in_workflow_order(),
             priorities=priorities_in_rank_order(),

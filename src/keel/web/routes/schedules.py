@@ -55,6 +55,7 @@ def schedules_page(
             weekdays=list(enumerate(WEEKDAY_NAMES)),
             months=list(enumerate(MONTH_NAMES, start=1)),
             parent_label="",
+            assignee_label="",
             users=user_service.list_users(session),
             error=error,
             notice=notice,
@@ -100,6 +101,10 @@ def schedule_detail_page(
                 session,
                 series.parent_id,
                 project,
+            ),
+            assignee_label=lookup_service.user_field_value(
+                session,
+                series.assignee_id,
             ),
             users=user_service.list_users(session),
             error=error,
