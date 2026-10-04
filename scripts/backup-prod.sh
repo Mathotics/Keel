@@ -6,7 +6,7 @@ set -euo pipefail
 PROD_ROOT="${KEEL_PROD_ROOT:-/mnt/library/Keel}"
 DATA_DIR="${KEEL_DATA_DIR:-/mnt/library/keel-data}"
 ENV_FILE="${KEEL_ENV_FILE:-${DATA_DIR}/keel.env}"
-BACKUP_MOUNT="${KEEL_BACKUP_MOUNT:-/mnt/library-backup}"
+BACKUP_MOUNT="${KEEL_BACKUP_MOUNT:-/mnt/library_backup}"
 BACKUP_DIR="${KEEL_BACKUP_DIR:-${BACKUP_MOUNT}/keel-data}"
 
 log() {

@@ -120,7 +120,7 @@ One-time setup on the Pi (Python 3.12, venv, data directory, linger, enable the 
 
 Later updates are [`scripts/deploy-prod.sh`](scripts/deploy-prod.sh), invoked by the Deploy workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) after CI on `main` succeeds. Do not put VPN hostnames or addresses in this repository.
 
-A Backup workflow on the same Pi runner copies the live database onto `/mnt/library-backup` ([Scheduled database backups](docs/adr/scheduled-database-backups.md)). Daily `keel.db` runs at 08:00 UTC, weekly `keel-weekly.db` on Sunday at 08:05 UTC, and monthly `keel-monthly.db` on the 1st at 08:10 UTC. Each file is replaced on the next run of that cadence. The schedule starts once the workflow is on `main`. Restore one of those files with `keel db restore --yes` and its path.
+A Backup workflow on the same Pi runner copies the live database onto `/mnt/library_backup` ([Scheduled database backups](docs/adr/scheduled-database-backups.md)). Daily `keel.db` runs at 08:00 UTC, weekly `keel-weekly.db` on Sunday at 08:05 UTC, and monthly `keel-monthly.db` on the 1st at 08:10 UTC. Each file is replaced on the next run of that cadence. The schedule starts once the workflow is on `main`. Restore one of those files with `keel db restore --yes` and its path.
 
 ## Lint and test
 
