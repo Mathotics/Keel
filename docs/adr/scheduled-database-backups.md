@@ -9,7 +9,7 @@ Production Keel is one SQLite file at `/mnt/library/keel-data/keel.db` on the Ra
 
 ## Problem Statement
 
-The live database sits on the same machine as the app. A bad disk, a bad restore, or a quiet stretch with no deploys leaves no recent copy on the backup mount. The owner wants a daily copy, plus a weekly copy and a monthly copy, at fixed paths on `/mnt/library-backup`.
+The live database sits on the same machine as the app. A bad disk, a bad restore, or a quiet stretch with no deploys leaves no recent copy on the backup mount. The owner wants a daily copy, plus a weekly copy and a monthly copy, at fixed paths on `/mnt/library_backup`.
 
 ## Objective(s)
 
@@ -24,7 +24,7 @@ The live database sits on the same machine as the app. A bad disk, a bad restore
 
 - A Backup workflow on the existing self-hosted runner, on a UTC schedule, plus a manual run.
 - `scripts/backup-prod.sh` calling `keel db backup --yes` for one cadence.
-- Fixed destinations: daily `/mnt/library-backup/keel-data/keel.db`, weekly `keel-weekly.db`, monthly `keel-monthly.db`.
+- Fixed destinations: daily `/mnt/library_backup/keel-data/keel.db`, weekly `keel-weekly.db`, monthly `keel-monthly.db`.
 - Refusal when that backup mount is not mounted.
 - README operations notes. No VPN hostname or IP.
 
@@ -34,7 +34,7 @@ The live database sits on the same machine as the app. A bad disk, a bad restore
 - Timestamped names for these three files. Each cadence overwrites its own file.
 - A web UI or a change to `keel db backup` itself.
 - Restarting Keel, migrating, or deploying.
-- Creating the `/mnt/library-backup` mount. It is already attached on the Pi.
+- Creating the `/mnt/library_backup` mount. It is already attached on the Pi.
 
 ### Deliverables
 
@@ -45,11 +45,11 @@ The live database sits on the same machine as the app. A bad disk, a bad restore
 
 * **Must** run on `runs-on: [self-hosted, Linux, ARM64]`, the same runner as Deploy.
 * **Must** load `/mnt/library/keel-data/keel.env` and run `/mnt/library/Keel/.venv` so the copy is the live `KEEL_DATABASE_URL`.
-* **Must** write the daily backup every day at 08:00 UTC to `/mnt/library-backup/keel-data/keel.db`.
-* **Must** write the weekly backup on Sunday at 08:05 UTC to `/mnt/library-backup/keel-data/keel-weekly.db`.
-* **Must** write the monthly backup on the 1st at 08:10 UTC to `/mnt/library-backup/keel-data/keel-monthly.db`.
+* **Must** write the daily backup every day at 08:00 UTC to `/mnt/library_backup/keel-data/keel.db`.
+* **Must** write the weekly backup on Sunday at 08:05 UTC to `/mnt/library_backup/keel-data/keel-weekly.db`.
+* **Must** write the monthly backup on the 1st at 08:10 UTC to `/mnt/library_backup/keel-data/keel-monthly.db`.
 * **Must** pass `--yes` so the named file is replaced.
-* **Must** refuse to run when `/mnt/library-backup` is not mounted, and **Must Not** create that mount point.
+* **Must** refuse to run when `/mnt/library_backup` is not mounted, and **Must Not** create that mount point.
 * **Must** share Deploy's `keel-production` concurrency group and **Must Not** cancel an in-flight deploy or backup.
 * **Must** leave the systemd service running. A backup does not restart Keel.
 * **May** be started by hand from Actions, choosing daily, weekly, or monthly.
@@ -67,7 +67,7 @@ The live database sits on the same machine as the app. A bad disk, a bad restore
 
 ### Technical Stack and Architecture
 
-This is a second workflow beside Deploy, not a change to the app. The Actions checkout supplies `scripts/backup-prod.sh`. The script sources the production env file and invokes the production venv's `keel db backup`, which uses SQLite's backup API while serve is up. The three outputs are files on `/mnt/library-backup`. Restore stays `keel db restore --yes` with one of those paths.
+This is a second workflow beside Deploy, not a change to the app. The Actions checkout supplies `scripts/backup-prod.sh`. The script sources the production env file and invokes the production venv's `keel db backup`, which uses SQLite's backup API while serve is up. The three outputs are files on `/mnt/library_backup`. Restore stays `keel db restore --yes` with one of those paths.
 
 ### UML Diagrams
 
@@ -77,7 +77,7 @@ flowchart TD
   job[Backup job on the Pi runner]
   script[backup-prod.sh]
   live["/mnt/library/keel-data/keel.db"]
-  mount["/mnt/library-backup/keel-data"]
+  mount["/mnt/library_backup/keel-data"]
   clock --> job --> script
   live --> script
   script --> mount
