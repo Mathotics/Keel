@@ -75,12 +75,9 @@
               </p>
               <p>
                 <label for="issue-assignee">Assignee</label>
-                <select id="issue-assignee" name="assignee_id">
-                  <option value="" selected>Unassigned</option>
-                  {% for person in users %}
-                  <option value="{{ person.id }}">{{ person.display_name }}</option>
-                  {% endfor %}
-                </select>
+                {% with field_id="issue-assignee", query_name="assignee_query", value="", kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=false, placeholder="Unassigned" %}
+                {% include "_lookup.html" %}
+                {% endwith %}
               </p>
               <p>
                 <label for="issue-parent">Parent</label>

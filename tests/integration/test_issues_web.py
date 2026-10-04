@@ -47,7 +47,8 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert "P1 — Blocker" in page.text
     assert "P4 — Minor" in page.text
     assert 'value="p4" selected' in page.text
-    assert 'name="assignee_id"' in page.text
+    assert 'name="assignee_query"' in page.text
+    assert 'data-keel-lookup="users"' in page.text
     assert 'name="parent_query"' in page.text
     assert 'data-keel-lookup="issues"' in page.text
     assert 'name="sprint_id"' in page.text
@@ -425,7 +426,8 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert "Reporter" in page.text
     assert 'name="status"' in page.text
     assert 'value="todo" selected' in page.text or 'value="todo"selected' in page.text
-    assert 'name="assignee_id"' in page.text
+    assert 'name="assignee_query"' in page.text
+    assert 'data-keel-lookup="users"' in page.text
     assert 'name="sprint_id"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
@@ -439,20 +441,30 @@ def test_assignee_can_be_changed_from_the_issue_page(
 ) -> None:
     submit_issue(client, project, title="Ready")
     issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
-    person = client.get("/api/v1/users").json()[0]["id"]
+    person = client.get("/api/v1/users").json()[0]
 
     response = client.post(
         f"/web/issues/{issue_id}/assignee",
-        data={"assignee_id": str(person)},
+        data={"assignee_id": str(person["id"])},
         follow_redirects=False,
     )
 
     assert response.headers["location"] == "/issues/KEEL-1"
     page = client.get("/issues/KEEL-1")
-    assert f'value="{person}" selected' in page.text or (
-        f'value="{person}"selected' in page.text
+    assert f'value="{person["display_name"]}"' in page.text
+    assert 'data-keel-lookup="users"' in page.text
+    assert 'name="assignee_id"' not in page.text
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["assignee_id"] == person["id"]
+
+    by_name = client.post(
+        f"/web/issues/{issue_id}/assignee",
+        data={"assignee_query": person["display_name"]},
+        follow_redirects=False,
     )
-    assert client.get(f"/api/v1/issues/{issue_id}").json()["assignee_id"] == person
+    assert by_name.headers["location"] == "/issues/KEEL-1"
+    named = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert named["assignee_id"] == person["id"]
 
     cleared = client.post(
         f"/web/issues/{issue_id}/assignee",

@@ -90,13 +90,9 @@
         {% endif %}
         <label>
           Assignee
-          <select name="assignee">
-            <option value=""{% if not selected_assignee %} selected{% endif %}>Anyone</option>
-            <option value="unassigned"{% if selected_assignee == "unassigned" %} selected{% endif %}>Unassigned</option>
-            {% for person in users %}
-            <option value="{{ person.id }}"{% if selected_assignee == person.id|string %} selected{% endif %}>{{ person.display_name }}</option>
-            {% endfor %}
-          </select>
+          {% with field_id="board-assignee", query_name="assignee", value=selected_assignee, kind="users", project_key="", exclude_id="", id_name="", submit=true, placeholder="Anyone" %}
+          {% include "_lookup.html" %}
+          {% endwith %}
         </label>
         <label>
           Sprint
