@@ -19,6 +19,7 @@ class KeelSettings(BaseSettings):
     log_level: str = "info"
     database_url: str | None = None
     default_user: str | None = None
+    seed_sign_in: bool = True
 
     def resolved_database_url(self) -> str:
         """The configured URL, or a SQLite file in the user data directory."""

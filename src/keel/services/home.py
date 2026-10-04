@@ -161,7 +161,7 @@ def personal_inbox(
             [
                 replace(item, completed_at=times[item.issue.id])
                 for item, _sprint in packed
-                if item.issue.id in times and _calendar_day(times[item.issue.id]) == day
+                if item.issue.id in times and _local_day(times[item.issue.id]) == day
             ],
         ),
     )
@@ -171,6 +171,17 @@ def _calendar_day(value: datetime) -> date:
     if value.tzinfo is not None:
         return value.astimezone(UTC).date()
     return value.date()
+
+
+def _local_day(value: datetime) -> date:
+    """Local calendar date of a UTC timestamp.
+
+    History rows are stored as UTC. Naive values are UTC wall time, which is
+    how SQLite returns them. Due and start dates stay on ``_calendar_day``.
+    """
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone().date()
 
 
 def _week_end(day: date) -> date:

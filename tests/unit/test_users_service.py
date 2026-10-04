@@ -3,10 +3,12 @@ from sqlalchemy.orm import Session
 
 from keel.domain.errors import (
     DuplicateUserNameError,
+    InvalidPasswordError,
     InvalidUserNameError,
     NotFoundError,
 )
 from keel.services import users as user_service
+from keel.services.passwords import validate_password, verify_password
 
 
 def test_create_and_list_users(session: Session) -> None:
@@ -89,7 +91,19 @@ def test_first_user_is_the_earliest(session: Session) -> None:
 def test_ensure_default_user_seeds_once(session: Session) -> None:
     seeded = user_service.ensure_default_user(session, "Owner")
     assert seeded.display_name == "Owner"
+    assert seeded.password_hash is None
     assert user_service.ensure_default_user(session, "Someone Else") is seeded
+
+
+def test_an_empty_database_can_sign_in_as_keel(session: Session) -> None:
+    seeded = user_service.ensure_default_user(session, None)
+    assert seeded.username == "keel"
+    assert seeded.display_name == "keel"
+    assert seeded.password_hash is not None
+    assert verify_password(seeded.password_hash, "keel")
+    with pytest.raises(InvalidPasswordError):
+        validate_password("keel", "keel")
+    assert user_service.ensure_default_user(session, None) is seeded
 
 
 def test_ensure_default_user_falls_back_to_the_os_username(
@@ -97,7 +111,9 @@ def test_ensure_default_user_falls_back_to_the_os_username(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("keel.services.users.getpass.getuser", lambda: "hostuser")
-    assert user_service.ensure_default_user(session, None).display_name == "hostuser"
+    seeded = user_service.ensure_default_user(session, None, seed_sign_in=False)
+    assert seeded.display_name == "hostuser"
+    assert seeded.password_hash is None
 
 
 def test_ensure_default_user_ignores_a_blank_setting(
@@ -105,4 +121,6 @@ def test_ensure_default_user_ignores_a_blank_setting(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("keel.services.users.getpass.getuser", lambda: "hostuser")
-    assert user_service.ensure_default_user(session, "  ").display_name == "hostuser"
+    seeded = user_service.ensure_default_user(session, "  ", seed_sign_in=False)
+    assert seeded.display_name == "hostuser"
+    assert seeded.password_hash is None

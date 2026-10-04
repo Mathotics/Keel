@@ -55,7 +55,11 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_application: FastAPI) -> AsyncIterator[None]:
         with session_factory() as session:
-            ensure_default_user(session, default_user)
+            ensure_default_user(
+                session,
+                default_user,
+                seed_sign_in=settings.seed_sign_in,
+            )
             auto_sprint.advance_all(session)
             session.commit()
 

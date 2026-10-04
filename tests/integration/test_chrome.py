@@ -120,6 +120,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
     assert "keel-find__fallback" in header
     assert "keel-help" not in nav
     assert "FastAPI Docs" not in nav
+    assert ">License<" not in nav
     assert "Help" not in nav
 
 
@@ -139,6 +140,13 @@ def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> N
     assert 'target="_blank"' in help_block
     assert 'rel="noopener"' in help_block
     assert help_block.index('href="/docs"') < help_block.index('href="/redoc"')
+    assert help_block.index('href="/redoc"') < help_block.index('href="/license"')
+    assert ">License<" in help_block
+    license_at = help_block.index('href="/license"')
+    license_tag = help_block[
+        help_block.rfind("<a", 0, license_at) : help_block.index(">", license_at)
+    ]
+    assert "target=" not in license_tag
     assert right.index("keel-help") < right.index("keel-account")
 
     css = client.get("/assets/brand.css").text

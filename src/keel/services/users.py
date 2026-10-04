@@ -18,6 +18,8 @@ from keel.domain.errors import (
 )
 from keel.services.passwords import hash_password, validate_password
 
+SEEDED_USERNAME = "keel"
+SEEDED_PASSWORD = "keel"
 MAX_NAME_LENGTH = 100
 
 
@@ -163,13 +165,38 @@ def _reject_while_referenced(session: Session, user: User) -> None:
     )
 
 
-def ensure_default_user(session: Session, preferred: str | None) -> User:
-    """Guarantee a person exists on a fresh database. They still need a password."""
+def ensure_default_user(
+    session: Session,
+    preferred: str | None,
+    *,
+    seed_sign_in: bool = True,
+) -> User:
+    """Guarantee a person exists on a fresh database.
+
+    A database that already has someone is left alone, so production is not
+    given the built-in account. On an empty database, a configured name is
+    created without a password. Otherwise the built-in ``keel`` account is
+    created with its password, unless ``seed_sign_in`` is false, in which case
+    the operating-system username is used and still has no password.
+    """
     existing = first_user(session)
     if existing is not None:
         return existing
-    name = (preferred or "").strip() or _os_username()
-    return create_user(session, name)
+    name = (preferred or "").strip()
+    if name:
+        return create_user(session, name)
+    if seed_sign_in:
+        return _seed_sign_in_user(session)
+    return create_user(session, _os_username())
+
+
+def _seed_sign_in_user(session: Session) -> User:
+    """The first-run account. Its password is the one exception to the rules."""
+    user = create_user(session, SEEDED_USERNAME)
+    user.password_hash = hash_password(SEEDED_PASSWORD)
+    user.updated_at = utc_now()
+    session.flush()
+    return user
 
 
 def _os_username() -> str:

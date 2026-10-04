@@ -65,7 +65,7 @@ else
 fi
 
 echo "Configuring Poe..."
-"${VENV_POE}" _list
+"${VENV_POE}" _list_tasks
 
 echo "Configuring pre-commit (git hooks and environments)..."
 "${VENV_POE}" hooks
@@ -79,14 +79,21 @@ if [[ ! -f .env ]] && [[ -f .env.example ]]; then
   echo "Created .env from .env.example"
 fi
 
-cat <<'EOF'
-
-Onboarding complete.
-
-Activate the virtual environment:
-  Windows PowerShell:  .\.venv\Scripts\Activate.ps1
-  Windows cmd:         .venv\Scripts\activate.bat
-  Unix / Git Bash:     source .venv/bin/activate
-
-Then run: poe serve
-EOF
+echo
+echo "Onboarding complete."
+echo
+echo "Activate the virtual environment:"
+if [[ -f .venv/Scripts/Activate.ps1 ]]; then
+  echo "  Windows PowerShell:  .\\.venv\\Scripts\\Activate.ps1"
+fi
+if [[ -f .venv/Scripts/activate.bat ]]; then
+  echo "  Windows cmd:         .venv\\Scripts\\activate.bat"
+fi
+if [[ -f .venv/Scripts/activate ]]; then
+  echo "  Git Bash:            source .venv/Scripts/activate"
+fi
+if [[ -f .venv/bin/activate ]]; then
+  echo "  Unix:                source .venv/bin/activate"
+fi
+echo
+echo "Then run: poe serve"
