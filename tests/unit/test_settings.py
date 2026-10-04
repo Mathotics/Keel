@@ -22,6 +22,7 @@ def test_default_settings() -> None:
     assert settings.log_level == "info"
     assert settings.database_url is None
     assert settings.default_user is None
+    assert settings.seed_sign_in is True
 
 
 @pytest.mark.usefixtures("unconfigured")
