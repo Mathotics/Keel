@@ -67,6 +67,7 @@ def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
     assert "keel-account" in header
     assert "FastAPI Docs" in header
     assert "ReDoc" in header
+    assert ">License<" in header
     assert 'href="/projects"' in header
     assert 'href="/create"' in header
     assert 'href="/users"' in header
