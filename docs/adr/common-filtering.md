@@ -45,7 +45,7 @@ The board and the calendar answer "which issues?" with different controls, and t
 * **Must** treat a blank filter as no restriction. The view still updates. On first open, status, priority, sprint, label, assignee, created by, and project are blank.
 * **Must** start the type filter with Epic, Story, and Subtask all checked, on the board and the calendar. Unchecking a type removes those issues. Checking it again brings them back. Unchecking all three shows none of them.
 * **Must** keep an issue when it matches every filter that has a choice. Inside one filter, any chosen value is enough. Two labels show issues that have either label. A label and an assignee together show issues that have that label and are one of the chosen people.
-* **Must** update the view as soon as a choice is made, a chip is added, or a chip is removed. When JavaScript has not run, an Apply control remains.
+* **Must** leave the view as it is while a box is checked or unchecked, a chip is added, or a chip is removed. **Must** update the view when the open list closes or the pointer leaves that list. When JavaScript has not run, an Apply control submits the form, and a chip's remove link still drops that one chip. With JavaScript, Apply is hidden.
 * **Must** keep all six board columns. A status that was not chosen stays as an empty column.
 * **Must** list Epic, Story, and Subtask in the type dropdown; the six workflow statuses in the status dropdown; and P1 through P5 in the priority dropdown.
 * **Must** list Unscheduled, active sprints, and planned sprints in the sprint dropdown. A project board lists that project's sprints. The master board lists those sprints with the project key.
@@ -54,6 +54,8 @@ The board and the calendar answer "which issues?" with different controls, and t
 * **Must** leave month, week, day, Previous, Next, Today, and the date dropdowns on the calendar. Filters only narrow which issues appear on those dates.
 * **May** summarize a closed dropdown with the chosen names, and show the field name when nothing is chosen.
 * **Must Not** require every filter to be filled before the view updates.
+* **Must Not** reload the board or the calendar on each checkbox change.
+* **Must** place Project immediately after Sprint, and Label last. Assignee and Created by sit between Project and Label. A project page still omits Project. Reset all follows Label. It clears every filter and leaves the calendar date and Separate by sprint as they are.
 * **Must Not** hide a board column because its status was not chosen.
 * **Must Not** offer a completed sprint in the sprint dropdown.
 * **Must Not** change Separate by sprint into a filter.
@@ -78,11 +80,12 @@ flowchart TD
   blank[Type starts with all three checked; other filters start blank]
   usual[The view shows its usual issues]
   choose[Person checks values or adds chips]
-  update[The view updates immediately]
+  leave[Person clicks outside the open list]
+  update[The view updates]
   keep[An issue stays when it matches every filter that has a choice]
   anyValue[Inside one filter, any chosen value is enough]
   columns[The board still shows all six status columns]
-  openView --> blank --> usual --> choose --> update --> keep --> anyValue --> columns
+  openView --> blank --> usual --> choose --> leave --> update --> keep --> anyValue --> columns
 ```
 
 ## Supporting Documentation

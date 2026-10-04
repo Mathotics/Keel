@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
 from fastapi import Query, Request
 from sqlalchemy.orm import Session
@@ -128,6 +129,22 @@ def sprint_menu(
     return board_service.board_sprint_choices(found)
 
 
+def reset_href(
+    action: str,
+    preserve: Sequence[tuple[str, str]],
+    *,
+    show_layout: bool,
+    separate: bool,
+) -> str:
+    """Address with every filter cleared. Date and board layout stay."""
+    pairs = list(preserve)
+    if show_layout and not separate:
+        pairs.append(("by", "status"))
+    if not pairs:
+        return action
+    return f"{action}?{urlencode(pairs)}"
+
+
 def filter_context(
     bar: ViewFilter,
     *,
@@ -153,6 +170,12 @@ def filter_context(
         "project_keys": project_keys,
         "prefix_sprints": prefix,
         "separate_by_sprint": separate,
+        "reset_href": reset_href(
+            action,
+            preserve,
+            show_layout=show_layout,
+            separate=separate,
+        ),
         "preserve": preserve,
         "error": error or bar.error,
     }
