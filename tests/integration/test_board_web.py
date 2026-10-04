@@ -269,7 +269,7 @@ def test_the_assignee_filter_changes_what_the_board_queries(
     assert "Assigned to Ada" not in open_only.text
     assert 'value="Unassigned"' in open_only.text
     board = client.get("/projects/KEEL/board")
-    assert 'name="assignee"' in board.text
+    assert 'name="assignee_add"' in board.text
     assert 'data-keel-lookup="users"' in board.text
     assert '<select name="assignee">' not in board.text
 
@@ -297,19 +297,20 @@ def test_the_sprint_filter_changes_what_the_board_queries(
     assert scheduled.status_code == 200
     assert "In sprint" in scheduled.text
     assert "Waiting" not in scheduled.text
-    assert f'value="{sprint["id"]}" selected' in scheduled.text or (
-        f'value="{sprint["id"]}"selected' in scheduled.text
+    assert f'value="{sprint["id"]}" checked' in scheduled.text or (
+        f'value="{sprint["id"]}"checked' in scheduled.text
     )
 
     assert "Waiting" in waiting.text
     assert "In sprint" not in waiting.text
-    assert 'value="unscheduled" selected' in waiting.text or (
-        'value="unscheduled"selected' in waiting.text
+    assert 'value="unscheduled" checked' in waiting.text or (
+        'value="unscheduled"checked' in waiting.text
     )
     page = client.get("/projects/KEEL/board")
     assert 'name="sprint"' in page.text
-    assert "Any sprint" in page.text
+    assert "Unscheduled" in page.text
     assert "Sprint 1" in page.text
+    assert "Any sprint" not in page.text
 
 
 def test_separating_by_sprint_puts_cards_in_lanes(
@@ -496,7 +497,7 @@ def test_the_label_filter_changes_what_the_board_queries(
     assert "Bare" in bare.text
     assert "Tagged" not in bare.text
     page = client.get("/projects/KEEL/board")
-    assert 'placeholder="Any label"' in page.text
+    assert 'placeholder="Add a label"' in page.text
     assert 'data-keel-lookup="labels"' in page.text
 
 
@@ -551,9 +552,10 @@ def test_the_master_board_mixes_projects_and_hides_completed_sprint_closed_work(
     assert "Finished past" not in project_board.text
     assert "Past (Completed)" not in project_board.text
     assert "Past" in client.get("/projects/KEEL/sprints").text
-    assert "Any project" in page.text
-    assert 'name="project"' in page.text
+    assert 'placeholder="Add a project"' in page.text
+    assert 'name="project_add"' in page.text
     assert 'data-keel-lookup="projects"' in page.text
+    assert 'data-keel-lookup="projects"' not in project_board.text
     by_name = client.get("/board", params={"project": "House"})
     assert "House work" in by_name.text
     assert "Keel work" not in by_name.text

@@ -34,8 +34,16 @@ def lookup_labels(session: SessionDep, q: str = "") -> JSONResponse:
 
 
 @router.get("/lookup/users")
-def lookup_users(session: SessionDep, q: str = "") -> JSONResponse:
-    hits = lookup_service.suggest_users(session, q)
+def lookup_users(
+    session: SessionDep,
+    q: str = "",
+    empty: str = "",
+) -> JSONResponse:
+    hits = lookup_service.suggest_users(
+        session,
+        q,
+        empty="none" if empty == "none" else "unassigned",
+    )
     return JSONResponse([{"id": hit.id, "label": hit.label} for hit in hits])
 
 

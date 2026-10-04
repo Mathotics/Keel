@@ -69,51 +69,7 @@
         {% endif %}
       {% endif %}
 
-      <form class="keel-form keel-board__filter" method="get" action="{% if project %}/projects/{{ project.key }}/board{% else %}/board{% endif %}" data-keel-autosubmit>
-        <span>Show</span>
-        {% for issue_type in issue_types %}
-        <label class="keel-type" data-type="{{ issue_type.value }}">
-          <input type="checkbox" name="type" value="{{ issue_type.value }}"{% if not selected_types or issue_type in selected_types %} checked{% endif %}/>
-          {{ issue_type | label }}
-        </label>
-        {% endfor %}
-        {% if filter_projects is defined %}
-        <label>
-          Project
-          {% with field_id="board-project", query_name="project", value=selected_project, kind="projects", project_key="", exclude_id="", id_name="", submit=true, placeholder="Any project" %}
-          {% include "_lookup.html" %}
-          {% endwith %}
-        </label>
-        {% endif %}
-        <label>
-          Assignee
-          {% with field_id="board-assignee", query_name="assignee", value=selected_assignee, kind="users", project_key="", exclude_id="", id_name="", submit=true, placeholder="Anyone" %}
-          {% include "_lookup.html" %}
-          {% endwith %}
-        </label>
-        <label>
-          Sprint
-          <select name="sprint">
-            <option value=""{% if not selected_sprint %} selected{% endif %}>Any sprint</option>
-            <option value="unscheduled"{% if selected_sprint == "unscheduled" %} selected{% endif %}>Unscheduled</option>
-            {% for sprint in sprints %}
-            <option value="{{ sprint.id }}"{% if selected_sprint == sprint.id|string %} selected{% endif %}>{% if prefix_sprints %}{{ project_keys[sprint.project_id] }} / {% endif %}{{ sprint.name }} ({{ sprint.state | label }})</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Label
-          {% with field_id="board-label", query_name="label", value=selected_label, kind="labels", project_key="", exclude_id="", id_name="", submit=true, placeholder="Any label" %}
-          {% include "_lookup.html" %}
-          {% endwith %}
-        </label>
-        <input type="hidden" name="by" value="status"/>
-        <label>
-          <input type="checkbox" name="by" value="sprint"{% if separate_by_sprint %} checked{% endif %}/>
-          Separate by sprint
-        </label>
-        <button class="keel-autosubmit__fallback" type="submit">Apply</button>
-      </form>
+      {% include "_filters.html" %}
 
       <div data-keel-board-root>
         <p class="keel-error" data-keel-board-error hidden></p>

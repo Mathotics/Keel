@@ -1,194 +1,62 @@
-from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import replace
+from typing import Annotated
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
-from keel.domain.enums import IssueType, types_in_hierarchy_order
 from keel.services import boards as board_service
-from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
-from keel.services import sprints as sprint_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.filters import (
+    FilterRequest,
+    filter_context,
+    filter_request,
+    layout_pairs,
+    read_bar,
+    sprint_menu,
+)
 
 router = APIRouter()
 project_router = APIRouter(prefix="/projects")
 
 
-@dataclass(frozen=True)
-class _BoardQuery:
-    types: list[IssueType]
-    assignee_id: int | None
-    unassigned: bool
-    sprint_id: int | None
-    unscheduled: bool
-    label_name: str | None
-    unlabeled: bool
-    grouping: str | None
-    selected_types: set[IssueType]
-    selected_label: str
-    selected_assignee: str
-    selected_sprint: str
-
-
-def _board_query(
-    types: list[IssueType],
-    assignee_id: int | None,
-    unassigned: bool,
-    selected_assignee: str,
-    sprint: str | None,
-    label: str | None,
-    by: str | Sequence[str] | None,
-) -> _BoardQuery:
-    sprint_id, unscheduled = board_service.parse_sprint_filter(sprint)
-    label_name, unlabeled = board_service.parse_label_filter(label)
-    return _BoardQuery(
-        types=types,
-        assignee_id=assignee_id,
-        unassigned=unassigned,
-        sprint_id=sprint_id,
-        unscheduled=unscheduled,
-        label_name=label_name,
-        unlabeled=unlabeled,
-        grouping=board_service.parse_board_grouping(by),
-        selected_types=set(types),
-        selected_label="unlabeled" if unlabeled else (label_name or ""),
-        selected_assignee=selected_assignee,
-        selected_sprint=sprint.strip() if sprint else "",
-    )
-
-
-def _labeled_query(
+def _render(
+    request: Request,
+    chrome: ChromeDep,
     session: Session,
-    types: list[IssueType],
-    assignee: str | None,
-    sprint: str | None,
-    label: str | None,
-    by: str | Sequence[str] | None,
+    raw: FilterRequest,
+    *,
+    action: str,
+    project_id: int | None,
+    show_project: bool,
+    prefix: bool,
+    by: list[str],
     error: str | None,
-) -> tuple[_BoardQuery, str, str | None]:
-    assignee_id, unassigned, shown_assignee, assignee_error = (
-        lookup_service.interpret_board_assignee(session, assignee)
-    )
-    label_error = lookup_service.interpret_board_label(session, label)[2]
-    filters = _board_query(
-        types,
-        None if assignee_error else assignee_id,
-        False if assignee_error else unassigned,
-        shown_assignee,
-        sprint,
-        None if label_error else label,
-        by,
-    )
-    shown = (label or "").strip() if label_error else filters.selected_label
-    return filters, shown, error or assignee_error or label_error
-
-
-@router.get("/board", response_class=HTMLResponse)
-def master_board_page(
-    request: Request,
-    chrome: ChromeDep,
-    session: SessionDep,
-    types: list[IssueType] = Query(default=[], alias="type"),
-    project: str | None = Query(default=None),
-    assignee: str | None = Query(default=None),
-    sprint: str | None = Query(default=None),
-    label: str | None = Query(default=None),
-    by: list[str] = Query(default=[]),
-    error: str | None = None,
+    project: object,
+    has_projects: bool,
 ) -> HTMLResponse:
-    filters, shown_label, error = _labeled_query(
+    grouping = board_service.parse_board_grouping(by)
+    bar = read_bar(
         session,
-        types,
-        assignee,
-        sprint,
-        label,
-        by,
-        error,
+        raw,
+        base=action,
+        include_projects=show_project,
+        extra=layout_pairs(grouping),
     )
-    projects = list(project_service.list_projects(session))
-    chosen, shown_project, project_error = lookup_service.interpret_project(
-        session,
-        project,
-    )
-    project_id = None if chosen is None else chosen.id
-    error = error or project_error
-    board = board_service.master_board(
-        session,
-        filters.types,
-        project_id=project_id,
-        assignee_id=filters.assignee_id,
-        unassigned=filters.unassigned,
-        sprint_id=filters.sprint_id,
-        unscheduled=filters.unscheduled,
-        label=filters.label_name,
-        unlabeled=filters.unlabeled,
-    )
-    if project_id is not None:
-        sprints = sprint_service.list_sprints(session, project_id)
+    criteria = replace(bar.criteria, hide_closed_in_completed_sprints=True)
+    if project_id is None:
+        board = board_service.master_board(session, filters=criteria)
+        projects = list(project_service.list_projects(session))
+        project_keys = {item.id: item.key for item in projects}
+        has_projects = bool(projects)
     else:
-        sprints = sprint_service.list_all_sprints(session)
-    sprints = board_service.board_sprint_choices(sprints)
-    project_keys = {item.id: item.key for item in projects}
-    return get_templates().TemplateResponse(
-        request,
-        "board.html",
-        page_context(
-            request,
-            chrome,
-            board=board,
-            issue_types=types_in_hierarchy_order(),
-            selected_types=filters.selected_types,
-            selected_assignee=filters.selected_assignee,
-            selected_sprint=filters.selected_sprint,
-            selected_label=shown_label,
-            selected_project=shown_project,
-            separate_by_sprint=filters.grouping == "sprint",
-            sprints=sprints,
-            filter_projects=projects,
-            project_keys=project_keys,
-            prefix_sprints=True,
-            has_projects=bool(projects),
-            card_count=board_service.card_count(board),
-            error=error,
-        ),
-    )
-
-
-@project_router.get("/{key}/board", response_class=HTMLResponse)
-def board_page(
-    key: str,
-    request: Request,
-    chrome: ChromeDep,
-    session: SessionDep,
-    types: list[IssueType] = Query(default=[], alias="type"),
-    assignee: str | None = Query(default=None),
-    sprint: str | None = Query(default=None),
-    label: str | None = Query(default=None),
-    by: list[str] = Query(default=[]),
-    error: str | None = None,
-) -> HTMLResponse:
-    project = project_service.get_project_by_key(session, key)
-    filters, shown_label, error = _labeled_query(
+        board = board_service.project_board(session, project_id, filters=criteria)
+        project_keys = {}
+    sprints = sprint_menu(
         session,
-        types,
-        assignee,
-        sprint,
-        label,
-        by,
-        error,
-    )
-    board = board_service.project_board(
-        session,
-        project.id,
-        filters.types,
-        assignee_id=filters.assignee_id,
-        unassigned=filters.unassigned,
-        sprint_id=filters.sprint_id,
-        unscheduled=filters.unscheduled,
-        label=filters.label_name,
-        unlabeled=filters.unlabeled,
+        project_id=project_id,
+        project_ids=criteria.project_ids,
     )
     return get_templates().TemplateResponse(
         request,
@@ -198,16 +66,71 @@ def board_page(
             chrome,
             project=project,
             board=board,
-            issue_types=types_in_hierarchy_order(),
-            selected_types=filters.selected_types,
-            selected_assignee=filters.selected_assignee,
-            selected_sprint=filters.selected_sprint,
-            selected_label=shown_label,
-            separate_by_sprint=filters.grouping == "sprint",
-            sprints=board_service.board_sprint_choices(
-                sprint_service.list_sprints(session, project.id),
+            has_projects=has_projects,
+            card_count=board_service.card_count(board),
+            **filter_context(
+                bar,
+                action=action,
+                show_project=show_project,
+                show_layout=True,
+                sprints=sprints,
+                project_keys=project_keys,
+                prefix=prefix,
+                separate=grouping == "sprint",
+                preserve=(),
+                error=error,
             ),
-            prefix_sprints=False,
-            error=error,
         ),
+    )
+
+
+@router.get("/board", response_class=HTMLResponse)
+def master_board_page(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    raw: Annotated[FilterRequest, Depends(filter_request)],
+    by: list[str] = Query(default=[]),
+    error: str | None = None,
+) -> HTMLResponse:
+    return _render(
+        request,
+        chrome,
+        session,
+        raw,
+        action="/board",
+        project_id=None,
+        show_project=True,
+        prefix=True,
+        by=by,
+        error=error,
+        project=None,
+        has_projects=False,
+    )
+
+
+@project_router.get("/{key}/board", response_class=HTMLResponse)
+def board_page(
+    key: str,
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    raw: Annotated[FilterRequest, Depends(filter_request)],
+    by: list[str] = Query(default=[]),
+    error: str | None = None,
+) -> HTMLResponse:
+    project = project_service.get_project_by_key(session, key)
+    return _render(
+        request,
+        chrome,
+        session,
+        raw,
+        action=f"/projects/{project.key}/board",
+        project_id=project.id,
+        show_project=False,
+        prefix=False,
+        by=by,
+        error=error,
+        project=project,
+        has_projects=True,
     )

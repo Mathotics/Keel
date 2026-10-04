@@ -1394,9 +1394,69 @@ body {
   background: var(--keel-sheet);
 }
 
-.keel-board__filter > span {
+.keel-board__filter > span,
+.keel-filters__name {
   font-size: 0.8125rem;
   font-weight: 650;
+}
+
+.keel-filters {
+  position: relative;
+  z-index: 20;
+  align-items: flex-start;
+}
+
+.keel-filters__lookup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 12rem;
+}
+
+.keel-filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.keel-filters__chips:empty {
+  display: none;
+}
+
+.keel-filters__chips .keel-chip a {
+  margin-left: 0.35rem;
+}
+
+.keel-multi {
+  position: relative;
+}
+
+.keel-multi summary {
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.keel-multi__panel {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: calc(100% + 0.25rem);
+  min-width: 11rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+}
+
+.keel-multi__panel label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.15rem 0;
+  font-size: 0.8125rem;
+  font-weight: 450;
 }
 
 .keel-board__column {

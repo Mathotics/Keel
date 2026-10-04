@@ -33,6 +33,7 @@
     const exclude = box.dataset.keelLookupExclude || "";
     const idName = box.dataset.keelLookupId || "";
     const submitOnPick = box.hasAttribute("data-keel-lookup-submit");
+    const emptyKind = box.dataset.keelLookupEmpty || "";
     const form = input.form;
     let committed = input.value;
     let hidden = null;
@@ -170,6 +171,9 @@
       }
       if (exclude) {
         params.set("exclude", exclude);
+      }
+      if (emptyKind) {
+        params.set("empty", emptyKind);
       }
       const path =
         kind === "labels"
