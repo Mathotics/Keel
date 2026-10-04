@@ -1,3 +1,4 @@
+import pytest
 from sqlalchemy.orm import Session
 
 from keel.db.models import Project
@@ -6,6 +7,7 @@ from keel.domain.errors import InvalidIssueError
 from keel.services import issues as issue_service
 from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
+from keel.services import users as user_service
 
 
 def _project(session: Session, key: str = "KEEL") -> Project:
@@ -196,3 +198,46 @@ def test_a_board_label_must_be_empty_unlabeled_or_a_catalog_name(
     assert message == lookup_service.LABEL_MESSAGE
     _name, _unlabeled, invalid = lookup_service.interpret_board_label(session, "!!!")
     assert invalid
+
+
+def test_user_suggestions_match_name_and_keep_unassigned(session: Session) -> None:
+    ada = user_service.create_user(session, "Ada Lovelace")
+    user_service.create_user(session, "Grace Hopper")
+
+    assert lookup_service.suggest_users(session, "") == [
+        lookup_service.UserSuggestion(id=None, label="Unassigned"),
+    ]
+    matched = lookup_service.suggest_users(session, "love")
+    assert matched == [
+        lookup_service.UserSuggestion(id=ada.id, label="Ada Lovelace"),
+    ]
+    by_username = lookup_service.suggest_users(session, "grace hopper")
+    assert [hit.label for hit in by_username] == ["Grace Hopper"]
+    assert lookup_service.suggest_users(session, "un")[0].label == "Unassigned"
+    assert lookup_service.resolve_posted_user(session, "", "Ada Lovelace") == ada.id
+    assert lookup_service.resolve_posted_user(session, str(ada.id), "") == ada.id
+    assert lookup_service.resolve_posted_user(session, "", "Unassigned") is None
+    assert lookup_service.resolve_posted_user(session, "", "") is None
+    with pytest.raises(InvalidIssueError):
+        lookup_service.resolve_posted_user(session, "", "Nobody")
+
+    assert lookup_service.interpret_board_assignee(session, None) == (
+        None,
+        False,
+        "",
+        None,
+    )
+    assert lookup_service.interpret_board_assignee(session, "unassigned") == (
+        None,
+        True,
+        "Unassigned",
+        None,
+    )
+    assert lookup_service.interpret_board_assignee(session, "ada lovelace") == (
+        ada.id,
+        False,
+        "Ada Lovelace",
+        None,
+    )
+    missing = lookup_service.interpret_board_assignee(session, "Nope")
+    assert missing[3] == lookup_service.USER_MESSAGE

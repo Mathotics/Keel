@@ -31,3 +31,9 @@ def lookup_issues(
 @router.get("/lookup/labels")
 def lookup_labels(session: SessionDep, q: str = "") -> JSONResponse:
     return JSONResponse(lookup_service.suggest_labels(session, q))
+
+
+@router.get("/lookup/users")
+def lookup_users(session: SessionDep, q: str = "") -> JSONResponse:
+    hits = lookup_service.suggest_users(session, q)
+    return JSONResponse([{"id": hit.id, "label": hit.label} for hit in hits])

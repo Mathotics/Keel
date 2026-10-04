@@ -252,21 +252,26 @@ def test_the_assignee_filter_changes_what_the_board_queries(
     )
 
     assigned = client.get("/projects/KEEL/board", params={"assignee": ada["id"]})
+    by_name = client.get(
+        "/projects/KEEL/board",
+        params={"assignee": ada["display_name"]},
+    )
     open_only = client.get("/projects/KEEL/board", params={"assignee": "unassigned"})
 
     assert assigned.status_code == 200
     assert "Assigned to Ada" in assigned.text
     assert "Unassigned work" not in assigned.text
-    assert f'value="{ada["id"]}" selected' in assigned.text or (
-        f'value="{ada["id"]}"selected' in assigned.text
-    )
-
+    assert 'value="Ada"' in assigned.text
+    assert by_name.status_code == 200
+    assert "Assigned to Ada" in by_name.text
+    assert "Unassigned work" not in by_name.text
     assert "Unassigned work" in open_only.text
     assert "Assigned to Ada" not in open_only.text
-    assert 'value="unassigned" selected' in open_only.text or (
-        'value="unassigned"selected' in open_only.text
-    )
-    assert 'name="assignee"' in client.get("/projects/KEEL/board").text
+    assert 'value="Unassigned"' in open_only.text
+    board = client.get("/projects/KEEL/board")
+    assert 'name="assignee"' in board.text
+    assert 'data-keel-lookup="users"' in board.text
+    assert '<select name="assignee">' not in board.text
 
 
 def test_the_sprint_filter_changes_what_the_board_queries(

@@ -85,12 +85,9 @@
           <dd>
             <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit>
               <label class="keel-visually-hidden" for="issue-assignee">Assignee</label>
-              <select id="issue-assignee" name="assignee_id">
-                <option value=""{% if not issue.assignee_id %} selected{% endif %}>Unassigned</option>
-                {% for person in users %}
-                <option value="{{ person.id }}"{% if issue.assignee_id == person.id %} selected{% endif %}>{{ person.display_name }}</option>
-                {% endfor %}
-              </select>
+              {% with field_id="issue-assignee", query_name="assignee_query", value=assignee_label, kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=true, placeholder="Unassigned" %}
+              {% include "_lookup.html" %}
+              {% endwith %}
               <button class="keel-autosubmit__fallback" type="submit">Save</button>
             </form>
           </dd>

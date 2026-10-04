@@ -107,6 +107,10 @@ def _posted_issue(
     )
 
 
+def _posted_user(session: SessionDep, raw_id: str, raw_query: str) -> int | None:
+    return lookup_service.resolve_posted_user(session, raw_id, raw_query)
+
+
 def _remember_nav(
     response: RedirectResponse,
     order: tuple[str, ...],
@@ -336,6 +340,7 @@ def create_issue_from_page(
     parent_id: Annotated[str, Form()] = "",
     parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    assignee_query: Annotated[str, Form()] = "",
     start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
     sprint_id: Annotated[str, Form()] = "",
@@ -367,7 +372,7 @@ def create_issue_from_page(
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
-            assignee_id=_optional_id(assignee_id),
+            assignee_id=_posted_user(session, assignee_id, assignee_query),
             start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
@@ -393,6 +398,7 @@ def create_issue(
     parent_id: Annotated[str, Form()] = "",
     parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    assignee_query: Annotated[str, Form()] = "",
     reporter_id: Annotated[str, Form()] = "",
     start_at: Annotated[str, Form()] = "",
     due_at: Annotated[str, Form()] = "",
@@ -419,7 +425,7 @@ def create_issue(
                 message=lookup_service.PARENT_MESSAGE,
             ),
             reporter_id=_optional_id(reporter_id),
-            assignee_id=_optional_id(assignee_id),
+            assignee_id=_posted_user(session, assignee_id, assignee_query),
             start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
             sprint_id=_optional_id(sprint_id),
@@ -731,6 +737,7 @@ def update_issue_assignee(
     chrome: ChromeDep,
     issue_id: int,
     assignee_id: Annotated[str, Form()] = "",
+    assignee_query: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     issue = issue_service.get_issue(session, issue_id)
     key = project_service.get_project(session, issue.project_id).key
@@ -739,7 +746,7 @@ def update_issue_assignee(
         issue_service.update_issue(
             session,
             issue_id,
-            assignee_id=_optional_id(assignee_id),
+            assignee_id=_posted_user(session, assignee_id, assignee_query),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
@@ -1056,6 +1063,7 @@ def create_schedule(
     parent_id: Annotated[str, Form()] = "",
     parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    assignee_query: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     project = project_service.get_project(session, project_id)
@@ -1091,7 +1099,7 @@ def create_schedule(
                 project_id=project.id,
                 message=lookup_service.PARENT_MESSAGE,
             ),
-            assignee_id=_optional_id(assignee_id),
+            assignee_id=_posted_user(session, assignee_id, assignee_query),
             labels=parse_label_names(labels),
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
@@ -1131,6 +1139,7 @@ def update_schedule(
     parent_id: Annotated[str, Form()] = "",
     parent_query: Annotated[str, Form()] = "",
     assignee_id: Annotated[str, Form()] = "",
+    assignee_query: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     series = series_service.get_series(session, series_id)
@@ -1167,7 +1176,7 @@ def update_schedule(
                 project_id=project.id,
                 message=lookup_service.PARENT_MESSAGE,
             ),
-            assignee_id=_optional_id(assignee_id),
+            assignee_id=_posted_user(session, assignee_id, assignee_query),
             labels=parse_label_names(labels),
         )
     except DomainError as exc:
