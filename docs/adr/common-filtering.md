@@ -30,7 +30,7 @@ The board and the calendar answer "which issues?" with different controls, and t
 ### Out-of-Scope
 
 * Backlog, home, search, the sprint list, and schedules.
-* Changing which issues the calendar is about before filters apply. The master calendar stays the signed-in user's unfinished dated issues. A project calendar stays that project's unfinished dated issues, for any assignee.
+* Changing which issues the calendar is about before filters apply, except that Done and Cancelled stay in the set. The master calendar stays the signed-in user's dated issues. A project calendar stays that project's dated issues, for any assignee. The status filter is what removes Done or Cancelled.
 * The board's Separate by sprint checkbox. It stays a layout control, not a filter.
 * Saved filters, or a filtered view that is not carried in the page address.
 

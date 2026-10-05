@@ -1,7 +1,9 @@
 from datetime import UTC, date, datetime
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from keel.db.models import IssueHistory
 from keel.domain.enums import IssueStatus, IssueType
 from keel.services import calendar as calendar_service
 from keel.services import issues as issue_service
@@ -127,6 +129,9 @@ def test_a_bar_that_crosses_a_sunday_continues_on_the_next_week(
         if span.key == "KEEL-1"
     ]
     assert pieces == [(6, 2, False, True), (1, 2, True, False)]
+    assert {span.status for week in view.weeks for span in week.spans} == {
+        IssueStatus.TODO
+    }
 
 
 def test_one_date_is_a_single_day_and_none_is_omitted(session: Session) -> None:
@@ -170,7 +175,7 @@ def test_one_date_is_a_single_day_and_none_is_omitted(session: Session) -> None:
     assert all(span.title != "Undated" for week in view.weeks for span in week.spans)
 
 
-def test_closed_and_other_people_stay_off_the_month(session: Session) -> None:
+def test_closed_issues_stay_on_and_other_people_stay_off(session: Session) -> None:
     keel = project_service.create_project(session, "KEEL", "Keel")
     site = project_service.create_project(session, "SITE", "Site")
     ada = user_service.create_user(session, "Ada")
@@ -234,13 +239,13 @@ def test_closed_and_other_people_stay_off_the_month(session: Session) -> None:
     )
 
     titles = [span.title for week in view.weeks for span in week.spans]
-    assert titles == ["Mine", "Also mine"]
+    assert titles == ["Mine", "Finished", "Dropped", "Also mine"]
     assert {span.project_key for week in view.weeks for span in week.spans} == {
         "KEEL",
         "SITE",
     }
     same_day = [span for week in view.weeks for span in week.spans if span.column == 4]
-    assert [span.lane for span in same_day] == [1, 2]
+    assert [span.lane for span in same_day] == [1, 2, 3, 4]
 
 
 def test_a_project_month_includes_every_dated_issue_in_that_project(
@@ -602,3 +607,124 @@ def test_a_same_day_issue_occupies_its_hours_and_shares_a_lane(
     assert overlap.lane != morning.lane
     due_only = _block(view, "KEEL-3", TODAY)
     assert (due_only.start_minute, due_only.end_minute) == (10 * 60 + 30, 11 * 60 + 30)
+
+
+def _local(moment: datetime) -> datetime:
+    return moment.replace(tzinfo=UTC).astimezone().replace(tzinfo=None)
+
+
+def _on_day(view: calendar_service.MonthCalendar, key: str) -> date:
+    found = [
+        week.days[span.column - 1].date
+        for week in view.weeks
+        for span in week.spans
+        if span.key == key
+    ]
+    assert len(found) == 1
+    return found[0]
+
+
+def test_completed_and_created_modes_place_issues_on_those_dates(
+    session: Session,
+) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    ada = user_service.create_user(session, "Ada")
+    finished = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Finished",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 10, 1, 9, 0),
+        due_at=datetime(2026, 10, 2, 17, 0),
+    )
+    issue_service.update_issue(session, finished.id, status=IssueStatus.DONE)
+    moment = datetime(2026, 10, 15, 14, 30)
+    event = session.scalars(
+        select(IssueHistory).where(
+            IssueHistory.issue_id == finished.id,
+            IssueHistory.field == "status",
+        )
+    ).one()
+    event.created_at = moment
+    finished.created_at = datetime(2026, 10, 1, 12, 0)
+    session.flush()
+    opened = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Still open",
+        assignee_id=ada.id,
+    )
+    opened.created_at = datetime(2026, 10, 3, 12, 0)
+    cancelled = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Dropped",
+        assignee_id=ada.id,
+    )
+    cancelled.created_at = datetime(2026, 10, 4, 12, 0)
+    issue_service.update_issue(session, cancelled.id, status=IssueStatus.CANCELLED)
+    born = issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Born done",
+        assignee_id=ada.id,
+        status=IssueStatus.DONE,
+    )
+    born.created_at = datetime(2026, 10, 20, 8, 0)
+    session.flush()
+
+    local = _local(moment)
+    completed = calendar_service.month_calendar(
+        session,
+        ada.id,
+        month=OCTOBER,
+        today=TODAY,
+        mode="completed",
+    )
+    assert _on_day(completed, "KEEL-1") == local.date()
+    assert _span(completed, "KEEL-1").length == 1
+    completed_titles = [span.title for week in completed.weeks for span in week.spans]
+    assert "Still open" not in completed_titles
+    assert "Dropped" not in completed_titles
+    assert _on_day(completed, "KEEL-4") == _local(born.created_at).date()
+    assert completed.mode == "completed"
+    assert "when=completed" in completed.prev_href
+
+    started = calendar_service.month_calendar(
+        session,
+        ada.id,
+        month=OCTOBER,
+        today=TODAY,
+    )
+    assert started.mode == "start"
+    titles = [span.title for week in started.weeks for span in week.spans]
+    assert titles == ["Finished"]
+    assert _span(started, "KEEL-1").status is IssueStatus.DONE
+    assert "when=" not in started.prev_href
+
+    created = calendar_service.month_calendar(
+        session,
+        ada.id,
+        month=OCTOBER,
+        today=TODAY,
+        mode="created",
+    )
+    created_titles = {span.title for week in created.weeks for span in week.spans}
+    assert {"Finished", "Still open", "Dropped", "Born done"} <= created_titles
+
+    day = calendar_service.day_calendar(
+        session,
+        ada.id,
+        focus=local.date(),
+        today=TODAY,
+        mode="completed",
+    )
+    block = _block(day, "KEEL-1", local.date())
+    assert (block.start_minute, block.end_minute) == (
+        local.hour * 60 + local.minute,
+        local.hour * 60 + local.minute + 60,
+    )

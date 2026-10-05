@@ -9,9 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project
-from keel.domain.enums import CLOSED_STATUSES
+from keel.domain.enums import IssueStatus
 from keel.services import issues as issue_service
-from keel.services.home import _calendar_day
+from keel.services.home import _calendar_day, _completion_times
 from keel.services.issues import IssueFilters
 
 _MONTHS = (
@@ -88,6 +88,7 @@ class CalendarSpan:
     title: str
     project_key: str
     type: str
+    status: IssueStatus
     column: int
     length: int
     lane: int
@@ -103,6 +104,7 @@ class HourBlock:
     title: str
     project_key: str
     type: str
+    status: IssueStatus
     start_minute: int
     end_minute: int
     lane: int
@@ -152,6 +154,7 @@ class MonthCalendar:
     empty_note: str
     base: str
     hours: tuple[str, ...] = ()
+    mode: str = "start"
 
 
 @dataclass(frozen=True)
@@ -160,6 +163,7 @@ class _Bar:
     title: str
     project_key: str
     type: str
+    status: IssueStatus
     number: int
     start: date
     end: date
@@ -240,6 +244,32 @@ def parse_day(raw: str | None, today: date) -> date:
         return today
 
 
+def parse_mode(raw: str | None) -> str:
+    """`completed` and `created` select those dates. Anything else is start to due."""
+    if raw in ("completed", "created"):
+        return raw
+    return "start"
+
+
+def _link(base: str, query: str, mode: str) -> str:
+    if mode == "start":
+        return f"{base}?{query}" if query else base
+    if query:
+        return f"{base}?{query}&when={mode}"
+    return f"{base}?when={mode}"
+
+
+def _empty_note(mode: str, period: str) -> str:
+    if mode == "start":
+        if period == "day":
+            return "Nothing dated falls on this day."
+        return f"Nothing dated falls in this {period}."
+    verb = "completed" if mode == "completed" else "created"
+    if period == "day":
+        return f"Nothing was {verb} on this day."
+    return f"Nothing was {verb} in this {period}."
+
+
 def open_calendar(
     session: Session,
     assignee_id: int | None = None,
@@ -255,12 +285,14 @@ def open_calendar(
     project_id: int | None = None,
     base: str = "/calendar",
     filters: IssueFilters | None = None,
+    mode: str = "start",
 ) -> MonthCalendar:
     """Month, week, or day for one person, one project, or a signed-out grid."""
+    chosen = parse_mode(mode)
     if view == "week":
         focus = chosen_week(week, year=year, month_num=month_num, today=today)
         if project_id is None and assignee_id is None:
-            return blank_week(focus, today=today, base=base)
+            return blank_week(focus, today=today, base=base, mode=chosen)
         return week_calendar(
             session,
             assignee_id,
@@ -269,6 +301,7 @@ def open_calendar(
             project_id=project_id,
             base=base,
             filters=filters,
+            mode=chosen,
         )
     if view == "day":
         focus = chosen_day(
@@ -279,7 +312,7 @@ def open_calendar(
             today=today,
         )
         if project_id is None and assignee_id is None:
-            return blank_day(focus, today=today, base=base)
+            return blank_day(focus, today=today, base=base, mode=chosen)
         return day_calendar(
             session,
             assignee_id,
@@ -288,10 +321,11 @@ def open_calendar(
             project_id=project_id,
             base=base,
             filters=filters,
+            mode=chosen,
         )
     first = chosen_month(month, year=year, month_num=month_num, today=today)
     if project_id is None and assignee_id is None:
-        return blank_month(first, today=today, base=base)
+        return blank_month(first, today=today, base=base, mode=chosen)
     return month_calendar(
         session,
         assignee_id,
@@ -300,6 +334,7 @@ def open_calendar(
         project_id=project_id,
         base=base,
         filters=filters,
+        mode=chosen,
     )
 
 
@@ -312,15 +347,25 @@ def month_calendar(
     project_id: int | None = None,
     base: str = "/calendar",
     filters: IssueFilters | None = None,
+    mode: str = "start",
 ) -> MonthCalendar:
-    """Unfinished dated issues for one person, or for one project, on one month."""
+    """Issues for one person, or for one project, placed by the chosen dates."""
     day = today or date.today()
+    chosen = parse_mode(mode)
     first = date(month.year, month.month, 1)
     grid_start, grid_end = _grid(first)
-    bars = _bars(session, assignee_id, project_id, grid_start, grid_end, filters)
+    bars = _bars(
+        session,
+        assignee_id,
+        project_id,
+        grid_start,
+        grid_end,
+        filters,
+        chosen,
+    )
     if bars is None:
-        return blank_month(first, today=day, base=base)
-    return _describe_month(first, day, bars, base)
+        return blank_month(first, today=day, base=base, mode=chosen)
+    return _describe_month(first, day, bars, base, chosen)
 
 
 def week_calendar(
@@ -332,9 +377,11 @@ def week_calendar(
     project_id: int | None = None,
     base: str = "/calendar",
     filters: IssueFilters | None = None,
+    mode: str = "start",
 ) -> MonthCalendar:
-    """Unfinished dated issues for one person, or for one project, on one week."""
+    """Issues for one person, or for one project, placed by the chosen dates."""
     day = today or date.today()
+    chosen = parse_mode(mode)
     monday = _monday(focus)
     bars = _bars(
         session,
@@ -343,10 +390,11 @@ def week_calendar(
         monday,
         monday + timedelta(days=6),
         filters,
+        chosen,
     )
     if bars is None:
-        return blank_week(focus, today=day, base=base)
-    return _describe_week(focus, day, bars, base)
+        return blank_week(focus, today=day, base=base, mode=chosen)
+    return _describe_week(focus, day, bars, base, chosen)
 
 
 def day_calendar(
@@ -358,13 +406,15 @@ def day_calendar(
     project_id: int | None = None,
     base: str = "/calendar",
     filters: IssueFilters | None = None,
+    mode: str = "start",
 ) -> MonthCalendar:
-    """Unfinished dated issues for one person, or for one project, on one day."""
+    """Issues for one person, or for one project, placed by the chosen dates."""
     day = today or date.today()
-    bars = _bars(session, assignee_id, project_id, focus, focus, filters)
+    chosen = parse_mode(mode)
+    bars = _bars(session, assignee_id, project_id, focus, focus, filters, chosen)
     if bars is None:
-        return blank_day(focus, today=day, base=base)
-    return _describe_day(focus, day, bars, base)
+        return blank_day(focus, today=day, base=base, mode=chosen)
+    return _describe_day(focus, day, bars, base, chosen)
 
 
 def blank_month(
@@ -372,10 +422,11 @@ def blank_month(
     *,
     today: date | None = None,
     base: str = "/calendar",
+    mode: str = "start",
 ) -> MonthCalendar:
     """The same month grid with no issues, for a page that has no acting user."""
     day = today or date.today()
-    return _describe_month(date(month.year, month.month, 1), day, (), base)
+    return _describe_month(date(month.year, month.month, 1), day, (), base, mode)
 
 
 def blank_week(
@@ -383,10 +434,11 @@ def blank_week(
     *,
     today: date | None = None,
     base: str = "/calendar",
+    mode: str = "start",
 ) -> MonthCalendar:
     """The same week with no issues, for a page that has no acting user."""
     day = today or date.today()
-    return _describe_week(focus, day, (), base)
+    return _describe_week(focus, day, (), base, mode)
 
 
 def blank_day(
@@ -394,10 +446,11 @@ def blank_day(
     *,
     today: date | None = None,
     base: str = "/calendar",
+    mode: str = "start",
 ) -> MonthCalendar:
     """The same day with no issues, for a page that has no acting user."""
     day = today or date.today()
-    return _describe_day(focus, day, (), base)
+    return _describe_day(focus, day, (), base, mode)
 
 
 def _bars(
@@ -407,6 +460,7 @@ def _bars(
     start: date,
     end: date,
     filters: IssueFilters | None = None,
+    mode: str = "start",
 ) -> list[_Bar] | None:
     statement = select(Issue, Project).join(Project, Issue.project_id == Project.id)
     if project_id is not None:
@@ -417,24 +471,27 @@ def _bars(
         return None
     if filters is not None:
         statement = issue_service.restrict(statement, filters)
-    found = session.execute(statement).all()
+    found = list(session.execute(statement).all())
+    completed = (
+        _completion_times(session, [issue for issue, _project in found])
+        if mode == "completed"
+        else {}
+    )
     bars: list[_Bar] = []
     for issue, project in found:
-        if issue.status in CLOSED_STATUSES:
+        placed = _placed(issue, mode, completed)
+        if placed is None:
             continue
-        window = _window(issue)
-        if window is None:
-            continue
-        bar_start, bar_end = window
+        bar_start, bar_end, start_at, end_at = placed
         if bar_end < start or bar_start > end:
             continue
-        start_at, end_at = _clock_span(issue)
         bars.append(
             _Bar(
                 key=issue_service.issue_key(issue, project),
                 title=issue.title,
                 project_key=project.key,
                 type=issue.type.value,
+                status=issue.status,
                 number=issue.number,
                 start=bar_start,
                 end=bar_end,
@@ -444,6 +501,34 @@ def _bars(
         )
     bars.sort(key=lambda bar: (bar.start, bar.project_key, bar.number))
     return bars
+
+
+def _placed(
+    issue: Issue,
+    mode: str,
+    completed: dict[int, datetime],
+) -> tuple[date, date, datetime, datetime] | None:
+    if mode == "completed":
+        moment = completed.get(issue.id)
+        if moment is None:
+            return None
+        return _point(moment)
+    if mode == "created":
+        return _point(issue.created_at)
+    window = _window(issue)
+    if window is None:
+        return None
+    start_at, end_at = _clock_span(issue)
+    return window[0], window[1], start_at, end_at
+
+
+def _point(moment: datetime) -> tuple[date, date, datetime, datetime]:
+    """Local calendar day and clock of a UTC timestamp."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    local = moment.astimezone().replace(tzinfo=None)
+    day = local.date()
+    return day, day, local, local
 
 
 def _window(issue: Issue) -> tuple[date, date] | None:
@@ -482,6 +567,7 @@ def _describe_month(
     today: date,
     bars: Sequence[_Bar],
     base: str,
+    mode: str = "start",
 ) -> MonthCalendar:
     weeks = _weeks(first, today, bars)
     anchor = _week_anchor(first, today)
@@ -498,16 +584,17 @@ def _describe_month(
         month_names=_MONTHS,
         prev_month=_token(_shift(first, -1)),
         next_month=_token(_shift(first, 1)),
-        prev_href=f"{base}?month={_token(_shift(first, -1))}",
-        next_href=f"{base}?month={_token(_shift(first, 1))}",
-        today_href=base,
-        month_href=f"{base}?month={_token(first)}",
-        week_href=f"{base}?view=week&week={anchor.isoformat()}",
-        day_href=f"{base}?view=day&day={anchor.isoformat()}",
+        prev_href=_link(base, f"month={_token(_shift(first, -1))}", mode),
+        next_href=_link(base, f"month={_token(_shift(first, 1))}", mode),
+        today_href=_link(base, "", mode),
+        month_href=_link(base, f"month={_token(first)}", mode),
+        week_href=_link(base, f"view=week&week={anchor.isoformat()}", mode),
+        day_href=_link(base, f"view=day&day={anchor.isoformat()}", mode),
         weeks=weeks,
         empty=not any(week.spans for week in weeks),
-        empty_note="Nothing dated falls in this month.",
+        empty_note=_empty_note(mode, "month"),
         base=base,
+        mode=mode,
     )
 
 
@@ -516,6 +603,7 @@ def _describe_week(
     today: date,
     bars: Sequence[_Bar],
     base: str,
+    mode: str = "start",
 ) -> MonthCalendar:
     monday = _monday(focus)
     previous = _shift_week(monday, -1)
@@ -535,17 +623,18 @@ def _describe_week(
         month_names=_MONTHS,
         prev_month=previous.isoformat(),
         next_month=following.isoformat(),
-        prev_href=f"{base}?view=week&week={previous.isoformat()}",
-        next_href=f"{base}?view=week&week={following.isoformat()}",
-        today_href=f"{base}?view=week",
-        month_href=f"{base}?month={_token(focus)}",
-        week_href=f"{base}?view=week&week={focus.isoformat()}",
-        day_href=f"{base}?view=day&day={focus.isoformat()}",
+        prev_href=_link(base, f"view=week&week={previous.isoformat()}", mode),
+        next_href=_link(base, f"view=week&week={following.isoformat()}", mode),
+        today_href=_link(base, "view=week", mode),
+        month_href=_link(base, f"month={_token(focus)}", mode),
+        week_href=_link(base, f"view=week&week={focus.isoformat()}", mode),
+        day_href=_link(base, f"view=day&day={focus.isoformat()}", mode),
         weeks=(week,),
         empty=not any(day.blocks for day in days),
-        empty_note="Nothing dated falls in this week.",
+        empty_note=_empty_note(mode, "week"),
         base=base,
         hours=_HOUR_LABELS,
+        mode=mode,
     )
 
 
@@ -554,6 +643,7 @@ def _describe_day(
     today: date,
     bars: Sequence[_Bar],
     base: str,
+    mode: str = "start",
 ) -> MonthCalendar:
     previous = _shift_day(focus, -1)
     following = _shift_day(focus, 1)
@@ -574,17 +664,18 @@ def _describe_day(
         month_names=_MONTHS,
         prev_month=previous.isoformat(),
         next_month=following.isoformat(),
-        prev_href=f"{base}?view=day&day={previous.isoformat()}",
-        next_href=f"{base}?view=day&day={following.isoformat()}",
-        today_href=f"{base}?view=day",
-        month_href=f"{base}?month={_token(focus)}",
-        week_href=f"{base}?view=week&week={focus.isoformat()}",
-        day_href=f"{base}?view=day&day={focus.isoformat()}",
+        prev_href=_link(base, f"view=day&day={previous.isoformat()}", mode),
+        next_href=_link(base, f"view=day&day={following.isoformat()}", mode),
+        today_href=_link(base, "view=day", mode),
+        month_href=_link(base, f"month={_token(focus)}", mode),
+        week_href=_link(base, f"view=week&week={focus.isoformat()}", mode),
+        day_href=_link(base, f"view=day&day={focus.isoformat()}", mode),
         weeks=(shown,),
         empty=not shown_day.blocks,
-        empty_note="Nothing dated falls on this day.",
+        empty_note=_empty_note(mode, "day"),
         base=base,
         hours=_HOUR_LABELS,
+        mode=mode,
     )
 
 
@@ -659,6 +750,7 @@ def _hour_lanes(
             title=bar.title,
             project_key=bar.project_key,
             type=bar.type,
+            status=bar.status,
             start_minute=start_minute,
             end_minute=end_minute,
             lane=lane,
@@ -775,6 +867,7 @@ def _place(
                 title=bar.title,
                 project_key=bar.project_key,
                 type=bar.type,
+                status=bar.status,
                 column=(shown_start - week_start).days + 1,
                 length=(shown_end - shown_start).days + 1,
                 lane=lane_index + 1,

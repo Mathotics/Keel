@@ -98,8 +98,9 @@ def calendar_page(
     week: str | None = None,
     day: str | None = None,
     day_num: int | None = None,
+    when: str | None = None,
 ) -> HTMLResponse:
-    """Month, week, or day of unfinished issues assigned to the acting user."""
+    """Month, week, or day of issues assigned to the acting user."""
     return _calendar_page(
         request,
         chrome,
@@ -114,6 +115,7 @@ def calendar_page(
         week=week,
         day=day,
         day_num=day_num,
+        when=when,
         base="/calendar",
     )
 
@@ -133,9 +135,13 @@ def _calendar_page(
     week: str | None,
     day: str | None,
     day_num: int | None,
+    when: str | None,
     base: str,
 ) -> HTMLResponse:
-    kept = date_pairs(request)
+    mode = calendar_service.parse_mode(when)
+    kept = tuple(pair for pair in date_pairs(request) if pair[0] != "when")
+    if mode != "start":
+        kept = (*kept, ("when", mode))
     bar = read_bar(
         session,
         raw,
@@ -157,6 +163,7 @@ def _calendar_page(
         project_id=None if project is None else project.id,
         base=base,
         filters=bar.criteria,
+        mode=mode,
     )
     projects = list(project_service.list_projects(session))
     scope = None if project is None else project.id

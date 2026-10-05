@@ -14,7 +14,16 @@ from keel.services import sprints as sprint_service
 from keel.services import view_filter
 from keel.services.view_filter import ViewFilter
 
-DATE_PARAMS = ("view", "month", "week", "day", "year", "month_num", "day_num")
+DATE_PARAMS = (
+    "view",
+    "month",
+    "week",
+    "day",
+    "year",
+    "month_num",
+    "day_num",
+    "when",
+)
 
 
 @dataclass(frozen=True)

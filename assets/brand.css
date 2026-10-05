@@ -407,11 +407,24 @@ body {
   gap: 0.4rem;
 }
 
-.keel-cal__jump select {
+.keel-cal__jump select,
+.keel-cal__mode select {
   height: var(--keel-control-height);
   font: inherit;
   font-size: var(--keel-control-font-size);
   color: var(--keel-blue-deep);
+}
+
+.keel-cal__mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.85rem;
+}
+
+.keel-cal__mode label {
+  font-size: 0.875rem;
 }
 
 .keel-cal {
@@ -481,7 +494,9 @@ body {
 }
 
 .keel-cal__bar {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   min-width: 0;
   width: 100%;
   justify-self: stretch;
@@ -496,7 +511,50 @@ body {
   line-height: 1.55rem;
   text-decoration: none;
   white-space: nowrap;
+}
+
+.keel-cal__text {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keel-cal__status {
+  flex: none;
+  padding: 0 0.35rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: var(--keel-white);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.15rem;
+  text-transform: uppercase;
+}
+
+.keel-cal__status[data-status="todo"] {
+  color: #3d4a54;
+}
+
+.keel-cal__status[data-status="in_progress"] {
+  color: #0068b0;
+}
+
+.keel-cal__status[data-status="in_review"] {
+  color: #6941c6;
+}
+
+.keel-cal__status[data-status="blocked"] {
+  color: #b42318;
+}
+
+.keel-cal__status[data-status="done"] {
+  color: #067647;
+}
+
+.keel-cal__status[data-status="cancelled"] {
+  color: #667085;
 }
 
 .keel-cal__bar[data-type="epic"] {
@@ -602,12 +660,22 @@ body {
 .keel-cal__hour-col .keel-cal__bar {
   position: absolute;
   z-index: 1;
+  align-items: flex-start;
+  flex-wrap: wrap;
   width: auto;
-  min-height: 0;
+  height: auto;
   margin: 0;
-  padding: 0 0.3rem;
+  padding: 0.1rem 0.3rem;
   line-height: 1.15rem;
-  white-space: nowrap;
+  white-space: normal;
+  overflow: visible;
+}
+
+.keel-cal__hour-col .keel-cal__text {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .keel-cal--hours .keel-cal__bar--continued {
@@ -1080,6 +1148,7 @@ body {
 .keel-tabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
   margin: 0 0 1.15rem;
 }
