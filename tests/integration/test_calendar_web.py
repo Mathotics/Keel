@@ -150,8 +150,10 @@ def test_the_month_lists_assigned_dated_work_and_links_the_issue(
         'href="/issues/KEEL-1" style="grid-column: 3 / span 4; grid-row: 1;"'
         in page.text
     )
-    assert "KEEL KEEL-1 Across" in page.text
-    assert "SITE SITE-1 Elsewhere" in page.text
+    assert "KEEL-1 Across" in page.text
+    assert "SITE-1 Elsewhere" in page.text
+    assert "KEEL KEEL-1 Across" not in page.text
+    assert "SITE SITE-1 Elsewhere" not in page.text
     assert "Undated" not in page.text
     assert "Finished" not in page.text
     assert "Grace&#39;s" not in page.text
@@ -261,7 +263,9 @@ def test_the_week_view_steps_seven_days_on_the_same_calendar(
     page = client.get("/calendar?view=week&week=2026-10-15")
     assert page.status_code == 200
     assert "<h2>October 12–18, 2026</h2>" in page.text
-    assert "This week" in page.text
+    assert "KEEL-1 This week" in page.text
+    assert "KEEL KEEL-1 This week" not in page.text
+    assert "min-height:" in page.text
     assert "Nothing dated falls in this week." not in page.text
     assert 'href="/calendar?view=week&amp;week=2026-10-05"' in page.text
     assert 'href="/calendar?view=week&amp;week=2026-10-19"' in page.text
@@ -304,7 +308,9 @@ def test_the_day_view_steps_one_day_on_the_same_calendar(client: TestClient) -> 
     page = client.get("/calendar?view=day&day=2026-10-15")
     assert page.status_code == 200
     assert "<h2>Thursday</h2>" in page.text
-    assert "This day" in page.text
+    assert "KEEL-1 This day" in page.text
+    assert "KEEL KEEL-1 This day" not in page.text
+    assert "min-height:" in page.text
     assert "Nothing dated falls on this day." not in page.text
     assert 'href="/calendar?view=day&amp;day=2026-10-14"' in page.text
     assert 'href="/calendar?view=day&amp;day=2026-10-16"' in page.text

@@ -603,11 +603,13 @@ body {
   position: absolute;
   z-index: 1;
   width: auto;
-  min-height: 0;
+  height: auto;
   margin: 0;
-  padding: 0 0.3rem;
+  padding: 0.1rem 0.3rem;
   line-height: 1.15rem;
-  white-space: nowrap;
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
 }
 
 .keel-cal--hours .keel-cal__bar--continued {
