@@ -13,6 +13,21 @@
         <a class="keel-tabs__tab" href="{{ carry(calendar.month_href, bar.query) }}"{% if calendar.view == "month" %} aria-current="page"{% endif %}>Month</a>
         <a class="keel-tabs__tab" href="{{ carry(calendar.week_href, bar.query) }}"{% if calendar.view == "week" %} aria-current="page"{% endif %}>Week</a>
         <a class="keel-tabs__tab" href="{{ carry(calendar.day_href, bar.query) }}"{% if calendar.view == "day" %} aria-current="page"{% endif %}>Day</a>
+        <form class="keel-cal__mode" method="get" action="{{ calendar.base }}" data-keel-autosubmit>
+          <label for="cal-when">View by:</label>
+          <select id="cal-when" name="when">
+            <option value="start"{% if calendar.mode == "start" %} selected{% endif %}>Start to due</option>
+            <option value="completed"{% if calendar.mode == "completed" %} selected{% endif %}>Completed</option>
+            <option value="created"{% if calendar.mode == "created" %} selected{% endif %}>Created on</option>
+          </select>
+          {% for name, value in preserve if name != 'when' %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}"/>
+          {% endfor %}
+          {% for name, value in bar.fields %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}"/>
+          {% endfor %}
+          <button class="keel-autosubmit__fallback" type="submit">Show</button>
+        </form>
       </nav>
       <nav class="keel-cal__nav" aria-label="When">
         <a href="{{ carry(calendar.prev_href, bar.query) }}">Previous</a>
@@ -44,6 +59,9 @@
             {% endfor %}
           </select>
           {% for name, value in bar.fields %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}"/>
+          {% endfor %}
+          {% for name, value in preserve if name == 'when' %}
           <input type="hidden" name="{{ name }}" value="{{ value }}"/>
           {% endfor %}
           <button class="keel-autosubmit__fallback" type="submit">Show</button>

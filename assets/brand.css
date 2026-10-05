@@ -407,11 +407,24 @@ body {
   gap: 0.4rem;
 }
 
-.keel-cal__jump select {
+.keel-cal__jump select,
+.keel-cal__mode select {
   height: var(--keel-control-height);
   font: inherit;
   font-size: var(--keel-control-font-size);
   color: var(--keel-blue-deep);
+}
+
+.keel-cal__mode {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: 0.85rem;
+}
+
+.keel-cal__mode label {
+  font-size: 0.875rem;
 }
 
 .keel-cal {
@@ -1082,6 +1095,7 @@ body {
 .keel-tabs {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem;
   margin: 0 0 1.15rem;
 }

@@ -33,6 +33,19 @@ def test_an_empty_month_still_shows_the_grid(client: TestClient) -> None:
     assert '<option value="2026" selected>2026</option>' in page.text
     assert 'action="/calendar"' in page.text
     assert "Show" in page.text
+    assert 'class="keel-cal__mode"' in page.text
+    assert ">View by:</label>" in page.text
+    assert page.text.index(">Day</a>") < page.text.index('id="cal-when"')
+    assert page.text.index('id="cal-when"') < page.text.index('aria-label="When"')
+    assert '<option value="start" selected>Start to due</option>' in page.text
+    assert '<option value="completed">Completed</option>' in page.text
+    assert '<option value="created">Created on</option>' in page.text
+    chosen = client.get("/calendar?when=completed&month=2026-10")
+    assert '<option value="completed" selected>Completed</option>' in chosen.text
+    assert "Nothing was completed in this month." in chosen.text
+    assert 'href="/calendar?month=2026-09&amp;when=completed"' in chosen.text
+    ignored = client.get("/calendar?when=nope&month=2026-10")
+    assert '<option value="start" selected>Start to due</option>' in ignored.text
     jumped = client.get("/calendar?year=2024&month_num=3")
     assert "<h2>" not in jumped.text
     assert '<option value="3" selected>March</option>' in jumped.text
@@ -338,3 +351,53 @@ def test_the_day_view_steps_one_day_on_the_same_calendar(client: TestClient) -> 
         'href="/projects/KEEL/calendar?view=day&amp;day=2026-10-16"' in project_day.text
     )
     assert 'name="view" value="day"' in project_day.text
+
+
+def test_the_dates_menu_switches_completed_and_created(
+    client: TestClient,
+) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    finished = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Filed then finished",
+            "assignee_id": tester["id"],
+        },
+    ).json()
+    client.patch(f"/api/v1/issues/{finished['id']}", json={"status": "done"})
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Still open",
+            "assignee_id": tester["id"],
+        },
+    )
+    unassigned = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Someone else's"},
+    ).json()
+    client.patch(f"/api/v1/issues/{unassigned['id']}", json={"status": "done"})
+
+    start = client.get("/calendar")
+    assert "Filed then finished" not in start.text
+    assert "Still open" not in start.text
+    completed = client.get("/calendar?when=completed")
+    assert "Filed then finished" in completed.text
+    assert "Still open" not in completed.text
+    assert "Someone else" not in completed.text
+    assert '<option value="completed" selected>Completed</option>' in completed.text
+    created = client.get("/calendar?when=created")
+    assert "Filed then finished" in created.text
+    assert "Still open" in created.text
+    assert "Someone else" not in created.text
+    project_completed = client.get("/projects/KEEL/calendar?when=completed")
+    assert "Someone else" in project_completed.text
+    kept = client.get("/calendar?when=completed&filters=1&type=epic")
+    assert "Filed then finished" not in kept.text
+    assert 'keel-filters__reset" href="/calendar?when=completed"' in kept.text

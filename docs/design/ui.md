@@ -29,10 +29,10 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | Path | Template | Contents |
 | --- | --- | --- |
 | `/` | `home.html` | Personal inbox for the signed-in user: due or overdue, due this week, due this month, starting or started, assigned, blocked, active sprint, series copies waiting this cycle, and completed today |
-| `/calendar` | `calendar.html` | Master month, week, or day of the signed-in user's unfinished dated issues, across projects. The month is a day grid. Week and day are broken into hours, and a bar runs from the start time through the due time. Bars show the issue key and title, colored by type as on the board. Week and day bars wrap the title. The month bar stays on one line. Month, Week, and Day; Previous, Next, Today, and date dropdowns. The shared filter bar narrows which of those issues appear ([Common filtering](../adr/common-filtering.md)) |
+| `/calendar` | `calendar.html` | Master month, week, or day of the signed-in user's unfinished dated issues, across projects. The month is a day grid. Week and day are broken into hours, and a bar runs from the start time through the due time. Bars show the issue key and title, colored by type as on the board. Week and day bars wrap the title. The month bar stays on one line. A View by menu beside Month, Week, and Day chooses Start to due (the default), Completed, or Created on. Month, Week, and Day; Previous, Next, Today, and date dropdowns. The shared filter bar narrows which of those issues appear ([Common filtering](../adr/common-filtering.md)) |
 | `/login` | `login.html` | Username and password. Public, along with `/health` and `/assets` |
 | `/profile` | `profile.html` | The signed-in person's display name, username, password, and API tokens |
-| `/projects/{key}/calendar` | `calendar.html` | That project's unfinished dated issues, whoever they are assigned to; same month, week, and day controls, and the same filter bar without the project filter |
+| `/projects/{key}/calendar` | `calendar.html` | That project's issues, whoever they are assigned to; same month, week, day, and View by controls, and the same filter bar without the project filter |
 | `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, sprints in advance, and delete, issue counts by status |
