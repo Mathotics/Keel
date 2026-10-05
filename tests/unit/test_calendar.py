@@ -129,6 +129,9 @@ def test_a_bar_that_crosses_a_sunday_continues_on_the_next_week(
         if span.key == "KEEL-1"
     ]
     assert pieces == [(6, 2, False, True), (1, 2, True, False)]
+    assert {span.status for week in view.weeks for span in week.spans} == {
+        IssueStatus.TODO
+    }
 
 
 def test_one_date_is_a_single_day_and_none_is_omitted(session: Session) -> None:
@@ -172,7 +175,7 @@ def test_one_date_is_a_single_day_and_none_is_omitted(session: Session) -> None:
     assert all(span.title != "Undated" for week in view.weeks for span in week.spans)
 
 
-def test_closed_and_other_people_stay_off_the_month(session: Session) -> None:
+def test_closed_issues_stay_on_and_other_people_stay_off(session: Session) -> None:
     keel = project_service.create_project(session, "KEEL", "Keel")
     site = project_service.create_project(session, "SITE", "Site")
     ada = user_service.create_user(session, "Ada")
@@ -236,13 +239,13 @@ def test_closed_and_other_people_stay_off_the_month(session: Session) -> None:
     )
 
     titles = [span.title for week in view.weeks for span in week.spans]
-    assert titles == ["Mine", "Also mine"]
+    assert titles == ["Mine", "Finished", "Dropped", "Also mine"]
     assert {span.project_key for week in view.weeks for span in week.spans} == {
         "KEEL",
         "SITE",
     }
     same_day = [span for week in view.weeks for span in week.spans if span.column == 4]
-    assert [span.lane for span in same_day] == [1, 2]
+    assert [span.lane for span in same_day] == [1, 2, 3, 4]
 
 
 def test_a_project_month_includes_every_dated_issue_in_that_project(
@@ -699,7 +702,8 @@ def test_completed_and_created_modes_place_issues_on_those_dates(
     )
     assert started.mode == "start"
     titles = [span.title for week in started.weeks for span in week.spans]
-    assert titles == []
+    assert titles == ["Finished"]
+    assert _span(started, "KEEL-1").status is IssueStatus.DONE
     assert "when=" not in started.prev_href
 
     created = calendar_service.month_calendar(

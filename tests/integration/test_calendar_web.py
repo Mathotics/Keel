@@ -164,11 +164,16 @@ def test_the_month_lists_assigned_dated_work_and_links_the_issue(
         in page.text
     )
     assert "KEEL-1 Across" in page.text
+    assert 'class="keel-cal__status" data-status="todo">To Do</span>' in page.text
     assert "SITE-1 Elsewhere" in page.text
     assert "KEEL KEEL-1 Across" not in page.text
     assert "SITE SITE-1 Elsewhere" not in page.text
     assert "Undated" not in page.text
-    assert "Finished" not in page.text
+    assert "KEEL-3 Finished" in page.text
+    assert 'data-status="done">Done</span>' in page.text
+    todo_only = client.get("/calendar?month=2026-10&status=todo")
+    assert "KEEL-1 Across" in todo_only.text
+    assert "Finished" not in todo_only.text
     assert "Grace&#39;s" not in page.text
     assert "Grace's" not in page.text
     assert "Unowned" not in page.text
@@ -277,6 +282,7 @@ def test_the_week_view_steps_seven_days_on_the_same_calendar(
     assert page.status_code == 200
     assert "<h2>October 12–18, 2026</h2>" in page.text
     assert "KEEL-1 This week" in page.text
+    assert 'class="keel-cal__status" data-status="todo">To Do</span>' in page.text
     assert "KEEL KEEL-1 This week" not in page.text
     assert "min-height:" in page.text
     assert "Nothing dated falls in this week." not in page.text

@@ -96,7 +96,7 @@
             {% if week.spans %}
             <div class="keel-cal__bars">
               {% for span in week.spans %}
-              <a class="keel-cal__bar{% if span.continues_before %} keel-cal__bar--continued{% endif %}{% if span.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ span.type }}" href="/issues/{{ span.key }}" style="grid-column: {{ span.column }} / span {{ span.length }}; grid-row: {{ span.lane }};">{{ span.key }} {{ span.title }}</a>
+              <a class="keel-cal__bar{% if span.continues_before %} keel-cal__bar--continued{% endif %}{% if span.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ span.type }}" href="/issues/{{ span.key }}" style="grid-column: {{ span.column }} / span {{ span.length }}; grid-row: {{ span.lane }};"><span class="keel-cal__text">{{ span.key }} {{ span.title }}</span><span class="keel-cal__status" data-status="{{ span.status.value }}">{{ span.status | label }}</span></a>
               {% endfor %}
             </div>
             {% endif %}
@@ -127,7 +127,7 @@
                 <div class="keel-cal__slot"></div>
                 {% endfor %}
                 {% for block in day.blocks %}
-                <a class="keel-cal__bar{% if block.continues_before %} keel-cal__bar--continued{% endif %}{% if block.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ block.type }}" href="/issues/{{ block.key }}" style="top: {{ block.start_minute / 14.4 }}%; min-height: {{ (block.end_minute - block.start_minute) / 14.4 }}%; left: calc({{ block.lane }} * (100% / {{ block.lanes }})); width: calc(100% / {{ block.lanes }});">{{ block.key }} {{ block.title }}</a>
+                <a class="keel-cal__bar{% if block.continues_before %} keel-cal__bar--continued{% endif %}{% if block.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ block.type }}" href="/issues/{{ block.key }}" style="top: {{ block.start_minute / 14.4 }}%; min-height: {{ (block.end_minute - block.start_minute) / 14.4 }}%; left: calc({{ block.lane }} * (100% / {{ block.lanes }})); width: calc(100% / {{ block.lanes }});"><span class="keel-cal__text">{{ block.key }} {{ block.title }}</span><span class="keel-cal__status" data-status="{{ block.status.value }}">{{ block.status | label }}</span></a>
                 {% endfor %}
               </div>
               {% endfor %}

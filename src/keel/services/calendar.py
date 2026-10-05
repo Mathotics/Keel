@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project
-from keel.domain.enums import CLOSED_STATUSES
+from keel.domain.enums import IssueStatus
 from keel.services import issues as issue_service
 from keel.services.home import _calendar_day, _completion_times
 from keel.services.issues import IssueFilters
@@ -88,6 +88,7 @@ class CalendarSpan:
     title: str
     project_key: str
     type: str
+    status: IssueStatus
     column: int
     length: int
     lane: int
@@ -103,6 +104,7 @@ class HourBlock:
     title: str
     project_key: str
     type: str
+    status: IssueStatus
     start_minute: int
     end_minute: int
     lane: int
@@ -161,6 +163,7 @@ class _Bar:
     title: str
     project_key: str
     type: str
+    status: IssueStatus
     number: int
     start: date
     end: date
@@ -488,6 +491,7 @@ def _bars(
                 title=issue.title,
                 project_key=project.key,
                 type=issue.type.value,
+                status=issue.status,
                 number=issue.number,
                 start=bar_start,
                 end=bar_end,
@@ -511,8 +515,6 @@ def _placed(
         return _point(moment)
     if mode == "created":
         return _point(issue.created_at)
-    if issue.status in CLOSED_STATUSES:
-        return None
     window = _window(issue)
     if window is None:
         return None
@@ -748,6 +750,7 @@ def _hour_lanes(
             title=bar.title,
             project_key=bar.project_key,
             type=bar.type,
+            status=bar.status,
             start_minute=start_minute,
             end_minute=end_minute,
             lane=lane,
@@ -864,6 +867,7 @@ def _place(
                 title=bar.title,
                 project_key=bar.project_key,
                 type=bar.type,
+                status=bar.status,
                 column=(shown_start - week_start).days + 1,
                 length=(shown_end - shown_start).days + 1,
                 lane=lane_index + 1,
