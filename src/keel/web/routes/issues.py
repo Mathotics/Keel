@@ -24,6 +24,11 @@ from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.issue_panels import (
+    ISSUE_PANELS_COOKIE,
+    encode_toggle,
+    parse_collapsed,
+)
 
 router = APIRouter(prefix="/issues")
 
@@ -42,6 +47,11 @@ def issue_page(
     series = None
     if issue.series_id is not None:
         series = series_service.attached_series(session, issue)
+    collapsed = parse_collapsed(request.cookies.get(ISSUE_PANELS_COOKIE))
+
+    def issue_panel_toggle(key: str) -> str:
+        return encode_toggle(collapsed, key)
+
     return get_templates().TemplateResponse(
         request,
         "issue_detail.html",
@@ -97,6 +107,8 @@ def issue_page(
             ),
             error=error,
             repeat_overlay=repeat == "1",
+            collapsed_issue_panels=collapsed,
+            issue_panel_toggle=issue_panel_toggle,
         ),
     )
 

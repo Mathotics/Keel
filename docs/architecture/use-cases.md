@@ -65,6 +65,10 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 * **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/ADR-017.md)).
 
+## Issue page
+
+* **Fold a panel.** A user minimizes Description, Children, Dependencies, History, or Comments. The heading stays, list panels keep their counts, and this browser remembers the closed set across issues ([Foldable issue panels](../adr/foldable-issue-panels.md)).
+
 ## Issue history
 
 * **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md)).

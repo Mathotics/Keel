@@ -48,18 +48,18 @@
               <input id="{{ prefix }}-labels" name="labels" type="text" maxlength="300" value="{{ recipe_labels|default('') }}" placeholder="urgent, plumbing"/>
             </p>
             {% if include_people|default(false) %}
-            <p>
+            <div class="keel-field">
               <label for="{{ prefix }}-assignee">Assignee</label>
               {% with field_id=prefix ~ "-assignee", query_name="assignee_query", value=assignee_label|default(''), kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=false, placeholder="Unassigned" %}
               {% include "_lookup.html" %}
               {% endwith %}
-            </p>
-            <p>
+            </div>
+            <div class="keel-field">
               <label for="{{ prefix }}-parent">Parent</label>
               {% with field_id=prefix ~ "-parent", query_name="parent_query", value=parent_label|default(''), kind="issues", project_key=project.key, exclude_id="", id_name="parent_id", submit=false, placeholder="No parent" %}
               {% include "_lookup.html" %}
               {% endwith %}
-            </p>
+            </div>
             {% endif %}
           </div>
         </fieldset>

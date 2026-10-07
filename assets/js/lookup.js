@@ -2,6 +2,10 @@
 // value has to be picked from the list before it can be submitted. An empty
 // box is a clear. Fields marked data-keel-lookup-submit save on pick or clear,
 // and their change events do not also trip the autosubmit listener.
+// The suggestion list is a span so it stays inside the field. A ul there is
+// pulled out of a paragraph, and this script then never sees it.
+// Assign to me fills the people box with the signed-in person. On a field that
+// saves on pick, that fill saves immediately; otherwise the form waits.
 (() => {
   const boxes = document.querySelectorAll("[data-keel-lookup]");
   if (!boxes.length) {
@@ -120,6 +124,20 @@
       }
     };
 
+    const assignMe = form.querySelector("[data-keel-assign-me]");
+    if (kind === "users" && assignMe && !assignMe.dataset.keelAssignBound) {
+      assignMe.dataset.keelAssignBound = "on";
+      assignMe.addEventListener("click", (event) => {
+        const id = assignMe.dataset.keelAssignMe;
+        const label = assignMe.dataset.keelAssignMeLabel || "";
+        if (!id) {
+          return;
+        }
+        event.preventDefault();
+        pick({ id: Number(id), label });
+      });
+    }
+
     const render = (items) => {
       rows = items;
       active = -1;
@@ -129,7 +147,7 @@
           close(input, list);
           return;
         }
-        const empty = document.createElement("li");
+        const empty = document.createElement("span");
         empty.className = "keel-lookup__empty";
         empty.textContent = "No matches";
         list.append(empty);
@@ -137,7 +155,7 @@
         return;
       }
       items.forEach((item, index) => {
-        const option = document.createElement("li");
+        const option = document.createElement("span");
         option.className = "keel-lookup__option";
         option.setAttribute("role", "option");
         option.id = `${input.id}-opt-${index}`;
