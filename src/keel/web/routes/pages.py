@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date
 from typing import Annotated
 
@@ -7,6 +8,7 @@ from fastapi.responses import HTMLResponse
 from keel.db.models import Project
 from keel.domain.enums import (
     INITIAL_PRIORITY,
+    IssuePriority,
     IssueStatus,
     IssueType,
     priorities_in_rank_order,
@@ -38,6 +40,25 @@ from keel.web.home_layout import (
 from keel.web.inbox import INBOX_COOKIE, SECTIONS, encode_toggle, parse_collapsed
 
 router = APIRouter()
+
+
+@dataclass(frozen=True)
+class IssueDraft:
+    """Create-form values kept when Assign to me redisplays the page."""
+
+    type: IssueType = IssueType.STORY
+    title: str = ""
+    description: str = ""
+    status: IssueStatus = IssueStatus.TODO
+    priority: IssuePriority = INITIAL_PRIORITY
+    parent_label: str = ""
+    assignee_label: str = ""
+    sprint_id: str = ""
+    start_at: str = ""
+    due_at: str = ""
+    estimate: str = ""
+    remaining: str = ""
+    labels: str = ""
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -195,14 +216,16 @@ def _calendar_page(
     )
 
 
-@router.get("/create", response_class=HTMLResponse)
-def create_page(
+def render_create_page(
     request: Request,
     chrome: ChromeDep,
     session: SessionDep,
+    *,
     project: str | None = None,
     error: str | None = None,
+    draft: IssueDraft | None = None,
 ) -> HTMLResponse:
+    filled = draft or IssueDraft()
     projects = project_service.list_projects(session)
     chosen = None
     project_label = ""
@@ -229,13 +252,31 @@ def create_page(
             project_label=project_label,
             error=error or project_error,
             issue_types=types_in_hierarchy_order(),
-            default_type=IssueType.STORY,
+            default_type=filled.type,
             statuses=statuses_in_workflow_order(),
-            default_status=IssueStatus.TODO,
+            default_status=filled.status,
             priorities=priorities_in_rank_order(),
-            default_priority=INITIAL_PRIORITY,
+            default_priority=filled.priority,
             sprints=sprints,
+            draft=filled,
         ),
+    )
+
+
+@router.get("/create", response_class=HTMLResponse)
+def create_page(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    project: str | None = None,
+    error: str | None = None,
+) -> HTMLResponse:
+    return render_create_page(
+        request,
+        chrome,
+        session,
+        project=project,
+        error=error,
     )
 
 

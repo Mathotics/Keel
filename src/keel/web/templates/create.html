@@ -41,11 +41,11 @@
               </p>
               <p class="keel-fields__full">
                 <label for="issue-title">Title</label>
-                <input id="issue-title" name="title" type="text" maxlength="300" required autofocus placeholder="What needs doing?"/>
+                <input id="issue-title" name="title" type="text" maxlength="300" required autofocus placeholder="What needs doing?" value="{{ draft.title }}"/>
               </p>
               <p class="keel-fields__full">
                 <label for="issue-description">Description</label>
-                <textarea id="issue-description" class="keel-description" name="description" rows="6"></textarea>
+                <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ draft.description }}</textarea>
               </p>
             </div>
           </fieldset>
@@ -68,30 +68,35 @@
                   {% endfor %}
                 </select>
               </p>
-              <p>
+              <div class="keel-field keel-fields__full">
                 <label for="issue-assignee">Assignee</label>
-                {% with field_id="issue-assignee", query_name="assignee_query", value="", kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=false, placeholder="Unassigned" %}
-                {% include "_lookup.html" %}
-                {% endwith %}
-              </p>
+                <span class="keel-control-row">
+                  {% with field_id="issue-assignee", query_name="assignee_query", value=draft.assignee_label, kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=false, placeholder="Unassigned" %}
+                  {% include "_lookup.html" %}
+                  {% endwith %}
+                  {% if current_user %}
+                  <button class="keel-assign-me" type="submit" name="assign_to_me" value="1" formnovalidate data-keel-assign-me="{{ current_user.id }}" data-keel-assign-me-label="{{ current_user.display_name }}">Assign to me</button>
+                  {% endif %}
+                </span>
+              </div>
               <p>
                 <label for="issue-parent">Parent</label>
-                {% with field_id="issue-parent", query_name="parent_query", value="", kind="issues", project_key=project.key, exclude_id="", id_name="parent_id", submit=false, placeholder="No parent" %}
+                {% with field_id="issue-parent", query_name="parent_query", value=draft.parent_label, kind="issues", project_key=project.key, exclude_id="", id_name="parent_id", submit=false, placeholder="No parent" %}
                 {% include "_lookup.html" %}
                 {% endwith %}
               </p>
               <p>
                 <label for="issue-sprint">Sprint</label>
                 <select id="issue-sprint" name="sprint_id">
-                  <option value="" selected>Unscheduled</option>
+                  <option value=""{% if not draft.sprint_id %} selected{% endif %}>Unscheduled</option>
                   {% for sprint in sprints %}
-                  <option value="{{ sprint.id }}">{{ sprint.name }} ({{ sprint.state | label }})</option>
+                  <option value="{{ sprint.id }}"{% if draft.sprint_id == sprint.id|string %} selected{% endif %}>{{ sprint.name }} ({{ sprint.state | label }})</option>
                   {% endfor %}
                 </select>
               </p>
               <p class="keel-fields__full">
                 <label for="issue-labels">Labels</label>
-                <input id="issue-labels" name="labels" type="text" maxlength="300" placeholder="urgent, plumbing"/>
+                <input id="issue-labels" name="labels" type="text" maxlength="300" placeholder="urgent, plumbing" value="{{ draft.labels }}"/>
               </p>
             </div>
           </fieldset>
@@ -100,19 +105,19 @@
             <div class="keel-fields">
               <p>
                 <label for="issue-start">Start date</label>
-                <input id="issue-start" name="start_at" type="datetime-local" data-keel-range="start"/>
+                <input id="issue-start" name="start_at" type="datetime-local" data-keel-range="start" value="{{ draft.start_at }}"/>
               </p>
               <p>
                 <label for="issue-due">Due date</label>
-                <input id="issue-due" name="due_at" type="datetime-local" data-keel-range="end"/>
+                <input id="issue-due" name="due_at" type="datetime-local" data-keel-range="end" value="{{ draft.due_at }}"/>
               </p>
               <p>
                 <label for="issue-estimate">Estimate</label>
-                <input id="issue-estimate" name="estimate" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
+                <input id="issue-estimate" name="estimate" type="text" placeholder="2h, 90m, 1h 30m, or 1d" value="{{ draft.estimate }}"/>
               </p>
               <p>
                 <label for="issue-remaining">Remaining</label>
-                <input id="issue-remaining" name="remaining" type="text" placeholder="2h, 90m, 1h 30m, or 1d"/>
+                <input id="issue-remaining" name="remaining" type="text" placeholder="2h, 90m, 1h 30m, or 1d" value="{{ draft.remaining }}"/>
               </p>
             </div>
           </fieldset>

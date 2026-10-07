@@ -484,6 +484,127 @@ def test_assignee_can_be_changed_from_the_issue_page(
     assert client.get(f"/api/v1/issues/{issue_id}").json()["assignee_id"] is None
 
 
+def test_assign_to_me_sets_the_signed_in_user(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    me = next(
+        user
+        for user in client.get("/api/v1/users").json()
+        if user["display_name"] == "Tester"
+    )
+    page = client.get("/issues/KEEL-1")
+    start = page.text.index(f'action="/web/issues/{issue_id}/assignee"')
+    form = page.text[start : page.text.index("</form>", start)]
+    assert "Assign to me" in form
+    assert 'name="assign_to_me"' in form
+    assert f'data-keel-assign-me="{me["id"]}"' in form
+    assert 'data-keel-assign-me-label="Tester"' in form
+
+    response = client.post(
+        f"/web/issues/{issue_id}/assignee",
+        data={
+            "assign_to_me": "1",
+            "assignee_query": "not a person",
+            "assignee_id": "99999",
+        },
+        follow_redirects=False,
+    )
+    assert response.headers["location"] == "/issues/KEEL-1"
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["assignee_id"] == me["id"]
+    assert 'value="Tester"' in client.get("/issues/KEEL-1").text
+
+
+def test_assign_to_me_on_create_keeps_the_draft(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        "/web/issues",
+        data={"project_id": str(project["id"]), "type": "epic", "title": "Parent"},
+        follow_redirects=False,
+    )
+    parent_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "One"},
+    ).json()
+    me = next(
+        user
+        for user in client.get("/api/v1/users").json()
+        if user["display_name"] == "Tester"
+    )
+    offered = client.get(f"/create?project={project['key']}")
+    assert "Assign to me" in offered.text
+    assert f'data-keel-assign-me="{me["id"]}"' in offered.text
+    assert "formnovalidate" in offered.text
+
+    kept = client.post(
+        "/web/issues",
+        data={
+            "assign_to_me": "1",
+            "project_id": str(project["id"]),
+            "type": "story",
+            "title": "Hold this",
+            "description": "Notes",
+            "status": "in_progress",
+            "priority": "p2",
+            "parent_id": str(parent_id),
+            "assignee_query": "not a person",
+            "sprint_id": str(sprint["id"]),
+            "start_at": "2026-11-01T09:00",
+            "due_at": "2026-11-02T08:15",
+            "estimate": "2h",
+            "remaining": "90m",
+            "labels": "urgent",
+        },
+    )
+    assert kept.status_code == 200
+    html = kept.text
+    assert 'value="Hold this"' in html
+    assert ">Notes<" in html
+    assert 'value="in_progress" selected' in html or (
+        'value="in_progress"selected' in html
+    )
+    assert 'value="p2" selected' in html or 'value="p2"selected' in html
+    assert 'value="KEEL-1 — Parent"' in html
+    assert 'value="Tester"' in html
+    assert f'value="{sprint["id"]}" selected' in html or (
+        f'value="{sprint["id"]}"selected' in html
+    )
+    assert 'value="2026-11-01T09:00"' in html
+    assert 'value="2026-11-02T08:15"' in html
+    assert 'value="2h"' in html
+    assert 'value="90m"' in html
+    assert 'value="urgent"' in html
+    titles = [
+        issue["title"]
+        for issue in client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    ]
+    assert titles == ["Parent"]
+
+    created = client.post(
+        "/web/issues",
+        data={
+            "project_id": str(project["id"]),
+            "type": "story",
+            "title": "Hold this",
+            "assignee_query": "Tester",
+        },
+        follow_redirects=False,
+    )
+    assert created.headers["location"] == "/issues/KEEL-2"
+    filed = next(
+        issue
+        for issue in client.get(f"/api/v1/projects/{project['id']}/issues").json()
+        if issue["title"] == "Hold this"
+    )
+    assert filed["assignee_id"] == me["id"]
+
+
 def test_status_can_be_changed_from_the_issue_page(
     client: TestClient,
     project: Json,

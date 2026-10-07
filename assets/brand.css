@@ -1002,8 +1002,16 @@ body {
   margin: 0;
 }
 
-.keel-form--stacked .keel-fields > p {
+.keel-form--stacked .keel-fields > p,
+.keel-form--stacked .keel-field {
   margin: 0;
+}
+
+.keel-form--stacked .keel-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
 }
 
 .keel-fields__full {
@@ -1063,6 +1071,16 @@ body {
   flex: 1 1 12rem;
   min-width: 0;
   width: auto;
+}
+
+.keel-control-row .keel-lookup {
+  flex: 1 1 12rem;
+  min-width: 0;
+  max-width: 24rem;
+}
+
+.keel-assign-me {
+  white-space: nowrap;
 }
 
 .keel-form-actions {
@@ -1239,8 +1257,15 @@ body {
 }
 
 .keel-facts .keel-form {
+  flex-wrap: wrap;
   margin: 0;
   width: 100%;
+}
+
+.keel-fact .keel-lookup {
+  flex: 1 1 8rem;
+  min-width: 0;
+  max-width: none;
 }
 
 .keel-fact .keel-form select,

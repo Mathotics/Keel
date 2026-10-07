@@ -2,6 +2,8 @@
 // value has to be picked from the list before it can be submitted. An empty
 // box is a clear. Fields marked data-keel-lookup-submit save on pick or clear,
 // and their change events do not also trip the autosubmit listener.
+// Assign to me fills the people box with the signed-in person. On a field that
+// saves on pick, that fill saves immediately; otherwise the form waits.
 (() => {
   const boxes = document.querySelectorAll("[data-keel-lookup]");
   if (!boxes.length) {
@@ -119,6 +121,20 @@
         form.submit();
       }
     };
+
+    const assignMe = form.querySelector("[data-keel-assign-me]");
+    if (kind === "users" && assignMe && !assignMe.dataset.keelAssignBound) {
+      assignMe.dataset.keelAssignBound = "on";
+      assignMe.addEventListener("click", (event) => {
+        const id = assignMe.dataset.keelAssignMe;
+        const label = assignMe.dataset.keelAssignMeLabel || "";
+        if (!id) {
+          return;
+        }
+        event.preventDefault();
+        pick({ id: Number(id), label });
+      });
+    }
 
     const render = (items) => {
       rows = items;

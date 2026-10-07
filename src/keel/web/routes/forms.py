@@ -3,7 +3,7 @@ from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from keel.domain.cadence import MAX_SPRINT_AHEAD, MIN_SPRINT_AHEAD
 from keel.domain.duration import parse_duration
@@ -24,6 +24,7 @@ from keel.domain.errors import (
     CannotDeleteSelfError,
     DomainError,
     InvalidSprintCadenceError,
+    NotFoundError,
 )
 from keel.domain.hierarchy import child_type_of
 from keel.domain.labels import parse_label_names
@@ -65,6 +66,7 @@ from keel.web.nav import (
     move_item,
     parse_order,
 )
+from keel.web.routes.pages import IssueDraft, render_create_page
 
 router = APIRouter(prefix="/web")
 
@@ -109,6 +111,26 @@ def _posted_issue(
 
 def _posted_user(session: SessionDep, raw_id: str, raw_query: str) -> int | None:
     return lookup_service.resolve_posted_user(session, raw_id, raw_query)
+
+
+def _assign_to_me(raw: str) -> bool:
+    return raw.strip() == "1"
+
+
+def _parent_label(
+    session: SessionDep,
+    project_id: int,
+    raw_id: str,
+    raw_query: str,
+) -> str:
+    chosen = raw_id.strip()
+    if not chosen.isdigit():
+        return raw_query
+    project = project_service.get_project(session, project_id)
+    try:
+        return lookup_service.parent_field_value(session, int(chosen), project)
+    except NotFoundError:
+        return raw_query
 
 
 def _remember_nav(
@@ -327,8 +349,9 @@ def delete_project(session: SessionDep, project_id: int) -> RedirectResponse:
     return _back("/projects")
 
 
-@router.post("/issues")
+@router.post("/issues", response_model=None)
 def create_issue_from_page(
+    request: Request,
     session: SessionDep,
     chrome: ChromeDep,
     project_id: Annotated[str, Form()] = "",
@@ -347,12 +370,42 @@ def create_issue_from_page(
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
-) -> RedirectResponse:
+    assign_to_me: Annotated[str, Form()] = "",
+) -> RedirectResponse | HTMLResponse:
     chosen = _optional_id(project_id)
     if chosen is None:
         return _back("/create", "Choose a project.")
     project = project_service.get_project(session, chosen)
     here = f"/create?project={project.key}"
+    if _assign_to_me(assign_to_me):
+        if chrome.current_user is None:
+            return _back(here, "Sign in to assign this to yourself.")
+        return render_create_page(
+            request,
+            chrome,
+            session,
+            project=project.key,
+            draft=IssueDraft(
+                type=type,
+                title=title,
+                description=description,
+                status=status,
+                priority=priority,
+                parent_label=_parent_label(
+                    session,
+                    project.id,
+                    parent_id,
+                    parent_query,
+                ),
+                assignee_label=chrome.current_user.display_name,
+                sprint_id=sprint_id,
+                start_at=start_at,
+                due_at=due_at,
+                estimate=estimate,
+                remaining=remaining,
+                labels=labels,
+            ),
+        )
     try:
         issue = issue_service.create_issue(
             session,
@@ -738,15 +791,22 @@ def update_issue_assignee(
     issue_id: int,
     assignee_id: Annotated[str, Form()] = "",
     assignee_query: Annotated[str, Form()] = "",
+    assign_to_me: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     issue = issue_service.get_issue(session, issue_id)
     key = project_service.get_project(session, issue.project_id).key
     here = f"/issues/{key}-{issue.number}"
     try:
+        if _assign_to_me(assign_to_me):
+            if chrome.current_user is None:
+                return _back(here, "Sign in to assign this to yourself.")
+            chosen_assignee: int | None = chrome.current_user.id
+        else:
+            chosen_assignee = _posted_user(session, assignee_id, assignee_query)
         issue_service.update_issue(
             session,
             issue_id,
-            assignee_id=_posted_user(session, assignee_id, assignee_query),
+            assignee_id=chosen_assignee,
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

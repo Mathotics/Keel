@@ -88,6 +88,9 @@
               {% with field_id="issue-assignee", query_name="assignee_query", value=assignee_label, kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=true, placeholder="Unassigned" %}
               {% include "_lookup.html" %}
               {% endwith %}
+              {% if current_user %}
+              <button class="keel-assign-me" type="submit" name="assign_to_me" value="1" data-keel-assign-me="{{ current_user.id }}" data-keel-assign-me-label="{{ current_user.display_name }}">Assign to me</button>
+              {% endif %}
               <button class="keel-autosubmit__fallback" type="submit">Save</button>
             </form>
           </dd>
