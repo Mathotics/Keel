@@ -58,6 +58,12 @@ from keel.web.inbox import (
     encode_collapsed,
     parse_collapsed,
 )
+from keel.web.issue_panels import (
+    ISSUE_PANELS_COOKIE,
+    ISSUE_PANELS_COOKIE_MAX_AGE,
+)
+from keel.web.issue_panels import encode_collapsed as encode_issue_panels
+from keel.web.issue_panels import parse_collapsed as parse_issue_panels
 from keel.web.nav import (
     NAV_COOKIE,
     NAV_COOKIE_MAX_AGE,
@@ -66,6 +72,7 @@ from keel.web.nav import (
     move_item,
     parse_order,
 )
+from keel.web.routes.account import safe_next
 from keel.web.routes.pages import IssueDraft, render_create_page
 
 router = APIRouter(prefix="/web")
@@ -170,6 +177,22 @@ def save_inbox_collapsed(
         INBOX_COOKIE,
         encode_collapsed(parse_collapsed(collapsed)),
         max_age=INBOX_COOKIE_MAX_AGE,
+        path="/",
+        samesite="lax",
+    )
+    return response
+
+
+@router.post("/issue-panels")
+def save_issue_panels(
+    collapsed: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    response = _back(safe_next(return_to))
+    response.set_cookie(
+        ISSUE_PANELS_COOKIE,
+        encode_issue_panels(parse_issue_panels(collapsed)),
+        max_age=ISSUE_PANELS_COOKIE_MAX_AGE,
         path="/",
         samesite="lax",
     )

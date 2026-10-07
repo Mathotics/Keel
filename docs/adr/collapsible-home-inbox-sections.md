@@ -2,6 +2,7 @@
 
 * **Status:** Accepted
 * **Date:** 2026-10-01
+* **Updated:** 2026-10-07 — folding issue-page panels is a separate record.
 
 > **Amendment.** [Customizable home panels](customizable-home-panels.md) lets this browser remove and reorder those sections. Collapse is unchanged. The out-of-scope line below that forbids reordering or removing sections is superseded by that record.
 
@@ -34,7 +35,7 @@ Every non-empty inbox section is always fully open. Assigned to me repeats issue
 
 ### Out-of-Scope
 
-* Collapsing panels on other pages (board, issue, projects, schedules).
+* Collapsing panels on the board, projects, or schedules. Issue-page panels fold separately ([Foldable issue panels](foldable-issue-panels.md)).
 * Renaming home sections. Removing and reordering them is [Customizable home panels](customizable-home-panels.md).
 * Hiding a section with no heading, or changing which issues belong in which section.
 * Storing the preference on the user row or in the database.

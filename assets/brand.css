@@ -345,6 +345,76 @@ body {
   outline-offset: 2px;
 }
 
+/* Issue-page panels use the same disclosure as the home inbox. */
+.keel-fold {
+  margin: 0 0 0.5rem;
+}
+
+.keel-fold > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  margin: 1.75rem 0 0.7rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.keel-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.keel-fold > summary::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--keel-blue);
+  border-bottom: 2px solid var(--keel-blue);
+  transform: rotate(-45deg);
+  translate: 0 -0.05rem;
+}
+
+.keel-fold[open] > summary::before {
+  transform: rotate(45deg);
+  translate: 0 -0.15rem;
+}
+
+.keel-fold > summary:focus-visible {
+  outline: 2px solid var(--keel-blue);
+  outline-offset: 2px;
+}
+
+.keel-fold > summary > h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.keel-fold__count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.keel-fold__fallback {
+  margin: 0 0 0 auto;
+}
+
+.keel-fold__fallback button {
+  height: var(--keel-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+}
+
+[data-keel-issue-panels] .keel-fold__fallback {
+  display: none;
+}
+
 .keel-home-add {
   margin-top: 1.75rem;
 }

@@ -4,7 +4,24 @@
 {% block scripts %}
     {{ super() }}
     <script src="/assets/js/overlay.js" defer></script>
+    <script src="/assets/js/issue-panels.js" defer></script>
 {% endblock %}
+{% macro issue_panel(key, title, count=None) %}
+      <details class="keel-fold"{% if key not in collapsed_issue_panels %} open{% endif %} data-keel-issue-panel="{{ key }}">
+        <summary>
+          <h2>{{ title }}</h2>
+          {% if count is not none %}
+          <span class="keel-fold__count">{{ count }}</span>
+          {% endif %}
+          <form class="keel-fold__fallback" method="post" action="/web/issue-panels">
+            <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
+            <input type="hidden" name="collapsed" value="{{ issue_panel_toggle(key) }}"/>
+            <button type="submit">{% if key in collapsed_issue_panels %}Expand{% else %}Minimize{% endif %}</button>
+          </form>
+        </summary>
+        {{ caller() }}
+      </details>
+{% endmacro %}
 {% block main %}
       <h1>{{ issue_key }}</h1>
       {% if error and not repeat_overlay %}
@@ -261,7 +278,7 @@
         </div>
       </dialog>
 
-      <h2>Description</h2>
+      {% call issue_panel('description', 'Description') %}
       {% if issue.description %}
       <div class="keel-markdown">{{ issue.description | markdown }}</div>
       {% endif %}
@@ -275,8 +292,9 @@
           <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
         </form>
       </details>
+      {% endcall %}
 
-      <h2>Children</h2>
+      {% call issue_panel('children', 'Children', children|length) %}
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
@@ -304,8 +322,9 @@
         <button class="keel-primary" type="submit">Add {{ child_type | label }}</button>
       </form>
       {% endif %}
+      {% endcall %}
 
-      <h2>Dependencies</h2>
+      {% call issue_panel('dependencies', 'Dependencies', dependencies.blocks|length + dependencies.blocked_by|length + dependencies.relates_to|length) %}
       <h3>Blocks</h3>
       <div class="keel-table-scroll">
       <table class="keel-table">
@@ -406,15 +425,17 @@
         </label>
         <button class="keel-primary" type="submit">Add</button>
       </form>
+      {% endcall %}
 
-      <h2>History</h2>
+      {% call issue_panel('history', 'History', history|length) %}
       {% for event in history %}
       <p class="keel-history__line">{{ event.created_at | when }}, {{ event.actor_name }} — {{ event.field }} {{ event.from_value }} → {{ event.to_value }}</p>
       {% else %}
       <p class="keel-empty">No history yet.</p>
       {% endfor %}
+      {% endcall %}
 
-      <h2>Comments</h2>
+      {% call issue_panel('comments', 'Comments', comments|length) %}
       {% for comment in comments %}
       <article class="keel-comment">
         <p class="keel-comment__meta">{{ comment.author_name }} · {{ comment.created_at | when }}</p>
@@ -434,6 +455,7 @@
         </p>
         <p><button class="keel-primary" type="submit">Add comment</button></p>
       </form>
+      {% endcall %}
 
       <form class="keel-form keel-form--danger" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?{% if series %} This occurrence will not come back.{% endif %}');">

@@ -422,6 +422,58 @@ def test_an_unknown_issue_page_is_not_found(client: TestClient) -> None:
     assert client.get("/issues/KEEL-99").status_code == 404
 
 
+def _panel_tag(html: str, key: str) -> str:
+    marker = f'data-keel-issue-panel="{key}"'
+    index = html.index(marker)
+    start = html.rfind("<details", 0, index)
+    return html[start : html.index(">", index)]
+
+
+def test_issue_panels_fold_and_stay_folded(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    page = client.get("/issues/KEEL-1")
+    html = page.text
+    assert "/assets/js/issue-panels.js" in html
+    assert html.count('class="keel-fold__count"') == 4
+    for key in ("description", "children", "dependencies", "history", "comments"):
+        tag = _panel_tag(html, key)
+        assert " open" in tag
+        summary = html[html.index(tag) : html.index("</summary>", html.index(tag))]
+        assert "Minimize" in summary
+
+    folded = client.post(
+        "/web/issue-panels",
+        data={"collapsed": "comments.nope", "next": "/issues/KEEL-1"},
+        follow_redirects=False,
+    )
+    assert folded.status_code == 303
+    assert folded.headers["location"] == "/issues/KEEL-1"
+    assert folded.cookies["keel_issue_panels"] == "comments"
+
+    again = client.get("/issues/KEEL-1").text
+    assert " open" not in _panel_tag(again, "comments")
+    assert " open" in _panel_tag(again, "history")
+    comments = again[
+        again.index('data-keel-issue-panel="comments"') : again.index(
+            "</summary>",
+            again.index('data-keel-issue-panel="comments"'),
+        )
+    ]
+    assert "Expand" in comments
+    assert "No comments yet." in again
+
+    refused = client.post(
+        "/web/issue-panels",
+        data={"collapsed": "history", "next": "https://evil.example"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"] == "/"
+    assert client.cookies["keel_issue_panels"] == "history"
+
+
 def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) -> None:
     submit_issue(client, project, title="Ready", due_at="2026-09-15T17:00")
 
