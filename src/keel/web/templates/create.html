@@ -14,7 +14,7 @@
       <div class="keel-panel">
         <form class="keel-form keel-form--stacked" method="get" action="/create" data-keel-autosubmit>
           <div class="keel-fields">
-            <p class="keel-fields__full">
+            <div class="keel-field keel-fields__full">
               <label for="issue-project">Project</label>
               <span class="keel-control-row">
                 {% with field_id="issue-project", query_name="project", value=project_label, kind="projects", project_key="", exclude_id="", id_name="", submit=true, placeholder="Choose a project" %}
@@ -22,7 +22,7 @@
                 {% endwith %}
                 <button class="keel-autosubmit__fallback" type="submit">Use this project</button>
               </span>
-            </p>
+            </div>
           </div>
         </form>
         {% if project %}
@@ -79,12 +79,12 @@
                   {% endif %}
                 </span>
               </div>
-              <p>
+              <div class="keel-field">
                 <label for="issue-parent">Parent</label>
                 {% with field_id="issue-parent", query_name="parent_query", value=draft.parent_label, kind="issues", project_key=project.key, exclude_id="", id_name="parent_id", submit=false, placeholder="No parent" %}
                 {% include "_lookup.html" %}
                 {% endwith %}
-              </p>
+              </div>
               <p>
                 <label for="issue-sprint">Sprint</label>
                 <select id="issue-sprint" name="sprint_id">

@@ -973,8 +973,13 @@ body {
   overflow: auto;
 }
 
+.keel-lookup__list:not([hidden]) {
+  display: block;
+}
+
 .keel-lookup__option,
 .keel-lookup__empty {
+  display: block;
   padding: 0.25rem 0.5rem;
 }
 

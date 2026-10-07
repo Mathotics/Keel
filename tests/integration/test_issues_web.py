@@ -39,6 +39,10 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="title"' in page.text
     assert 'name="project"' in page.text
     assert 'data-keel-lookup="projects"' in page.text
+    project_at = page.text.index('data-keel-lookup="projects"')
+    project_list = page.text.index('id="issue-project-list"', project_at)
+    assert "<ul" not in page.text[project_at:project_list]
+    assert page.text.rfind("<p", 0, project_at) < page.text.rfind("<div", 0, project_at)
     assert 'value="KEEL — Keel"' in page.text
     assert 'name="project_id"' in page.text
     named = client.get("/create", params={"project": "Keel"})
