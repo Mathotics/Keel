@@ -6,6 +6,7 @@ from keel.api.v1 import (
     dependencies,
     issues,
     labels,
+    login,
     profile,
     projects,
     series,
@@ -14,6 +15,7 @@ from keel.api.v1 import (
 )
 
 router = APIRouter(prefix="/api/v1")
+router.include_router(login.router)
 router.include_router(users.router)
 router.include_router(profile.router)
 router.include_router(projects.router)

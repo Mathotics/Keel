@@ -7,6 +7,7 @@ from keel.schemas.user import (
     ProfileUpdate,
     TokenCreate,
     TokenCreated,
+    TokenLabelUpdate,
     TokenRead,
     UserRead,
 )
@@ -98,6 +99,17 @@ def create_token(
     body = TokenRead.model_validate(issued.row).model_dump()
     body["token"] = issued.secret
     return TokenCreated.model_validate(body)
+
+
+@router.patch("/tokens/{token_id}", response_model=TokenRead)
+def update_token(
+    token_id: int,
+    payload: TokenLabelUpdate,
+    session: SessionDep,
+    acting: ActingUserDep,
+) -> TokenRead:
+    row = auth_service.rename_token(session, _user(acting), token_id, payload.label)
+    return TokenRead.model_validate(row)
 
 
 @router.delete("/tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)

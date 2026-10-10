@@ -46,6 +46,28 @@ class TokenCreate(BaseModel):
     label: str = Field(min_length=1, max_length=100)
 
 
+class TokenLabelUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    label: str = Field(min_length=1, max_length=100)
+
+
+class LoginCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=1, max_length=128)
+    label: str = Field(min_length=1, max_length=100)
+
+
+class LoginRead(BaseModel):
+    token: str
+    token_id: int
+    label: str
+    username: str
+    display_name: str
+
+
 class TokenRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -6,7 +6,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from keel.services.identity import SESSION_COOKIE, resolve_current_user
 
-_PUBLIC_PATHS = frozenset({"/health", "/login", "/favicon.ico"})
+_PUBLIC_PATHS = frozenset({"/health", "/login", "/favicon.ico", "/api/v1/login"})
 _JSON_PATHS = frozenset({"/openapi.json", "/docs", "/redoc"})
 
 

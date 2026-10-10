@@ -115,6 +115,81 @@ def test_an_api_token_acts_as_that_person(client: TestClient) -> None:
     assert any(user["display_name"] == "Tester" for user in listed.json())
 
 
+def test_api_login_issues_a_token_until_sign_out(anonymous_client: TestClient) -> None:
+    refused = anonymous_client.post(
+        "/api/v1/login",
+        json={"username": "Tester", "password": "not-the-password", "label": "Phone"},
+    )
+    assert refused.status_code == 401
+    assert refused.json()["detail"] == "Those credentials are not recognized."
+
+    signed = anonymous_client.post(
+        "/api/v1/login",
+        json={
+            "username": "tester",
+            "password": TEST_PASSWORD,
+            "label": "  Pixel  ",
+        },
+    )
+    assert signed.status_code == 200
+    body = signed.json()
+    assert body["label"] == "Pixel"
+    assert body["display_name"] == "Tester"
+    assert body["token"].startswith("keel_")
+    secret = body["token"]
+    token_id = body["token_id"]
+    headers = {"Authorization": f"Bearer {secret}"}
+
+    profile = anonymous_client.get("/api/v1/profile", headers=headers)
+    assert profile.status_code == 200
+    listed = anonymous_client.get("/api/v1/profile/tokens", headers=headers)
+    row = next(item for item in listed.json() if item["id"] == token_id)
+    assert row["label"] == "Pixel"
+    assert row["last_used_at"] is not None
+    assert "token" not in row
+
+    renamed = anonymous_client.patch(
+        f"/api/v1/profile/tokens/{token_id}",
+        json={"label": "Kitchen phone"},
+        headers=headers,
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["label"] == "Kitchen phone"
+
+    revoked = anonymous_client.delete(
+        f"/api/v1/profile/tokens/{token_id}",
+        headers=headers,
+    )
+    assert revoked.status_code == 204
+    assert anonymous_client.get("/api/v1/profile", headers=headers).status_code == 401
+
+
+def test_api_login_locks_after_repeated_failures(
+    anonymous_client: TestClient,
+) -> None:
+    from keel.services.auth import reset_attempts
+
+    try:
+        for _ in range(8):
+            response = anonymous_client.post(
+                "/api/v1/login",
+                json={
+                    "username": "Tester",
+                    "password": "not-the-password",
+                    "label": "Phone",
+                },
+            )
+            assert response.status_code == 401
+        locked = anonymous_client.post(
+            "/api/v1/login",
+            json={"username": "Tester", "password": TEST_PASSWORD, "label": "Phone"},
+        )
+        assert locked.status_code == 429
+        assert locked.json()["detail"] == "Too many attempts. Try again later."
+    finally:
+        reset_attempts()
+
+
 def test_login_refuses_an_off_site_next(anonymous_client: TestClient) -> None:
     signed = anonymous_client.post(
         "/login",
