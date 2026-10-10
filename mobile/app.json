@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.keel.shell",
-      "versionCode": 1,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0068B0",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -36,7 +36,9 @@
           }
         }
       ],
-      "./plugins/withReleaseSigning"
+      "./plugins/withReleaseSigning",
+      "expo-secure-store",
+      "expo-local-authentication"
     ]
   }
 }

@@ -142,12 +142,17 @@ def revoke_sessions(session: Session, user_id: int) -> None:
     session.flush()
 
 
-def create_token(session: Session, user: User, label: str) -> IssuedToken:
+def clean_label(label: str) -> str:
     cleaned = label.strip()
     if not cleaned:
         raise InvalidTokenLabelError("A token needs a label.")
     if len(cleaned) > 100:
         raise InvalidTokenLabelError("A token label may be at most 100 characters.")
+    return cleaned
+
+
+def create_token(session: Session, user: User, label: str) -> IssuedToken:
+    cleaned = clean_label(label)
     raw = "keel_" + secrets.token_urlsafe(32)
     now = utc_now()
     row = ApiToken(
@@ -170,12 +175,24 @@ def list_tokens(session: Session, user_id: int) -> Sequence[ApiToken]:
     ).all()
 
 
+def rename_token(session: Session, user_id: int, token_id: int, label: str) -> ApiToken:
+    row = _live_token(session, user_id, token_id)
+    row.label = clean_label(label)
+    session.flush()
+    return row
+
+
 def revoke_token(session: Session, user_id: int, token_id: int) -> None:
+    row = _live_token(session, user_id, token_id)
+    row.revoked_at = utc_now()
+    session.flush()
+
+
+def _live_token(session: Session, user_id: int, token_id: int) -> ApiToken:
     row = session.get(ApiToken, token_id)
     if row is None or row.user_id != user_id or row.revoked_at is not None:
         raise NotFoundError("No such token.")
-    row.revoked_at = utc_now()
-    session.flush()
+    return row
 
 
 def user_for_api_token(session: Session, raw_token: str) -> User | None:

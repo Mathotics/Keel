@@ -27,7 +27,9 @@ Collections are nested under their parent; single resources are flat, so a clien
 | `POST` | `/api/v1/profile/password` | Change your password — `{current_password, new_password, confirm_password}` |
 | `GET` | `/api/v1/profile/tokens` | List your API tokens (prefix, label, timestamps; no secret) |
 | `POST` | `/api/v1/profile/tokens` | Create a token — `{label}`. The response includes `token` once |
+| `PATCH` | `/api/v1/profile/tokens/{token_id}` | Rename one of your tokens — `{label}` |
 | `DELETE` | `/api/v1/profile/tokens/{token_id}` | Revoke a token |
+| `POST` | `/api/v1/login` | Public. Check username and password — `{username, password, label}` — and return a new personal token once (`token`, `token_id`, `label`, `username`, `display_name`). `label` is the device name. Wrong credentials are 401 with one message. Too many attempts are 429 |
 
 ## Projects
 
