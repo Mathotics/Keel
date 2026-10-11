@@ -8,6 +8,8 @@ import {
   Alert,
   AppState,
   Pressable,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,10 +17,11 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { login, renameLabel, revokeToken } from "./src/api";
+import { loadIssue, loadWork, login, renameLabel, revokeToken } from "./src/api";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
+import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
 
 const ADDRESS_KEY = "keel.serverAddress";
 const LOCK_KEY = "keel.lockSetting";
@@ -52,6 +55,7 @@ export default function App() {
   const [lockSetting, setLockSetting] = useState(ON_LAUNCH);
   const [hasDeviceLock, setHasDeviceLock] = useState(false);
   const [draftLabel, setDraftLabel] = useState("");
+  const [issueId, setIssueId] = useState(null);
   const prompting = useRef(false);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
@@ -376,13 +380,33 @@ export default function App() {
         />
       ) : null}
       {phase === "signedIn" && account ? (
-        <View>
-          <Text style={styles.label}>Signed in as {account.displayName}</Text>
-          <Text style={styles.message}>This phone: {account.label}</Text>
-          {message ? <Text style={styles.error}>{message}</Text> : null}
-          <PrimaryButton label="Settings" onPress={openSettings} disabled={busy} />
-          <PrimaryButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
+        <Work
+          account={account}
+          busy={busy}
+          onSettings={openSettings}
+          onSignOut={onSignOut}
+          onOpenIssue={(id) => {
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onUnauthorized={async () => {
+            await clearAccount();
+            setTone("error");
+            setMessage("Sign in.");
+          }}
+        />
+      ) : null}
+      {phase === "issue" && account && issueId ? (
+        <IssueDetail
+          account={account}
+          issueId={issueId}
+          onBack={() => setPhase("signedIn")}
+          onUnauthorized={async () => {
+            await clearAccount();
+            setTone("error");
+            setMessage("Sign in.");
+          }}
+        />
       ) : null}
       {phase === "settings" && account ? (
         <View>
@@ -429,6 +453,332 @@ export default function App() {
         </View>
       ) : null}
     </View>
+  );
+}
+
+function Work({ account, busy, onSettings, onSignOut, onUnauthorized, onOpenIssue }) {
+  const [sections, setSections] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+
+  async function reload() {
+    setError("");
+    try {
+      setSections(await loadWork(account.origin, account.token));
+    } catch (err) {
+      if (err.status === 401) {
+        await onUnauthorized();
+        return;
+      }
+      setError(err.message || "Could not connect.");
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+    loadWork(account.origin, account.token)
+      .then((next) => {
+        if (active) {
+          setSections(next);
+        }
+      })
+      .catch(async (err) => {
+        if (!active) {
+          return;
+        }
+        if (err.status === 401) {
+          await onUnauthorized();
+          return;
+        }
+        setError(err.message || "Could not connect.");
+        setSections([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [account.origin, account.token]);
+
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await reload();
+            setRefreshing(false);
+          }}
+          tintColor="#0068B0"
+        />
+      }
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      {sections === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {sections && sections.length === 0 && !error ? (
+        <Text style={styles.message}>{NO_PROJECTS}</Text>
+      ) : null}
+      {sections
+        ? sections.map((section) => (
+            <View key={section.projectId} style={styles.project}>
+              <Text style={styles.projectName}>
+                {section.projectKey} · {section.projectName}
+              </Text>
+              {section.sprintName ? (
+                <Text style={styles.sprintName}>{section.sprintName}</Text>
+              ) : (
+                <Text style={styles.message}>{NO_ACTIVE_SPRINT}</Text>
+              )}
+              {section.sprintName && section.issues.length === 0 ? (
+                <Text style={styles.message}>{NO_ISSUES}</Text>
+              ) : null}
+              {section.issues.map((issue) => (
+                <Pressable
+                  accessibilityLabel={`${issue.key} ${issue.title}`}
+                  accessibilityRole="button"
+                  key={issue.id}
+                  onPress={() => onOpenIssue(issue.id)}
+                  style={styles.issue}
+                >
+                  <Text style={styles.issueKey}>{issue.key}</Text>
+                  <Text style={styles.issueTitle}>{issue.title}</Text>
+                  <Text style={styles.issueStatus}>{issue.statusLabel}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ))
+        : null}
+    </ScrollView>
+  );
+}
+
+function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
+  const [stack, setStack] = useState([issueId]);
+  const [page, setPage] = useState(null);
+  const [error, setError] = useState("");
+  const currentId = stack[stack.length - 1];
+
+  useEffect(() => {
+    setStack([issueId]);
+  }, [issueId]);
+
+  useEffect(() => {
+    let active = true;
+    setPage(null);
+    setError("");
+    loadIssue(account.origin, account.token, currentId)
+      .then((next) => {
+        if (active) {
+          setPage(next);
+        }
+      })
+      .catch(async (err) => {
+        if (!active) {
+          return;
+        }
+        if (err.status === 401) {
+          await onUnauthorized();
+          return;
+        }
+        setError(err.message || "Could not connect.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [account.origin, account.token, currentId]);
+
+  function goBack() {
+    if (stack.length <= 1) {
+      onBack();
+      return;
+    }
+    setStack((current) => current.slice(0, -1));
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      <TextButton label="Back" onPress={goBack} disabled={false} />
+      {page === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {page ? (
+        <View>
+          <Text style={styles.issueKey}>{page.key}</Text>
+          <Text style={styles.detailTitle}>{page.title}</Text>
+          <DetailLine label="Type" value={page.typeLabel} />
+          <DetailLine label="Status" value={page.statusLabel} />
+          <DetailLine label="Priority" value={page.priorityLabel} />
+          <DetailLine label="Assignee" value={page.assignee} />
+          <DetailLine label="Reporter" value={page.reporter} />
+          <DetailLine label="Labels" value={page.labels} />
+          <DetailLine label="Sprint" value={page.sprintName || "None"} />
+          <DetailLine label="Start" value={page.start} />
+          <DetailLine label="Due" value={page.due} />
+          <DetailLine label="Estimate" value={page.estimate} />
+          <DetailLine label="Remaining" value={page.remaining} />
+          {page.rollup ? (
+            <View>
+              <DetailLine label="Rollup estimate" value={page.rollup.estimate} />
+              <DetailLine label="Rollup remaining" value={page.rollup.remaining} />
+              <DetailLine label="Progress" value={page.rollup.progress} />
+              {page.rollup.cancelled ? (
+                <DetailLine label="Cancelled" value={page.rollup.cancelled} />
+              ) : null}
+            </View>
+          ) : null}
+          <Text style={styles.sectionHeading}>Description</Text>
+          <Markdown blocks={page.description} />
+          <Text style={styles.sectionHeading}>Parent</Text>
+          {page.parent ? (
+            <LinkedRow item={page.parent} onPress={() => setStack((current) => [...current, page.parent.id])} />
+          ) : (
+            <Text style={styles.message}>None</Text>
+          )}
+          <Text style={styles.sectionHeading}>Children</Text>
+          {page.children.length ? (
+            page.children.map((child) => (
+              <LinkedRow
+                item={child}
+                key={child.id}
+                onPress={() => setStack((current) => [...current, child.id])}
+              />
+            ))
+          ) : (
+            <Text style={styles.message}>No children.</Text>
+          )}
+          <LinkGroup
+            title="Blocks"
+            items={page.blocks}
+            onOpen={(id) => setStack((current) => [...current, id])}
+          />
+          <LinkGroup
+            title="Blocked by"
+            items={page.blockedBy}
+            onOpen={(id) => setStack((current) => [...current, id])}
+          />
+          <LinkGroup
+            title="Relates to"
+            items={page.relatesTo}
+            onOpen={(id) => setStack((current) => [...current, id])}
+          />
+          <Text style={styles.sectionHeading}>History</Text>
+          {page.historyAvailable ? (
+            page.history.length ? (
+              page.history.map((line, index) => (
+                <Text key={`${index}-${line}`} style={styles.historyLine}>
+                  {line}
+                </Text>
+              ))
+            ) : (
+              <Text style={styles.message}>No history yet.</Text>
+            )
+          ) : (
+            <Text style={styles.message}>History is not on this server yet.</Text>
+          )}
+          <DetailLine label="Created" value={page.created} />
+          <DetailLine label="Updated" value={page.updated} />
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function DetailLine({ label, value }) {
+  return (
+    <Text style={styles.detailLine}>
+      <Text style={styles.detailLabel}>{label}: </Text>
+      {value}
+    </Text>
+  );
+}
+
+function LinkedRow({ item, onPress }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.issue}>
+      <Text style={styles.issueKey}>
+        {item.key}
+        {item.projectKey ? ` · ${item.projectKey}` : ""}
+        {item.statusLabel ? ` · ${item.statusLabel}` : ""}
+      </Text>
+      <Text style={styles.issueTitle}>{item.title}</Text>
+    </Pressable>
+  );
+}
+
+function LinkGroup({ title, items, onOpen }) {
+  return (
+    <View>
+      <Text style={styles.sectionHeading}>{title}</Text>
+      {items.length ? (
+        items.map((item) => (
+          <LinkedRow item={item} key={item.id} onPress={() => onOpen(item.id)} />
+        ))
+      ) : (
+        <Text style={styles.message}>None</Text>
+      )}
+    </View>
+  );
+}
+
+function Markdown({ blocks }) {
+  if (!blocks.length) {
+    return <Text style={styles.message}>No description.</Text>;
+  }
+  return blocks.map((block, index) => {
+    if (block.type === "code") {
+      return (
+        <Text key={index} style={styles.codeBlock}>
+          {block.text}
+        </Text>
+      );
+    }
+    if (block.type === "list") {
+      return (
+        <View key={index}>
+          {block.items.map((item, itemIndex) => (
+            <Text key={itemIndex} style={styles.body}>
+              {"• "}
+              <Runs runs={item} />
+            </Text>
+          ))}
+        </View>
+      );
+    }
+    return (
+      <Text key={index} style={block.type === "heading" ? styles.markdownHeading : styles.body}>
+        <Runs runs={block.inlines} />
+      </Text>
+    );
+  });
+}
+
+function Runs({ runs }) {
+  return runs.map((run, index) => (
+    <Text
+      key={index}
+      style={[
+        run.bold ? styles.bold : null,
+        run.italic ? styles.italic : null,
+        run.code ? styles.inlineCode : null,
+      ]}
+    >
+      {run.text}
+    </Text>
+  ));
+}
+
+function TextButton({ label, onPress, disabled }) {
+  return (
+    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
+      <Text style={styles.textButton}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -553,6 +903,119 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 24,
     paddingTop: 72,
+  },
+  work: {
+    flex: 1,
+  },
+  workContent: {
+    paddingBottom: 32,
+  },
+  toolbar: {
+    marginBottom: 8,
+  },
+  toolbarActions: {
+    flexDirection: "row",
+    gap: 16,
+    marginTop: 8,
+  },
+  signedIn: {
+    color: "#0062AB",
+    fontSize: 16,
+  },
+  textButton: {
+    color: "#0068B0",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  project: {
+    marginTop: 20,
+  },
+  projectName: {
+    color: "#0068B0",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  sprintName: {
+    color: "#0062AB",
+    fontSize: 15,
+    marginTop: 4,
+  },
+  issue: {
+    borderColor: "#0068B0",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  issueKey: {
+    color: "#0068B0",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  issueTitle: {
+    color: "#0062AB",
+    fontSize: 16,
+    marginTop: 2,
+  },
+  issueStatus: {
+    color: "#0F7A73",
+    fontSize: 14,
+    marginTop: 4,
+  },
+  detailTitle: {
+    color: "#0062AB",
+    fontSize: 22,
+    fontWeight: "700",
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  detailLine: {
+    color: "#0062AB",
+    fontSize: 16,
+    marginTop: 6,
+  },
+  detailLabel: {
+    fontWeight: "700",
+  },
+  sectionHeading: {
+    color: "#0068B0",
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 20,
+  },
+  body: {
+    color: "#0062AB",
+    fontSize: 16,
+    marginTop: 8,
+  },
+  markdownHeading: {
+    color: "#0068B0",
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 12,
+  },
+  bold: {
+    fontWeight: "700",
+  },
+  italic: {
+    fontStyle: "italic",
+  },
+  inlineCode: {
+    fontFamily: "monospace",
+  },
+  codeBlock: {
+    backgroundColor: "#F3F7FB",
+    color: "#0062AB",
+    fontFamily: "monospace",
+    fontSize: 14,
+    marginTop: 8,
+    padding: 12,
+  },
+  historyLine: {
+    color: "#0062AB",
+    fontSize: 15,
+    marginTop: 8,
   },
   title: {
     color: "#0068B0",

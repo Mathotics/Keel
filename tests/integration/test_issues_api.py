@@ -470,3 +470,29 @@ def test_a_completed_sprint_can_still_be_assigned(
 
     still_held = client.get(f"/api/v1/issues/{held['id']}").json()
     assert still_held["sprint_id"] == past["id"]
+
+
+def test_issue_history_lists_changes_oldest_first(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(client, project_id, title="Before")
+    renamed = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"title": "After"},
+    )
+    assert renamed.status_code == 200
+
+    response = client.get(f"/api/v1/issues/{issue['id']}/history")
+    assert response.status_code == 200
+    events = response.json()
+    assert len(events) == 1
+    assert events[0]["field"] == "title"
+    assert events[0]["from_value"] == "Before"
+    assert events[0]["to_value"] == "After"
+    assert events[0]["actor_name"]
+
+
+def test_missing_issue_history_is_not_found(client: TestClient) -> None:
+    response = client.get("/api/v1/issues/999999/history")
+    assert response.status_code == 404

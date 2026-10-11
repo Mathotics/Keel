@@ -53,6 +53,7 @@ A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `mon
 | `PATCH` | `/api/v1/issues/{issue_id}` | Update any mutable field |
 | `DELETE` | `/api/v1/issues/{issue_id}` | Delete, refused when it has children |
 | `GET` | `/api/v1/issues/{issue_id}/children` | Direct children |
+| `GET` | `/api/v1/issues/{issue_id}/history` | Field changes, oldest first: actor, field, from, to, and time |
 | `GET` | `/api/v1/labels` | List the global label catalog |
 
 Filters on the list endpoint: `type`, `status`, `priority`, `assignee_id`, `sprint_id`, `parent_id`, `unscheduled` (a boolean selecting issues with no sprint), `label` (a normalized name), and `unlabeled` (issues with no labels).
