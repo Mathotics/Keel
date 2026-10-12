@@ -1,3 +1,6 @@
+const { activeSprint, workSection } = require("./work");
+const { issuePage } = require("./issue");
+
 const FAILED = "Could not connect.";
 
 function detailMessage(body, fallback) {
@@ -64,6 +67,88 @@ async function revokeToken(origin, token, tokenId) {
   return send(origin, token, "DELETE", `/api/v1/profile/tokens/${tokenId}`);
 }
 
+async function read(origin, token, path) {
+  let response;
+  try {
+    response = await request(`${origin}${path}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch {
+    const error = new Error(FAILED);
+    error.status = 0;
+    throw error;
+  }
+  const body = await readBody(response);
+  if (response.status === 401) {
+    const error = new Error("Sign in.");
+    error.status = 401;
+    throw error;
+  }
+  if (!response.ok) {
+    const error = new Error(detailMessage(body, FAILED));
+    error.status = response.status;
+    throw error;
+  }
+  return body;
+}
+
+async function loadWork(origin, token) {
+  const projects = await read(origin, token, "/api/v1/projects");
+  return Promise.all(
+    projects.map(async (project) => {
+      const sprints = await read(
+        origin,
+        token,
+        `/api/v1/projects/${project.id}/sprints?state=active`,
+      );
+      const sprint = activeSprint(sprints);
+      const detail = sprint
+        ? await read(origin, token, `/api/v1/sprints/${sprint.id}`)
+        : null;
+      return workSection(project, sprints, detail);
+    }),
+  );
+}
+
+async function loadIssue(origin, token, issueId) {
+  const [issue, children, dependencies, users] = await Promise.all([
+    read(origin, token, `/api/v1/issues/${issueId}`),
+    read(origin, token, `/api/v1/issues/${issueId}/children`),
+    read(origin, token, `/api/v1/issues/${issueId}/dependencies`),
+    read(origin, token, "/api/v1/users"),
+  ]);
+  const parent = issue.parent_id
+    ? await read(origin, token, `/api/v1/issues/${issue.parent_id}`)
+    : null;
+  let history = [];
+  let historyAvailable = true;
+  try {
+    history = await read(origin, token, `/api/v1/issues/${issueId}/history`);
+  } catch (error) {
+    if (error.status !== 404) {
+      throw error;
+    }
+    historyAvailable = false;
+  }
+  const sprint = issue.sprint_id
+    ? await read(origin, token, `/api/v1/sprints/${issue.sprint_id}`)
+    : null;
+  return issuePage({
+    issue,
+    users,
+    parent,
+    children,
+    dependencies,
+    history,
+    historyAvailable,
+    sprint,
+  });
+}
+
 async function send(origin, token, method, path, payload) {
   let response;
   try {
@@ -95,6 +180,8 @@ async function send(origin, token, method, path, payload) {
 }
 
 module.exports = {
+  loadIssue,
+  loadWork,
   login,
   renameLabel,
   revokeToken,

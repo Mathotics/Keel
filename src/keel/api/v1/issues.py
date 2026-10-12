@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Issue, Project
 from keel.domain.enums import IssuePriority, IssueStatus, IssueType
+from keel.schemas.history import HistoryEventRead
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
@@ -110,6 +111,15 @@ def create_issue(
 @router.get("/issues/{issue_id}", response_model=IssueRead)
 def read_issue(issue_id: int, session: SessionDep) -> IssueRead:
     return _read(session, issue_service.get_issue(session, issue_id))
+
+
+@router.get("/issues/{issue_id}/history", response_model=list[HistoryEventRead])
+def read_history(issue_id: int, session: SessionDep) -> list[HistoryEventRead]:
+    """Field changes for one issue, oldest first."""
+    return [
+        HistoryEventRead.model_validate(event)
+        for event in history_service.list_history(session, issue_id)
+    ]
 
 
 @router.get("/issues/{issue_id}/children", response_model=list[IssueRead])
