@@ -114,7 +114,45 @@ async function loadWork(origin, token) {
   );
 }
 
-async function loadIssue(origin, token, issueId) {
+async function loadSnapshots(origin, token) {
+  const projects = await read(origin, token, "/api/v1/projects");
+  return Promise.all(
+    projects.map(async (project) => {
+      const sprints = await read(
+        origin,
+        token,
+        `/api/v1/projects/${project.id}/sprints?state=active`,
+      );
+      const sprint = activeSprint(sprints);
+      const detail = sprint
+        ? await read(origin, token, `/api/v1/sprints/${sprint.id}`)
+        : null;
+      const active =
+        sprint && detail && detail.id === sprint.id && detail.state === "active"
+          ? sprint
+          : null;
+      return {
+        project: { id: project.id, key: project.key, name: project.name },
+        sprint: active ? { id: active.id, name: active.name, state: active.state } : null,
+        issues: active ? detail.issues || [] : [],
+      };
+    }),
+  );
+}
+
+async function loadCatalog(origin, token) {
+  const [people, labels] = await Promise.all([
+    read(origin, token, "/api/v1/users"),
+    read(origin, token, "/api/v1/labels"),
+  ]);
+  return { people, labels };
+}
+
+async function loadProfile(origin, token) {
+  return read(origin, token, "/api/v1/profile");
+}
+
+async function loadIssueDetail(origin, token, issueId) {
   const [issue, children, dependencies, users] = await Promise.all([
     read(origin, token, `/api/v1/issues/${issueId}`),
     read(origin, token, `/api/v1/issues/${issueId}/children`),
@@ -137,16 +175,24 @@ async function loadIssue(origin, token, issueId) {
   const sprint = issue.sprint_id
     ? await read(origin, token, `/api/v1/sprints/${issue.sprint_id}`)
     : null;
-  return issuePage({
+  return {
     issue,
-    users,
-    parent,
-    children,
-    dependencies,
-    history,
-    historyAvailable,
-    sprint,
-  });
+    page: issuePage({
+      issue,
+      users,
+      parent,
+      children,
+      dependencies,
+      history,
+      historyAvailable,
+      sprint,
+    }),
+  };
+}
+
+async function loadIssue(origin, token, issueId) {
+  const detail = await loadIssueDetail(origin, token, issueId);
+  return detail.page;
 }
 
 async function send(origin, token, method, path, payload) {
@@ -166,23 +212,33 @@ async function send(origin, token, method, path, payload) {
     error.status = 0;
     throw error;
   }
+  const body = await readBody(response);
   if (response.status === 401) {
     const error = new Error("Sign in.");
     error.status = 401;
     throw error;
   }
   if (!response.ok && response.status !== 204) {
-    const error = new Error(FAILED);
+    const error = new Error(detailMessage(body, FAILED));
     error.status = response.status;
     throw error;
   }
-  return response.status;
+  if (response.status === 204) {
+    return null;
+  }
+  return body;
 }
 
 module.exports = {
+  loadCatalog,
   loadIssue,
+  loadIssueDetail,
+  loadProfile,
+  loadSnapshots,
   loadWork,
   login,
+  read,
   renameLabel,
   revokeToken,
+  send,
 };

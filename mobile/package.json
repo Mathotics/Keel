@@ -18,7 +18,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "node --test src/origin.test.js src/lock.test.js src/password.test.js src/work.test.js src/issue.test.js"
+    "test": "node --test src/origin.test.js src/lock.test.js src/password.test.js src/work.test.js src/issue.test.js src/offline.test.js src/create.test.js"
   },
   "private": true
 }
