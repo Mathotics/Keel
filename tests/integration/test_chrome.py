@@ -67,6 +67,7 @@ def test_topbar_controls_share_one_look(client: TestClient) -> None:
         + header.count("<button")
         + header.count("<summary")
         + header.count('<input class="keel-topbar__control"')
+        + header.count("keel-menu-toggle__label")
     )
     brand = 1  # the home icon keeps its own circular treatment
     assert header.count("keel-topbar__control") == interactive - brand

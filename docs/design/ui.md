@@ -18,7 +18,7 @@ Every interactive element in the bar — link, button, select, summary, and the 
 
 The same URLs and pages serve a phone. A wide window keeps the desktop layout with no changes. When the viewport is phone-narrow (including a desktop window squeezed down), [ADR 018](../adr/ADR-018.md) applies:
 
-* The top bar stays sticky and still shows the home icon, section links, Find, Help, and the signed-in account. Those controls wrap onto extra rows and shrink; none of that chrome is omitted on a phone. Help still discloses FastAPI Docs, ReDoc, and License with the same labels.
+* The top bar stays sticky and shows the home icon, Find, and a Menu control on one row. Menu opens the section links in a two-column grid, then Help, the signed-in name, and Log out. Find stays usable while Menu is closed. Help still discloses FastAPI Docs, ReDoc, and License with the same labels. A wide window does not show Menu ([Phone menu](../adr/phone-menu.md)).
 * The footer is at the end of the page, not pinned over the content. A wide window keeps the pinned footer of [ADR 002](../adr/ADR-002.md).
 * Board columns keep a readable card width. Columns that do not fit are reached by swiping sideways. Separate by sprint remains stacked strips of columns, each strip swiped the same way. Status still changes with the existing Move control on a phone even when the board script has run, because dragging is unreliable with a finger.
 * Tables keep their columns. Extra columns are reached by swiping sideways inside the table, not by restacking rows into cards.

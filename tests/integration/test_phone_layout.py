@@ -16,7 +16,18 @@ def test_phone_layout_is_a_narrow_media_query(client: TestClient) -> None:
     assert "min-width: 11rem" in desktop_column
     assert "flex: 0 0 80%" not in desktop_column
 
-    assert "flex-wrap: wrap" in phone.split(".keel-topbar {", 1)[1].split("}", 1)[0]
+    phone_bar = phone.split(".keel-topbar {", 1)[1].split("}", 1)[0]
+    assert "display: grid" in phone_bar
+    assert "flex-wrap" not in phone_bar
+    desktop = css.split("@media (max-width: 40rem)", 1)[0]
+    assert "display: none" in desktop.split(".keel-menu-toggle,", 1)[1].split("}", 1)[0]
+    assert "display: none" in phone.split(".keel-topbar__nav,", 1)[1].split("}", 1)[0]
+    opened = phone.split(".keel-menu-toggle:checked ~ .keel-topbar__nav {", 1)[1].split(
+        "}",
+        1,
+    )[0]
+    assert "display: grid" in opened
+    assert "repeat(2, minmax(0, 1fr))" in opened
     assert (
         "margin-left: 0"
         in phone.split(".keel-topbar__right {", 1)[1].split(
@@ -65,6 +76,10 @@ def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
     assert "keel-find" in header
     assert "keel-help" in header
     assert "keel-account" in header
+    assert 'id="keel-menu"' in header
+    assert 'for="keel-menu"' in header
+    assert ">Menu<" in header
+    assert ">Close<" in header
     assert "FastAPI Docs" in header
     assert "ReDoc" in header
     assert ">License<" in header

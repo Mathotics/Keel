@@ -19,6 +19,11 @@
       <a class="keel-topbar__home" href="/" aria-label="Keel home">
         <img src="/assets/small_icon.png" alt=""/>
       </a>
+      <input class="keel-visually-hidden keel-menu-toggle" type="checkbox" id="keel-menu"/>
+      <label class="keel-topbar__control keel-menu-toggle__label" for="keel-menu">
+        <span class="keel-menu-toggle__open">Menu</span>
+        <span class="keel-menu-toggle__close">Close</span>
+      </label>
       <nav class="keel-topbar__nav" aria-label="Sections" data-keel-nav-root>
         {% for item in nav_items %}
         <span class="keel-nav__item" data-keel-nav-item="{{ item.key }}">
