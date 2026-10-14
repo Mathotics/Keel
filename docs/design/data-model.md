@@ -13,6 +13,7 @@ erDiagram
   users ||--o{ comments : "authors"
   users ||--o{ auth_sessions : "signs in"
   users ||--o{ api_tokens : "issues"
+  users ||--o{ request_logs : "makes"
   projects ||--o{ issues : "contains"
   projects ||--|| boards : "has"
   projects ||--o{ sprints : "has"
@@ -248,6 +249,23 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 
 Index: `ix_issue_history_issue_created` on (`issue_id`, `created_at`). Who, from, and to are snapshotted labels so a later rename does not rewrite old lines ([ADR 025](../adr/ADR-025.md)).
 
+### request_logs
+
+One row per signed-in HTTP request ([Log tracker](../adr/log-tracker.md)). The path has no query string. Secrets, bodies, and query strings are not stored. `change_note` is a short label of what a successful write changed, or null.
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `user_id` | INTEGER | nullable, references `users(id)` `ON DELETE SET NULL` |
+| `actor_name` | TEXT | not null |
+| `method` | TEXT | not null |
+| `path` | TEXT | not null |
+| `status_code` | INTEGER | not null |
+| `change_note` | TEXT | nullable |
+| `created_at` | TIMESTAMP | not null |
+
+Indexes: `ix_request_logs_created_id` on (`created_at`, `id`), `ix_request_logs_user_created` on (`user_id`, `created_at`). `actor_name` is a snapshot so a later rename does not rewrite old lines.
+
 ### labels
 
 | Column | Type | Constraints |
@@ -314,6 +332,8 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0019` | series start offset stored as days before occurrence |
 | `0020` | series start and due offsets nullable |
 | `0021` | `series_labels` |
+| `0022` | usernames, passwords, sessions, and API tokens |
+| `0023` | `request_logs` |
 
 ## Related documents
 
