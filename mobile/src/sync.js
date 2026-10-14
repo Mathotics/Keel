@@ -22,6 +22,10 @@ async function uploadQueue(store, client) {
           throw error;
         }
         if (error.status === 404) {
+          if (item.kind === "delete") {
+            current = noteUploaded(current, item, null);
+            continue;
+          }
           current = markConflict(current, item.issueId, { kind: "deleted" });
         } else {
           current = markError(current, item.issueId, error.message);

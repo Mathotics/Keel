@@ -50,6 +50,43 @@ function parseWhen(raw) {
   return { value: `${matched[1]}T${time}` };
 }
 
+function inputWhen(value) {
+  if (!value) {
+    return "";
+  }
+  const matched = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/.exec(String(value));
+  if (!matched) {
+    return "";
+  }
+  if (matched[2] === "00" && matched[3] === "00") {
+    return matched[1];
+  }
+  return `${matched[1]} ${matched[2]}:${matched[3]}`;
+}
+
+function sameWhen(left, right) {
+  return inputWhen(left) === inputWhen(right);
+}
+
+function sameLabels(left, right) {
+  const first = left || [];
+  const second = right || [];
+  return first.length === second.length && first.every((label, index) => label === second[index]);
+}
+
+function article(word) {
+  return "aeiou".includes(word[0]) ? `an ${word}` : `a ${word}`;
+}
+
+function invalidChildren(newType, childTypes) {
+  for (const childType of childTypes || []) {
+    if (PARENT[childType] !== newType) {
+      return `Existing ${childType} children cannot sit under ${article(newType)}.`;
+    }
+  }
+  return null;
+}
+
 function prepareCreate(input) {
   const title = String(input.title || "").trim();
   if (!title) {
@@ -117,6 +154,86 @@ function prepareCreate(input) {
   };
 }
 
+function prepareUpdate(input) {
+  const issue = input.issue;
+  const prepared = prepareCreate({
+    title: input.title,
+    projectId: input.projectId,
+    type: input.type,
+    description: input.description,
+    status: input.status,
+    priority: input.priority,
+    assigneeId: input.assigneeId,
+    parent: input.parent,
+    sprintId: input.sprintId,
+    estimate: input.estimate,
+    remaining: input.remaining,
+    start: input.start,
+    due: input.due,
+    labels: input.labels,
+  });
+  if (prepared.error) {
+    return prepared;
+  }
+  const draft = prepared.draft;
+  if (input.parent && (input.parent.id === issue.id || (input.ancestorIds || []).includes(issue.id))) {
+    return { error: "That parent would make the issue its own ancestor." };
+  }
+  const childError = invalidChildren(draft.type, input.childTypes);
+  if (childError) {
+    return { error: childError };
+  }
+  const nextSprint = draft.sprint_id ?? null;
+  const currentSprint = issue.sprint_id ?? null;
+  const activeSprint = input.activeSprintId ?? null;
+  if (nextSprint !== currentSprint && nextSprint !== activeSprint && !input.online) {
+    return { error: "Moving an issue off this sprint needs a connection." };
+  }
+  const changes = {};
+  if (draft.title !== issue.title) {
+    changes.title = draft.title;
+  }
+  if (draft.type !== issue.type) {
+    changes.type = draft.type;
+  }
+  if ((draft.description || "") !== (issue.description || "")) {
+    changes.description = draft.description;
+  }
+  if (draft.status !== issue.status) {
+    changes.status = draft.status;
+  }
+  if (draft.priority !== issue.priority) {
+    changes.priority = draft.priority;
+  }
+  if ((draft.assignee_id ?? null) !== (issue.assignee_id ?? null)) {
+    changes.assignee_id = draft.assignee_id;
+  }
+  if ((draft.parent_id ?? null) !== (issue.parent_id ?? null)) {
+    changes.parent_id = draft.parent_id;
+  }
+  if (nextSprint !== currentSprint) {
+    changes.sprint_id = nextSprint;
+  }
+  if ((draft.estimate_minutes ?? null) !== (issue.estimate_minutes ?? null)) {
+    changes.estimate_minutes = draft.estimate_minutes;
+  }
+  if ((draft.remaining_minutes ?? null) !== (issue.remaining_minutes ?? null)) {
+    changes.remaining_minutes = draft.remaining_minutes;
+  }
+  if (!sameWhen(draft.start_at, issue.start_at)) {
+    changes.start_at = draft.start_at;
+  }
+  if (!sameWhen(draft.due_at, issue.due_at)) {
+    changes.due_at = draft.due_at;
+  }
+  if (!sameLabels(draft.labels, issue.labels)) {
+    changes.labels = draft.labels;
+  }
+  return { error: null, changes };
+}
+
 module.exports = {
+  inputWhen,
   prepareCreate,
+  prepareUpdate,
 };

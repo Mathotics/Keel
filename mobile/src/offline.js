@@ -379,8 +379,24 @@ function queueCreate(store, draft) {
     rollup: null,
   };
   const record = freshIssue(project.id, raw, Object.values(project.issues).map((item) => item.raw).concat(raw), next.people, project.sprint);
+  if (raw.parent_id && next.queue.some((item) => item.issueId === raw.parent_id && item.kind === "delete")) {
+    return { store, error: "This issue is waiting to be deleted." };
+  }
   record.pending = true;
   project.issues[localId] = record;
+  const parent = raw.parent_id ? findIssue(next, raw.parent_id) : null;
+  if (parent && parent.page) {
+    const children = parent.page.children || [];
+    if (!children.some((item) => item.id === localId)) {
+      children.push({
+        id: localId,
+        key: "",
+        title: raw.title,
+        statusLabel: statusLabel(raw.status),
+      });
+      parent.page.children = children;
+    }
+  }
   next.queue.push({
     id: `create-${localId}`,
     kind: "create",
@@ -409,6 +425,148 @@ function queueCreate(store, draft) {
   return { store: next, error: null, issueId: localId };
 }
 
+function waitingToDelete(store, issueId) {
+  return (store.queue || []).some((item) => item.issueId === issueId && item.kind === "delete");
+}
+
+function leavesActiveSprint(issue, changes, project, online) {
+  if (!Object.prototype.hasOwnProperty.call(changes, "sprint_id")) {
+    return null;
+  }
+  const nextSprint = changes.sprint_id ?? null;
+  const currentSprint = issue.raw.sprint_id ?? null;
+  const activeSprint = project && project.sprint ? project.sprint.id : null;
+  if (nextSprint !== currentSprint && nextSprint !== activeSprint && !online) {
+    return "Moving an issue off this sprint needs a connection.";
+  }
+  return null;
+}
+
+function rewritePage(issue, project, people, changes, options) {
+  const previous = issue.page;
+  const issues = Object.values(project.issues).map((item) => item.raw);
+  if (options.parent && !issues.some((item) => item.id === options.parent.id)) {
+    issues.push(options.parent);
+  }
+  let sprint = null;
+  if (issue.raw.sprint_id && project.sprint && project.sprint.id === issue.raw.sprint_id) {
+    sprint = project.sprint;
+  } else if (options.sprint && options.sprint.id === issue.raw.sprint_id) {
+    sprint = options.sprint;
+  }
+  issue.page = pageFromSnapshot(issue.raw, issues, people, sprint);
+  if (!previous) {
+    return;
+  }
+  issue.page.complete = previous.complete;
+  issue.page.history = previous.history;
+  issue.page.historyAvailable = previous.historyAvailable;
+  issue.page.blocks = previous.blocks;
+  issue.page.blockedBy = previous.blockedBy;
+  issue.page.relatesTo = previous.relatesTo;
+  issue.page.rollup = previous.rollup;
+  if (!Object.prototype.hasOwnProperty.call(changes, "parent_id") && previous.parent) {
+    issue.page.parent = previous.parent;
+  }
+  if (!Object.prototype.hasOwnProperty.call(changes, "sprint_id") && !sprint) {
+    issue.page.sprintName = previous.sprintName;
+  }
+  const merged = [...(previous.children || [])];
+  for (const child of issue.page.children || []) {
+    if (!merged.some((item) => item.id === child.id)) {
+      merged.push(child);
+    }
+  }
+  issue.page.children = merged;
+}
+
+function queueUpdate(store, issueId, changes, options = {}) {
+  if (!changes || !Object.keys(changes).length) {
+    return { store, error: null };
+  }
+  const issue = findIssue(store, issueId);
+  if (!issue) {
+    return { store, error: "That issue is not on this phone." };
+  }
+  if (waitingToDelete(store, issue.id)) {
+    return { store, error: "This issue is waiting to be deleted." };
+  }
+  const project = store.projects[issue.projectId];
+  const blocked = leavesActiveSprint(issue, changes, project, Boolean(options.online));
+  if (blocked) {
+    return { store, error: blocked };
+  }
+  const next = clone(store);
+  const record = findIssue(next, issueId);
+  const home = next.projects[record.projectId];
+  Object.assign(record.raw, changes);
+  rewritePage(record, home, next.people, changes, options);
+  record.pending = true;
+  record.error = null;
+  const pendingCreate = next.queue.find((item) => item.issueId === record.id && item.kind === "create");
+  if (pendingCreate) {
+    Object.assign(pendingCreate.body, changes);
+    return { store: next, error: null };
+  }
+  let pendingUpdate = next.queue.find((item) => item.issueId === record.id && item.kind === "update");
+  if (!pendingUpdate) {
+    pendingUpdate = {
+      id: `update-${record.id}`,
+      kind: "update",
+      issueId: record.id,
+      projectId: record.projectId,
+      method: "PATCH",
+      path: `/api/v1/issues/${record.id}`,
+      body: {},
+      baseUpdatedAt: record.baseUpdatedAt,
+      force: false,
+    };
+    next.queue.push(pendingUpdate);
+  }
+  Object.assign(pendingUpdate.body, changes);
+  return { store: next, error: null };
+}
+
+function knownChildren(project, issueId) {
+  return Object.values(project.issues || {}).filter(
+    (item) => item.raw && item.raw.parent_id === issueId && item.id !== issueId,
+  );
+}
+
+function queueDelete(store, issueId) {
+  const issue = findIssue(store, issueId);
+  if (!issue) {
+    return { store, error: "That issue is not on this phone." };
+  }
+  const project = store.projects[issue.projectId];
+  const children = knownChildren(project, issue.id);
+  const listed = issue.page && issue.page.children ? issue.page.children.length : 0;
+  if (children.length || listed) {
+    return { store, error: "Move or delete this issue's children first." };
+  }
+  if (issue.id < 0) {
+    return { store: discardIssue(store, issueId), error: null };
+  }
+  const next = clone(store);
+  const record = findIssue(next, issueId);
+  const force = next.queue.some((item) => item.issueId === record.id && item.force);
+  next.queue = next.queue.filter((item) => item.issueId !== record.id);
+  next.queue.push({
+    id: `delete-${record.id}`,
+    kind: "delete",
+    issueId: record.id,
+    projectId: record.projectId,
+    method: "DELETE",
+    path: `/api/v1/issues/${record.id}`,
+    body: null,
+    baseUpdatedAt: record.baseUpdatedAt,
+    force,
+  });
+  record.pending = true;
+  record.error = null;
+  return { store: next, error: null };
+}
+
 module.exports = {
   NOT_ON_SERVER,
   applyRefresh,
@@ -425,7 +583,9 @@ module.exports = {
   markError,
   noteUploaded,
   queueCreate,
+  queueDelete,
   queueRecreate,
+  queueUpdate,
   rememberDetail,
   storeKey,
   workView,

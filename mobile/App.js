@@ -34,13 +34,16 @@ import {
   findIssue,
   hasWaiting,
   queueCreate,
+  queueDelete,
   queueRecreate,
+  queueUpdate,
   rememberDetail,
   storeKey,
   workView,
 } from "./src/offline";
 import { pullLibrary } from "./src/sync";
-import { prepareCreate } from "./src/create";
+import { inputWhen, prepareCreate, prepareUpdate } from "./src/create";
+import { formatMinutes } from "./src/issue";
 
 const ADDRESS_KEY = "keel.serverAddress";
 const LOCK_KEY = "keel.lockSetting";
@@ -612,6 +615,59 @@ export default function App() {
           onRemember={async (issue, page) => {
             await persistLibrary(account.userId, rememberDetail(library, issue.id, issue, page));
           }}
+          onUpdate={async (id, changes, options) => {
+            const updated = queueUpdate(library, id, changes, options);
+            if (updated.error) {
+              return updated.error;
+            }
+            await persistLibrary(account.userId, updated.store);
+            try {
+              await refreshLibrary(account, updated.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
+          }}
+          onDelete={async (id) => {
+            const removed = queueDelete(library, id);
+            if (removed.error) {
+              return removed.error;
+            }
+            await persistLibrary(account.userId, removed.store);
+            setPhase("signedIn");
+            try {
+              await refreshLibrary(account, removed.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
+          }}
+          onAddChild={async (draft) => {
+            const filed = queueCreate(library, draft);
+            if (filed.error) {
+              return filed.error;
+            }
+            await persistLibrary(account.userId, filed.store);
+            try {
+              await refreshLibrary(account, filed.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return "Sign in.";
+              }
+            }
+            return null;
+          }}
           onUnauthorized={async () => {
             await clearAccount();
             setTone("error");
@@ -875,6 +931,216 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   );
 }
 
+function EditIssue({ account, issue, library, page, project, onCancel, onSave }) {
+  const [type, setType] = useState(issue.type || "story");
+  const [title, setTitle] = useState(issue.title || "");
+  const [description, setDescription] = useState(issue.description || "");
+  const [status, setStatus] = useState(issue.status || "todo");
+  const [priority, setPriority] = useState(issue.priority || "p4");
+  const [assigneeId, setAssigneeId] = useState(issue.assignee_id ? String(issue.assignee_id) : "");
+  const [parentId, setParentId] = useState(issue.parent_id ? String(issue.parent_id) : "");
+  const [sprintId, setSprintId] = useState(issue.sprint_id ? String(issue.sprint_id) : "");
+  const [labels, setLabels] = useState((issue.labels || []).join(", "));
+  const [estimate, setEstimate] = useState(
+    issue.estimate_minutes === null || issue.estimate_minutes === undefined
+      ? ""
+      : formatMinutes(issue.estimate_minutes),
+  );
+  const [remaining, setRemaining] = useState(
+    issue.remaining_minutes === null || issue.remaining_minutes === undefined
+      ? ""
+      : formatMinutes(issue.remaining_minutes),
+  );
+  const [start, setStart] = useState(inputWhen(issue.start_at));
+  const [due, setDue] = useState(inputWhen(issue.due_at));
+  const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
+  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!project) {
+      return undefined;
+    }
+    let active = true;
+    read(account.origin, account.token, `/api/v1/projects/${project.id}/sprints`)
+      .then((rows) => {
+        if (!active) {
+          return;
+        }
+        const open = (rows || []).filter((row) => row.state === "active" || row.state === "planned");
+        const visible = open.length ? open : project.sprint ? [project.sprint] : [];
+        if (issue.sprint_id && !visible.some((row) => row.id === issue.sprint_id)) {
+          visible.push({
+            id: issue.sprint_id,
+            name: (page && page.sprintName) || "Current sprint",
+            state: "planned",
+          });
+        }
+        setSprints(visible);
+        setConnected(true);
+      })
+      .catch(() => {
+        if (active) {
+          setConnected(false);
+          setSprints(project.sprint ? [project.sprint] : []);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [account.origin, account.token, project && project.id]);
+
+  const expectedParent = type === "story" ? "epic" : type === "subtask" ? "story" : null;
+  const parents = expectedParent && project
+    ? Object.values(project.issues || {}).filter(
+        (item) => Number(item.id) > 0 && item.id !== issue.id && item.raw && item.raw.type === expectedParent,
+      )
+    : [];
+  if (
+    expectedParent &&
+    issue.parent_id &&
+    page &&
+    page.parent &&
+    page.parent.id === issue.parent_id &&
+    !parents.some((item) => item.id === issue.parent_id)
+  ) {
+    parents.push({
+      id: page.parent.id,
+      raw: { key: page.parent.key, title: page.parent.title, type: expectedParent },
+    });
+  }
+  const people = [...(library.people || [])];
+  if (issue.assignee_id && !people.some((person) => person.id === issue.assignee_id)) {
+    people.push({
+      id: issue.assignee_id,
+      display_name: page && page.assignee ? page.assignee : "Assignee",
+    });
+  }
+
+  function ancestorIds(selectedId) {
+    const ids = [];
+    let current = selectedId;
+    const seen = new Set();
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      ids.push(current);
+      const found = Object.values((project && project.issues) || {}).find((item) => item.id === current);
+      current = found && found.raw ? found.raw.parent_id : null;
+    }
+    return ids;
+  }
+
+  async function save() {
+    const parent = parents.find((item) => String(item.id) === parentId);
+    const childTypes = project
+      ? Object.values(project.issues)
+          .filter((item) => item.raw && item.raw.parent_id === issue.id)
+          .map((item) => item.raw.type)
+      : [];
+    const prepared = prepareUpdate({
+      issue,
+      title,
+      projectId: issue.project_id,
+      type,
+      description,
+      status,
+      priority,
+      assigneeId: assigneeId ? Number(assigneeId) : null,
+      parent: parent
+        ? { id: parent.id, type: parent.raw.type, projectId: issue.project_id }
+        : null,
+      ancestorIds: parent ? ancestorIds(parent.id) : [],
+      childTypes,
+      sprintId: sprintId ? Number(sprintId) : null,
+      activeSprintId: project && project.sprint ? project.sprint.id : null,
+      online: connected,
+      estimate,
+      remaining,
+      start,
+      due,
+      labels,
+    });
+    if (prepared.error) {
+      setError(prepared.error);
+      return;
+    }
+    if (!Object.keys(prepared.changes).length) {
+      onCancel();
+      return;
+    }
+    const chosen = sprints.find((item) => String(item.id) === sprintId) || null;
+    const failure = await onSave(prepared.changes, {
+      online: connected,
+      sprint: chosen,
+      parent: parent ? { ...parent.raw, id: parent.id } : null,
+    });
+    if (failure) {
+      setError(failure);
+    }
+  }
+
+  const showUnscheduled = connected || !issue.sprint_id;
+
+  return (
+    <View>
+      <Text style={styles.sectionHeading}>Edit {issue.key || "New"}</Text>
+      <Text style={styles.label}>Type</Text>
+      {TYPE_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={type === item.id} title={item.title} onPress={() => setType(item.id)} />
+      ))}
+      <Field label="Title" value={title} onChange={setTitle} />
+      <Field label="Description" value={description} onChange={setDescription} multiline />
+      <Text style={styles.label}>Status</Text>
+      {STATUS_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={status === item.id} title={item.title} onPress={() => setStatus(item.id)} />
+      ))}
+      <Text style={styles.label}>Priority</Text>
+      {PRIORITY_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={priority === item.id} title={item.title} onPress={() => setPriority(item.id)} />
+      ))}
+      <Text style={styles.label}>Assignee</Text>
+      <Choice selected={assigneeId === ""} title="Unassigned" onPress={() => setAssigneeId("")} />
+      {people.map((person) => (
+        <Choice
+          key={person.id}
+          selected={assigneeId === String(person.id)}
+          title={person.display_name}
+          onPress={() => setAssigneeId(String(person.id))}
+        />
+      ))}
+      <Text style={styles.label}>Parent</Text>
+      <Choice selected={parentId === ""} title="No parent" onPress={() => setParentId("")} />
+      {parents.map((item) => (
+        <Choice
+          key={item.id}
+          selected={parentId === String(item.id)}
+          title={`${item.raw.key || "New"} ${item.raw.title}`}
+          onPress={() => setParentId(String(item.id))}
+        />
+      ))}
+      <Text style={styles.label}>Sprint</Text>
+      {showUnscheduled ? (
+        <Choice selected={sprintId === ""} title="Unscheduled" onPress={() => setSprintId("")} />
+      ) : null}
+      {sprints.map((sprint) => (
+        <Choice
+          key={sprint.id}
+          selected={sprintId === String(sprint.id)}
+          title={sprint.name}
+          onPress={() => setSprintId(String(sprint.id))}
+        />
+      ))}
+      <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
+      <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
+      <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
+      <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <PrimaryButton label="Save" onPress={save} disabled={false} />
+    </View>
+  );
+}
+
 function Choice({ title, selected, onPress }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.choice}>
@@ -973,21 +1239,56 @@ function IssueDetail({
   onKeepServer,
   onRecreate,
   onDiscard,
+  onUpdate,
+  onDelete,
+  onAddChild,
 }) {
   const [stack, setStack] = useState([issueId]);
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [childTitle, setChildTitle] = useState("");
   const currentId = stack[stack.length - 1];
   const saved = findIssue(library, currentId);
+  const project = Object.values(library.projects || {}).find(
+    (item) => item.issues && item.issues[currentId],
+  ) || null;
 
   useEffect(() => {
     setStack([issueId]);
+    setEditing(false);
   }, [issueId]);
+
+  useEffect(() => {
+    setEditing(false);
+    setChildTitle("");
+  }, [currentId]);
+
+  useEffect(() => {
+    if (!saved || !saved.page) {
+      return;
+    }
+    setPage((current) => {
+      if (saved.pending || !current || !current.complete) {
+        return saved.page;
+      }
+      const extra = (saved.page.children || []).filter(
+        (child) => !(current.children || []).some((item) => item.id === child.id),
+      );
+      if (!extra.length) {
+        return current;
+      }
+      return { ...current, children: [...current.children, ...extra] };
+    });
+  }, [library, currentId]);
 
   useEffect(() => {
     let active = true;
     setPage(saved && saved.page ? saved.page : null);
     setError("");
+    if (Number(currentId) < 0) {
+      return undefined;
+    }
     loadIssueDetail(account.origin, account.token, currentId)
       .then(async (detail) => {
         if (!active) {
@@ -1015,6 +1316,11 @@ function IssueDetail({
   }, [account.origin, account.token, currentId]);
 
   function goBack() {
+    if (editing) {
+      setEditing(false);
+      setError("");
+      return;
+    }
     if (stack.length <= 1) {
       onBack();
       return;
@@ -1022,9 +1328,82 @@ function IssueDetail({
     setStack((current) => current.slice(0, -1));
   }
 
+  function askDelete() {
+    const name = `${(page && page.key) || "New"} ${(saved && saved.raw && saved.raw.title) || ""}`.trim();
+    Alert.alert(`Delete ${name}?`, "This cannot be undone.", [
+      { text: "Keep it", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          onDelete(currentId).then((failure) => {
+            if (failure) {
+              setError(failure);
+            }
+          });
+        },
+      },
+    ]);
+  }
+
+  async function addChild() {
+    const raw = saved && saved.raw;
+    if (!raw) {
+      return;
+    }
+    const type = raw.type === "epic" ? "story" : raw.type === "story" ? "subtask" : null;
+    if (!type) {
+      setError("A subtask cannot have children.");
+      return;
+    }
+    if (Number(raw.id) < 0) {
+      setError("This issue is not on the server yet.");
+      return;
+    }
+    const prepared = prepareCreate({
+      title: childTitle,
+      projectId: raw.project_id,
+      type,
+      parent: { id: raw.id, type: raw.type, projectId: raw.project_id },
+      sprintId: raw.sprint_id,
+    });
+    if (prepared.error) {
+      setError(prepared.error);
+      return;
+    }
+    const failure = await onAddChild(prepared.draft);
+    if (failure) {
+      setError(failure);
+      return;
+    }
+    setChildTitle("");
+    setError("");
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
       <TextButton label="Back" onPress={goBack} disabled={false} />
+      {editing && saved && saved.raw ? (
+        <EditIssue
+          account={account}
+          issue={saved.raw}
+          library={library}
+          page={page}
+          project={project}
+          onCancel={() => {
+            setEditing(false);
+            setError("");
+          }}
+          onSave={async (changes, options) => {
+            const failure = await onUpdate(currentId, changes, options);
+            if (failure) {
+              return failure;
+            }
+            setEditing(false);
+            return null;
+          }}
+        />
+      ) : null}
       {saved && saved.conflict ? (
         <View style={styles.conflict}>
           <Text style={styles.pending}>{NOT_ON_SERVER}</Text>
@@ -1053,12 +1432,24 @@ function IssueDetail({
         </View>
       ) : null}
       {saved && saved.error ? <Text style={styles.error}>{saved.error}</Text> : null}
+      {!saved && page ? (
+        <Text style={styles.message}>This issue is no longer in the saved sprint.</Text>
+      ) : null}
       {page === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {page ? (
+      {!editing && page ? (
         <View>
-          <Text style={styles.issueKey}>{page.key}</Text>
+          {saved && saved.pending && !(saved.conflict) ? (
+            <Text style={styles.pending}>{NOT_ON_SERVER}</Text>
+          ) : null}
+          <Text style={styles.issueKey}>{page.key || "New"}</Text>
           <Text style={styles.detailTitle}>{page.title}</Text>
+          {saved && saved.raw && !(saved.conflict) ? (
+            <View style={styles.toolbarActions}>
+              <TextButton label="Edit" onPress={() => setEditing(true)} disabled={false} />
+              <TextButton label="Delete" onPress={askDelete} disabled={false} />
+            </View>
+          ) : null}
           <DetailLine label="Type" value={page.typeLabel} />
           <DetailLine label="Status" value={page.statusLabel} />
           <DetailLine label="Priority" value={page.priorityLabel} />
@@ -1100,6 +1491,20 @@ function IssueDetail({
           ) : (
             <Text style={styles.message}>No children.</Text>
           )}
+          {saved && saved.raw && saved.raw.type !== "subtask" && !(saved.conflict) ? (
+            <View>
+              <Field
+                label={saved.raw.type === "epic" ? "Story title" : "Subtask title"}
+                value={childTitle}
+                onChange={setChildTitle}
+              />
+              <PrimaryButton
+                label={saved.raw.type === "epic" ? "Add story" : "Add subtask"}
+                onPress={addChild}
+                disabled={false}
+              />
+            </View>
+          ) : null}
           <LinkGroup
             title="Blocks"
             items={page.blocks}

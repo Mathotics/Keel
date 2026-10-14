@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { prepareCreate } = require("./create");
+const { prepareCreate, prepareUpdate } = require("./create");
 const { applyRefresh, queueCreate, workView } = require("./offline");
 const { uploadQueue } = require("./sync");
 
@@ -97,4 +97,70 @@ test("a new issue waits on the phone without a key", async () => {
   assert.equal(saved.key, "KEEL-20");
   assert.equal(saved.pending, false);
   assert.equal(uploaded.queue.length, 0);
+});
+
+const savedIssue = {
+  id: 9,
+  title: "Paint",
+  type: "story",
+  description: "",
+  status: "todo",
+  priority: "p4",
+  assignee_id: null,
+  parent_id: null,
+  sprint_id: 7,
+  estimate_minutes: 90,
+  remaining_minutes: null,
+  start_at: "2026-10-12T09:00:00",
+  due_at: null,
+  labels: ["hull"],
+};
+
+function updateInput(overrides) {
+  return {
+    issue: savedIssue,
+    title: "Paint",
+    projectId: 3,
+    type: "story",
+    description: "",
+    status: "todo",
+    priority: "p4",
+    assigneeId: null,
+    parent: null,
+    sprintId: 7,
+    activeSprintId: 7,
+    online: false,
+    estimate: "1h 30m",
+    remaining: "",
+    start: "2026-10-12 09:00",
+    due: "",
+    labels: "hull",
+    childTypes: [],
+    ...overrides,
+  };
+}
+
+test("an unchanged issue sends no fields", () => {
+  const prepared = prepareUpdate(updateInput());
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, {});
+});
+
+test("a title change is the only field sent", () => {
+  const prepared = prepareUpdate(updateInput({ title: "Boat" }));
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, { title: "Boat" });
+});
+
+test("existing children block a type the server would refuse", () => {
+  const prepared = prepareUpdate(updateInput({ type: "subtask", childTypes: ["story"] }));
+  assert.match(prepared.error, /Existing story children/);
+});
+
+test("the backlog needs a connection and the active sprint does not", () => {
+  const offline = prepareUpdate(updateInput({ sprintId: null }));
+  assert.match(offline.error, /connection/);
+  const online = prepareUpdate(updateInput({ sprintId: null, online: true }));
+  assert.equal(online.error, null);
+  assert.deepEqual(online.changes, { sprint_id: null });
 });
