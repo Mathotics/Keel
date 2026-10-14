@@ -152,6 +152,15 @@ async function loadProfile(origin, token) {
   return read(origin, token, "/api/v1/profile");
 }
 
+async function loadBoards(origin, token, projects) {
+  return Promise.all(
+    (projects || []).map(async (project) => {
+      const board = await read(origin, token, `/api/v1/projects/${project.id}/board`);
+      return { ...board, projectKey: project.key };
+    }),
+  );
+}
+
 async function loadInboxIssues(origin, token, projects, userId) {
   const lists = await Promise.all(
     (projects || []).map(async (project) => {
@@ -271,6 +280,7 @@ async function send(origin, token, method, path, payload) {
 }
 
 module.exports = {
+  loadBoards,
   loadCatalog,
   loadCompletedAt,
   loadInboxIssues,

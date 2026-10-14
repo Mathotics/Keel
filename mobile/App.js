@@ -18,7 +18,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { boardView } from "./src/board";
 import { inboxView } from "./src/inbox";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
@@ -90,6 +91,9 @@ export default function App() {
   const listPhase = useRef("home");
   const [remoteIssues, setRemoteIssues] = useState(null);
   const [inboxMode, setInboxMode] = useState("loading");
+  const [remoteBoards, setRemoteBoards] = useState(null);
+  const [boardMode, setBoardMode] = useState("loading");
+  const [boardProjectId, setBoardProjectId] = useState(null);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -416,6 +420,45 @@ export default function App() {
     }
   }
 
+  async function refreshBoard(currentAccount, currentLibrary) {
+    const projects = Object.values((currentLibrary && currentLibrary.projects) || {}).filter(
+      (project) => project.enabled,
+    );
+    try {
+      const boards = await loadBoards(currentAccount.origin, currentAccount.token, projects);
+      setRemoteBoards(boards);
+      setBoardMode("online");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setRemoteBoards(null);
+      setBoardMode("offline");
+    }
+  }
+
+  async function openBoard() {
+    listPhase.current = "board";
+    setPhase("board");
+    setRefreshing(true);
+    try {
+      const store = await refreshLibrary(account, library);
+      await refreshBoard(account, store || library);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setBoardMode("offline");
+      setWorkError(err.message || FAILED);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setLibraryReady(false);
@@ -591,6 +634,7 @@ export default function App() {
             listPhase.current = "projects";
             setPhase("projects");
           }}
+          onBoard={openBoard}
           onRefresh={async () => {
             setRefreshing(true);
             try {
@@ -658,6 +702,7 @@ export default function App() {
             listPhase.current = "home";
             setPhase("home");
           }}
+          onBoard={openBoard}
           onOpenIssue={(id) => {
             listPhase.current = "projects";
             setIssueId(id);
@@ -688,6 +733,81 @@ export default function App() {
           onSignOut={onSignOut}
           refreshing={refreshing}
           sections={libraryReady ? workView(library) : null}
+        />
+      ) : null}
+      {phase === "board" && account ? (
+        <Board
+          account={account}
+          board={
+            boardMode === "loading"
+              ? null
+              : boardView({
+                  library,
+                  boards: boardMode === "online" ? remoteBoards || [] : null,
+                  projectId: boardProjectId,
+                })
+          }
+          busy={busy}
+          error={workError}
+          onCreate={() => {
+            listPhase.current = "board";
+            setMessage("");
+            setPhase("create");
+          }}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onOpenIssue={(id) => {
+            listPhase.current = "board";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onProject={setBoardProjectId}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onRefresh={openBoard}
+          onSettings={() => {
+            listPhase.current = "board";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          onStatus={async (id, status) => {
+            if (findIssue(library, id)) {
+              const updated = queueUpdate(library, id, { status }, { online: boardMode === "online" });
+              if (updated.error) {
+                setWorkError(updated.error);
+                return;
+              }
+              await persistLibrary(account.userId, updated.store);
+              try {
+                const store = await refreshLibrary(account, updated.store);
+                await refreshBoard(account, store || updated.store);
+              } catch (err) {
+                if (err.status === 401) {
+                  await clearAccount();
+                  setTone("error");
+                  setMessage("Sign in.");
+                }
+              }
+              return;
+            }
+            try {
+              await send(account.origin, account.token, "PATCH", `/api/v1/issues/${id}`, { status });
+              await refreshBoard(account, library);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setWorkError(err.message || FAILED);
+            }
+          }}
+          refreshing={refreshing}
         />
       ) : null}
       {phase === "create" && account ? (
@@ -1357,6 +1477,7 @@ function Home({
   onStatus,
   onCreate,
   onProjects,
+  onBoard,
   onSettings,
   onSignOut,
 }) {
@@ -1372,6 +1493,7 @@ function Home({
         <View style={styles.toolbarActions}>
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
         </View>
@@ -1431,6 +1553,110 @@ function Home({
   );
 }
 
+function Board({
+  account,
+  board,
+  busy,
+  error,
+  refreshing,
+  onRefresh,
+  onOpenIssue,
+  onStatus,
+  onProject,
+  onCreate,
+  onHome,
+  onProjects,
+  onSettings,
+  onSignOut,
+}) {
+  const [openMove, setOpenMove] = useState(null);
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>{board ? board.title : "Board"}</Text>
+      {board ? (
+        <View style={styles.toolbarActions}>
+          <TextButton label="All" onPress={() => onProject(null)} disabled={busy} />
+          {board.projects.map((project) => (
+            <TextButton
+              key={project.id}
+              label={project.key}
+              onPress={() => onProject(project.id)}
+              disabled={busy}
+            />
+          ))}
+        </View>
+      ) : null}
+      {board === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {board && board.banner ? <Text style={styles.message}>{board.banner}</Text> : null}
+      {board && board.empty ? <Text style={styles.message}>{board.empty}</Text> : null}
+      {board ? (
+        <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator style={styles.boardRow}>
+          {board.columns.map((column) => (
+            <View key={column.status} style={styles.boardColumn}>
+              <Text style={styles.projectName}>
+                {column.label} {column.cards.length}
+              </Text>
+              {column.cards.map((card) => (
+                <View key={card.id} style={styles.issue}>
+                  <Pressable accessibilityRole="button" onPress={() => onOpenIssue(card.id)}>
+                    <Text style={styles.issueKey}>{card.key || "New"}</Text>
+                    <Text style={styles.issueTitle}>{card.title}</Text>
+                    <Text style={styles.issueStatus}>
+                      {card.typeLabel} · {card.priority} · {card.assignee}
+                    </Text>
+                    {card.sprintName ? <Text style={styles.issueStatus}>{card.sprintName}</Text> : null}
+                    {card.blockers ? (
+                      <Text style={styles.issueStatus}>
+                        {card.blockers} blocker{card.blockers === 1 ? "" : "s"}
+                      </Text>
+                    ) : null}
+                    {card.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+                  </Pressable>
+                  <TextButton
+                    label="Move"
+                    onPress={() => setOpenMove(openMove === card.id ? null : card.id)}
+                    disabled={busy}
+                  />
+                  {openMove === card.id
+                    ? STATUS_OPTIONS.map((option) => (
+                        <Choice
+                          key={option.id}
+                          selected={card.status === option.id}
+                          title={option.title}
+                          onPress={() => {
+                            setOpenMove(null);
+                            if (option.id !== card.status) {
+                              onStatus(card.id, option.id);
+                            }
+                          }}
+                        />
+                      ))
+                    : null}
+                </View>
+              ))}
+            </View>
+          ))}
+        </ScrollView>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 function Work({
   account,
   busy,
@@ -1443,6 +1669,7 @@ function Work({
   onSignOut,
   onOpenIssue,
   onHome,
+  onBoard,
 }) {
   return (
     <ScrollView
@@ -1460,6 +1687,7 @@ function Work({
         <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
         <View style={styles.toolbarActions}>
           <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2118,6 +2346,7 @@ const styles = StyleSheet.create({
   },
   toolbarActions: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 16,
     marginTop: 8,
   },
@@ -2142,6 +2371,13 @@ const styles = StyleSheet.create({
     color: "#0062AB",
     fontSize: 15,
     marginTop: 4,
+  },
+  boardRow: {
+    marginTop: 12,
+  },
+  boardColumn: {
+    marginRight: 12,
+    width: 260,
   },
   issue: {
     borderColor: "#0068B0",
