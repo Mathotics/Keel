@@ -18,7 +18,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { loadBacklog, loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
 import { inboxView } from "./src/inbox";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
@@ -94,6 +95,10 @@ export default function App() {
   const [remoteBoards, setRemoteBoards] = useState(null);
   const [boardMode, setBoardMode] = useState("loading");
   const [boardProjectId, setBoardProjectId] = useState(null);
+  const [remoteBacklog, setRemoteBacklog] = useState(null);
+  const [remoteSprints, setRemoteSprints] = useState(null);
+  const [backlogMode, setBacklogMode] = useState("loading");
+  const [backlogProjectId, setBacklogProjectId] = useState(null);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -459,6 +464,64 @@ export default function App() {
     }
   }
 
+  function enabledProjects(store) {
+    return Object.values((store && store.projects) || {})
+      .filter((project) => project.enabled)
+      .sort((left, right) => (left.key || "").localeCompare(right.key || ""));
+  }
+
+  async function refreshBacklog(currentAccount, currentLibrary, projectId) {
+    const project = enabledProjects(currentLibrary).find((item) => item.id === projectId);
+    if (!project) {
+      setRemoteBacklog([]);
+      setRemoteSprints([]);
+      setBacklogMode("online");
+      setWorkError("");
+      return;
+    }
+    try {
+      const loaded = await loadBacklog(currentAccount.origin, currentAccount.token, project);
+      setRemoteBacklog(loaded.issues);
+      setRemoteSprints(loaded.sprints);
+      setBacklogMode("online");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setRemoteBacklog(null);
+      setRemoteSprints(null);
+      setBacklogMode("offline");
+    }
+  }
+
+  async function openBacklog(projectId) {
+    listPhase.current = "backlog";
+    setPhase("backlog");
+    setRefreshing(true);
+    try {
+      const store = await refreshLibrary(account, library);
+      const current = store || library;
+      const projects = enabledProjects(current);
+      const chosen = projectId || backlogProjectId || (projects[0] && projects[0].id) || null;
+      if (chosen) {
+        setBacklogProjectId(chosen);
+      }
+      await refreshBacklog(account, current, chosen);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setBacklogMode("offline");
+      setWorkError(err.message || FAILED);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setLibraryReady(false);
@@ -635,6 +698,7 @@ export default function App() {
             setPhase("projects");
           }}
           onBoard={openBoard}
+          onBacklog={() => openBacklog()}
           onRefresh={async () => {
             setRefreshing(true);
             try {
@@ -703,6 +767,7 @@ export default function App() {
             setPhase("home");
           }}
           onBoard={openBoard}
+          onBacklog={() => openBacklog()}
           onOpenIssue={(id) => {
             listPhase.current = "projects";
             setIssueId(id);
@@ -768,6 +833,7 @@ export default function App() {
             listPhase.current = "projects";
             setPhase("projects");
           }}
+          onBacklog={() => openBacklog()}
           onRefresh={openBoard}
           onSettings={() => {
             listPhase.current = "board";
@@ -807,6 +873,98 @@ export default function App() {
               setWorkError(err.message || FAILED);
             }
           }}
+          refreshing={refreshing}
+        />
+      ) : null}
+      {phase === "backlog" && account ? (
+        <Backlog
+          account={account}
+          backlog={
+            backlogMode === "loading"
+              ? null
+              : backlogView({
+                  library,
+                  projectId: backlogProjectId,
+                  issues: backlogMode === "online" ? remoteBacklog || [] : null,
+                  sprints: backlogMode === "online" ? remoteSprints || [] : null,
+                })
+          }
+          busy={busy}
+          error={workError}
+          onBoard={openBoard}
+          onCreate={() => {
+            listPhase.current = "backlog";
+            setMessage("");
+            setPhase("create");
+          }}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onOpenIssue={(id) => {
+            listPhase.current = "backlog";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onProject={async (id) => {
+            setBacklogProjectId(id);
+            setRefreshing(true);
+            try {
+              await refreshBacklog(account, library, id);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onRefresh={() => openBacklog()}
+          onSchedule={async (id, sprint) => {
+            if (findIssue(library, id)) {
+              const updated = queueUpdate(library, id, { sprint_id: sprint.id }, { online: true, sprint });
+              if (updated.error) {
+                setWorkError(updated.error);
+                return;
+              }
+              await persistLibrary(account.userId, updated.store);
+              try {
+                const store = await refreshLibrary(account, updated.store);
+                await refreshBacklog(account, store || updated.store, backlogProjectId);
+              } catch (err) {
+                if (err.status === 401) {
+                  await clearAccount();
+                  setTone("error");
+                  setMessage("Sign in.");
+                }
+              }
+              return;
+            }
+            try {
+              await send(account.origin, account.token, "PATCH", `/api/v1/issues/${id}`, { sprint_id: sprint.id });
+              const store = await refreshLibrary(account, library);
+              await refreshBacklog(account, store || library, backlogProjectId);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setWorkError(err.message || FAILED);
+            }
+          }}
+          onSettings={() => {
+            listPhase.current = "backlog";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
           refreshing={refreshing}
         />
       ) : null}
@@ -1478,6 +1636,7 @@ function Home({
   onCreate,
   onProjects,
   onBoard,
+  onBacklog,
   onSettings,
   onSignOut,
 }) {
@@ -1494,6 +1653,7 @@ function Home({
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
         </View>
@@ -1553,6 +1713,104 @@ function Home({
   );
 }
 
+function Backlog({
+  account,
+  backlog,
+  busy,
+  error,
+  refreshing,
+  onRefresh,
+  onOpenIssue,
+  onSchedule,
+  onProject,
+  onCreate,
+  onHome,
+  onProjects,
+  onBoard,
+  onSettings,
+  onSignOut,
+}) {
+  const [openSchedule, setOpenSchedule] = useState(null);
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>{backlog ? backlog.title : "Backlog"}</Text>
+      {backlog ? (
+        <View style={styles.toolbarActions}>
+          {backlog.projects.map((project) => (
+            <TextButton
+              key={project.id}
+              label={project.key}
+              onPress={() => onProject(project.id)}
+              disabled={busy}
+            />
+          ))}
+        </View>
+      ) : null}
+      {backlog === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {backlog && backlog.banner ? <Text style={styles.message}>{backlog.banner}</Text> : null}
+      {backlog && backlog.empty ? <Text style={styles.message}>{backlog.empty}</Text> : null}
+      {backlog && backlog.noSprint ? <Text style={styles.message}>{backlog.noSprint}</Text> : null}
+      {backlog
+        ? backlog.rows.map((row) => (
+            <View key={row.id} style={styles.issue}>
+              <Pressable accessibilityRole="button" onPress={() => onOpenIssue(row.id)}>
+                <Text style={styles.issueKey}>{row.key || "New"}</Text>
+                <Text style={styles.issueTitle}>{row.title}</Text>
+                <Text style={styles.issueStatus}>
+                  {row.typeLabel} · {row.priority} · {row.statusLabel} · {row.assignee}
+                </Text>
+                {row.start ? <Text style={styles.issueStatus}>Start {row.start}</Text> : null}
+                {row.due ? <Text style={styles.issueStatus}>Due {row.due}</Text> : null}
+                {row.blockers ? (
+                  <Text style={styles.issueStatus}>
+                    {row.blockers} blocker{row.blockers === 1 ? "" : "s"}
+                  </Text>
+                ) : null}
+                {row.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+              </Pressable>
+              {backlog.sprints.length ? (
+                <TextButton
+                  label="Schedule"
+                  onPress={() => setOpenSchedule(openSchedule === row.id ? null : row.id)}
+                  disabled={busy}
+                />
+              ) : null}
+              {openSchedule === row.id
+                ? backlog.sprints.map((sprint) => (
+                    <Choice
+                      key={sprint.id}
+                      selected={false}
+                      title={sprint.label}
+                      onPress={() => {
+                        setOpenSchedule(null);
+                        onSchedule(row.id, sprint);
+                      }}
+                    />
+                  ))
+                : null}
+            </View>
+          ))
+        : null}
+    </ScrollView>
+  );
+}
+
 function Board({
   account,
   board,
@@ -1566,6 +1824,7 @@ function Board({
   onCreate,
   onHome,
   onProjects,
+  onBacklog,
   onSettings,
   onSignOut,
 }) {
@@ -1581,6 +1840,7 @@ function Board({
         <View style={styles.toolbarActions}>
           <TextButton label="Home" onPress={onHome} disabled={busy} />
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -1670,6 +1930,7 @@ function Work({
   onOpenIssue,
   onHome,
   onBoard,
+  onBacklog,
 }) {
   return (
     <ScrollView
@@ -1688,6 +1949,7 @@ function Work({
         <View style={styles.toolbarActions}>
           <TextButton label="Home" onPress={onHome} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />

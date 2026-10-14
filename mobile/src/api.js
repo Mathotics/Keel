@@ -161,6 +161,17 @@ async function loadBoards(origin, token, projects) {
   );
 }
 
+async function loadBacklog(origin, token, project) {
+  const [issues, sprints] = await Promise.all([
+    read(origin, token, `/api/v1/projects/${project.id}/backlog`),
+    read(origin, token, `/api/v1/projects/${project.id}/sprints`),
+  ]);
+  return {
+    issues: (issues || []).map((issue) => ({ ...issue, projectKey: project.key })),
+    sprints: sprints || [],
+  };
+}
+
 async function loadInboxIssues(origin, token, projects, userId) {
   const lists = await Promise.all(
     (projects || []).map(async (project) => {
@@ -280,6 +291,7 @@ async function send(origin, token, method, path, payload) {
 }
 
 module.exports = {
+  loadBacklog,
   loadBoards,
   loadCatalog,
   loadCompletedAt,
