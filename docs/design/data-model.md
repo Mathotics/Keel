@@ -337,7 +337,8 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0020` | series start and due offsets nullable |
 | `0021` | `series_labels` |
 | `0022` | usernames, passwords, sessions, and API tokens |
-| `0023` | `request_logs` |
+| `0023` | email, first name, last name, and date of birth on `users` |
+| `0024` | `request_logs` |
 
 ## Related documents
 
