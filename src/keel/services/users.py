@@ -1,5 +1,6 @@
 import getpass
 from collections.abc import Sequence
+from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,7 +10,10 @@ from keel.db.models.user import utc_now
 from keel.domain.errors import (
     DuplicateUserNameError,
     DuplicateUsernameError,
+    InvalidDateOfBirthError,
+    InvalidEmailError,
     InvalidPasswordError,
+    InvalidProfileNameError,
     InvalidUserNameError,
     InvalidUsernameError,
     NotFoundError,
@@ -21,6 +25,14 @@ from keel.services.passwords import hash_password, validate_password
 SEEDED_USERNAME = "keel"
 SEEDED_PASSWORD = "keel"
 MAX_NAME_LENGTH = 100
+MAX_EMAIL_LENGTH = 254
+
+
+class UnsetType:
+    """A profile field the caller left out of a partial update."""
+
+
+UNSET = UnsetType()
 
 
 def list_users(session: Session) -> Sequence[User]:
@@ -110,19 +122,66 @@ def update_identity(
     *,
     display_name: str,
     username: str,
+    email: str | None | UnsetType = UNSET,
+    first_name: str | None | UnsetType = UNSET,
+    last_name: str | None | UnsetType = UNSET,
+    date_of_birth: date | None | UnsetType = UNSET,
 ) -> User:
+    """Rename the sign-in identity and, when supplied, the optional details.
+
+    A contact field left as ``UNSET`` stays as stored. ``None`` or a blank
+    string clears a text field. ``None`` clears the date of birth.
+    """
     user = get_user(session, user_id)
     name = _clean_name(display_name)
     login = _clean_username(username)
+    cleaned_email = email if isinstance(email, UnsetType) else _clean_email(email)
+    cleaned_first = (
+        first_name
+        if isinstance(first_name, UnsetType)
+        else _clean_optional_name(first_name, label="first name")
+    )
+    cleaned_last = (
+        last_name
+        if isinstance(last_name, UnsetType)
+        else _clean_optional_name(last_name, label="last name")
+    )
+    cleaned_birth = (
+        date_of_birth
+        if isinstance(date_of_birth, UnsetType)
+        else _clean_date_of_birth(date_of_birth)
+    )
     if name != user.display_name:
         _reject_duplicate(session, name)
         user.display_name = name
     if login.casefold() != user.username.casefold() or login != user.username:
         _reject_duplicate_username(session, login, except_id=user.id)
         user.username = login
+    if not isinstance(cleaned_email, UnsetType):
+        user.email = cleaned_email
+    if not isinstance(cleaned_first, UnsetType):
+        user.first_name = cleaned_first
+    if not isinstance(cleaned_last, UnsetType):
+        user.last_name = cleaned_last
+    if not isinstance(cleaned_birth, UnsetType):
+        user.date_of_birth = cleaned_birth
     user.updated_at = utc_now()
     session.flush()
     return user
+
+
+def parse_date_of_birth(raw: str) -> date | None:
+    """A blank form value clears the date. Anything else must be YYYY-MM-DD."""
+    cleaned = raw.strip()
+    if not cleaned:
+        return None
+    try:
+        parsed = date.fromisoformat(cleaned)
+    except ValueError as exc:
+        raise InvalidDateOfBirthError(
+            "A date of birth must be a calendar date.",
+        ) from exc
+    return _clean_date_of_birth(parsed)
 
 
 def set_password(session: Session, user: User, password: str) -> User:
@@ -222,6 +281,64 @@ def _reject_duplicate(session: Session, name: str) -> None:
     taken = session.scalars(select(User).where(User.display_name == name)).first()
     if taken is not None:
         raise DuplicateUserNameError(f"{name} is already taken.", display_name=name)
+
+
+def _clean_optional_name(value: str | None, *, label: str) -> str:
+    if value is None:
+        return ""
+    name = value.strip()
+    if not name:
+        return ""
+    if len(name) > MAX_NAME_LENGTH:
+        raise InvalidProfileNameError(
+            f"A {label} may be at most {MAX_NAME_LENGTH} characters.",
+            limit=MAX_NAME_LENGTH,
+            field=label,
+        )
+    if any(ord(character) < 32 for character in name):
+        raise InvalidProfileNameError(
+            f"A {label} cannot contain control characters.",
+            field=label,
+        )
+    return name
+
+
+def _clean_email(value: str | None) -> str:
+    if value is None:
+        return ""
+    email = value.strip()
+    if not email:
+        return ""
+    if len(email) > MAX_EMAIL_LENGTH:
+        raise InvalidEmailError(
+            f"An email address may be at most {MAX_EMAIL_LENGTH} characters.",
+            limit=MAX_EMAIL_LENGTH,
+        )
+    if any(character.isspace() or ord(character) < 32 for character in email):
+        raise InvalidEmailError(
+            "An email address cannot contain spaces or control characters.",
+        )
+    local, separator, domain = email.partition("@")
+    if (
+        not separator
+        or "@" in domain
+        or not local
+        or not domain
+        or "." not in domain
+        or domain.startswith(".")
+        or domain.endswith(".")
+        or ".." in email
+    ):
+        raise InvalidEmailError("Enter an email address like name@example.com.")
+    return email
+
+
+def _clean_date_of_birth(value: date | None) -> date | None:
+    if value is None:
+        return None
+    if value > utc_now().date():
+        raise InvalidDateOfBirthError("A date of birth cannot be in the future.")
+    return value
 
 
 def _clean_username(username: str) -> str:

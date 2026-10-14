@@ -165,6 +165,10 @@ def update_profile(
     chrome: ChromeDep,
     display_name: Annotated[str, Form()],
     username: Annotated[str, Form()],
+    first_name: Annotated[str, Form()] = "",
+    last_name: Annotated[str, Form()] = "",
+    email: Annotated[str, Form()] = "",
+    date_of_birth: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     user = chrome.current_user
     assert user is not None
@@ -174,6 +178,10 @@ def update_profile(
             user.id,
             display_name=display_name,
             username=username,
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            date_of_birth=user_service.parse_date_of_birth(date_of_birth),
         )
     except DomainError as exc:
         session.rollback()

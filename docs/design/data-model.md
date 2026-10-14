@@ -45,6 +45,10 @@ erDiagram
 | `username` | TEXT | not null, unique on `lower(username)` |
 | `display_name` | TEXT | not null, unique |
 | `password_hash` | TEXT | nullable until a password is set |
+| `email` | TEXT | not null, default `''` |
+| `first_name` | TEXT | not null, default `''` |
+| `last_name` | TEXT | not null, default `''` |
+| `date_of_birth` | DATE | nullable |
 | `created_at` | TIMESTAMP | not null |
 | `updated_at` | TIMESTAMP | not null |
 
