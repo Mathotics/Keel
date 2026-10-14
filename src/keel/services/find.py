@@ -23,10 +23,18 @@ SNIPPET_RADIUS = 40
 @dataclass(frozen=True)
 class FindJump:
     url: str
+    target: str
+    issue_id: int | None = None
+    project_id: int | None = None
+    project_key: str | None = None
+    sprint_id: int | None = None
+    key: str | None = None
+    display_name: str | None = None
 
 
 @dataclass(frozen=True)
 class IssueHit:
+    id: int
     key: str
     title: str
     type: IssueType
@@ -36,6 +44,7 @@ class IssueHit:
 
 @dataclass(frozen=True)
 class ProjectHit:
+    id: int
     key: str
     name: str
     snippet: str | None
@@ -45,6 +54,7 @@ class ProjectHit:
 class SprintHit:
     id: int
     name: str
+    project_id: int
     project_key: str
     snippet: str | None
 
@@ -106,24 +116,48 @@ def _exact_jump(
         issue = None
     if issue is not None:
         project = project_service.get_project(session, issue.project_id)
-        return FindJump(url=f"/issues/{issue_service.issue_key(issue, project)}")
+        key = issue_service.issue_key(issue, project)
+        return FindJump(
+            url=f"/issues/{key}",
+            target="issue",
+            issue_id=issue.id,
+            project_id=project.id,
+            project_key=project.key,
+            key=key,
+        )
     if KEY_PATTERN.fullmatch(needle.upper()):
         try:
             named = project_service.get_project_by_key(session, needle)
         except NotFoundError:
             named = None
         if named is not None:
-            return FindJump(url=f"/projects/{named.key}")
+            return FindJump(
+                url=f"/projects/{named.key}",
+                target="project",
+                project_id=named.id,
+                project_key=named.key,
+                key=named.key,
+            )
     users = session.scalars(
         select(User).where(func.lower(User.display_name) == needle.lower()),
     ).all()
     if len(users) == 1:
-        return FindJump(url="/users")
+        return FindJump(
+            url="/users",
+            target="user",
+            display_name=users[0].display_name,
+        )
     sprints = _sprints_named(session, needle, project_id)
     if len(sprints) == 1:
         sprint = sprints[0]
         project = project_service.get_project(session, sprint.project_id)
-        return FindJump(url=f"/projects/{project.key}/sprints/{sprint.id}")
+        return FindJump(
+            url=f"/projects/{project.key}/sprints/{sprint.id}",
+            target="sprint",
+            project_id=project.id,
+            project_key=project.key,
+            sprint_id=sprint.id,
+        )
     return None
 
 
@@ -201,6 +235,7 @@ def _issue_hits(
     for issue, project in rows[:PER_KIND]:
         hits.append(
             IssueHit(
+                id=issue.id,
                 key=issue_service.issue_key(issue, project),
                 title=issue.title,
                 type=issue.type,
@@ -256,7 +291,11 @@ def _project_hits(
         snippet = None
         if not _contains(project.key, needle) and not _contains(project.name, needle):
             snippet = _snippet(project.description, needle)
-        hits.append(ProjectHit(key=project.key, name=project.name, snippet=snippet))
+        hits.append(
+            ProjectHit(
+                id=project.id, key=project.key, name=project.name, snippet=snippet
+            ),
+        )
     return hits, more
 
 
@@ -291,6 +330,7 @@ def _sprint_hits(
             SprintHit(
                 id=sprint.id,
                 name=sprint.name,
+                project_id=project.id,
                 project_key=project.key,
                 snippet=snippet,
             ),

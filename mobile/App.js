@@ -22,6 +22,7 @@ import { loadBacklog, loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues,
 import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
 import { inboxView } from "./src/inbox";
+import { findView } from "./src/find";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
@@ -105,6 +106,7 @@ export default function App() {
   const [planningProjectId, setPlanningProjectId] = useState(null);
   const [openSprint, setOpenSprint] = useState(null);
   const [sprintNotice, setSprintNotice] = useState("");
+  const [findResult, setFindResult] = useState(null);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -708,6 +710,72 @@ export default function App() {
     }
   }
 
+  function openFound(jump) {
+    if (!jump) {
+      return false;
+    }
+    if (jump.target === "issue" && jump.issueId) {
+      listPhase.current = "find";
+      setIssueId(jump.issueId);
+      setPhase("issue");
+      return true;
+    }
+    if (jump.target === "project" && jump.projectId) {
+      openSprints(jump.projectId);
+      return true;
+    }
+    if (jump.target === "sprint" && jump.sprintId) {
+      setPlanningProjectId(jump.projectId || null);
+      showSprint(jump.projectId, jump.sprintId);
+      return true;
+    }
+    return false;
+  }
+
+  function openFind() {
+    listPhase.current = "find";
+    setPhase("find");
+    setFindResult(findView({ library, query: "", payload: null }));
+  }
+
+  async function runFind(query) {
+    const view = findView({ library, query, payload: null });
+    if (view.prompt) {
+      setFindResult(view);
+      return;
+    }
+    if (view.jump) {
+      openFound(view.jump);
+      return;
+    }
+    try {
+      const payload = await read(
+        account.origin,
+        account.token,
+        `/api/v1/search?q=${encodeURIComponent(String(query || "").trim())}`,
+      );
+      const found = findView({ library, query, payload });
+      if (openFound(found.jump)) {
+        return;
+      }
+      setFindResult(found);
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      const fallback = findView({ library, query, payload: null });
+      const prefix = err.status === 404
+        ? "Find on the server is not available yet."
+        : (err.message || FAILED);
+      fallback.banner = `${prefix} ${fallback.banner || ""}`.trim();
+      setFindResult(fallback);
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setLibraryReady(false);
@@ -886,6 +954,7 @@ export default function App() {
           onBoard={openBoard}
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
+          onFind={openFind}
           onRefresh={async () => {
             setRefreshing(true);
             try {
@@ -956,6 +1025,7 @@ export default function App() {
           onBoard={openBoard}
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
+          onFind={openFind}
           onOpenIssue={(id) => {
             listPhase.current = "projects";
             setIssueId(id);
@@ -1023,6 +1093,7 @@ export default function App() {
           }}
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
+          onFind={openFind}
           onRefresh={openBoard}
           onSettings={() => {
             listPhase.current = "board";
@@ -1082,6 +1153,7 @@ export default function App() {
           error={workError}
           onBoard={openBoard}
           onSprints={openSprints}
+          onFind={openFind}
           onCreate={() => {
             listPhase.current = "backlog";
             setMessage("");
@@ -1165,6 +1237,7 @@ export default function App() {
           error={workError}
           onBacklog={() => openBacklog()}
           onBoard={openBoard}
+          onFind={openFind}
           onCreate={() => {
             listPhase.current = "sprints";
             setMessage("");
@@ -1252,6 +1325,52 @@ export default function App() {
           onStart={startOpenSprint}
           refreshing={refreshing}
           onRefresh={() => showSprint(planningProjectId, openSprint && openSprint.id)}
+        />
+      ) : null}
+      {phase === "find" && account ? (
+        <FindScreen
+          account={account}
+          busy={busy}
+          error={workError}
+          onBacklog={() => openBacklog()}
+          onBoard={openBoard}
+          onCreate={() => {
+            listPhase.current = "find";
+            setMessage("");
+            setPhase("create");
+          }}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onOpen={(row) => {
+            if (row.target === "issue") {
+              listPhase.current = "find";
+              setIssueId(row.id);
+              setPhase("issue");
+              return;
+            }
+            if (row.target === "project") {
+              openSprints(row.projectId);
+              return;
+            }
+            if (row.target === "sprint") {
+              setPlanningProjectId(row.projectId || null);
+              showSprint(row.projectId, row.id);
+            }
+          }}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onSearch={runFind}
+          onSettings={() => {
+            listPhase.current = "find";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          onSprints={openSprints}
+          result={findResult}
         />
       ) : null}
       {phase === "create" && account ? (
@@ -1924,6 +2043,7 @@ function Home({
   onBoard,
   onBacklog,
   onSprints,
+  onFind,
   onSettings,
   onSignOut,
 }) {
@@ -1942,6 +2062,7 @@ function Home({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
         </View>
@@ -2001,6 +2122,78 @@ function Home({
   );
 }
 
+function FindScreen({
+  account,
+  result,
+  busy,
+  error,
+  onSearch,
+  onOpen,
+  onHome,
+  onProjects,
+  onBoard,
+  onBacklog,
+  onSprints,
+  onCreate,
+  onSettings,
+  onSignOut,
+}) {
+  const [query, setQuery] = useState("");
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>Find</Text>
+      <TextInput
+        style={styles.input}
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Issue key or words"
+        autoCapitalize="none"
+        autoCorrect={false}
+        onSubmitEditing={() => onSearch(query)}
+      />
+      <PrimaryButton label="Search" disabled={busy} onPress={() => onSearch(query)} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {result && result.prompt ? <Text style={styles.message}>{result.prompt}</Text> : null}
+      {result && result.banner ? <Text style={styles.message}>{result.banner}</Text> : null}
+      {result
+        ? result.sections.filter((section) => !section.needsConnection || section.rows.length).map((section) => (
+            <View key={section.key} style={styles.project}>
+              <Text style={styles.projectName}>{section.label}</Text>
+              {section.empty ? <Text style={styles.message}>{section.empty}</Text> : null}
+              {section.rows.map((row, index) => (
+                <Pressable
+                  key={`${section.key}-${row.id || index}`}
+                  accessibilityRole={row.target === "user" ? "text" : "button"}
+                  onPress={row.target === "user" ? undefined : () => onOpen(row)}
+                  style={styles.issue}
+                >
+                  <Text style={styles.issueKey}>{row.title}</Text>
+                  {row.detail ? <Text style={styles.issueTitle}>{row.detail}</Text> : null}
+                  {row.meta ? <Text style={styles.issueStatus}>{row.meta}</Text> : null}
+                  {row.snippet ? <Text style={styles.issueStatus}>{row.snippet}</Text> : null}
+                </Pressable>
+              ))}
+              {section.more ? <Text style={styles.message}>{section.more}</Text> : null}
+            </View>
+          ))
+        : null}
+    </ScrollView>
+  );
+}
+
 function Sprints({
   account,
   planning,
@@ -2016,6 +2209,7 @@ function Sprints({
   onProjects,
   onBoard,
   onBacklog,
+  onFind,
   onSettings,
   onSignOut,
 }) {
@@ -2037,6 +2231,7 @@ function Sprints({
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2215,6 +2410,7 @@ function Backlog({
   onProjects,
   onBoard,
   onSprints,
+  onFind,
   onSettings,
   onSignOut,
 }) {
@@ -2232,6 +2428,7 @@ function Backlog({
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2315,6 +2512,7 @@ function Board({
   onProjects,
   onBacklog,
   onSprints,
+  onFind,
   onSettings,
   onSignOut,
 }) {
@@ -2332,6 +2530,7 @@ function Board({
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2423,6 +2622,7 @@ function Work({
   onBoard,
   onBacklog,
   onSprints,
+  onFind,
 }) {
   return (
     <ScrollView
@@ -2443,6 +2643,7 @@ function Work({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
