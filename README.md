@@ -8,7 +8,7 @@ The same FastAPI application serves the pages, a JSON API, and a small CLI. Requ
 
 ## Setup
 
-Onboarding scripts create `.venv`, install the package in editable mode with the `dev` extra from [`pyproject.toml`](pyproject.toml), verify Poe tasks, install git pre-commit hooks and their environments (`poe hooks`), run `poe isort-check` and `poe mypy`, and copy [`.env.example`](.env.example) to `.env` if it is missing. They require **Python 3.12+** (override with the `PYTHON` environment variable).
+Onboarding scripts create `.venv`, install the package in editable mode with the `dev` extra from [`pyproject.toml`](pyproject.toml), verify Poe tasks, install git pre-commit hooks and their environments (`poe hooks`), run `poe isort-check` and `poe mypy`, and copy [`.env.example`](.env.example) to `.env` if it is missing. They also set local git aliases: `graph`, `unstage`, `last`, `compare`, `unique-commits`, `missing-commits`, `conflicts`, `oops`, and `purge`. They require **Python 3.12+** (override with the `PYTHON` environment variable).
 
 ```powershell
 .\scripts\onboard.ps1
@@ -85,7 +85,7 @@ Equivalent commands: `keel serve`, `python -m keel serve`, or Uvicorn directly:
 uvicorn keel.app:app --host 127.0.0.1 --port 8000
 ```
 
-Then open `http://127.0.0.1:8000/login`. A fresh database signs in as username `keel` and password `keel`. Change that password from the profile page; the replacement has to be at least 12 characters and must not be the username. The inbox is `http://127.0.0.1:8000/`. Also `http://127.0.0.1:8000/projects` (the project directory, with a create form), `http://127.0.0.1:8000/create` (file an issue), `http://127.0.0.1:8000/users` (add people) and `http://127.0.0.1:8000/profile` (your name, password, and API tokens). `http://127.0.0.1:8000/health` stays public for a liveness check. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, its backlog at `/projects/KEEL/backlog`, its sprints at `/projects/KEEL/sprints`, its schedules at `/projects/KEEL/schedules`, and an issue at `/issues/KEEL-1`. The find field in the menu jumps to an exact key or lists matches at `/search`. The issue page is where comments, estimates, remaining time, priority, and dependencies are edited.
+Then open `http://127.0.0.1:8000/login`. A fresh database signs in as username `keel` and password `keel`. Change that password from the profile page; the replacement has to be at least 12 characters and must not be the username. The inbox is `http://127.0.0.1:8000/`. Also `http://127.0.0.1:8000/projects` (the project directory, with a create form), `http://127.0.0.1:8000/create` (file an issue), `http://127.0.0.1:8000/users` (add people) and `http://127.0.0.1:8000/profile` (your name, optional email and date of birth, password, and API tokens). `http://127.0.0.1:8000/health` stays public for a liveness check. A project page lives at `/projects/KEEL`, its board at `/projects/KEEL/board`, its backlog at `/projects/KEEL/backlog`, its sprints at `/projects/KEEL/sprints`, its schedules at `/projects/KEEL/schedules`, and an issue at `/issues/KEEL-1`. The find field in the menu jumps to an exact key or lists matches at `/search`. The issue page is where comments, estimates, remaining time, priority, and dependencies are edited.
 
 ## Production
 

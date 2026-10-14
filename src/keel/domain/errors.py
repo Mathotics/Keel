@@ -58,6 +58,21 @@ class InvalidUsernameError(DomainError):
     status_code = 422
 
 
+class InvalidEmailError(DomainError):
+    code = "user.invalid_email"
+    status_code = 422
+
+
+class InvalidProfileNameError(DomainError):
+    code = "user.invalid_profile_name"
+    status_code = 422
+
+
+class InvalidDateOfBirthError(DomainError):
+    code = "user.invalid_date_of_birth"
+    status_code = 422
+
+
 class InvalidPasswordError(DomainError):
     code = "user.invalid_password"
     status_code = 422
