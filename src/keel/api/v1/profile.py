@@ -4,12 +4,12 @@ from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.domain.errors import NotFoundError
 from keel.schemas.user import (
     PasswordChange,
+    ProfileRead,
     ProfileUpdate,
     TokenCreate,
     TokenCreated,
     TokenLabelUpdate,
     TokenRead,
-    UserRead,
 )
 from keel.services import auth as auth_service
 from keel.services import users as user_service
@@ -25,24 +25,33 @@ def _user(acting: ActingUserDep) -> int:
     return acting.id
 
 
-@router.get("", response_model=UserRead)
-def read_profile(session: SessionDep, acting: ActingUserDep) -> UserRead:
-    return UserRead.model_validate(user_service.get_user(session, _user(acting)))
+@router.get("", response_model=ProfileRead)
+def read_profile(session: SessionDep, acting: ActingUserDep) -> ProfileRead:
+    return ProfileRead.model_validate(user_service.get_user(session, _user(acting)))
 
 
-@router.patch("", response_model=UserRead)
+@router.patch("", response_model=ProfileRead)
 def update_profile(
     payload: ProfileUpdate,
     session: SessionDep,
     acting: ActingUserDep,
-) -> UserRead:
+) -> ProfileRead:
+    supplied = payload.model_fields_set
     user = user_service.update_identity(
         session,
         _user(acting),
         display_name=payload.display_name,
         username=payload.username,
+        email=payload.email if "email" in supplied else user_service.UNSET,
+        first_name=(
+            payload.first_name if "first_name" in supplied else user_service.UNSET
+        ),
+        last_name=payload.last_name if "last_name" in supplied else user_service.UNSET,
+        date_of_birth=(
+            payload.date_of_birth if "date_of_birth" in supplied else user_service.UNSET
+        ),
     )
-    return UserRead.model_validate(user)
+    return ProfileRead.model_validate(user)
 
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)

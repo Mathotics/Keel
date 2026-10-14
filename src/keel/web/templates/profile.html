@@ -12,9 +12,17 @@
       <p class="keel-note" role="status">New token: <code>{{ new_token }}</code></p>
       {% endif %}
       <div class="keel-panel">
-        <h2>Name</h2>
+        <h2>Profile</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/profile">
           <div class="keel-fields">
+            <p>
+              <label for="first-name">First name</label>
+              <input id="first-name" name="first_name" type="text" maxlength="100" autocomplete="given-name" value="{{ profile.first_name }}"/>
+            </p>
+            <p>
+              <label for="last-name">Last name</label>
+              <input id="last-name" name="last_name" type="text" maxlength="100" autocomplete="family-name" value="{{ profile.last_name }}"/>
+            </p>
             <p class="keel-fields__full">
               <label for="display-name">Display name</label>
               <input id="display-name" name="display_name" type="text" maxlength="100" required value="{{ profile.display_name }}"/>
@@ -22,6 +30,14 @@
             <p class="keel-fields__full">
               <label for="username">Username</label>
               <input id="username" name="username" type="text" maxlength="100" required autocomplete="username" spellcheck="false" value="{{ profile.username }}"/>
+            </p>
+            <p class="keel-fields__full">
+              <label for="email">Email address</label>
+              <input id="email" name="email" type="email" maxlength="254" autocomplete="email" spellcheck="false" value="{{ profile.email }}"/>
+            </p>
+            <p>
+              <label for="date-of-birth">Date of birth</label>
+              <input id="date-of-birth" name="date_of_birth" type="date" autocomplete="bday" value="{% if profile.date_of_birth %}{{ profile.date_of_birth.isoformat() }}{% endif %}"/>
             </p>
           </div>
           <p class="keel-note">Member since {{ profile.created_at|when }}.</p>

@@ -35,7 +35,7 @@ Declared identity lets anyone on the network act as anyone else, including the a
 
 ### Out-of-Scope
 
-* Two-factor authentication, email, password-reset mail, avatars, roles, and SSO.
+* Two-factor authentication, password-reset mail, avatars, roles, and SSO. An optional address stored on the profile is specified in [User profile](../design/user-profile.md). It is not a way to sign in, and this decision still sends no mail.
 * Public self-registration. A signed-in person adds the next person and sets that person's first password.
 * Changing someone else's password in the browser. Recovery is the CLI on the server.
 * Terminating TLS. Production stays HTTP on the private network already documented for deploy.
@@ -61,7 +61,7 @@ Declared identity lets anyone on the network act as anyone else, including the a
 * **Must** redirect unauthenticated HTML requests to `/login`, and answer `/api/v1`, `/openapi.json`, `/docs`, and `/redoc` with 401.
 * **Must** leave `GET /health`, `/login`, `/favicon.ico`, and `/assets/` reachable without a session. `/health` stays `{"status":"ok"}` so deploy can probe it.
 * **Must** ignore `X-Keel-User`, the `keel_user` cookie, and `KEEL_DEFAULT_USER` when deciding who is calling.
-* **Must Not** add a second factor, an email address, or a role.
+* **Must Not** add a second factor, a role, or email as a way to sign in or recover a password.
 * **May** rehash a password on the next successful check when the Argon2 parameters change.
 
 ## Consequences
@@ -76,7 +76,7 @@ Declared identity lets anyone on the network act as anyone else, including the a
 
 The same FastAPI app, SQLite database, and Jinja pages. Passwords use `argon2-cffi`. One middleware rejects anonymous requests before a route runs. `resolve_current_user` reads the bearer token or the session cookie and is the only place pages and the JSON API learn the caller. CSRF for cookie-authenticated forms relies on `SameSite=Lax` (the browser will not send the cookie on a cross-site POST) together with same-origin form actions. There is no per-form token.
 
-Adding a person on `/users` collects a display name, an optional username (it defaults to the display name), and a password. The profile page edits the signed-in person's username and display name, changes the password, and creates or revokes API tokens.
+Adding a person on `/users` collects a display name, an optional username (it defaults to the display name), and a password. The profile page edits the signed-in person's username, display name, and optional first name, last name, email, and date of birth, changes the password, and creates or revokes API tokens.
 
 Cutover on the server, after `keel db upgrade` (deploy already runs that):
 

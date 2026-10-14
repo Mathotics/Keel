@@ -39,7 +39,7 @@ Each entity lists its attributes in domain terms only.
 
 ### User
 The owner or a collaborator. There are no roles. Each person signs in with a username and password ([Password login](../adr/password-login.md)).
-* Display name.
+* Display name. Optional first name, last name, email address, and date of birth, edited on the person's own profile ([User profile](../design/user-profile.md)).
 * Relationships: reports many issues; is assigned many issues; authors many comments.
 
 ### Project

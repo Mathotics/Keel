@@ -22,8 +22,8 @@ Collections are nested under their parent; single resources are flat, so a clien
 | `GET` | `/api/v1/users/{user_id}` | Read a user |
 | `PATCH` | `/api/v1/users/{user_id}` | Rename a user's display name |
 | `DELETE` | `/api/v1/users/{user_id}` | Delete, refused while referenced or when deleting yourself |
-| `GET` | `/api/v1/profile` | The signed-in user |
-| `PATCH` | `/api/v1/profile` | Change your display name and username — `{display_name, username}` |
+| `GET` | `/api/v1/profile` | The signed-in user, including optional `email`, `first_name`, `last_name`, and `date_of_birth`. The user list does not include those fields |
+| `PATCH` | `/api/v1/profile` | Change your display name and username — `{display_name, username}` are required. Optional `email`, `first_name`, `last_name`, and `date_of_birth` change only when sent; `null` or `""` clears a text field, and `null` clears the date |
 | `POST` | `/api/v1/profile/password` | Change your password — `{current_password, new_password, confirm_password}` |
 | `GET` | `/api/v1/profile/tokens` | List your API tokens (prefix, label, timestamps; no secret) |
 | `POST` | `/api/v1/profile/tokens` | Create a token — `{label}`. The response includes `token` once |
@@ -223,6 +223,9 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `user.duplicate_username` | 409 | A username is already taken |
 | `user.invalid_name` | 422 | A display name is blank or over 100 characters |
 | `user.invalid_username` | 422 | A username is blank, over 100 characters, or contains a control character |
+| `user.invalid_email` | 422 | An email address is too long or not shaped like `name@example.com` |
+| `user.invalid_profile_name` | 422 | A first or last name is over 100 characters or contains a control character |
+| `user.invalid_date_of_birth` | 422 | A date of birth is not a calendar date, or it is in the future |
 | `user.invalid_password` | 422 | A password is missing, too short, too long, or matches the username |
 | `user.password_mismatch` | 422 | The two new passwords differ |
 | `user.current_password` | 422 | The current password is wrong |
@@ -237,7 +240,7 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `GET` | `/login` | Username and password. Public |
 | `POST` | `/login` | Sign in and set the `keel_session` cookie |
 | `POST` | `/logout` | End the session |
-| `POST` | `/web/profile` | Update your display name and username |
+| `POST` | `/web/profile` | Update your display name, username, and optional first name, last name, email, and date of birth |
 | `POST` | `/web/profile/password` | Change your password |
 | `POST` | `/web/profile/tokens` | Create an API token; the secret is shown once on the next profile view |
 | `POST` | `/web/profile/tokens/{token_id}/revoke` | Revoke one of your tokens |
