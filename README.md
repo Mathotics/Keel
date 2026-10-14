@@ -8,7 +8,7 @@ The same FastAPI application serves the pages, a JSON API, and a small CLI. Requ
 
 ## Setup
 
-Onboarding scripts create `.venv`, install the package in editable mode with the `dev` extra from [`pyproject.toml`](pyproject.toml), verify Poe tasks, install git pre-commit hooks and their environments (`poe hooks`), run `poe isort-check` and `poe mypy`, and copy [`.env.example`](.env.example) to `.env` if it is missing. They require **Python 3.12+** (override with the `PYTHON` environment variable).
+Onboarding scripts create `.venv`, install the package in editable mode with the `dev` extra from [`pyproject.toml`](pyproject.toml), verify Poe tasks, install git pre-commit hooks and their environments (`poe hooks`), run `poe isort-check` and `poe mypy`, and copy [`.env.example`](.env.example) to `.env` if it is missing. They also set local git aliases: `graph`, `unstage`, `last`, `compare`, `unique-commits`, `missing-commits`, `conflicts`, `oops`, and `purge`. They require **Python 3.12+** (override with the `PYTHON` environment variable).
 
 ```powershell
 .\scripts\onboard.ps1

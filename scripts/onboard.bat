@@ -4,6 +4,36 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 cd /d "%~dp0.."
 
+echo Configuring local git aliases...
+where git >nul 2>&1
+if errorlevel 1 (
+    echo error: git is required 1>&2
+    exit /b 1
+)
+git rev-parse --git-dir >nul 2>&1
+if errorlevel 1 (
+    echo error: onboard must run inside the Keel git repository 1>&2
+    exit /b 1
+)
+git config --local alias.graph "log --oneline --decorate --graph"
+if errorlevel 1 exit /b 1
+git config --local alias.unstage "reset HEAD --"
+if errorlevel 1 exit /b 1
+git config --local alias.last "log -1 HEAD"
+if errorlevel 1 exit /b 1
+git config --local alias.compare "diff --no-index --color-words"
+if errorlevel 1 exit /b 1
+git config --local alias.unique-commits "log main.. --format='%%C(green)%%as %%C(yellow)%%h %%C(cyan)%%an %%C(white)%%s'"
+if errorlevel 1 exit /b 1
+git config --local alias.missing-commits "log ..main --format='%%C(green)%%as %%C(yellow)%%h %%C(cyan)%%an %%C(white)%%s'"
+if errorlevel 1 exit /b 1
+git config --local alias.conflicts "diff --name-only --diff-filter=U"
+if errorlevel 1 exit /b 1
+git config --local alias.oops "reset --soft HEAD~1"
+if errorlevel 1 exit /b 1
+git config --local alias.purge "clean -fdx -e .venv/ -e venv/ -e user/"
+if errorlevel 1 exit /b 1
+
 set "MIN_PY=3.12"
 set "PY_EXE="
 set "PY_EXTRA="
