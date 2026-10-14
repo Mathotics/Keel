@@ -18,7 +18,8 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadCatalog, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { inboxView } from "./src/inbox";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
@@ -86,6 +87,9 @@ export default function App() {
   const [workError, setWorkError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const prompting = useRef(false);
+  const listPhase = useRef("home");
+  const [remoteIssues, setRemoteIssues] = useState(null);
+  const [inboxMode, setInboxMode] = useState("loading");
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -188,7 +192,8 @@ export default function App() {
       promptUnlock();
       return;
     }
-    setPhase(next.signedIn ? "signedIn" : "signedOut");
+    listPhase.current = "home";
+    setPhase(next.signedIn ? "home" : "signedOut");
   }
 
   async function promptUnlock() {
@@ -203,7 +208,8 @@ export default function App() {
         cancelLabel: "Cancel",
         disableDeviceFallback: false,
       });
-      setPhase(result.success ? "signedIn" : "locked");
+      listPhase.current = "home";
+      setPhase(result.success ? "home" : "locked");
     } catch {
       setPhase("locked");
     } finally {
@@ -296,7 +302,8 @@ export default function App() {
       setPassword("");
       setTone("idle");
       setMessage("");
-      setPhase("signedIn");
+      listPhase.current = "home";
+      setPhase("home");
     } catch (error) {
       setTone("error");
       setMessage(
@@ -379,6 +386,34 @@ export default function App() {
     }
     await persistLibrary(userId, result.store);
     setWorkError("");
+    return result.store;
+  }
+
+  async function refreshInbox(currentAccount, currentLibrary) {
+    if (!currentAccount.userId) {
+      return;
+    }
+    const projects = Object.values((currentLibrary && currentLibrary.projects) || {}).filter(
+      (project) => project.enabled,
+    );
+    try {
+      const issues = await loadInboxIssues(
+        currentAccount.origin,
+        currentAccount.token,
+        projects,
+        currentAccount.userId,
+      );
+      const times = await loadCompletedAt(currentAccount.origin, currentAccount.token, issues);
+      setRemoteIssues(issues.map((issue) => ({ ...issue, completedOn: times[issue.id] || null })));
+      setInboxMode("online");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setRemoteIssues(null);
+      setInboxMode("offline");
+    }
   }
 
   useEffect(() => {
@@ -406,7 +441,10 @@ export default function App() {
       setLibraryReady(true);
       setRefreshing(true);
       try {
-        await refreshLibrary(account, store);
+        const next = await refreshLibrary(account, store);
+        if (active && account.userId) {
+          await refreshInbox(account, next || store);
+        }
       } catch (err) {
         if (!active) {
           return;
@@ -416,6 +454,9 @@ export default function App() {
           setTone("error");
           setMessage("Sign in.");
           return;
+        }
+        if (account.userId) {
+          setInboxMode("offline");
         }
         setWorkError(
           workView(store).some((section) => section.saved)
@@ -520,16 +561,110 @@ export default function App() {
           onSignIn={onSignIn}
         />
       ) : null}
-      {phase === "signedIn" && account ? (
+      {phase === "home" && account ? (
+        <Home
+          account={account}
+          busy={busy}
+          error={workError}
+          inbox={
+            account.userId && inboxMode !== "loading"
+              ? inboxView({
+                  library,
+                  userId: Number(account.userId),
+                  today: localToday(),
+                  remote: inboxMode === "online" ? remoteIssues || [] : null,
+                  offsetMinutes: new Date().getTimezoneOffset(),
+                })
+              : null
+          }
+          onCreate={() => {
+            listPhase.current = "home";
+            setMessage("");
+            setPhase("create");
+          }}
+          onOpenIssue={(id) => {
+            listPhase.current = "home";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onRefresh={async () => {
+            setRefreshing(true);
+            try {
+              const store = await refreshLibrary(account, library);
+              await refreshInbox(account, store || library);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onSettings={() => {
+            listPhase.current = "home";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          onStatus={async (id, status) => {
+            if (findIssue(library, id)) {
+              const updated = queueUpdate(library, id, { status }, { online: inboxMode === "online" });
+              if (updated.error) {
+                setWorkError(updated.error);
+                return;
+              }
+              await persistLibrary(account.userId, updated.store);
+              try {
+                const store = await refreshLibrary(account, updated.store);
+                await refreshInbox(account, store || updated.store);
+              } catch (err) {
+                if (err.status === 401) {
+                  await clearAccount();
+                  setTone("error");
+                  setMessage("Sign in.");
+                }
+              }
+              return;
+            }
+            try {
+              await send(account.origin, account.token, "PATCH", `/api/v1/issues/${id}`, { status });
+              await refreshInbox(account, library);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setWorkError(err.message || FAILED);
+            }
+          }}
+          refreshing={refreshing}
+        />
+      ) : null}
+      {phase === "projects" && account ? (
         <Work
           account={account}
           busy={busy}
           error={workError}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
           onOpenIssue={(id) => {
+            listPhase.current = "projects";
             setIssueId(id);
             setPhase("issue");
           }}
           onCreate={() => {
+            listPhase.current = "projects";
             setMessage("");
             setPhase("create");
           }}
@@ -560,14 +695,14 @@ export default function App() {
           account={account}
           busy={busy}
           library={library}
-          onCancel={() => setPhase("signedIn")}
+          onCancel={() => setPhase(listPhase.current)}
           onFile={async (draft) => {
             const filed = queueCreate(library, draft);
             if (filed.error) {
               return filed.error;
             }
             await persistLibrary(account.userId, filed.store);
-            setPhase("signedIn");
+            setPhase(listPhase.current);
             try {
               await refreshLibrary(account, filed.store);
             } catch (err) {
@@ -585,7 +720,7 @@ export default function App() {
         <IssueDetail
           account={account}
           issueId={issueId}
-          onBack={() => setPhase("signedIn")}
+          onBack={() => setPhase(listPhase.current)}
           onDiscard={async (id) => {
             await persistLibrary(account.userId, discardIssue(library, id));
           }}
@@ -640,7 +775,7 @@ export default function App() {
               return removed.error;
             }
             await persistLibrary(account.userId, removed.store);
-            setPhase("signedIn");
+            setPhase(listPhase.current);
             try {
               await refreshLibrary(account, removed.store);
             } catch (err) {
@@ -785,7 +920,7 @@ export default function App() {
             label="Back"
             onPress={() => {
               setMessage("");
-              setPhase("signedIn");
+              setPhase(listPhase.current);
             }}
             disabled={busy}
           />
@@ -1205,6 +1340,97 @@ function Choice({ title, selected, onPress }) {
   );
 }
 
+function localToday() {
+  const now = new Date();
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+function Home({
+  account,
+  inbox,
+  busy,
+  error,
+  refreshing,
+  onRefresh,
+  onOpenIssue,
+  onStatus,
+  onCreate,
+  onProjects,
+  onSettings,
+  onSignOut,
+}) {
+  const [openStatus, setOpenStatus] = useState(null);
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>Home</Text>
+      {inbox === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {inbox && inbox.banner ? <Text style={styles.message}>{inbox.banner}</Text> : null}
+      {inbox && inbox.empty ? <Text style={styles.message}>{inbox.empty}</Text> : null}
+      {inbox
+        ? inbox.sections.map((section) => (
+            <View key={section.key} style={styles.project}>
+              <Text style={styles.projectName}>{section.title}</Text>
+              {section.needsConnection ? <Text style={styles.message}>{inbox.needsConnection}</Text> : null}
+              {section.rows.map((row) => (
+                <View key={`${section.key}-${row.id}`} style={styles.issue}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => onOpenIssue(row.id)}
+                  >
+                    <Text style={styles.issueKey}>
+                      {row.key || "New"}
+                      {row.projectKey ? ` · ${row.projectKey}` : ""}
+                    </Text>
+                    <Text style={styles.issueTitle}>{row.title}</Text>
+                    {row.blockers ? (
+                      <Text style={styles.issueStatus}>Blocked by {row.blockers}</Text>
+                    ) : null}
+                    {row.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+                  </Pressable>
+                  <TextButton
+                    label={row.statusLabel}
+                    onPress={() => setOpenStatus(openStatus === `${section.key}-${row.id}` ? null : `${section.key}-${row.id}`)}
+                    disabled={busy}
+                  />
+                  {openStatus === `${section.key}-${row.id}`
+                    ? STATUS_OPTIONS.map((option) => (
+                        <Choice
+                          key={option.id}
+                          selected={row.status === option.id}
+                          title={option.title}
+                          onPress={() => {
+                            setOpenStatus(null);
+                            if (option.id !== row.status) {
+                              onStatus(row.id, option.id);
+                            }
+                          }}
+                        />
+                      ))
+                    : null}
+                </View>
+              ))}
+            </View>
+          ))
+        : null}
+    </ScrollView>
+  );
+}
+
 function Work({
   account,
   busy,
@@ -1216,6 +1442,7 @@ function Work({
   onCreate,
   onSignOut,
   onOpenIssue,
+  onHome,
 }) {
   return (
     <ScrollView
@@ -1232,6 +1459,7 @@ function Work({
       <View style={styles.toolbar}>
         <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
         <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />

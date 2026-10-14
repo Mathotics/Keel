@@ -152,6 +152,45 @@ async function loadProfile(origin, token) {
   return read(origin, token, "/api/v1/profile");
 }
 
+async function loadInboxIssues(origin, token, projects, userId) {
+  const lists = await Promise.all(
+    (projects || []).map(async (project) => {
+      const issues = await read(
+        origin,
+        token,
+        `/api/v1/projects/${project.id}/issues?assignee_id=${userId}`,
+      );
+      return (issues || []).map((issue) => ({ ...issue, projectKey: project.key }));
+    }),
+  );
+  return lists.flat();
+}
+
+async function loadCompletedAt(origin, token, issues) {
+  const done = (issues || []).filter((issue) => issue.status === "done");
+  const times = {};
+  await Promise.all(
+    done.map(async (issue) => {
+      let history = [];
+      try {
+        history = await read(origin, token, `/api/v1/issues/${issue.id}/history`);
+      } catch (error) {
+        if (error.status !== 404) {
+          throw error;
+        }
+      }
+      const events = (history || []).filter((event) => event.field === "status");
+      const latest = events[events.length - 1];
+      if (!latest) {
+        times[issue.id] = issue.created_at;
+      } else if (latest.to_value === "Done") {
+        times[issue.id] = latest.created_at;
+      }
+    }),
+  );
+  return times;
+}
+
 async function loadIssueDetail(origin, token, issueId) {
   const [issue, children, dependencies, users, comments] = await Promise.all([
     read(origin, token, `/api/v1/issues/${issueId}`),
@@ -233,6 +272,8 @@ async function send(origin, token, method, path, payload) {
 
 module.exports = {
   loadCatalog,
+  loadCompletedAt,
+  loadInboxIssues,
   loadIssue,
   loadIssueDetail,
   loadProfile,
