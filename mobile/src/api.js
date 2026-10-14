@@ -161,6 +161,11 @@ async function loadBoards(origin, token, projects) {
   );
 }
 
+async function loadProjectSprints(origin, token, project) {
+  const sprints = await read(origin, token, `/api/v1/projects/${project.id}/sprints`);
+  return sprints || [];
+}
+
 async function loadBacklog(origin, token, project) {
   const [issues, sprints] = await Promise.all([
     read(origin, token, `/api/v1/projects/${project.id}/backlog`),
@@ -299,6 +304,7 @@ module.exports = {
   loadIssue,
   loadIssueDetail,
   loadProfile,
+  loadProjectSprints,
   loadSnapshots,
   loadWork,
   login,

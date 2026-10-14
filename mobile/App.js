@@ -18,10 +18,11 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadBacklog, loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { loadBacklog, loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
 import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
 import { inboxView } from "./src/inbox";
+import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
@@ -99,6 +100,11 @@ export default function App() {
   const [remoteSprints, setRemoteSprints] = useState(null);
   const [backlogMode, setBacklogMode] = useState("loading");
   const [backlogProjectId, setBacklogProjectId] = useState(null);
+  const [planningSprints, setPlanningSprints] = useState(null);
+  const [planningMode, setPlanningMode] = useState("loading");
+  const [planningProjectId, setPlanningProjectId] = useState(null);
+  const [openSprint, setOpenSprint] = useState(null);
+  const [sprintNotice, setSprintNotice] = useState("");
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -522,6 +528,186 @@ export default function App() {
     }
   }
 
+  function savedActiveSprint(store, projectId) {
+    const project = enabledProjects(store).find((item) => item.id === projectId);
+    if (!project || !project.sprint || project.sprint.state !== "active") {
+      return null;
+    }
+    return project.sprint;
+  }
+
+  async function refreshPlanning(currentAccount, currentLibrary, projectId) {
+    const project = enabledProjects(currentLibrary).find((item) => item.id === projectId);
+    if (!project) {
+      setPlanningSprints([]);
+      setPlanningMode("online");
+      setWorkError("");
+      return [];
+    }
+    try {
+      const sprints = await loadProjectSprints(currentAccount.origin, currentAccount.token, project);
+      setPlanningSprints(sprints);
+      setPlanningMode("online");
+      setWorkError("");
+      return sprints;
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setPlanningSprints(null);
+      setPlanningMode("offline");
+      return null;
+    }
+  }
+
+  async function refreshOpenSprint(currentAccount, currentLibrary, projectId, sprintId) {
+    try {
+      const detail = await read(currentAccount.origin, currentAccount.token, `/api/v1/sprints/${sprintId}`);
+      setOpenSprint(detail);
+      setPlanningMode("online");
+      return detail;
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      const saved = savedActiveSprint(currentLibrary, projectId);
+      setOpenSprint(saved && saved.id === sprintId ? saved : null);
+      setPlanningMode("offline");
+      return null;
+    }
+  }
+
+  async function openSprints(projectId) {
+    listPhase.current = "sprints";
+    setPhase("sprints");
+    setSprintNotice("");
+    setRefreshing(true);
+    try {
+      const store = await refreshLibrary(account, library);
+      const current = store || library;
+      const projects = enabledProjects(current);
+      const chosen = projectId || planningProjectId || (projects[0] && projects[0].id) || null;
+      if (chosen) {
+        setPlanningProjectId(chosen);
+      }
+      await refreshPlanning(account, current, chosen);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setPlanningMode("offline");
+      setWorkError(err.message || FAILED);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function showSprint(projectId, sprintId) {
+    listPhase.current = "sprint";
+    setOpenSprint(null);
+    setPhase("sprint");
+    setSprintNotice("");
+    setRefreshing(true);
+    try {
+      await refreshOpenSprint(account, library, projectId, sprintId);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function planSprint(draft) {
+    const prepared = prepareSprint(draft);
+    if (prepared.error) {
+      return prepared.error;
+    }
+    try {
+      await send(account.origin, account.token, "POST", `/api/v1/projects/${planningProjectId}/sprints`, prepared.body);
+      await refreshPlanning(account, library, planningProjectId);
+      setWorkError("");
+      return "";
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "";
+      }
+      return err.message || FAILED;
+    }
+  }
+
+  async function saveSprint(draft) {
+    const prepared = prepareSprintUpdate(openSprint, draft);
+    if (prepared.error) {
+      return prepared.error;
+    }
+    if (!Object.keys(prepared.changes).length) {
+      return "";
+    }
+    try {
+      await send(account.origin, account.token, "PATCH", `/api/v1/sprints/${openSprint.id}`, prepared.changes);
+      const store = await refreshLibrary(account, library);
+      await refreshPlanning(account, store || library, planningProjectId);
+      await refreshOpenSprint(account, store || library, planningProjectId, openSprint.id);
+      setWorkError("");
+      return "";
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "";
+      }
+      return err.message || FAILED;
+    }
+  }
+
+  async function startOpenSprint() {
+    try {
+      await send(account.origin, account.token, "POST", `/api/v1/sprints/${openSprint.id}/start`);
+      const store = await refreshLibrary(account, library);
+      await refreshPlanning(account, store || library, planningProjectId);
+      await refreshOpenSprint(account, store || library, planningProjectId, openSprint.id);
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    }
+  }
+
+  async function completeOpenSprint() {
+    try {
+      const result = await send(account.origin, account.token, "POST", `/api/v1/sprints/${openSprint.id}/complete`);
+      const store = await refreshLibrary(account, library);
+      const sprints = await refreshPlanning(account, store || library, planningProjectId);
+      await refreshOpenSprint(account, store || library, planningProjectId, openSprint.id);
+      setSprintNotice(completionNotice(result, sprints || []));
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setLibraryReady(false);
@@ -699,6 +885,7 @@ export default function App() {
           }}
           onBoard={openBoard}
           onBacklog={() => openBacklog()}
+          onSprints={openSprints}
           onRefresh={async () => {
             setRefreshing(true);
             try {
@@ -768,6 +955,7 @@ export default function App() {
           }}
           onBoard={openBoard}
           onBacklog={() => openBacklog()}
+          onSprints={openSprints}
           onOpenIssue={(id) => {
             listPhase.current = "projects";
             setIssueId(id);
@@ -834,6 +1022,7 @@ export default function App() {
             setPhase("projects");
           }}
           onBacklog={() => openBacklog()}
+          onSprints={openSprints}
           onRefresh={openBoard}
           onSettings={() => {
             listPhase.current = "board";
@@ -892,6 +1081,7 @@ export default function App() {
           busy={busy}
           error={workError}
           onBoard={openBoard}
+          onSprints={openSprints}
           onCreate={() => {
             listPhase.current = "backlog";
             setMessage("");
@@ -966,6 +1156,102 @@ export default function App() {
           }}
           onSignOut={onSignOut}
           refreshing={refreshing}
+        />
+      ) : null}
+      {phase === "sprints" && account ? (
+        <Sprints
+          account={account}
+          busy={busy}
+          error={workError}
+          onBacklog={() => openBacklog()}
+          onBoard={openBoard}
+          onCreate={() => {
+            listPhase.current = "sprints";
+            setMessage("");
+            setPhase("create");
+          }}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onOpenSprint={(id) => showSprint(planningProjectId, id)}
+          onPlan={planSprint}
+          onProject={async (id) => {
+            setPlanningProjectId(id);
+            setRefreshing(true);
+            try {
+              await refreshPlanning(account, library, id);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onRefresh={() => openSprints()}
+          onSettings={() => {
+            listPhase.current = "sprints";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          planning={
+            planningMode === "loading"
+              ? null
+              : planningView({
+                  library,
+                  projectId: planningProjectId,
+                  sprints: planningMode === "online" ? planningSprints || [] : null,
+                })
+          }
+          refreshing={refreshing}
+        />
+      ) : null}
+      {phase === "sprint" && account ? (
+        <SprintScreen
+          account={account}
+          busy={busy}
+          detail={
+            openSprint
+              ? sprintDetail({
+                  library,
+                  projectId: planningProjectId,
+                  sprint: openSprint,
+                  online: planningMode === "online" && Array.isArray(openSprint.issues),
+                })
+              : null
+          }
+          error={workError}
+          notice={sprintNotice}
+          onBack={() => {
+            listPhase.current = "sprints";
+            setPhase("sprints");
+          }}
+          onComplete={() => {
+            Alert.alert(
+              "Complete this sprint?",
+              "Unfinished issues move to the next planned sprint, or back to the backlog.",
+              [
+                { text: "Keep it", style: "cancel" },
+                { text: "Complete", style: "destructive", onPress: () => completeOpenSprint() },
+              ],
+            );
+          }}
+          onOpenIssue={(id) => {
+            listPhase.current = "sprint";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onSave={saveSprint}
+          onStart={startOpenSprint}
+          refreshing={refreshing}
+          onRefresh={() => showSprint(planningProjectId, openSprint && openSprint.id)}
         />
       ) : null}
       {phase === "create" && account ? (
@@ -1637,6 +1923,7 @@ function Home({
   onProjects,
   onBoard,
   onBacklog,
+  onSprints,
   onSettings,
   onSignOut,
 }) {
@@ -1654,6 +1941,7 @@ function Home({
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
         </View>
@@ -1713,6 +2001,205 @@ function Home({
   );
 }
 
+function Sprints({
+  account,
+  planning,
+  busy,
+  error,
+  refreshing,
+  onRefresh,
+  onOpenSprint,
+  onPlan,
+  onProject,
+  onCreate,
+  onHome,
+  onProjects,
+  onBoard,
+  onBacklog,
+  onSettings,
+  onSignOut,
+}) {
+  const [name, setName] = useState("");
+  const [goal, setGoal] = useState("");
+  const [startsOn, setStartsOn] = useState("");
+  const [endsOn, setEndsOn] = useState("");
+  const [formError, setFormError] = useState("");
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>{planning ? planning.title : "Sprints"}</Text>
+      {planning ? (
+        <View style={styles.toolbarActions}>
+          {planning.projects.map((project) => (
+            <TextButton key={project.id} label={project.key} onPress={() => onProject(project.id)} disabled={busy} />
+          ))}
+        </View>
+      ) : null}
+      {planning === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {planning && planning.banner ? <Text style={styles.message}>{planning.banner}</Text> : null}
+      {planning
+        ? planning.sections.map((section) => (
+            <View key={section.key} style={styles.project}>
+              <Text style={styles.projectName}>{section.label}</Text>
+              {section.needsConnection ? <Text style={styles.message}>{NEEDS_CONNECTION}</Text> : null}
+              {section.empty ? <Text style={styles.message}>{section.empty}</Text> : null}
+              {section.sprints.map((sprint) => (
+                <Pressable key={sprint.id} accessibilityRole="button" onPress={() => onOpenSprint(sprint.id)} style={styles.issue}>
+                  <Text style={styles.issueKey}>{sprint.name}</Text>
+                  {sprint.goal ? <Text style={styles.issueTitle}>{sprint.goal}</Text> : null}
+                  {sprint.starts || sprint.ends ? (
+                    <Text style={styles.issueStatus}>
+                      {sprint.starts || "No start"} · {sprint.ends || "No end"}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          ))
+        : null}
+      {planning && planning.canPlan ? (
+        <View style={styles.project}>
+          <Text style={styles.projectName}>Plan a sprint</Text>
+          {formError ? <Text style={styles.error}>{formError}</Text> : null}
+          <Text style={styles.label}>Name</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} maxLength={200} />
+          <Text style={styles.label}>Goal</Text>
+          <TextInput style={styles.input} value={goal} onChangeText={setGoal} />
+          <Text style={styles.label}>Starts</Text>
+          <TextInput style={styles.input} value={startsOn} onChangeText={setStartsOn} placeholder="YYYY-MM-DD" />
+          <Text style={styles.label}>Ends</Text>
+          <TextInput style={styles.input} value={endsOn} onChangeText={setEndsOn} placeholder="YYYY-MM-DD" />
+          <PrimaryButton
+            label="Create sprint"
+            disabled={busy}
+            onPress={async () => {
+              const failure = await onPlan({ name, goal, startsOn, endsOn });
+              setFormError(failure || "");
+              if (!failure) {
+                setName("");
+                setGoal("");
+                setStartsOn("");
+                setEndsOn("");
+              }
+            }}
+          />
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function SprintScreen({
+  account,
+  detail,
+  busy,
+  error,
+  notice,
+  refreshing,
+  onRefresh,
+  onBack,
+  onOpenIssue,
+  onStart,
+  onComplete,
+  onSave,
+}) {
+  const [name, setName] = useState(detail ? detail.name : "");
+  const [goal, setGoal] = useState(detail ? detail.goal : "");
+  const [startsOn, setStartsOn] = useState(detail ? detail.starts : "");
+  const [endsOn, setEndsOn] = useState(detail ? detail.ends : "");
+  const [formError, setFormError] = useState("");
+  useEffect(() => {
+    setName(detail ? detail.name : "");
+    setGoal(detail ? detail.goal : "");
+    setStartsOn(detail ? detail.starts : "");
+    setEndsOn(detail ? detail.ends : "");
+    setFormError("");
+  }, [detail && detail.id, detail && detail.name, detail && detail.goal, detail && detail.starts, detail && detail.ends]);
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Back" onPress={onBack} disabled={busy} />
+        </View>
+      </View>
+      {detail === null && refreshing ? <ActivityIndicator color="#0068B0" /> : null}
+      {detail === null && !refreshing ? <Text style={styles.message}>{NEEDS_CONNECTION}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {notice ? <Text style={styles.message}>{notice}</Text> : null}
+      {detail ? (
+        <View>
+          <Text style={styles.sectionHeading}>{detail.name}</Text>
+          <Text style={styles.message}>
+            {detail.stateLabel}
+            {detail.goal ? ` — ${detail.goal}` : ""}
+          </Text>
+          {detail.starts || detail.ends ? (
+            <Text style={styles.message}>
+              Starts {detail.starts || "none"} · Ends {detail.ends || "none"}
+            </Text>
+          ) : null}
+          {detail.canStart ? <PrimaryButton label="Start sprint" onPress={onStart} disabled={busy} /> : null}
+          {detail.canComplete ? <PrimaryButton label="Complete sprint" onPress={onComplete} disabled={busy} /> : null}
+          {detail.empty ? <Text style={styles.message}>{detail.empty}</Text> : null}
+          {detail.rows.map((row) => (
+            <Pressable key={row.id} accessibilityRole="button" onPress={() => onOpenIssue(row.id)} style={styles.issue}>
+              <Text style={styles.issueKey}>{row.key || "New"}</Text>
+              <Text style={styles.issueTitle}>{row.title}</Text>
+              <Text style={styles.issueStatus}>
+                {row.typeLabel} · {row.priority} · {row.statusLabel} · {row.assignee}
+              </Text>
+              {row.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+            </Pressable>
+          ))}
+          {detail.editable ? (
+            <View style={styles.project}>
+              <Text style={styles.projectName}>Sprint settings</Text>
+              {formError ? <Text style={styles.error}>{formError}</Text> : null}
+              <Text style={styles.label}>Name</Text>
+              <TextInput style={styles.input} value={name} onChangeText={setName} maxLength={200} />
+              <Text style={styles.label}>Goal</Text>
+              <TextInput style={styles.input} value={goal} onChangeText={setGoal} />
+              <Text style={styles.label}>Starts</Text>
+              <TextInput style={styles.input} value={startsOn} onChangeText={setStartsOn} placeholder="YYYY-MM-DD" />
+              <Text style={styles.label}>Ends</Text>
+              <TextInput style={styles.input} value={endsOn} onChangeText={setEndsOn} placeholder="YYYY-MM-DD" />
+              <PrimaryButton
+                label="Save"
+                disabled={busy}
+                onPress={async () => {
+                  const failure = await onSave({ name, goal, startsOn, endsOn });
+                  setFormError(failure || "");
+                }}
+              />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 function Backlog({
   account,
   backlog,
@@ -1727,6 +2214,7 @@ function Backlog({
   onHome,
   onProjects,
   onBoard,
+  onSprints,
   onSettings,
   onSignOut,
 }) {
@@ -1743,6 +2231,7 @@ function Backlog({
           <TextButton label="Home" onPress={onHome} disabled={busy} />
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -1825,6 +2314,7 @@ function Board({
   onHome,
   onProjects,
   onBacklog,
+  onSprints,
   onSettings,
   onSignOut,
 }) {
@@ -1841,6 +2331,7 @@ function Board({
           <TextButton label="Home" onPress={onHome} disabled={busy} />
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -1931,6 +2422,7 @@ function Work({
   onHome,
   onBoard,
   onBacklog,
+  onSprints,
 }) {
   return (
     <ScrollView
@@ -1950,6 +2442,7 @@ function Work({
           <TextButton label="Home" onPress={onHome} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />

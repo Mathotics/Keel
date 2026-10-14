@@ -16,7 +16,7 @@
     },
     "android": {
       "package": "com.keel.shell",
-      "versionCode": 12,
+      "versionCode": 13,
       "adaptiveIcon": {
         "backgroundColor": "#0068B0",
         "foregroundImage": "./assets/android-icon-foreground.png",
