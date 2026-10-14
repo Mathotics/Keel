@@ -174,6 +174,7 @@ function issuePage({
   history,
   historyAvailable,
   sprint,
+  comments,
 }) {
   const groups = dependencies || { blocks: [], blocked_by: [], relates_to: [] };
   return {
@@ -220,10 +221,23 @@ function issuePage({
       (event) =>
         `${formatWhen(event.created_at)}, ${event.actor_name} — ${event.field} ${event.from_value} → ${event.to_value}`,
     ),
+    comments: (comments || []).map((comment) => commentView(comment, users)),
+  };
+}
+
+function commentView(comment, users) {
+  return {
+    id: comment.id,
+    author: comment.author || personName(users, comment.author_id, "Someone"),
+    created: formatWhen(comment.created_at),
+    body: comment.body,
+    blocks: parseMarkdown(comment.body),
+    pending: Boolean(comment.pending),
   };
 }
 
 module.exports = {
+  commentView,
   formatMinutes,
   formatWhen,
   issuePage,

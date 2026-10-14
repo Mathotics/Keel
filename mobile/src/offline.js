@@ -1,4 +1,4 @@
-const { issuePage } = require("./issue");
+const { commentView, issuePage } = require("./issue");
 const { statusLabel } = require("./work");
 
 const NOT_ON_SERVER = "Not on the server yet.";
@@ -97,13 +97,17 @@ function applyRefresh(store, snapshots, extras) {
       if (prior && (prior.pending || prior.conflict)) {
         kept[issue.id] = prior;
       } else {
-        kept[issue.id] = freshIssue(
+        const fresh = freshIssue(
           incoming.id,
           issue,
           serverIssues,
           next.people,
           snapshot.sprint,
         );
+        if (prior && prior.page && prior.page.comments) {
+          fresh.page.comments = prior.page.comments.filter((comment) => !comment.pending);
+        }
+        kept[issue.id] = fresh;
       }
     }
     for (const prior of Object.values(record.issues || {})) {
@@ -296,21 +300,66 @@ function noteUploaded(store, item, saved) {
   const issue = findIssue(next, item.issueId);
   if (item.kind === "create" && saved && issue) {
     const project = next.projects[issue.projectId];
+    const comments = (issue.page && issue.page.comments) || [];
     delete project.issues[item.issueId];
-    project.issues[saved.id] = freshIssue(
+    const created = freshIssue(
       issue.projectId,
       saved,
       [saved],
       next.people,
       project.sprint,
     );
+    created.page.comments = comments;
+    project.issues[saved.id] = created;
+    for (const entry of next.queue) {
+      if (entry.issueId === item.issueId) {
+        entry.issueId = saved.id;
+        if (entry.kind === "comment") {
+          entry.path = `/api/v1/issues/${saved.id}/comments`;
+        }
+      }
+    }
+    created.pending = next.queue.some((entry) => entry.issueId === saved.id);
+    return next;
+  }
+  if (item.kind === "comment" || item.kind === "uncomment") {
+    if (issue && issue.page) {
+      const comments = issue.page.comments || [];
+      if (item.kind === "uncomment") {
+        issue.page.comments = comments.filter((comment) => comment.id !== item.commentId);
+      } else if (saved) {
+        issue.page.comments = comments.map((comment) =>
+          comment.id === item.commentId
+            ? commentView(
+                {
+                  id: saved.id,
+                  author_id: saved.author_id,
+                  author: comment.author,
+                  body: saved.body,
+                  created_at: saved.created_at,
+                },
+                next.people,
+              )
+            : comment,
+        );
+      }
+    }
+    if (issue) {
+      issue.pending = next.queue.some((entry) => entry.issueId === item.issueId);
+      if (!issue.pending) {
+        issue.error = null;
+        issue.conflict = null;
+      }
+    }
     return next;
   }
   if (issue && saved) {
+    const comments = issue.page && issue.page.comments;
     issue.raw = saved;
     issue.baseUpdatedAt = saved.updated_at;
     issue.page = pageFromSnapshot(saved, [saved], next.people, null);
     issue.page.complete = false;
+    issue.page.comments = comments || [];
   }
   if (issue) {
     issue.pending = next.queue.some((entry) => entry.issueId === item.issueId);
@@ -459,6 +508,7 @@ function rewritePage(issue, project, people, changes, options) {
     return;
   }
   issue.page.complete = previous.complete;
+  issue.page.comments = previous.comments || [];
   issue.page.history = previous.history;
   issue.page.historyAvailable = previous.historyAvailable;
   issue.page.blocks = previous.blocks;
@@ -567,6 +617,102 @@ function queueDelete(store, issueId) {
   return { store: next, error: null };
 }
 
+function localCommentId(store) {
+  let lowest = 0;
+  for (const project of Object.values(store.projects || {})) {
+    for (const issue of Object.values(project.issues || {})) {
+      for (const comment of (issue.page && issue.page.comments) || []) {
+        lowest = Math.min(lowest, Number(comment.id));
+      }
+    }
+  }
+  return lowest - 1;
+}
+
+function queueComment(store, issueId, text, authorName) {
+  const body = String(text || "").trim();
+  if (!body) {
+    return { store, error: "A comment needs a body." };
+  }
+  const issue = findIssue(store, issueId);
+  if (!issue) {
+    return { store, error: "That issue is not on this phone." };
+  }
+  if (waitingToDelete(store, issue.id)) {
+    return { store, error: "This issue is waiting to be deleted." };
+  }
+  const next = clone(store);
+  const record = findIssue(next, issueId);
+  const localId = localCommentId(next);
+  const comment = commentView(
+    {
+      id: localId,
+      author: authorName || "Someone",
+      body,
+      created_at: new Date().toISOString(),
+      pending: true,
+    },
+    next.people,
+  );
+  if (!record.page) {
+    record.page = pageFromSnapshot(record.raw, [record.raw], next.people, null);
+  }
+  record.page.comments = [...(record.page.comments || []), comment];
+  record.pending = true;
+  record.error = null;
+  next.queue.push({
+    id: `comment-${localId}`,
+    kind: "comment",
+    issueId: record.id,
+    commentId: localId,
+    projectId: record.projectId,
+    method: "POST",
+    path: `/api/v1/issues/${record.id}/comments`,
+    body: { body },
+    baseUpdatedAt: null,
+    force: true,
+  });
+  return { store: next, error: null, commentId: localId };
+}
+
+function queueRemoveComment(store, issueId, commentId) {
+  const issue = findIssue(store, issueId);
+  if (!issue || !issue.page) {
+    return { store, error: "That issue is not on this phone." };
+  }
+  const target = (issue.page.comments || []).find((comment) => comment.id === commentId);
+  if (!target) {
+    return { store, error: "That comment is not on this phone." };
+  }
+  const next = clone(store);
+  const record = findIssue(next, issueId);
+  record.page.comments = (record.page.comments || []).filter((comment) => comment.id !== commentId);
+  if (commentId < 0 || target.pending) {
+    next.queue = next.queue.filter((item) => item.commentId !== commentId);
+    record.pending = next.queue.some((item) => item.issueId === record.id);
+    if (!record.pending) {
+      record.error = null;
+    }
+    return { store: next, error: null };
+  }
+  next.queue.push({
+    id: `uncomment-${commentId}`,
+    kind: "uncomment",
+    issueId: record.id,
+    commentId,
+    comment: target,
+    projectId: record.projectId,
+    method: "DELETE",
+    path: `/api/v1/comments/${commentId}`,
+    body: null,
+    baseUpdatedAt: record.baseUpdatedAt,
+    force: true,
+  });
+  record.pending = true;
+  record.error = null;
+  return { store: next, error: null };
+}
+
 module.exports = {
   NOT_ON_SERVER,
   applyRefresh,
@@ -582,9 +728,11 @@ module.exports = {
   markConflict,
   markError,
   noteUploaded,
+  queueComment,
   queueCreate,
   queueDelete,
   queueRecreate,
+  queueRemoveComment,
   queueUpdate,
   rememberDetail,
   storeKey,

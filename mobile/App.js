@@ -33,9 +33,11 @@ import {
   enableProject,
   findIssue,
   hasWaiting,
+  queueComment,
   queueCreate,
   queueDelete,
   queueRecreate,
+  queueRemoveComment,
   queueUpdate,
   rememberDetail,
   storeKey,
@@ -650,6 +652,57 @@ export default function App() {
             }
             return null;
           }}
+          onComment={async (id, text) => {
+            if (!findIssue(library, id)) {
+              const body = String(text || "").trim();
+              if (!body) {
+                return "A comment needs a body.";
+              }
+              try {
+                await send(account.origin, account.token, "POST", `/api/v1/issues/${id}/comments`, { body });
+              } catch (err) {
+                if (err.status === 401) {
+                  await clearAccount();
+                  setTone("error");
+                  setMessage("Sign in.");
+                }
+                return err.message || "Could not connect.";
+              }
+              return null;
+            }
+            const added = queueComment(library, id, text, account.displayName);
+            if (added.error) {
+              return added.error;
+            }
+            await persistLibrary(account.userId, added.store);
+            try {
+              await refreshLibrary(account, added.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
+          }}
+          onRemoveComment={async (id, commentId) => {
+            const removed = queueRemoveComment(library, id, commentId);
+            if (removed.error) {
+              return removed.error;
+            }
+            await persistLibrary(account.userId, removed.store);
+            try {
+              await refreshLibrary(account, removed.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
+          }}
           onAddChild={async (draft) => {
             const filed = queueCreate(library, draft);
             if (filed.error) {
@@ -1242,12 +1295,15 @@ function IssueDetail({
   onUpdate,
   onDelete,
   onAddChild,
+  onComment,
+  onRemoveComment,
 }) {
   const [stack, setStack] = useState([issueId]);
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [childTitle, setChildTitle] = useState("");
+  const [commentBody, setCommentBody] = useState("");
   const currentId = stack[stack.length - 1];
   const saved = findIssue(library, currentId);
   const project = Object.values(library.projects || {}).find(
@@ -1262,6 +1318,7 @@ function IssueDetail({
   useEffect(() => {
     setEditing(false);
     setChildTitle("");
+    setCommentBody("");
   }, [currentId]);
 
   useEffect(() => {
@@ -1272,13 +1329,22 @@ function IssueDetail({
       if (saved.pending || !current || !current.complete) {
         return saved.page;
       }
+      const savedComments = saved.page.comments || [];
+      const currentComments = current.comments || [];
+      const sameComments = savedComments.length === currentComments.length
+        && savedComments.every((comment, index) =>
+          comment.id === currentComments[index].id && comment.pending === currentComments[index].pending);
       const extra = (saved.page.children || []).filter(
         (child) => !(current.children || []).some((item) => item.id === child.id),
       );
-      if (!extra.length) {
+      if (sameComments && !extra.length) {
         return current;
       }
-      return { ...current, children: [...current.children, ...extra] };
+      return {
+        ...current,
+        comments: sameComments ? current.comments : savedComments,
+        children: extra.length ? [...current.children, ...extra] : current.children,
+      };
     });
   }, [library, currentId]);
 
@@ -1292,6 +1358,9 @@ function IssueDetail({
     loadIssueDetail(account.origin, account.token, currentId)
       .then(async (detail) => {
         if (!active) {
+          return;
+        }
+        if (saved && (saved.pending || saved.conflict)) {
           return;
         }
         detail.page.complete = true;
@@ -1542,6 +1611,53 @@ function IssueDetail({
           )}
           <DetailLine label="Created" value={page.created} />
           <DetailLine label="Updated" value={page.updated} />
+          <Text style={styles.sectionHeading}>Comments</Text>
+          {(page.comments || []).length ? (
+            (page.comments || []).map((comment) => (
+              <View key={comment.id} style={styles.issue}>
+                <Text style={styles.issueKey}>{comment.author} · {comment.created}</Text>
+                <Markdown blocks={comment.blocks || []} />
+                {comment.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+                {saved && !(saved.conflict) ? (
+                  <TextButton
+                    label="Remove"
+                    onPress={() => {
+                      onRemoveComment(currentId, comment.id).then((failure) => {
+                        if (failure) {
+                          setError(failure);
+                        }
+                      });
+                    }}
+                    disabled={false}
+                  />
+                ) : null}
+              </View>
+            ))
+          ) : page.complete ? (
+            <Text style={styles.message}>No comments yet.</Text>
+          ) : (
+            <Text style={styles.message}>
+              Comments load the next time this phone reaches the server.
+            </Text>
+          )}
+          {saved && !(saved.conflict) ? (
+            <View>
+              <Field label="Comment" value={commentBody} onChange={setCommentBody} multiline />
+              <PrimaryButton
+                label="Add comment"
+                onPress={async () => {
+                  const failure = await onComment(currentId, commentBody);
+                  if (failure) {
+                    setError(failure);
+                    return;
+                  }
+                  setCommentBody("");
+                  setError("");
+                }}
+                disabled={false}
+              />
+            </View>
+          ) : null}
         </View>
       ) : null}
     </ScrollView>

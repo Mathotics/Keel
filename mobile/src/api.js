@@ -153,11 +153,12 @@ async function loadProfile(origin, token) {
 }
 
 async function loadIssueDetail(origin, token, issueId) {
-  const [issue, children, dependencies, users] = await Promise.all([
+  const [issue, children, dependencies, users, comments] = await Promise.all([
     read(origin, token, `/api/v1/issues/${issueId}`),
     read(origin, token, `/api/v1/issues/${issueId}/children`),
     read(origin, token, `/api/v1/issues/${issueId}/dependencies`),
     read(origin, token, "/api/v1/users"),
+    read(origin, token, `/api/v1/issues/${issueId}/comments`),
   ]);
   const parent = issue.parent_id
     ? await read(origin, token, `/api/v1/issues/${issue.parent_id}`)
@@ -186,6 +187,7 @@ async function loadIssueDetail(origin, token, issueId) {
       history,
       historyAvailable,
       sprint,
+      comments,
     }),
   };
 }

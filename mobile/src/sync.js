@@ -1,10 +1,30 @@
-const { emptyStore, markConflict, markError, noteUploaded } = require("./offline");
+const { findIssue, markConflict, markError, noteUploaded } = require("./offline");
+
+function restoreComment(store, item) {
+  if (!item.comment) {
+    return store;
+  }
+  const copy = JSON.parse(JSON.stringify(store));
+  const issue = findIssue(copy, item.issueId);
+  if (!issue || !issue.page) {
+    return store;
+  }
+  const comments = issue.page.comments || [];
+  if (!comments.some((comment) => comment.id === item.comment.id)) {
+    issue.page.comments = [...comments, item.comment];
+  }
+  return copy;
+}
 
 async function uploadQueue(store, client) {
   let current = store;
   const held = new Set();
-  for (const item of store.queue) {
-    if (held.has(item.issueId)) {
+  for (const original of store.queue) {
+    const item = (current.queue || []).find((entry) => entry.id === original.id);
+    if (!item) {
+      continue;
+    }
+    if (held.has(item.issueId) || held.has(original.issueId)) {
       continue;
     }
     const record = current.projects[item.projectId]
@@ -13,7 +33,7 @@ async function uploadQueue(store, client) {
       held.add(item.issueId);
       continue;
     }
-    if (item.kind !== "create") {
+    if (item.kind !== "create" && item.kind !== "comment" && item.kind !== "uncomment") {
       let server;
       try {
         server = await client.read(`/api/v1/issues/${item.issueId}`);
@@ -45,6 +65,13 @@ async function uploadQueue(store, client) {
     } catch (error) {
       if (error.status === 0) {
         throw error;
+      }
+      if (item.kind === "uncomment" && error.status === 404) {
+        current = noteUploaded(current, item, null);
+        continue;
+      }
+      if (item.kind === "uncomment") {
+        current = restoreComment(current, item);
       }
       current = markError(current, item.issueId, error.message);
       held.add(item.issueId);

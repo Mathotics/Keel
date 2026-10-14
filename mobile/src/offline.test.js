@@ -10,9 +10,11 @@ const {
   emptyStore,
   enqueue,
   hasWaiting,
+  queueComment,
   queueCreate,
   queueDelete,
   queueRecreate,
+  queueRemoveComment,
   queueUpdate,
   workView,
 } = require("./offline");
@@ -268,4 +270,109 @@ test("a delete the server already applied is finished", async () => {
   });
   assert.equal(uploaded.projects[3].issues[9], undefined);
   assert.equal(uploaded.queue.length, 0);
+});
+
+test("a comment waits with its issue until the server accepts it", async () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  assert.equal(queueComment(store, 9, "   ", "Cursor").error, "A comment needs a body.");
+  const added = queueComment(store, 9, "  Hello  ", "Cursor");
+  assert.equal(added.error, null);
+  assert.equal(added.store.queue[0].method, "POST");
+  assert.equal(added.store.queue[0].path, "/api/v1/issues/9/comments");
+  assert.equal(added.store.projects[3].issues[9].page.comments[0].pending, true);
+  assert.equal(added.store.projects[3].issues[9].page.comments[0].body, "Hello");
+  assert.equal(workView(added.store)[0].issues[0].pending, true);
+  const uploaded = await uploadQueue(added.store, {
+    async read() {
+      throw new Error("a comment does not reread the issue");
+    },
+    async send() {
+      return {
+        id: 4,
+        issue_id: 9,
+        author_id: 2,
+        body: "Hello",
+        created_at: "2026-10-14T17:00:00",
+      };
+    },
+  });
+  const comment = uploaded.projects[3].issues[9].page.comments[0];
+  assert.equal(comment.id, 4);
+  assert.equal(comment.pending, false);
+  assert.equal(comment.author, "Cursor");
+  assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[9].pending, false);
+});
+
+test("a comment on a new issue follows it onto the server", async () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const filed = queueCreate(store, { projectId: 3, title: "Paint", type: "story", sprint_id: 7 });
+  const added = queueComment(filed.store, filed.issueId, "Note", "Cursor");
+  const uploaded = await uploadQueue(added.store, {
+    async read() {
+      throw new Error("a new issue is not read first");
+    },
+    async send(method, path) {
+      if (path.endsWith("/issues")) {
+        return {
+          id: 20,
+          key: "KEEL-20",
+          project_id: 3,
+          title: "Paint",
+          type: "story",
+          status: "todo",
+          priority: "p4",
+          assignee_id: null,
+          reporter_id: null,
+          labels: [],
+          parent_id: null,
+          sprint_id: 7,
+          description: "",
+          estimate_minutes: null,
+          remaining_minutes: null,
+          start_at: null,
+          due_at: null,
+          created_at: "2026-10-14T17:00:00",
+          updated_at: "2026-10-14T17:00:00",
+          rollup: null,
+        };
+      }
+      assert.equal(method, "POST");
+      assert.equal(path, "/api/v1/issues/20/comments");
+      return {
+        id: 5,
+        issue_id: 20,
+        author_id: 2,
+        body: "Note",
+        created_at: "2026-10-14T17:01:00",
+      };
+    },
+  });
+  assert.equal(uploaded.projects[3].issues[20].page.comments[0].body, "Note");
+  assert.equal(uploaded.projects[3].issues[20].page.comments[0].pending, false);
+  assert.equal(uploaded.queue.length, 0);
+});
+
+test("removing a waiting comment drops it, and a saved comment waits to be removed", async () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const added = queueComment(store, 9, "Hello", "Cursor");
+  const dropped = queueRemoveComment(added.store, 9, added.commentId);
+  assert.equal(dropped.store.queue.length, 0);
+  assert.equal(dropped.store.projects[3].issues[9].page.comments.length, 0);
+  dropped.store.projects[3].issues[9].page.comments = [
+    { id: 4, author: "Cursor", created: "2026-10-14 17:00 UTC", body: "Hello", blocks: [], pending: false },
+  ];
+  const removed = queueRemoveComment(dropped.store, 9, 4);
+  assert.equal(removed.store.queue[0].path, "/api/v1/comments/4");
+  assert.equal(removed.store.projects[3].issues[9].page.comments.length, 0);
+  const uploaded = await uploadQueue(removed.store, {
+    async read() {
+      throw new Error("removing a comment does not reread the issue");
+    },
+    async send() {
+      return null;
+    },
+  });
+  assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[9].page.comments.length, 0);
 });

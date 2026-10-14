@@ -72,6 +72,14 @@ test("assembles a read-only issue page", () => {
     ],
     historyAvailable: true,
     sprint: { name: "This week" },
+    comments: [
+      {
+        id: 4,
+        author_id: 2,
+        body: "Sand the **bow**.",
+        created_at: "2026-10-12T15:04:00",
+      },
+    ],
   });
   assert.equal(page.assignee, "Jacob Hootman");
   assert.equal(page.reporter, "None");
@@ -83,4 +91,6 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.blockedBy[0].projectKey, "BOAT");
   assert.match(page.history[0], /title Old → Paint/);
   assert.equal(page.sprintName, "This week");
+  assert.equal(page.comments[0].author, "Jacob Hootman");
+  assert.equal(page.comments[0].blocks[0].inlines[1].bold, true);
 });
