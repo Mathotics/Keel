@@ -139,15 +139,18 @@ def delete_sprint(
 
 
 def advance_all(session: Session, today: date | None = None) -> None:
-    today = today or date.today()
-    projects = session.scalars(
-        select(Project).where(Project.sprint_cadence != SprintCadence.OFF),
-    ).all()
-    for project in projects:
-        ensure_open(session, project.id, today)
-    from keel.services import series as series_service
+    from keel.services.request_log import suppress_change_notes
 
-    series_service.advance_all(session, today)
+    today = today or date.today()
+    with suppress_change_notes():
+        projects = session.scalars(
+            select(Project).where(Project.sprint_cadence != SprintCadence.OFF),
+        ).all()
+        for project in projects:
+            ensure_open(session, project.id, today)
+        from keel.services import series as series_service
+
+        series_service.advance_all(session, today)
 
 
 def get_session(request: Request) -> Generator[Session, None, None]:

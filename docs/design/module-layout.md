@@ -42,6 +42,7 @@ src/keel/
       sprint.py
       issue.py
       issue_history.py
+      request_log.py
       label.py
       dependency.py
       comment.py
@@ -62,6 +63,7 @@ src/keel/
     dependencies.py
     comments.py
     history.py
+    request_log.py      signed-in request log, change notes, retention
     labels.py
 
   schemas/
@@ -96,12 +98,14 @@ src/keel/
   web/
     __init__.py
     context.py          shared template context and chrome dependency
+    request_log.py      records each signed-in request after the response
     markdown.py         Markdown to sanitized HTML for issue notes
     nav.py              top-bar section order (cookie, not a user row)
     inbox.py            collapsed home sections (cookie, not a user row)
     routes/
       __init__.py
       pages.py          home inbox, create, license
+      admin.py          log tracker page
       search.py         GET /search
       projects.py
       issues.py

@@ -11,17 +11,39 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadIssue, loadWork, login, renameLabel, revokeToken } from "./src/api";
+import { loadCatalog, loadIssueDetail, loadProfile, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
+import {
+  NOT_ON_SERVER,
+  choosePhone,
+  chooseServer,
+  discardIssue,
+  dropProject,
+  emptyStore,
+  enableProject,
+  findIssue,
+  hasWaiting,
+  queueCreate,
+  queueDelete,
+  queueRecreate,
+  queueUpdate,
+  rememberDetail,
+  storeKey,
+  workView,
+} from "./src/offline";
+import { pullLibrary } from "./src/sync";
+import { inputWhen, prepareCreate, prepareUpdate } from "./src/create";
+import { formatMinutes } from "./src/issue";
 
 const ADDRESS_KEY = "keel.serverAddress";
 const LOCK_KEY = "keel.lockSetting";
@@ -29,6 +51,7 @@ const TOKEN_KEY = "keel.token";
 const TOKEN_ID_KEY = "keel.tokenId";
 const NAME_KEY = "keel.displayName";
 const LABEL_KEY = "keel.label";
+const USER_ID_KEY = "keel.userId";
 const CONNECTED = "Connected";
 const FAILED = "Could not connect.";
 
@@ -56,6 +79,10 @@ export default function App() {
   const [hasDeviceLock, setHasDeviceLock] = useState(false);
   const [draftLabel, setDraftLabel] = useState("");
   const [issueId, setIssueId] = useState(null);
+  const [library, setLibrary] = useState(emptyStore());
+  const [libraryReady, setLibraryReady] = useState(false);
+  const [workError, setWorkError] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const prompting = useRef(false);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
@@ -112,7 +139,7 @@ export default function App() {
   }, []);
 
   async function boot() {
-    const [savedAddress, savedLock, token, tokenId, displayName, label, level] =
+    const [savedAddress, savedLock, token, tokenId, displayName, label, userId, level] =
       await Promise.all([
         AsyncStorage.getItem(ADDRESS_KEY),
         AsyncStorage.getItem(LOCK_KEY),
@@ -120,6 +147,7 @@ export default function App() {
         SecureStore.getItemAsync(TOKEN_ID_KEY),
         SecureStore.getItemAsync(NAME_KEY),
         SecureStore.getItemAsync(LABEL_KEY),
+        SecureStore.getItemAsync(USER_ID_KEY),
         LocalAuthentication.getEnrolledLevelAsync(),
       ]);
     const setting = savedLock || ON_LAUNCH;
@@ -133,6 +161,7 @@ export default function App() {
             displayName,
             label,
             origin: parsed.origin,
+            userId: userId || null,
           }
         : null;
     return { savedAddress: savedAddress || "", setting, enrolled, signedIn };
@@ -260,6 +289,7 @@ export default function App() {
         displayName: body.display_name,
         label: body.label,
         origin: parsed.origin,
+        userId: null,
       });
       setPassword("");
       setTone("idle");
@@ -278,10 +308,17 @@ export default function App() {
   }
 
   function onSignOut() {
-    Alert.alert("Sign out", "Sign out of Keel on this phone?", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Sign out", style: "destructive", onPress: signOut },
-    ]);
+    const waiting = hasWaiting(library);
+    Alert.alert(
+      "Sign out",
+      waiting
+        ? "Changes waiting on this phone stay here and upload the next time you sign in. Sign out?"
+        : "Sign out of Keel on this phone?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign out", style: "destructive", onPress: signOut },
+      ],
+    );
   }
 
   async function signOut() {
@@ -308,11 +345,113 @@ export default function App() {
     await SecureStore.deleteItemAsync(TOKEN_ID_KEY);
     await SecureStore.deleteItemAsync(NAME_KEY);
     await SecureStore.deleteItemAsync(LABEL_KEY);
+    await SecureStore.deleteItemAsync(USER_ID_KEY);
     setAccount(null);
     setPassword("");
     setMessage("");
     setTone("idle");
     setPhase("signedOut");
+  }
+
+  async function persistLibrary(userId, store) {
+    setLibrary(store);
+    if (userId) {
+      await AsyncStorage.setItem(storeKey(userId), JSON.stringify(store));
+    }
+  }
+
+  async function refreshLibrary(currentAccount, currentStore) {
+    const client = {
+      profile: () => loadProfile(currentAccount.origin, currentAccount.token),
+      snapshots: () => loadSnapshots(currentAccount.origin, currentAccount.token),
+      catalog: () => loadCatalog(currentAccount.origin, currentAccount.token),
+      read: (path) => read(currentAccount.origin, currentAccount.token, path),
+      send: (method, path, body) =>
+        send(currentAccount.origin, currentAccount.token, method, path, body),
+    };
+    const result = await pullLibrary(currentStore, client);
+    const userId = String(result.userId);
+    if (userId !== currentAccount.userId) {
+      await SecureStore.setItemAsync(USER_ID_KEY, userId);
+      setAccount({ ...currentAccount, userId });
+    }
+    await persistLibrary(userId, result.store);
+    setWorkError("");
+  }
+
+  useEffect(() => {
+    if (!account) {
+      setLibraryReady(false);
+      return undefined;
+    }
+    let active = true;
+    (async () => {
+      let store = emptyStore();
+      if (account.userId) {
+        const raw = await AsyncStorage.getItem(storeKey(account.userId));
+        if (raw) {
+          try {
+            store = JSON.parse(raw);
+          } catch {
+            store = emptyStore();
+          }
+        }
+      }
+      if (!active) {
+        return;
+      }
+      setLibrary(store);
+      setLibraryReady(true);
+      setRefreshing(true);
+      try {
+        await refreshLibrary(account, store);
+      } catch (err) {
+        if (!active) {
+          return;
+        }
+        if (err.status === 401) {
+          await clearAccount();
+          setTone("error");
+          setMessage("Sign in.");
+          return;
+        }
+        setWorkError(
+          workView(store).some((section) => section.saved)
+            ? "Showing the saved copy. Could not connect."
+            : err.message || FAILED,
+        );
+      } finally {
+        if (active) {
+          setRefreshing(false);
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [account && account.token, account && account.origin]);
+
+  async function toggleProject(projectId, enabled) {
+    if (!account) {
+      return;
+    }
+    if (!enabled && hasWaiting(library, projectId)) {
+      Alert.alert(
+        "Stop saving this project?",
+        "Waiting changes for this project will be dropped from this phone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Turn off",
+            style: "destructive",
+            onPress: () => persistLibrary(account.userId, dropProject(library, projectId)),
+          },
+        ],
+      );
+      return;
+    }
+    const next = enabled ? enableProject(library, projectId) : dropProject(library, projectId);
+    await persistLibrary(account.userId, next);
   }
 
   async function saveLock(setting) {
@@ -383,16 +522,60 @@ export default function App() {
         <Work
           account={account}
           busy={busy}
-          onSettings={openSettings}
-          onSignOut={onSignOut}
+          error={workError}
           onOpenIssue={(id) => {
             setIssueId(id);
             setPhase("issue");
           }}
-          onUnauthorized={async () => {
-            await clearAccount();
-            setTone("error");
-            setMessage("Sign in.");
+          onCreate={() => {
+            setMessage("");
+            setPhase("create");
+          }}
+          onRefresh={async () => {
+            setRefreshing(true);
+            try {
+              await refreshLibrary(account, library);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onSettings={openSettings}
+          onSignOut={onSignOut}
+          refreshing={refreshing}
+          sections={libraryReady ? workView(library) : null}
+        />
+      ) : null}
+      {phase === "create" && account ? (
+        <CreateIssue
+          account={account}
+          busy={busy}
+          library={library}
+          onCancel={() => setPhase("signedIn")}
+          onFile={async (draft) => {
+            const filed = queueCreate(library, draft);
+            if (filed.error) {
+              return filed.error;
+            }
+            await persistLibrary(account.userId, filed.store);
+            setPhase("signedIn");
+            try {
+              await refreshLibrary(account, filed.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
           }}
         />
       ) : null}
@@ -401,11 +584,96 @@ export default function App() {
           account={account}
           issueId={issueId}
           onBack={() => setPhase("signedIn")}
+          onDiscard={async (id) => {
+            await persistLibrary(account.userId, discardIssue(library, id));
+          }}
+          onKeepPhone={async (id) => {
+            const next = choosePhone(library, id);
+            await persistLibrary(account.userId, next);
+            try {
+              await refreshLibrary(account, next);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+              }
+            }
+          }}
+          onKeepServer={async (id, serverIssue) => {
+            await persistLibrary(account.userId, chooseServer(library, id, serverIssue, null));
+          }}
+          onRecreate={async (id) => {
+            const next = queueRecreate(library, id);
+            await persistLibrary(account.userId, next);
+            try {
+              await refreshLibrary(account, next);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+              }
+            }
+          }}
+          onRemember={async (issue, page) => {
+            await persistLibrary(account.userId, rememberDetail(library, issue.id, issue, page));
+          }}
+          onUpdate={async (id, changes, options) => {
+            const updated = queueUpdate(library, id, changes, options);
+            if (updated.error) {
+              return updated.error;
+            }
+            await persistLibrary(account.userId, updated.store);
+            try {
+              await refreshLibrary(account, updated.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
+          }}
+          onDelete={async (id) => {
+            const removed = queueDelete(library, id);
+            if (removed.error) {
+              return removed.error;
+            }
+            await persistLibrary(account.userId, removed.store);
+            setPhase("signedIn");
+            try {
+              await refreshLibrary(account, removed.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+              }
+            }
+            return null;
+          }}
+          onAddChild={async (draft) => {
+            const filed = queueCreate(library, draft);
+            if (filed.error) {
+              return filed.error;
+            }
+            await persistLibrary(account.userId, filed.store);
+            try {
+              await refreshLibrary(account, filed.store);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return "Sign in.";
+              }
+            }
+            return null;
+          }}
           onUnauthorized={async () => {
             await clearAccount();
             setTone("error");
             setMessage("Sign in.");
           }}
+          library={library}
         />
       ) : null}
       {phase === "settings" && account ? (
@@ -428,6 +696,24 @@ export default function App() {
               This phone has no PIN or fingerprint, so Keel opens without asking.
             </Text>
           ) : null}
+          <Text style={styles.label}>Saved projects</Text>
+          {libraryReady
+            ? Object.values(library.projects)
+                .sort((left, right) => left.key.localeCompare(right.key))
+                .map((project) => (
+                  <View key={project.id} style={styles.projectSwitch}>
+                    <Text style={styles.choiceText}>
+                      {project.key} · {project.name}
+                    </Text>
+                    <Switch
+                      onValueChange={(enabled) => toggleProject(project.id, enabled)}
+                      thumbColor={project.enabled ? "#FFFFFF" : "#8AA0B2"}
+                      trackColor={{ false: "#D5E2EC", true: "#0068B0" }}
+                      value={project.enabled}
+                    />
+                  </View>
+                ))
+            : null}
           <Text style={styles.label}>Phone name</Text>
           <TextInput
             autoCapitalize="words"
@@ -456,59 +742,435 @@ export default function App() {
   );
 }
 
-function Work({ account, busy, onSettings, onSignOut, onUnauthorized, onOpenIssue }) {
-  const [sections, setSections] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+const TYPE_OPTIONS = [
+  { id: "epic", title: "Epic" },
+  { id: "story", title: "Story" },
+  { id: "subtask", title: "Subtask" },
+];
+const STATUS_OPTIONS = [
+  { id: "todo", title: "To Do" },
+  { id: "in_progress", title: "In Progress" },
+  { id: "in_review", title: "In Review" },
+  { id: "blocked", title: "Blocked" },
+  { id: "done", title: "Done" },
+  { id: "cancelled", title: "Cancelled" },
+];
+const PRIORITY_OPTIONS = [
+  { id: "p1", title: "P1 — Blocker" },
+  { id: "p2", title: "P2 — Critical" },
+  { id: "p3", title: "P3 — Major" },
+  { id: "p4", title: "P4 — Minor" },
+  { id: "p5", title: "P5 — Trivial" },
+];
+
+function CreateIssue({ account, library, busy, onCancel, onFile }) {
+  const projects = Object.values(library.projects || {})
+    .filter((project) => project.enabled)
+    .sort((left, right) => left.key.localeCompare(right.key));
+  const [projectId, setProjectId] = useState(projects[0] ? String(projects[0].id) : "");
+  const project = projects.find((item) => String(item.id) === projectId) || null;
+  const [type, setType] = useState("story");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [status, setStatus] = useState("todo");
+  const [priority, setPriority] = useState("p4");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [parentId, setParentId] = useState("");
+  const [sprintId, setSprintId] = useState(project && project.sprint ? String(project.sprint.id) : "");
+  const [labels, setLabels] = useState("");
+  const [estimate, setEstimate] = useState("");
+  const [remaining, setRemaining] = useState("");
+  const [start, setStart] = useState("");
+  const [due, setDue] = useState("");
+  const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
   const [error, setError] = useState("");
 
-  async function reload() {
-    setError("");
-    try {
-      setSections(await loadWork(account.origin, account.token));
-    } catch (err) {
-      if (err.status === 401) {
-        await onUnauthorized();
-        return;
-      }
-      setError(err.message || "Could not connect.");
-    }
-  }
-
   useEffect(() => {
+    if (!project) {
+      return undefined;
+    }
+    setSprintId(project.sprint ? String(project.sprint.id) : "");
+    setParentId("");
     let active = true;
-    loadWork(account.origin, account.token)
-      .then((next) => {
-        if (active) {
-          setSections(next);
-        }
-      })
-      .catch(async (err) => {
+    read(account.origin, account.token, `/api/v1/projects/${project.id}/sprints`)
+      .then((rows) => {
         if (!active) {
           return;
         }
-        if (err.status === 401) {
-          await onUnauthorized();
-          return;
+        const open = (rows || []).filter(
+          (row) => row.state === "active" || row.state === "planned",
+        );
+        setSprints(open.length ? open : project.sprint ? [project.sprint] : []);
+      })
+      .catch(() => {
+        if (active) {
+          setSprints(project.sprint ? [project.sprint] : []);
         }
-        setError(err.message || "Could not connect.");
-        setSections([]);
       });
     return () => {
       active = false;
     };
-  }, [account.origin, account.token]);
+  }, [account.origin, account.token, project && project.id]);
 
+  const expectedParent = type === "story" ? "epic" : type === "subtask" ? "story" : null;
+  const parents = expectedParent && project
+    ? Object.values(project.issues || {}).filter(
+        (issue) => Number(issue.id) > 0 && issue.raw && issue.raw.type === expectedParent,
+      )
+    : [];
+
+  async function file() {
+    const parent = parents.find((issue) => String(issue.id) === parentId);
+    const prepared = prepareCreate({
+      title,
+      projectId: project ? project.id : null,
+      type,
+      description,
+      status,
+      priority,
+      assigneeId: assigneeId ? Number(assigneeId) : null,
+      parent: parent
+        ? { id: parent.id, type: parent.raw.type, projectId: project.id }
+        : null,
+      sprintId: sprintId ? Number(sprintId) : null,
+      estimate,
+      remaining,
+      start,
+      due,
+      labels,
+    });
+    if (prepared.error) {
+      setError(prepared.error);
+      return;
+    }
+    const failure = await onFile(prepared.draft);
+    if (failure) {
+      setError(failure);
+    }
+  }
+
+  if (!projects.length) {
+    return (
+      <View>
+        <Text style={styles.message}>Save a project before creating an issue.</Text>
+        <TextButton label="Back" onPress={onCancel} disabled={false} />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      <TextButton label="Back" onPress={onCancel} disabled={busy} />
+      <Text style={styles.sectionHeading}>Create an issue</Text>
+      <Text style={styles.label}>Project</Text>
+      {projects.map((item) => (
+        <Choice
+          key={item.id}
+          selected={String(item.id) === projectId}
+          title={`${item.key} · ${item.name}`}
+          onPress={() => setProjectId(String(item.id))}
+        />
+      ))}
+      <Text style={styles.label}>Type</Text>
+      {TYPE_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={type === item.id} title={item.title} onPress={() => setType(item.id)} />
+      ))}
+      <Field label="Title" value={title} onChange={setTitle} />
+      <Field label="Description" value={description} onChange={setDescription} multiline />
+      <Text style={styles.label}>Status</Text>
+      {STATUS_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={status === item.id} title={item.title} onPress={() => setStatus(item.id)} />
+      ))}
+      <Text style={styles.label}>Priority</Text>
+      {PRIORITY_OPTIONS.map((item) => (
+        <Choice
+          key={item.id}
+          selected={priority === item.id}
+          title={item.title}
+          onPress={() => setPriority(item.id)}
+        />
+      ))}
+      <Text style={styles.label}>Assignee</Text>
+      <Choice selected={assigneeId === ""} title="Unassigned" onPress={() => setAssigneeId("")} />
+      {(library.people || []).map((person) => (
+        <Choice
+          key={person.id}
+          selected={assigneeId === String(person.id)}
+          title={person.display_name}
+          onPress={() => setAssigneeId(String(person.id))}
+        />
+      ))}
+      <Text style={styles.label}>Parent</Text>
+      <Choice selected={parentId === ""} title="No parent" onPress={() => setParentId("")} />
+      {parents.map((issue) => (
+        <Choice
+          key={issue.id}
+          selected={parentId === String(issue.id)}
+          title={`${issue.raw.key} ${issue.raw.title}`}
+          onPress={() => setParentId(String(issue.id))}
+        />
+      ))}
+      <Text style={styles.label}>Sprint</Text>
+      <Choice selected={sprintId === ""} title="Unscheduled" onPress={() => setSprintId("")} />
+      {sprints.map((sprint) => (
+        <Choice
+          key={sprint.id}
+          selected={sprintId === String(sprint.id)}
+          title={sprint.name}
+          onPress={() => setSprintId(String(sprint.id))}
+        />
+      ))}
+      <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
+      <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
+      <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
+      <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <PrimaryButton label="Create issue" onPress={file} disabled={busy} />
+    </ScrollView>
+  );
+}
+
+function EditIssue({ account, issue, library, page, project, onCancel, onSave }) {
+  const [type, setType] = useState(issue.type || "story");
+  const [title, setTitle] = useState(issue.title || "");
+  const [description, setDescription] = useState(issue.description || "");
+  const [status, setStatus] = useState(issue.status || "todo");
+  const [priority, setPriority] = useState(issue.priority || "p4");
+  const [assigneeId, setAssigneeId] = useState(issue.assignee_id ? String(issue.assignee_id) : "");
+  const [parentId, setParentId] = useState(issue.parent_id ? String(issue.parent_id) : "");
+  const [sprintId, setSprintId] = useState(issue.sprint_id ? String(issue.sprint_id) : "");
+  const [labels, setLabels] = useState((issue.labels || []).join(", "));
+  const [estimate, setEstimate] = useState(
+    issue.estimate_minutes === null || issue.estimate_minutes === undefined
+      ? ""
+      : formatMinutes(issue.estimate_minutes),
+  );
+  const [remaining, setRemaining] = useState(
+    issue.remaining_minutes === null || issue.remaining_minutes === undefined
+      ? ""
+      : formatMinutes(issue.remaining_minutes),
+  );
+  const [start, setStart] = useState(inputWhen(issue.start_at));
+  const [due, setDue] = useState(inputWhen(issue.due_at));
+  const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
+  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!project) {
+      return undefined;
+    }
+    let active = true;
+    read(account.origin, account.token, `/api/v1/projects/${project.id}/sprints`)
+      .then((rows) => {
+        if (!active) {
+          return;
+        }
+        const open = (rows || []).filter((row) => row.state === "active" || row.state === "planned");
+        const visible = open.length ? open : project.sprint ? [project.sprint] : [];
+        if (issue.sprint_id && !visible.some((row) => row.id === issue.sprint_id)) {
+          visible.push({
+            id: issue.sprint_id,
+            name: (page && page.sprintName) || "Current sprint",
+            state: "planned",
+          });
+        }
+        setSprints(visible);
+        setConnected(true);
+      })
+      .catch(() => {
+        if (active) {
+          setConnected(false);
+          setSprints(project.sprint ? [project.sprint] : []);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [account.origin, account.token, project && project.id]);
+
+  const expectedParent = type === "story" ? "epic" : type === "subtask" ? "story" : null;
+  const parents = expectedParent && project
+    ? Object.values(project.issues || {}).filter(
+        (item) => Number(item.id) > 0 && item.id !== issue.id && item.raw && item.raw.type === expectedParent,
+      )
+    : [];
+  if (
+    expectedParent &&
+    issue.parent_id &&
+    page &&
+    page.parent &&
+    page.parent.id === issue.parent_id &&
+    !parents.some((item) => item.id === issue.parent_id)
+  ) {
+    parents.push({
+      id: page.parent.id,
+      raw: { key: page.parent.key, title: page.parent.title, type: expectedParent },
+    });
+  }
+  const people = [...(library.people || [])];
+  if (issue.assignee_id && !people.some((person) => person.id === issue.assignee_id)) {
+    people.push({
+      id: issue.assignee_id,
+      display_name: page && page.assignee ? page.assignee : "Assignee",
+    });
+  }
+
+  function ancestorIds(selectedId) {
+    const ids = [];
+    let current = selectedId;
+    const seen = new Set();
+    while (current && !seen.has(current)) {
+      seen.add(current);
+      ids.push(current);
+      const found = Object.values((project && project.issues) || {}).find((item) => item.id === current);
+      current = found && found.raw ? found.raw.parent_id : null;
+    }
+    return ids;
+  }
+
+  async function save() {
+    const parent = parents.find((item) => String(item.id) === parentId);
+    const childTypes = project
+      ? Object.values(project.issues)
+          .filter((item) => item.raw && item.raw.parent_id === issue.id)
+          .map((item) => item.raw.type)
+      : [];
+    const prepared = prepareUpdate({
+      issue,
+      title,
+      projectId: issue.project_id,
+      type,
+      description,
+      status,
+      priority,
+      assigneeId: assigneeId ? Number(assigneeId) : null,
+      parent: parent
+        ? { id: parent.id, type: parent.raw.type, projectId: issue.project_id }
+        : null,
+      ancestorIds: parent ? ancestorIds(parent.id) : [],
+      childTypes,
+      sprintId: sprintId ? Number(sprintId) : null,
+      activeSprintId: project && project.sprint ? project.sprint.id : null,
+      online: connected,
+      estimate,
+      remaining,
+      start,
+      due,
+      labels,
+    });
+    if (prepared.error) {
+      setError(prepared.error);
+      return;
+    }
+    if (!Object.keys(prepared.changes).length) {
+      onCancel();
+      return;
+    }
+    const chosen = sprints.find((item) => String(item.id) === sprintId) || null;
+    const failure = await onSave(prepared.changes, {
+      online: connected,
+      sprint: chosen,
+      parent: parent ? { ...parent.raw, id: parent.id } : null,
+    });
+    if (failure) {
+      setError(failure);
+    }
+  }
+
+  const showUnscheduled = connected || !issue.sprint_id;
+
+  return (
+    <View>
+      <Text style={styles.sectionHeading}>Edit {issue.key || "New"}</Text>
+      <Text style={styles.label}>Type</Text>
+      {TYPE_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={type === item.id} title={item.title} onPress={() => setType(item.id)} />
+      ))}
+      <Field label="Title" value={title} onChange={setTitle} />
+      <Field label="Description" value={description} onChange={setDescription} multiline />
+      <Text style={styles.label}>Status</Text>
+      {STATUS_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={status === item.id} title={item.title} onPress={() => setStatus(item.id)} />
+      ))}
+      <Text style={styles.label}>Priority</Text>
+      {PRIORITY_OPTIONS.map((item) => (
+        <Choice key={item.id} selected={priority === item.id} title={item.title} onPress={() => setPriority(item.id)} />
+      ))}
+      <Text style={styles.label}>Assignee</Text>
+      <Choice selected={assigneeId === ""} title="Unassigned" onPress={() => setAssigneeId("")} />
+      {people.map((person) => (
+        <Choice
+          key={person.id}
+          selected={assigneeId === String(person.id)}
+          title={person.display_name}
+          onPress={() => setAssigneeId(String(person.id))}
+        />
+      ))}
+      <Text style={styles.label}>Parent</Text>
+      <Choice selected={parentId === ""} title="No parent" onPress={() => setParentId("")} />
+      {parents.map((item) => (
+        <Choice
+          key={item.id}
+          selected={parentId === String(item.id)}
+          title={`${item.raw.key || "New"} ${item.raw.title}`}
+          onPress={() => setParentId(String(item.id))}
+        />
+      ))}
+      <Text style={styles.label}>Sprint</Text>
+      {showUnscheduled ? (
+        <Choice selected={sprintId === ""} title="Unscheduled" onPress={() => setSprintId("")} />
+      ) : null}
+      {sprints.map((sprint) => (
+        <Choice
+          key={sprint.id}
+          selected={sprintId === String(sprint.id)}
+          title={sprint.name}
+          onPress={() => setSprintId(String(sprint.id))}
+        />
+      ))}
+      <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
+      <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
+      <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
+      <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <PrimaryButton label="Save" onPress={save} disabled={false} />
+    </View>
+  );
+}
+
+function Choice({ title, selected, onPress }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.choice}>
+      <Text style={styles.choiceText}>
+        {selected ? "● " : "○ "}
+        {title}
+      </Text>
+    </Pressable>
+  );
+}
+
+function Work({
+  account,
+  busy,
+  sections,
+  error,
+  refreshing,
+  onRefresh,
+  onSettings,
+  onCreate,
+  onSignOut,
+  onOpenIssue,
+}) {
   return (
     <ScrollView
       contentContainerStyle={styles.workContent}
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={async () => {
-            setRefreshing(true);
-            await reload();
-            setRefreshing(false);
-          }}
+          onRefresh={onRefresh}
           tintColor="#0068B0"
         />
       }
@@ -517,6 +1179,7 @@ function Work({ account, busy, onSettings, onSignOut, onUnauthorized, onOpenIssu
       <View style={styles.toolbar}>
         <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
         <View style={styles.toolbarActions}>
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
         </View>
@@ -532,25 +1195,30 @@ function Work({ account, busy, onSettings, onSignOut, onUnauthorized, onOpenIssu
               <Text style={styles.projectName}>
                 {section.projectKey} · {section.projectName}
               </Text>
-              {section.sprintName ? (
+              {!section.saved ? (
+                <Text style={styles.message}>
+                  This project has not been saved on this phone yet.
+                </Text>
+              ) : section.sprintName ? (
                 <Text style={styles.sprintName}>{section.sprintName}</Text>
               ) : (
                 <Text style={styles.message}>{NO_ACTIVE_SPRINT}</Text>
               )}
-              {section.sprintName && section.issues.length === 0 ? (
+              {section.saved && section.sprintName && section.issues.length === 0 ? (
                 <Text style={styles.message}>{NO_ISSUES}</Text>
               ) : null}
               {section.issues.map((issue) => (
                 <Pressable
-                  accessibilityLabel={`${issue.key} ${issue.title}`}
+                  accessibilityLabel={`${issue.key || "New"} ${issue.title}`}
                   accessibilityRole="button"
                   key={issue.id}
                   onPress={() => onOpenIssue(issue.id)}
                   style={styles.issue}
                 >
-                  <Text style={styles.issueKey}>{issue.key}</Text>
+                  <Text style={styles.issueKey}>{issue.key || "New"}</Text>
                   <Text style={styles.issueTitle}>{issue.title}</Text>
                   <Text style={styles.issueStatus}>{issue.statusLabel}</Text>
+                  {issue.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
                 </Pressable>
               ))}
             </View>
@@ -560,25 +1228,75 @@ function Work({ account, busy, onSettings, onSignOut, onUnauthorized, onOpenIssu
   );
 }
 
-function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
+function IssueDetail({
+  account,
+  issueId,
+  library,
+  onBack,
+  onUnauthorized,
+  onRemember,
+  onKeepPhone,
+  onKeepServer,
+  onRecreate,
+  onDiscard,
+  onUpdate,
+  onDelete,
+  onAddChild,
+}) {
   const [stack, setStack] = useState([issueId]);
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [childTitle, setChildTitle] = useState("");
   const currentId = stack[stack.length - 1];
+  const saved = findIssue(library, currentId);
+  const project = Object.values(library.projects || {}).find(
+    (item) => item.issues && item.issues[currentId],
+  ) || null;
 
   useEffect(() => {
     setStack([issueId]);
+    setEditing(false);
   }, [issueId]);
 
   useEffect(() => {
+    setEditing(false);
+    setChildTitle("");
+  }, [currentId]);
+
+  useEffect(() => {
+    if (!saved || !saved.page) {
+      return;
+    }
+    setPage((current) => {
+      if (saved.pending || !current || !current.complete) {
+        return saved.page;
+      }
+      const extra = (saved.page.children || []).filter(
+        (child) => !(current.children || []).some((item) => item.id === child.id),
+      );
+      if (!extra.length) {
+        return current;
+      }
+      return { ...current, children: [...current.children, ...extra] };
+    });
+  }, [library, currentId]);
+
+  useEffect(() => {
     let active = true;
-    setPage(null);
+    setPage(saved && saved.page ? saved.page : null);
     setError("");
-    loadIssue(account.origin, account.token, currentId)
-      .then((next) => {
-        if (active) {
-          setPage(next);
+    if (Number(currentId) < 0) {
+      return undefined;
+    }
+    loadIssueDetail(account.origin, account.token, currentId)
+      .then(async (detail) => {
+        if (!active) {
+          return;
         }
+        detail.page.complete = true;
+        setPage(detail.page);
+        await onRemember(detail.issue, detail.page);
       })
       .catch(async (err) => {
         if (!active) {
@@ -588,7 +1306,9 @@ function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
           await onUnauthorized();
           return;
         }
-        setError(err.message || "Could not connect.");
+        if (!(saved && saved.page)) {
+          setError(err.message || "Could not connect.");
+        }
       });
     return () => {
       active = false;
@@ -596,6 +1316,11 @@ function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
   }, [account.origin, account.token, currentId]);
 
   function goBack() {
+    if (editing) {
+      setEditing(false);
+      setError("");
+      return;
+    }
     if (stack.length <= 1) {
       onBack();
       return;
@@ -603,15 +1328,128 @@ function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
     setStack((current) => current.slice(0, -1));
   }
 
+  function askDelete() {
+    const name = `${(page && page.key) || "New"} ${(saved && saved.raw && saved.raw.title) || ""}`.trim();
+    Alert.alert(`Delete ${name}?`, "This cannot be undone.", [
+      { text: "Keep it", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => {
+          onDelete(currentId).then((failure) => {
+            if (failure) {
+              setError(failure);
+            }
+          });
+        },
+      },
+    ]);
+  }
+
+  async function addChild() {
+    const raw = saved && saved.raw;
+    if (!raw) {
+      return;
+    }
+    const type = raw.type === "epic" ? "story" : raw.type === "story" ? "subtask" : null;
+    if (!type) {
+      setError("A subtask cannot have children.");
+      return;
+    }
+    if (Number(raw.id) < 0) {
+      setError("This issue is not on the server yet.");
+      return;
+    }
+    const prepared = prepareCreate({
+      title: childTitle,
+      projectId: raw.project_id,
+      type,
+      parent: { id: raw.id, type: raw.type, projectId: raw.project_id },
+      sprintId: raw.sprint_id,
+    });
+    if (prepared.error) {
+      setError(prepared.error);
+      return;
+    }
+    const failure = await onAddChild(prepared.draft);
+    if (failure) {
+      setError(failure);
+      return;
+    }
+    setChildTitle("");
+    setError("");
+  }
+
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
       <TextButton label="Back" onPress={goBack} disabled={false} />
+      {editing && saved && saved.raw ? (
+        <EditIssue
+          account={account}
+          issue={saved.raw}
+          library={library}
+          page={page}
+          project={project}
+          onCancel={() => {
+            setEditing(false);
+            setError("");
+          }}
+          onSave={async (changes, options) => {
+            const failure = await onUpdate(currentId, changes, options);
+            if (failure) {
+              return failure;
+            }
+            setEditing(false);
+            return null;
+          }}
+        />
+      ) : null}
+      {saved && saved.conflict ? (
+        <View style={styles.conflict}>
+          <Text style={styles.pending}>{NOT_ON_SERVER}</Text>
+          {saved.conflict.kind === "deleted" ? (
+            <View>
+              <Text style={styles.message}>The server no longer has this issue.</Text>
+              <PrimaryButton label="File it again" onPress={() => onRecreate(currentId)} disabled={false} />
+              <PrimaryButton label="Discard this copy" onPress={() => onDiscard(currentId)} disabled={false} />
+            </View>
+          ) : (
+            <View>
+              <Text style={styles.message}>
+                This phone: {saved.raw.title}
+              </Text>
+              <Text style={styles.message}>
+                Server: {saved.conflict.server.title}
+              </Text>
+              <PrimaryButton label="Keep this phone" onPress={() => onKeepPhone(currentId)} disabled={false} />
+              <PrimaryButton
+                label="Keep the server"
+                onPress={() => onKeepServer(currentId, saved.conflict.server)}
+                disabled={false}
+              />
+            </View>
+          )}
+        </View>
+      ) : null}
+      {saved && saved.error ? <Text style={styles.error}>{saved.error}</Text> : null}
+      {!saved && page ? (
+        <Text style={styles.message}>This issue is no longer in the saved sprint.</Text>
+      ) : null}
       {page === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {page ? (
+      {!editing && page ? (
         <View>
-          <Text style={styles.issueKey}>{page.key}</Text>
+          {saved && saved.pending && !(saved.conflict) ? (
+            <Text style={styles.pending}>{NOT_ON_SERVER}</Text>
+          ) : null}
+          <Text style={styles.issueKey}>{page.key || "New"}</Text>
           <Text style={styles.detailTitle}>{page.title}</Text>
+          {saved && saved.raw && !(saved.conflict) ? (
+            <View style={styles.toolbarActions}>
+              <TextButton label="Edit" onPress={() => setEditing(true)} disabled={false} />
+              <TextButton label="Delete" onPress={askDelete} disabled={false} />
+            </View>
+          ) : null}
           <DetailLine label="Type" value={page.typeLabel} />
           <DetailLine label="Status" value={page.statusLabel} />
           <DetailLine label="Priority" value={page.priorityLabel} />
@@ -653,6 +1491,20 @@ function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
           ) : (
             <Text style={styles.message}>No children.</Text>
           )}
+          {saved && saved.raw && saved.raw.type !== "subtask" && !(saved.conflict) ? (
+            <View>
+              <Field
+                label={saved.raw.type === "epic" ? "Story title" : "Subtask title"}
+                value={childTitle}
+                onChange={setChildTitle}
+              />
+              <PrimaryButton
+                label={saved.raw.type === "epic" ? "Add story" : "Add subtask"}
+                onPress={addChild}
+                disabled={false}
+              />
+            </View>
+          ) : null}
           <LinkGroup
             title="Blocks"
             items={page.blocks}
@@ -669,18 +1521,24 @@ function IssueDetail({ account, issueId, onBack, onUnauthorized }) {
             onOpen={(id) => setStack((current) => [...current, id])}
           />
           <Text style={styles.sectionHeading}>History</Text>
-          {page.historyAvailable ? (
-            page.history.length ? (
-              page.history.map((line, index) => (
-                <Text key={`${index}-${line}`} style={styles.historyLine}>
-                  {line}
-                </Text>
-              ))
+          {page.complete ? (
+            page.historyAvailable ? (
+              page.history.length ? (
+                page.history.map((line, index) => (
+                  <Text key={`${index}-${line}`} style={styles.historyLine}>
+                    {line}
+                  </Text>
+                ))
+              ) : (
+                <Text style={styles.message}>No history yet.</Text>
+              )
             ) : (
-              <Text style={styles.message}>No history yet.</Text>
+              <Text style={styles.message}>History is not on this server yet.</Text>
             )
           ) : (
-            <Text style={styles.message}>History is not on this server yet.</Text>
+            <Text style={styles.message}>
+              History and links load the next time this phone reaches the server.
+            </Text>
           )}
           <DetailLine label="Created" value={page.created} />
           <DetailLine label="Updated" value={page.updated} />
@@ -859,21 +1717,22 @@ function PasswordField({ value, onChange, disabled }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, keyboardType, secure, disabled }) {
+function Field({ label, value, onChange, placeholder, keyboardType, secure, disabled, multiline }) {
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        autoCapitalize="none"
+        autoCapitalize={multiline ? "sentences" : "none"}
         autoCorrect={false}
         editable={!disabled}
         keyboardType={keyboardType}
+        multiline={Boolean(multiline)}
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor="#8AA0B2"
         secureTextEntry={secure}
-        style={styles.input}
+        style={[styles.input, multiline ? styles.multiline : null]}
         value={value}
       />
     </View>
@@ -963,6 +1822,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
+  pending: {
+    color: "#9A3412",
+    fontSize: 14,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  projectSwitch: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  conflict: {
+    borderColor: "#9A3412",
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 12,
+  },
   detailTitle: {
     color: "#0062AB",
     fontSize: 22,
@@ -1037,6 +1915,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  multiline: {
+    minHeight: 96,
+    textAlignVertical: "top",
   },
   passwordRow: {
     alignItems: "center",
