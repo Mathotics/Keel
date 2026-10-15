@@ -20,6 +20,7 @@ from keel.services.users import ensure_default_user
 from keel.settings import KeelSettings, get_settings
 from keel.version import package_version
 from keel.web import routes as web_routes
+from keel.web.request_log import RequestLogMiddleware
 from keel.web.require_login import RequireLogin
 
 
@@ -103,6 +104,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
         RevalidatedStaticFiles(directory=assets_dir()),
         name="assets",
     )
+    application.add_middleware(RequestLogMiddleware)
     application.add_middleware(RequireLogin)
     return application
 

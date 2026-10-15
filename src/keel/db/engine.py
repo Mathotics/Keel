@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,24 @@ def _configure_sqlite(dbapi_connection: Any, _record: Any) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
+    # Tests set this so a throwaway file database does not fsync every write.
+    # A server must leave it unset.
+    if os.environ.get("KEEL_FAST_SQLITE") == "1":
+        cursor.execute("PRAGMA synchronous=OFF")
     cursor.close()
+
+
+def _sqlite_memory(url: str) -> bool:
+    """True for ``:memory:`` and for a shared-cache ``file:`` URI."""
+    parsed = make_url(url)
+    if not parsed.drivername.startswith("sqlite"):
+        return False
+    database = parsed.database or ""
+    if database in ("", ":memory:"):
+        return True
+    if parsed.query.get("mode") == "memory":
+        return True
+    return database.startswith("file:") and "mode=memory" in database
 
 
 def database_file(url: str) -> Path | None:
@@ -23,7 +41,9 @@ def database_file(url: str) -> Path | None:
     parsed = make_url(url)
     if not parsed.drivername.startswith("sqlite"):
         return None
-    if not parsed.database or parsed.database == ":memory:":
+    if _sqlite_memory(url):
+        return None
+    if not parsed.database:
         return None
     return Path(parsed.database)
 
@@ -35,7 +55,12 @@ def ensure_database_directory(url: str) -> None:
 
 
 def create_db_engine(url: str) -> Engine:
-    engine = create_engine(url)
+    kwargs: dict[str, Any] = {}
+    # A shared-cache memory database is opened from the app thread as well as
+    # the test thread. SQLite refuses to reuse a connection across threads.
+    if _sqlite_memory(url):
+        kwargs["connect_args"] = {"check_same_thread": False}
+    engine = create_engine(url, **kwargs)
     event.listen(engine, "connect", _configure_sqlite)
     return engine
 

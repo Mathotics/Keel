@@ -43,8 +43,8 @@ repos:
         pass_filenames: false
   - repo: local
     hooks:
-      - id: pytest-coverage
-        name: tests (90% coverage)
+      - id: pytest-unit
+        name: unit tests
         language: system
         entry: python scripts/pre_commit_pytest.py
         pass_filenames: false

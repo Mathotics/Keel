@@ -29,3 +29,7 @@ jobs:
         run: |
           . .venv/bin/activate
           pre-commit run --all-files --show-diff-on-failure --color=always
+      - name: Coverage
+        run: |
+          . .venv/bin/activate
+          pytest --cov=keel --cov-report=term-missing --cov-fail-under=90

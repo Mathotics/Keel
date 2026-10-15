@@ -4,6 +4,32 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
+Write-Host "Configuring local git aliases..."
+if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+    Write-Host "error: git is required" -ForegroundColor Red
+    exit 1
+}
+git rev-parse --git-dir 2>$null | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "error: onboard must run inside the Keel git repository" -ForegroundColor Red
+    exit 1
+}
+$GitAliases = [ordered]@{
+    graph             = "log --oneline --decorate --graph"
+    unstage           = "reset HEAD --"
+    last              = "log -1 HEAD"
+    compare           = "diff --no-index --color-words"
+    "unique-commits"  = "log main.. --format='%C(green)%as %C(yellow)%h %C(cyan)%an %C(white)%s'"
+    "missing-commits" = "log ..main --format='%C(green)%as %C(yellow)%h %C(cyan)%an %C(white)%s'"
+    conflicts         = "diff --name-only --diff-filter=U"
+    oops              = "reset --soft HEAD~1"
+    purge             = "clean -fdx -e .venv/ -e venv/ -e user/"
+}
+foreach ($name in $GitAliases.Keys) {
+    git config --local "alias.$name" $GitAliases[$name]
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
 $MinPy = "3.12"
 
 function Test-Python312 {

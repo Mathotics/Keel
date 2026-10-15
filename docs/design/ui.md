@@ -18,7 +18,7 @@ Every interactive element in the bar — link, button, select, summary, and the 
 
 The same URLs and pages serve a phone. A wide window keeps the desktop layout with no changes. When the viewport is phone-narrow (including a desktop window squeezed down), [ADR 018](../adr/ADR-018.md) applies:
 
-* The top bar stays sticky and still shows the home icon, section links, Find, Help, and the signed-in account. Those controls wrap onto extra rows and shrink; none of that chrome is omitted on a phone. Help still discloses FastAPI Docs, ReDoc, and License with the same labels.
+* The top bar stays sticky and shows the home icon, Find, and a Menu control on one row. Menu opens the section links in a two-column grid, then Help, the signed-in name, and Log out. Find stays usable while Menu is closed. Help still discloses FastAPI Docs, ReDoc, and License with the same labels. A wide window does not show Menu ([Phone menu](../adr/phone-menu.md)).
 * The footer is at the end of the page, not pinned over the content. A wide window keeps the pinned footer of [ADR 002](../adr/ADR-002.md).
 * Board columns keep a readable card width. Columns that do not fit are reached by swiping sideways. Separate by sprint remains stacked strips of columns, each strip swiped the same way. Status still changes with the existing Move control on a phone even when the board script has run, because dragging is unreliable with a finger.
 * Tables keep their columns. Extra columns are reached by swiping sideways inside the table, not by restacking rows into cards.
@@ -31,7 +31,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/` | `home.html` | Personal inbox for the signed-in user: due or overdue, due this week, due this month, starting or started, assigned, blocked, active sprint, series copies waiting this cycle, and completed today |
 | `/calendar` | `calendar.html` | Master month, week, or day of the signed-in user's dated issues, across projects, including Done and Cancelled unless the status filter removes them. The month is a day grid. Week and day are broken into hours, and a bar runs from the start time through the due time. Bars show the issue key and title, colored by type as on the board, plus a status mark set apart from that text. Week and day bars wrap the title. The month bar stays on one line and keeps the status visible. A View by menu beside Month, Week, and Day chooses Start to due (the default), Completed, or Created on. Month, Week, and Day; Previous, Next, Today, and date dropdowns. The shared filter bar narrows which of those issues appear ([Common filtering](../adr/common-filtering.md)) |
 | `/login` | `login.html` | Username and password. Public, along with `/health` and `/assets` |
-| `/profile` | `profile.html` | The signed-in person's display name, username, password, and API tokens |
+| `/profile` | `profile.html` | The signed-in person's name, optional email and date of birth, password, and API tokens |
 | `/projects/{key}/calendar` | `calendar.html` | That project's issues, whoever they are assigned to; same month, week, day, and View by controls, and the same filter bar without the project filter |
 | `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |

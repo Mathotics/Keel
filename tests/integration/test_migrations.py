@@ -56,6 +56,10 @@ def test_migrations_and_models_agree(migrated: KeelSettings) -> None:
         "username",
         "display_name",
         "password_hash",
+        "email",
+        "first_name",
+        "last_name",
+        "date_of_birth",
         "created_at",
         "updated_at",
     }

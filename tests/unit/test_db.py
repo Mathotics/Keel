@@ -1,3 +1,4 @@
+import uuid
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,13 @@ def test_database_file_reads_a_sqlite_path(tmp_path: Path) -> None:
 
 def test_database_file_is_none_for_memory_and_other_engines() -> None:
     assert database_file("sqlite://") is None
+    assert database_file("sqlite+pysqlite:///:memory:") is None
+    assert (
+        database_file(
+            "sqlite+pysqlite:///file:keeltest?mode=memory&cache=shared&uri=true"
+        )
+        is None
+    )
     assert database_file("postgresql://localhost/keel") is None
 
 
@@ -32,6 +40,27 @@ def test_ensure_database_directory_creates_missing_parents(tmp_path: Path) -> No
 
 def test_ensure_database_directory_ignores_memory_urls() -> None:
     ensure_database_directory("sqlite://")
+    ensure_database_directory(
+        "sqlite+pysqlite:///file:keeltest?mode=memory&cache=shared&uri=true"
+    )
+
+
+def test_a_second_engine_sees_a_shared_memory_schema() -> None:
+    url = f"sqlite+pysqlite:///file:keel{uuid.uuid4().hex}?mode=memory&cache=shared&uri=true"
+    first = create_db_engine(url)
+    held = first.connect()
+    Base.metadata.create_all(held)
+    held.commit()
+    second = create_db_engine(url)
+    try:
+        with second.connect() as connection:
+            assert connection.execute(
+                text("SELECT count(*) FROM sqlite_master WHERE type='table'")
+            ).scalar_one()
+    finally:
+        held.close()
+        first.dispose()
+        second.dispose()
 
 
 def test_connections_enforce_foreign_keys(engine: Engine) -> None:

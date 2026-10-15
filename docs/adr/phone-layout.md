@@ -1,7 +1,9 @@
 # ADR 018: Phone layout of the existing site
 
-* **Status:** Accepted
-* **Date:** 2026-09-08
+* **Status:** Accepted, amended 2026-10-14
+* **Date:** 2026-10-14
+
+> **Amended 2026-10-14.** On a phone-narrow viewport the section links, Help, and the signed-in account open from a Menu control. Home and Find stay on the bar. A wide viewport is unchanged. See [Phone menu](phone-menu.md).
 
 ## Background
 
@@ -25,7 +27,7 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 ### In-Scope
 
 - A phone-narrow layout of every existing HTML page (projects, create, board, backlog, sprints, issue, search, users, license).
-- Top bar still showing home, section links, Find, and the picker, wrapping onto extra rows and shrinking as needed.
+- Top bar still showing home and Find. Section links, Help, and the signed-in account open from a Menu control ([Phone menu](phone-menu.md)).
 - Board columns that keep a readable card width and are reached by swiping sideways, including when the board is separated by sprint.
 - Status changes on the board via the existing Move control; dragging a card with a finger only if the browser supports it.
 - Existing tables (project list, backlog, users, children, search results, and similar) that keep their columns and swipe sideways for the rest.
@@ -52,8 +54,8 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 
 * **Must** keep the same URLs and the same pages; a phone must not need a different path to do the same work.
 * **Must** make every existing page operable on a phone-narrow viewport: navigate, read, create, edit, filter, start/complete sprints, comment, link dependencies, find, and manage users.
-* **Must** keep the top bar on every page, with the home icon, section links, Find, and the signed-in account all still present (they may wrap and shrink).
-* **Must** keep the top bar sticky; the wrapping bar may occupy more than one row.
+* **Must** keep the top bar on every page, with the home icon and Find visible. Section links, Help, and the signed-in account stay in the page and open from Menu on a phone ([Phone menu](phone-menu.md)).
+* **Must** keep the top bar sticky. On a phone it is one row until Menu is opened.
 * **Must** present the board as columns in workflow order, with a readable card width; columns that do not fit are reached by swiping sideways, not by squeezing every column into one screen.
 * **Must** keep “separate by sprint” as stacked horizontal strips of columns, each strip swiped the same way.
 * **Must** let a phone change a card’s status with the existing status select and Move control, including when JavaScript has not run.
@@ -63,11 +65,11 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 * **Must** switch to the phone layout whenever the viewport is phone-narrow, including a desktop window resized down; switch back when it is wide again.
 * **Must** keep today’s empty, error, and none-found presentation on the same pages.
 * **May** let finger-dragging a card change status where the browser’s drag-and-drop works.
-* **May** let section-link reorder (drag or Up/Down) keep working on the wrapping bar.
+* **May** let section-link reorder (drag or Up/Down) keep working inside the open Menu.
 * **May** wrap board filters and issue/create fields so they stay in the screen width.
 * **Must Not** introduce a second site, app, or set of URLs for phones.
 * **Must Not** make any phone action reachable only by dragging or only with JavaScript.
-* **Must Not** hide section links, Find, or the picker on a phone.
+* **Must Not** hide Find or the home icon on a phone. Section links and the account may wait behind Menu ([Phone menu](phone-menu.md)).
 * **Must Not** pin the footer over content on a phone-narrow viewport.
 * **Must Not** drop or defer any existing desktop capability on a phone.
 * **Must Not** change the current site for a wide (desktop) viewport: layout, chrome, board, tables, and footer stay as they are.
@@ -77,23 +79,23 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 * **Good:** One mental model and one bookmark: the phone is the same Keel, just laid out for a small screen.
 * **Good:** A squeezed desktop window also becomes usable instead of overflowing, which is an improvement over today.
 * **Good:** Board status and every other action still work if JavaScript or dragging fails.
-* **Bad:** A wrapping bar plus horizontal swipes for the board and for tables is more scrolling than the desktop. Some lists will feel like two-axis scrolling.
+* **Bad:** Horizontal swipes for the board and for tables are more scrolling than the desktop. Some lists will feel like two-axis scrolling. Opening Menu covers part of the page until it is closed.
 * **Bad:** The footer is no longer always on screen on a phone; the version and license link are reached by scrolling to the end.
 * **Risk:** Native card drag will be inconsistent across phone browsers. Mitigated by treating Move as the supported phone path.
-* **Risk:** A tall wrapping bar still steals height. Mitigated by shrinking controls and not pinning the footer.
+* **Risk:** A phone menu that stays open still steals height. Mitigated by keeping it closed until asked, and by not pinning the footer.
 
 ## System Design
 
 ### Technical Stack and Architecture
 
-This feature only changes how existing HTML surfaces present on a narrow viewport. A wide window is the current site and is not restyled. The shell is still `base.html` (top bar, Find, picker, main, footer). The board remains `board.html` with columns and the Move fallback. Lists stay tables. Forms on create, issue, sprints, and users stay the same posts to `/web`. No new roles, routes, or data. Layout rules belong with the existing brand stylesheet behind a phone-narrow media query; drag remains the existing board script, optional on a phone.
+This feature only changes how existing HTML surfaces present on a narrow viewport. A wide window is the current site and is not restyled. The shell is still `base.html` (top bar, Find, Menu on a phone, picker, main, footer). The board remains `board.html` with columns and the Move fallback. Lists stay tables. Forms on create, issue, sprints, and users stay the same posts to `/web`. No new roles, routes, or data. Layout rules belong with the existing brand stylesheet behind a phone-narrow media query; drag remains the existing board script, optional on a phone.
 
 ### UML Diagrams
 
 ```mermaid
 flowchart TD
   openUrl[Open any existing Keel URL]
-  bar[Use wrapping top bar]
+  bar[Use home, Find, and Menu]
   page{Page type}
   board[Swipe columns]
   move[Change status with Move]
@@ -118,11 +120,12 @@ stateDiagram-v2
   Wide --> Narrow: viewport becomes phone-narrow
   Narrow --> Wide: viewport becomes wide
   Wide: pinned footer, current board and tables
-  Narrow: wrapping bar, swipe board and tables, footer in document flow
+  Narrow: Menu for sections, swipe board and tables, footer in document flow
 ```
 
 ## Supporting Documentation
 
+* [Phone menu](phone-menu.md)
 * [ADR 001: Persistent top menu bar](ADR-001.md)
 * [ADR 002: Persistent version footer](ADR-002.md)
 * [ADR 009: Server-rendered pages with vanilla JavaScript](ADR-009.md)

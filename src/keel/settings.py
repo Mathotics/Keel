@@ -20,6 +20,9 @@ class KeelSettings(BaseSettings):
     database_url: str | None = None
     default_user: str | None = None
     seed_sign_in: bool = True
+    # 0 turns that limit off. Age is checked first, then the log's own storage.
+    request_log_max_age_days: int = 30
+    request_log_max_bytes: int = 100 * 1024 * 1024
 
     def resolved_database_url(self) -> str:
         """The configured URL, or a SQLite file in the user data directory."""

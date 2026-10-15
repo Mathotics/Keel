@@ -1,9 +1,14 @@
+from datetime import date
+
 import pytest
 from sqlalchemy.orm import Session
 
 from keel.domain.errors import (
     DuplicateUserNameError,
+    InvalidDateOfBirthError,
+    InvalidEmailError,
     InvalidPasswordError,
+    InvalidProfileNameError,
     InvalidUserNameError,
     NotFoundError,
 )
@@ -114,6 +119,109 @@ def test_ensure_default_user_falls_back_to_the_os_username(
     seeded = user_service.ensure_default_user(session, None, seed_sign_in=False)
     assert seeded.display_name == "hostuser"
     assert seeded.password_hash is None
+
+
+def test_a_new_user_has_blank_contact_fields(session: Session) -> None:
+    user = user_service.create_user(session, "Ada")
+    assert user.email == ""
+    assert user.first_name == ""
+    assert user.last_name == ""
+    assert user.date_of_birth is None
+
+
+def test_update_identity_sets_and_clears_optional_fields(session: Session) -> None:
+    user = user_service.create_user(session, "Ada", username="ada")
+    saved = user_service.update_identity(
+        session,
+        user.id,
+        display_name="Ada",
+        username="ada",
+        email="  Ada@Example.com ",
+        first_name=" Ada ",
+        last_name="Lovelace",
+        date_of_birth=user_service.parse_date_of_birth("1815-12-10"),
+    )
+    assert saved.email == "Ada@Example.com"
+    assert saved.first_name == "Ada"
+    assert saved.last_name == "Lovelace"
+    assert saved.date_of_birth is not None
+    assert saved.date_of_birth.isoformat() == "1815-12-10"
+
+    kept = user_service.update_identity(
+        session,
+        user.id,
+        display_name="Augusta",
+        username="ada",
+    )
+    assert kept.display_name == "Augusta"
+    assert kept.email == "Ada@Example.com"
+    assert kept.date_of_birth is not None
+
+    cleared = user_service.update_identity(
+        session,
+        user.id,
+        display_name="Augusta",
+        username="ada",
+        email=None,
+        first_name="   ",
+        last_name=None,
+        date_of_birth=None,
+    )
+    assert cleared.email == ""
+    assert cleared.first_name == ""
+    assert cleared.last_name == ""
+    assert cleared.date_of_birth is None
+
+
+def test_update_identity_rejects_a_bad_email(session: Session) -> None:
+    user = user_service.create_user(session, "Ada")
+    with pytest.raises(InvalidEmailError) as excinfo:
+        user_service.update_identity(
+            session,
+            user.id,
+            display_name="Ada",
+            username="Ada",
+            email="not-an-email",
+        )
+    assert excinfo.value.code == "user.invalid_email"
+    assert user.email == ""
+
+
+def test_update_identity_rejects_a_future_date_of_birth(session: Session) -> None:
+    user = user_service.create_user(session, "Ada")
+    with pytest.raises(InvalidDateOfBirthError):
+        user_service.update_identity(
+            session,
+            user.id,
+            display_name="Ada",
+            username="Ada",
+            date_of_birth=date(2999, 1, 1),
+        )
+    with pytest.raises(InvalidDateOfBirthError):
+        user_service.parse_date_of_birth("1815-13-01")
+    assert user_service.parse_date_of_birth("  ") is None
+    assert user.date_of_birth is None
+
+
+def test_update_identity_rejects_an_overlong_first_name(session: Session) -> None:
+    user = user_service.create_user(session, "Ada")
+    with pytest.raises(InvalidProfileNameError) as excinfo:
+        user_service.update_identity(
+            session,
+            user.id,
+            display_name="Ada",
+            username="Ada",
+            first_name="x" * 101,
+        )
+    assert excinfo.value.code == "user.invalid_profile_name"
+    with pytest.raises(InvalidProfileNameError):
+        user_service.update_identity(
+            session,
+            user.id,
+            display_name="Ada",
+            username="Ada",
+            last_name="Ada\nLovelace",
+        )
 
 
 def test_ensure_default_user_ignores_a_blank_setting(

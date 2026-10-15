@@ -23,6 +23,8 @@ def test_default_settings() -> None:
     assert settings.database_url is None
     assert settings.default_user is None
     assert settings.seed_sign_in is True
+    assert settings.request_log_max_age_days == 30
+    assert settings.request_log_max_bytes == 100 * 1024 * 1024
 
 
 @pytest.mark.usefixtures("unconfigured")
