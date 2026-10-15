@@ -94,6 +94,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
         header.index("keel-topbar__home")
         < header.index("keel-topbar__nav")
         < header.index("keel-find")
+        < header.index("keel-admin")
         < header.index("keel-help")
         < header.index("keel-account")
     )
@@ -128,7 +129,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
 def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> None:
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
     right = header.split('class="keel-topbar__right"', 1)[1]
-    help_block = right.split("<details", 1)[1].split("</details>", 1)[0]
+    help_block = _details_containing(right, ">Help<")
     opening = help_block.split(">", 1)[0]
     assert 'class="keel-help"' in opening
     assert "open" not in opening
@@ -148,7 +149,14 @@ def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> N
         help_block.rfind("<a", 0, license_at) : help_block.index(">", license_at)
     ]
     assert "target=" not in license_tag
-    assert right.index("keel-help") < right.index("keel-account")
+    assert (
+        right.index("keel-admin")
+        < right.index("keel-help")
+        < right.index("keel-account")
+    )
+    admin_block = _details_containing(right, ">Admin<")
+    assert 'href="/admin/log"' in admin_block
+    assert ">Log tracker<" in admin_block
 
     css = client.get("/assets/brand.css").text
     menu = _rule(css, ".keel-help__menu")
@@ -262,6 +270,18 @@ def test_topbar_label_matches_the_control_height(client: TestClient) -> None:
     label = _rule(client.get("/assets/brand.css").text, ".keel-account__label")
     assert "var(--keel-control-height)" in label
     assert "var(--keel-control-font-size)" in label
+
+
+def _details_containing(html: str, summary: str) -> str:
+    start = 0
+    while True:
+        at = html.find("<details", start)
+        assert at != -1
+        end = html.find("</details>", at)
+        block = html[at:end]
+        if summary in block:
+            return block
+        start = end + len("</details>")
 
 
 def _rule(css: str, selector: str) -> str:

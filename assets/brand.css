@@ -119,24 +119,29 @@ body {
 
 /* Native disclosure so Help works without JavaScript. The open panel overlays
    page content instead of stretching the sticky bar. */
-.keel-help {
+.keel-help,
+.keel-admin {
   position: relative;
   flex-shrink: 0;
 }
 
-.keel-help > summary {
+.keel-help > summary,
+.keel-admin > summary {
   list-style: none;
 }
 
-.keel-help > summary::marker {
+.keel-help > summary::marker,
+.keel-admin > summary::marker {
   content: "";
 }
 
-.keel-help > summary::-webkit-details-marker {
+.keel-help > summary::-webkit-details-marker,
+.keel-admin > summary::-webkit-details-marker {
   display: none;
 }
 
-.keel-help__menu {
+.keel-help__menu,
+.keel-admin__menu {
   position: absolute;
   top: calc(100% + 0.25rem);
   right: 0;
@@ -152,8 +157,25 @@ body {
   border-radius: 0.25rem;
 }
 
-.keel-help__menu a {
+.keel-help__menu a,
+.keel-admin__menu a {
   white-space: nowrap;
+}
+
+.keel-log-filters {
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.keel-log-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8125rem;
+}
+
+.keel-log-spans {
+  margin: 0 0 1rem;
 }
 
 /* Every interactive thing in the top bar wears this, so a link, a button and a

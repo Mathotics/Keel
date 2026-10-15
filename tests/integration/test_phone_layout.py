@@ -74,7 +74,9 @@ def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:
     assert "keel-topbar__home" in header
     assert "keel-topbar__nav" in header
     assert "keel-find" in header
+    assert "keel-admin" in header
     assert "keel-help" in header
+    assert ">Log tracker<" in header
     assert "keel-account" in header
     assert 'id="keel-menu"' in header
     assert 'for="keel-menu"' in header

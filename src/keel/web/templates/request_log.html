@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Log tracker{% endblock %}
+{% block main %}
+      <h1>Log tracker</h1>
+      <p class="keel-note">Requests from signed-in people, newest first.</p>
+      <form class="keel-form keel-log-filters" method="get" action="/admin/log">
+        <label>
+          Person
+          <select name="person">
+            <option value="">Everyone</option>
+            {% for user in users %}
+            <option value="{{ user.id }}"{% if query.user_id == user.id %} selected{% endif %}>{{ user.display_name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          From
+          <input name="start" type="date" value="{{ query.start.isoformat() if query.start else '' }}"/>
+        </label>
+        <label>
+          To
+          <input name="end" type="date" value="{{ query.end.isoformat() if query.end else '' }}"/>
+        </label>
+        <label>
+          Requests
+          <select name="kind">
+            <option value="all"{% if not query.changes_only %} selected{% endif %}>All</option>
+            <option value="changes"{% if query.changes_only %} selected{% endif %}>Changes only</option>
+          </select>
+        </label>
+        <label>
+          Result
+          <select name="result">
+            <option value="all"{% if query.result == 'all' %} selected{% endif %}>All</option>
+            <option value="succeeded"{% if query.result == 'succeeded' %} selected{% endif %}>Succeeded</option>
+            <option value="failed"{% if query.result == 'failed' %} selected{% endif %}>Failed</option>
+          </select>
+        </label>
+        <label>
+          Path contains
+          <input name="path" type="text" value="{{ query.path }}" maxlength="200"/>
+        </label>
+        <button class="keel-primary" type="submit">Apply</button>
+        <a class="keel-button" href="/admin/log">Reset</a>
+      </form>
+      <p class="keel-log-spans">
+        {% if query.span == "today" %}<strong>Today</strong>{% else %}<a href="{{ today_href }}">Today</a>{% endif %}
+        ·
+        {% if query.span == "7" %}<strong>7 days</strong>{% else %}<a href="{{ week_href }}">7 days</a>{% endif %}
+        ·
+        {% if query.span == "30" %}<strong>30 days</strong>{% else %}<a href="{{ month_href }}">30 days</a>{% endif %}
+      </p>
+      <div class="keel-table-scroll">
+      <table class="keel-table">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Who</th>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th>Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.created_at | when }}</td>
+            <td>{{ row.actor_name }}</td>
+            <td>{{ row.method }}</td>
+            <td>{{ row.path }}</td>
+            <td>{{ row.status_code }}</td>
+            <td>{{ row.change_note or "" }}</td>
+          </tr>
+          {% else %}
+          <tr><td class="keel-empty" colspan="6">{{ empty_message }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% if has_newer or has_older %}
+      <p class="keel-form-actions">
+        {% if has_newer %}<a href="{{ newer_href }}">Newer</a>{% endif %}
+        {% if has_older %}<a href="{{ older_href }}">Older</a>{% endif %}
+      </p>
+      {% endif %}
+{% endblock %}

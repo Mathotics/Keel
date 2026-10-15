@@ -10,12 +10,18 @@ A profile is the signed-in person's own record. Other people are still managed o
 | --- | --- | --- | --- |
 | `username` | The person, on their profile | Yes, editable | Login name. Unique, compared case-insensitively. 1–100 characters, no control characters. Existing rows are copied from `display_name`. |
 | `display_name` | The person, on their profile. Anyone signed in can also rename it on `/users` | Yes, editable | The name on issues, comments, and the top bar. Still unique, same rules as before. |
+| `first_name` | The person, on their profile | Yes, editable | Optional. Blank clears it. At most 100 characters, no control characters. |
+| `last_name` | The person, on their profile | Yes, editable | Optional. Same rules as `first_name`. |
+| `email` | The person, on their profile | Yes, editable | Optional primary address. Blank clears it. At most 254 characters, shaped like `name@example.com`, with no spaces. Not unique. Not used to sign in, and Keel still does not send mail. |
+| `date_of_birth` | The person, on their profile | Yes, editable | Optional calendar date. Blank clears it. It cannot be in the future. |
 | Password | The person, on their profile, and only if they send the current password | Write-only | Never stored or returned. Minimum 12 characters, maximum 128. Must not match the username. A change revokes other browser sessions. |
 | `created_at` | Nobody | Yes, read-only | When the row was created. |
 
+`GET` and `PATCH /api/v1/profile` return these fields. `PATCH` still requires `display_name` and `username`. The contact fields change only when the body includes them; `null` or `""` clears a text field, and `null` clears `date_of_birth`. `GET /api/v1/users` does not include them.
+
 These are not profile fields:
 
-* Email, avatar, timezone, biography. Keel has no mailer and the stories do not ask for them.
+* Avatar, timezone, and biography.
 * Roles or permissions. Signed-in people remain trusted equals.
 * Two-factor secrets. A second factor is out of scope.
 * `password_hash`, session tokens, and API token secrets.
@@ -41,6 +47,10 @@ erDiagram
     text username UK
     text display_name UK
     text password_hash "null until set"
+    text email "blank until set"
+    text first_name "blank until set"
+    text last_name "blank until set"
+    date date_of_birth "null until set"
     timestamp created_at
     timestamp updated_at
   }

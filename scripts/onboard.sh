@@ -5,6 +5,25 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+echo "Configuring local git aliases..."
+if ! command -v git >/dev/null 2>&1; then
+  echo "error: git is required" >&2
+  exit 1
+fi
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "error: onboard must run inside the Keel git repository" >&2
+  exit 1
+fi
+git config --local alias.graph "log --oneline --decorate --graph"
+git config --local alias.unstage "reset HEAD --"
+git config --local alias.last "log -1 HEAD"
+git config --local alias.compare "diff --no-index --color-words"
+git config --local alias.unique-commits "log main.. --format='%C(green)%as %C(yellow)%h %C(cyan)%an %C(white)%s'"
+git config --local alias.missing-commits "log ..main --format='%C(green)%as %C(yellow)%h %C(cyan)%an %C(white)%s'"
+git config --local alias.conflicts "diff --name-only --diff-filter=U"
+git config --local alias.oops "reset --soft HEAD~1"
+git config --local alias.purge "clean -fdx -e .venv/ -e venv/ -e user/"
+
 MIN_PY="3.12"
 
 python_is_ok() {

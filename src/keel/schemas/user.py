@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,11 +25,33 @@ class UserRead(BaseModel):
     updated_at: datetime
 
 
+class ProfileRead(UserRead):
+    """The signed-in person's profile, including optional contact fields.
+
+    The user list stays on ``UserRead`` and does not carry these fields.
+    """
+
+    email: str
+    first_name: str
+    last_name: str
+    date_of_birth: date | None
+
+
 class ProfileUpdate(BaseModel):
+    """``display_name`` and ``username`` are required.
+
+    The contact fields follow partial update: leave one out and it stays,
+    send null or a blank string to clear it.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     display_name: str = Field(min_length=1, max_length=100)
     username: str = Field(min_length=1, max_length=100)
+    email: str | None = Field(default=None, max_length=254)
+    first_name: str | None = Field(default=None, max_length=100)
+    last_name: str | None = Field(default=None, max_length=100)
+    date_of_birth: date | None = None
 
 
 class PasswordChange(BaseModel):
