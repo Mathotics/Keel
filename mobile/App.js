@@ -24,6 +24,7 @@ import { boardView } from "./src/board";
 import { calendarView, focusForView, moveFocus } from "./src/calendar";
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
+import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
@@ -115,6 +116,15 @@ export default function App() {
   const [calendarViewName, setCalendarViewName] = useState("month");
   const [calendarWhen, setCalendarWhen] = useState("start");
   const [calendarFocus, setCalendarFocus] = useState(localToday);
+  const [remoteSeries, setRemoteSeries] = useState(null);
+  const [scheduleLink, setScheduleLink] = useState("loading");
+  const [scheduleProjectId, setScheduleProjectId] = useState(null);
+  const [openSeries, setOpenSeries] = useState(null);
+  const [recipe, setRecipe] = useState(blankRecipe);
+  const [recipeMode, setRecipeMode] = useState("create");
+  const [recipeScope, setRecipeScope] = useState("series");
+  const [recipeIssue, setRecipeIssue] = useState(null);
+  const [scheduleNotice, setScheduleNotice] = useState("");
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -832,6 +842,281 @@ export default function App() {
     }
   }
 
+  async function refreshSchedules(currentAccount, currentLibrary, projectId) {
+    const projects = enabledProjects(currentLibrary);
+    const project = projects.find((item) => item.id === projectId) || projects[0];
+    if (!project) {
+      setRemoteSeries([]);
+      setScheduleProjectId(null);
+      setScheduleLink("online");
+      setWorkError("");
+      return;
+    }
+    setScheduleProjectId(project.id);
+    try {
+      const series = await read(
+        currentAccount.origin,
+        currentAccount.token,
+        `/api/v1/projects/${project.id}/series`,
+      );
+      setRemoteSeries(series || []);
+      setScheduleLink("online");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setRemoteSeries(null);
+      setScheduleLink("offline");
+    }
+  }
+
+  async function openSchedules(projectId) {
+    listPhase.current = "schedules";
+    setPhase("schedules");
+    setScheduleNotice("");
+    setRecipe(blankRecipe());
+    setRecipeMode("create");
+    setRecipeIssue(null);
+    setOpenSeries(null);
+    setRefreshing(true);
+    try {
+      const store = await refreshLibrary(account, library);
+      await refreshSchedules(account, store || library, projectId || scheduleProjectId);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setScheduleLink("offline");
+      setWorkError(err.message || FAILED);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function showSchedule(seriesId, issue) {
+    listPhase.current = issue ? listPhase.current : "schedules";
+    setPhase("schedule");
+    setRecipeMode(issue ? "occurrence" : "edit");
+    setRecipeIssue(issue || null);
+    setRecipeScope("series");
+    setOpenSeries(null);
+    setRecipe(null);
+    setRefreshing(true);
+    try {
+      const series = await read(account.origin, account.token, `/api/v1/series/${seriesId}`);
+      let parentKey = "";
+      let keepParent = false;
+      if (series.parent_id) {
+        try {
+          const parent = await read(account.origin, account.token, `/api/v1/issues/${series.parent_id}`);
+          parentKey = parent.key || "";
+        } catch (err) {
+          if (err.status === 401) {
+            throw err;
+          }
+          keepParent = true;
+        }
+      }
+      const person = (library.people || []).find((item) => item.id === series.assignee_id);
+      setRecipe({
+        ...recipeFromSeries(series, {
+          parentKey,
+          assignee: person ? person.display_name : "",
+        }),
+        keepParent,
+        keepAssignee: Boolean(series.assignee_id) && !person,
+      });
+      setOpenSeries(series);
+      setScheduleProjectId(series.project_id);
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  function openRepeat(issue) {
+    setRecipeIssue(issue);
+    setRecipe(blankRecipe());
+    setRecipeMode("repeat");
+    setOpenSeries(null);
+    setWorkError("");
+    setPhase("schedule");
+  }
+
+  function changeRecipe(patch) {
+    setRecipe((current) => ({
+      ...current,
+      ...patch,
+      keepParent: patch.parentKey === undefined ? current.keepParent : false,
+      keepAssignee: patch.assignee === undefined ? current.keepAssignee : false,
+    }));
+  }
+
+  async function resolvedEnds(draft) {
+    let assigneeId = null;
+    const assignee = String(draft.assignee || "").trim();
+    if (assignee && !draft.keepAssignee) {
+      let people = library.people || [];
+      if (!people.length) {
+        people = await read(account.origin, account.token, "/api/v1/users");
+      }
+      const found = (people || []).find(
+        (person) => String(person.display_name || "").toLowerCase() === assignee.toLowerCase(),
+      );
+      if (!found) {
+        return { error: "Choose an assignee." };
+      }
+      assigneeId = found.id;
+    }
+    let parentId = null;
+    const parentKey = String(draft.parentKey || "").trim();
+    if (parentKey && !draft.keepParent) {
+      let parent = savedIssueId(library, parentKey);
+      if (!parent) {
+        const parts = issueKeyParts(parentKey);
+        if (!parts) {
+          return { error: "Choose a parent issue." };
+        }
+        const projects = await read(account.origin, account.token, "/api/v1/projects");
+        const project = (projects || []).find((item) => String(item.key).toUpperCase() === parts.key);
+        const issues = project
+          ? await read(account.origin, account.token, `/api/v1/projects/${project.id}/issues`)
+          : [];
+        const found = (issues || []).find((item) => Number(item.number) === parts.number);
+        parent = found ? found.id : null;
+      }
+      if (!parent) {
+        return { error: "Choose a parent issue." };
+      }
+      parentId = parent;
+    }
+    return { assigneeId, parentId };
+  }
+
+  async function saveRecipe() {
+    const prepared = prepareRecipe(recipe, { requireTitle: recipeMode !== "repeat" });
+    if (prepared.error) {
+      return prepared.error;
+    }
+    try {
+      const body = { ...prepared.body };
+      if (recipeMode === "repeat") {
+        if (!String(recipe.labels || "").trim()) {
+          delete body.labels;
+        }
+        await send(account.origin, account.token, "POST", `/api/v1/projects/${recipeIssue.projectId}/series`, {
+          ...body,
+          title: recipeIssue.title,
+          description: recipeIssue.descriptionText || "",
+          type: recipeIssue.type || "story",
+          priority: recipeIssue.priority || body.priority,
+          parent_id: recipeIssue.parentId,
+          assignee_id: recipeIssue.assigneeId,
+          seed_issue_id: recipeIssue.id,
+        });
+        setIssueId(recipeIssue.id);
+        setPhase("issue");
+        return null;
+      }
+      if (recipeMode === "occurrence") {
+        delete body.type;
+        await send(account.origin, account.token, "POST", `/api/v1/issues/${recipeIssue.id}/series`, {
+          scope: recipeScope,
+          ...body,
+        });
+        setIssueId(recipeIssue.id);
+        setPhase("issue");
+        return null;
+      }
+      const ends = await resolvedEnds(recipe);
+      if (ends.error) {
+        return ends.error;
+      }
+      if (!recipe.keepParent) {
+        body.parent_id = ends.parentId;
+      }
+      if (!recipe.keepAssignee) {
+        body.assignee_id = ends.assigneeId;
+      }
+      if (recipeMode === "edit") {
+        const updated = await send(account.origin, account.token, "PATCH", `/api/v1/series/${openSeries.id}`, body);
+        setOpenSeries(updated);
+        setWorkError("");
+        return null;
+      }
+      const created = await send(
+        account.origin,
+        account.token,
+        "POST",
+        `/api/v1/projects/${scheduleProjectId}/series`,
+        body,
+      );
+      await showSchedule(created.id);
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return null;
+      }
+      if (err.status === 404 && recipeMode === "occurrence") {
+        return "Editing one occurrence from the phone is not available on this server yet.";
+      }
+      return err.message || FAILED;
+    }
+  }
+
+  async function pauseSchedule(paused) {
+    try {
+      const updated = await send(
+        account.origin,
+        account.token,
+        "POST",
+        `/api/v1/series/${openSeries.id}/${paused ? "pause" : "resume"}`,
+      );
+      setOpenSeries(updated);
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    }
+  }
+
+  async function deleteSchedule() {
+    try {
+      const projectId = openSeries.project_id;
+      await send(account.origin, account.token, "DELETE", `/api/v1/series/${openSeries.id}`);
+      await openSchedules(projectId);
+      setScheduleNotice(DELETED);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setLibraryReady(false);
@@ -1010,6 +1295,7 @@ export default function App() {
           onBoard={openBoard}
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
+          onSchedules={openSchedules}
           onFind={openFind}
           onCalendar={openCalendar}
           onRefresh={async () => {
@@ -1082,6 +1368,7 @@ export default function App() {
           onBoard={openBoard}
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
+          onSchedules={openSchedules}
           onFind={openFind}
           onCalendar={openCalendar}
           onOpenIssue={(id) => {
@@ -1151,6 +1438,7 @@ export default function App() {
           }}
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
+          onSchedules={openSchedules}
           onFind={openFind}
           onCalendar={openCalendar}
           onRefresh={openBoard}
@@ -1212,6 +1500,7 @@ export default function App() {
           error={workError}
           onBoard={openBoard}
           onSprints={openSprints}
+          onSchedules={openSchedules}
           onFind={openFind}
           onCalendar={openCalendar}
           onCreate={() => {
@@ -1388,6 +1677,100 @@ export default function App() {
           onRefresh={() => showSprint(planningProjectId, openSprint && openSprint.id)}
         />
       ) : null}
+      {phase === "schedules" && account ? (
+        <Schedules
+          account={account}
+          busy={busy}
+          error={workError}
+          notice={scheduleNotice}
+          onBacklog={() => openBacklog()}
+          onBoard={openBoard}
+          onCalendar={openCalendar}
+          onChange={changeRecipe}
+          onCreate={saveRecipe}
+          onFind={openFind}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onOpen={(id) => showSchedule(id)}
+          onProject={(projectId) => openSchedules(projectId)}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onRefresh={() => openSchedules(scheduleProjectId)}
+          onSettings={() => {
+            listPhase.current = "schedules";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          onSprints={openSprints}
+          onSchedules={openSchedules}
+          projectId={scheduleProjectId}
+          projects={enabledProjects(library).map((project) => ({ id: project.id, key: project.key }))}
+          recipe={recipe}
+          refreshing={refreshing}
+          view={
+            scheduleLink === "loading"
+              ? null
+              : seriesView({
+                  series: remoteSeries,
+                  online: scheduleLink === "online",
+                })
+          }
+        />
+      ) : null}
+      {phase === "schedule" && account ? (
+        <SeriesScreen
+          account={account}
+          busy={busy}
+          error={workError}
+          mode={recipeMode}
+          onBack={() => {
+            if (recipeIssue) {
+              setIssueId(recipeIssue.id);
+              setPhase("issue");
+              return;
+            }
+            setRecipe(blankRecipe());
+            setRecipeMode("create");
+            setPhase("schedules");
+          }}
+          onBacklog={() => openBacklog()}
+          onBoard={openBoard}
+          onCalendar={openCalendar}
+          onChange={changeRecipe}
+          onDelete={() => {
+            Alert.alert(DELETE_TITLE, DELETE_BODY, [
+              { text: "Keep it", style: "cancel" },
+              { text: "Delete", style: "destructive", onPress: () => deleteSchedule() },
+            ]);
+          }}
+          onFind={openFind}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onPause={() => pauseSchedule(openSeries && openSeries.state === "active")}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onSave={saveRecipe}
+          onScope={setRecipeScope}
+          onSettings={() => {
+            listPhase.current = "schedule";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          onSprints={openSprints}
+          onSchedules={openSchedules}
+          recipe={recipe}
+          scope={recipeScope}
+          series={openSeries}
+        />
+      ) : null}
       {phase === "calendar" && account ? (
         <CalendarScreen
           account={account}
@@ -1493,6 +1876,7 @@ export default function App() {
           }}
           onSignOut={onSignOut}
           onSprints={openSprints}
+          onSchedules={openSchedules}
           onView={(next) => {
             setCalendarFocus((current) => focusForView(next, calendarViewName, current, localToday()));
             setCalendarViewName(next);
@@ -1545,6 +1929,7 @@ export default function App() {
           }}
           onSignOut={onSignOut}
           onSprints={openSprints}
+          onSchedules={openSchedules}
           result={findResult}
         />
       ) : null}
@@ -1607,6 +1992,8 @@ export default function App() {
               }
             }
           }}
+          onEditSeries={(seriesId, page) => showSchedule(seriesId, page)}
+          onRepeat={openRepeat}
           onRemember={async (issue, page) => {
             await persistLibrary(account.userId, rememberDetail(library, issue.id, issue, page));
           }}
@@ -2204,6 +2591,280 @@ function localToday() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+function OptionRow({ label, options, value, onChange }) {
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.toolbarActions}>
+        {options.map(([id, title]) => (
+          <TextButton
+            key={id}
+            label={value === id ? `● ${title}` : title}
+            onPress={() => onChange(id)}
+            disabled={false}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function RecipeFields({ draft, onChange, showIdentity, showType, showPeople, showScope, scope, onScope }) {
+  return (
+    <View>
+      {showScope ? (
+        <OptionRow label="Apply to" options={SCOPES} value={scope} onChange={onScope} />
+      ) : null}
+      {showIdentity ? (
+        <View>
+          <Field label="Title" value={draft.title} onChange={(title) => onChange({ title })} />
+          <Field label="Default description" value={draft.description} onChange={(description) => onChange({ description })} />
+          {showType ? (
+            <OptionRow
+              label="Type"
+              options={[["epic", "Epic"], ["story", "Story"], ["subtask", "Subtask"]]}
+              value={draft.type}
+              onChange={(type) => onChange({ type })}
+            />
+          ) : null}
+          <OptionRow label="Priority" options={PRIORITIES} value={draft.priority} onChange={(priority) => onChange({ priority })} />
+          <Field label="Labels" value={draft.labels} onChange={(labels) => onChange({ labels })} placeholder="hull, deck" />
+        </View>
+      ) : null}
+      {showPeople ? (
+        <View>
+          <Field label="Assignee" value={draft.assignee} onChange={(assignee) => onChange({ assignee })} placeholder="Unassigned" />
+          <Field label="Parent" value={draft.parentKey} onChange={(parentKey) => onChange({ parentKey })} placeholder="KEEL-12" />
+        </View>
+      ) : null}
+      <OptionRow label="When to create the next copy" options={SPAWNS} value={draft.spawnMode} onChange={(spawnMode) => onChange({ spawnMode })} />
+      <OptionRow label="Put copies in the sprint overlapping" options={BASES} value={draft.sprintBasis} onChange={(sprintBasis) => onChange({ sprintBasis })} />
+      <Field label="Look-ahead" value={draft.lookAhead} onChange={(lookAhead) => onChange({ lookAhead })} />
+      <Text style={styles.message}>Leave start or due blank and copies are created without that date.</Text>
+      <Field label="Start offset (days before)" value={draft.startOffset} onChange={(startOffset) => onChange({ startOffset })} />
+      <Field label="Start time" value={draft.startTime} onChange={(startTime) => onChange({ startTime })} placeholder="09:00" />
+      <Field label="Due offset (days after)" value={draft.dueOffset} onChange={(dueOffset) => onChange({ dueOffset })} />
+      <Field label="Due time" value={draft.dueTime} onChange={(dueTime) => onChange({ dueTime })} placeholder="17:00" />
+      <OptionRow label="Repeat" options={FREQS} value={draft.freq} onChange={(freq) => onChange({ freq })} />
+      <Field label="Every" value={draft.interval} onChange={(interval) => onChange({ interval })} />
+      <Field label="Starts" value={draft.startsOn} onChange={(startsOn) => onChange({ startsOn })} placeholder="YYYY-MM-DD" />
+      <Text style={styles.label}>Weekdays</Text>
+      <View style={styles.toolbarActions}>
+        {WEEKDAYS.map((name, index) => (
+          <TextButton
+            key={name}
+            label={draft.weekdays.includes(index) ? `● ${name}` : name}
+            onPress={() => onChange({
+              weekdays: draft.weekdays.includes(index)
+                ? draft.weekdays.filter((day) => day !== index)
+                : [...draft.weekdays, index],
+            })}
+            disabled={false}
+          />
+        ))}
+      </View>
+      <Field label="Day of month" value={draft.monthDay} onChange={(monthDay) => onChange({ monthDay })} />
+      <OptionRow
+        label="Month"
+        options={[["", "From start date"], ...MONTHS.map((name, index) => [String(index + 1), name])]}
+        value={draft.month}
+        onChange={(month) => onChange({ month })}
+      />
+      <Field label="Nth weekday (1–4 or -1 for last)" value={draft.nthWeek} onChange={(nthWeek) => onChange({ nthWeek })} />
+      <OptionRow
+        label="Ends"
+        options={[["never", "Never"], ["on", "On a date"], ["count", "After a count"]]}
+        value={draft.endMode}
+        onChange={(endMode) => onChange({ endMode })}
+      />
+      {draft.endMode === "on" ? (
+        <Field label="End date" value={draft.endsOn} onChange={(endsOn) => onChange({ endsOn })} placeholder="YYYY-MM-DD" />
+      ) : null}
+      {draft.endMode === "count" ? (
+        <Field label="Occurrence count" value={draft.occurrenceCount} onChange={(occurrenceCount) => onChange({ occurrenceCount })} />
+      ) : null}
+    </View>
+  );
+}
+
+function Schedules({
+  account,
+  view,
+  projects,
+  projectId,
+  recipe,
+  busy,
+  error,
+  notice,
+  refreshing,
+  onRefresh,
+  onProject,
+  onOpen,
+  onCreate,
+  onChange,
+  onHome,
+  onProjects,
+  onBoard,
+  onBacklog,
+  onSprints,
+  onCalendar,
+  onFind,
+  onSettings,
+  onSignOut,
+}) {
+  const [formError, setFormError] = useState("");
+  const online = view && !view.banner;
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>Schedules</Text>
+      <View style={styles.toolbarActions}>
+        {projects.map((project) => (
+          <TextButton
+            key={project.id}
+            label={projectId === project.id ? `● ${project.key}` : project.key}
+            onPress={() => onProject(project.id)}
+            disabled={busy}
+          />
+        ))}
+      </View>
+      {view === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {notice ? <Text style={styles.message}>{notice}</Text> : null}
+      {view && view.banner ? <Text style={styles.message}>{view.banner}</Text> : null}
+      {view && view.empty ? <Text style={styles.message}>{view.empty}</Text> : null}
+      {view
+        ? view.rows.map((row) => (
+            <Pressable key={row.id} accessibilityRole="button" onPress={() => onOpen(row.id)} style={styles.issue}>
+              <Text style={styles.issueKey}>{row.title}</Text>
+              <Text style={styles.issueTitle}>{row.summary}</Text>
+              <Text style={styles.issueStatus}>{row.typeLabel} · {row.stateLabel}</Text>
+            </Pressable>
+          ))
+        : null}
+      {online && projectId ? (
+        <View style={styles.project}>
+          <Text style={styles.projectName}>New series</Text>
+          {formError ? <Text style={styles.error}>{formError}</Text> : null}
+          <RecipeFields draft={recipe} onChange={onChange} showIdentity showType showPeople />
+          <PrimaryButton
+            label="Create series"
+            disabled={busy}
+            onPress={async () => {
+              const failure = await onCreate();
+              setFormError(failure || "");
+            }}
+          />
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
+function SeriesScreen({
+  account,
+  series,
+  recipe,
+  mode,
+  scope,
+  busy,
+  error,
+  onChange,
+  onScope,
+  onSave,
+  onPause,
+  onDelete,
+  onBack,
+  onHome,
+  onProjects,
+  onBoard,
+  onBacklog,
+  onSprints,
+  onCalendar,
+  onFind,
+  onSettings,
+  onSignOut,
+}) {
+  const [formError, setFormError] = useState("");
+  const ready = mode === "repeat" || series;
+  const title = mode === "repeat" ? "Make this repeating" : mode === "occurrence" ? "Edit series" : (series && series.title) || "Schedule";
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Back" onPress={onBack} disabled={busy} />
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>{title}</Text>
+      {series ? (
+        <Text style={styles.message}>{series.cadence_summary}. {series.state === "paused" ? "Paused" : "Active"}.</Text>
+      ) : null}
+      {mode === "edit" && series ? (
+        <View style={styles.toolbarActions}>
+          <TextButton
+            label={series.state === "active" ? "Pause" : "Resume"}
+            onPress={onPause}
+            disabled={busy}
+          />
+          <TextButton label="Delete" onPress={onDelete} disabled={busy} />
+        </View>
+      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {formError ? <Text style={styles.error}>{formError}</Text> : null}
+      {ready ? null : <ActivityIndicator color="#0068B0" />}
+      {ready && recipe ? (
+        <RecipeFields
+          draft={recipe}
+          onChange={onChange}
+          onScope={onScope}
+          scope={scope}
+          showIdentity={mode !== "repeat"}
+          showType={mode === "create" || mode === "edit"}
+          showPeople={mode === "create" || mode === "edit"}
+          showScope={mode === "occurrence"}
+        />
+      ) : null}
+      {ready ? (
+      <PrimaryButton
+        label={mode === "repeat" ? "Make this repeating" : "Save recipe"}
+        disabled={busy}
+        onPress={async () => {
+          const failure = await onSave();
+          setFormError(failure || "");
+        }}
+      />
+      ) : null}
+    </ScrollView>
+  );
+}
+
 function CalendarIssue({ issue, onPress }) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.issue}>
@@ -2235,6 +2896,7 @@ function CalendarScreen({
   onBoard,
   onBacklog,
   onSprints,
+  onSchedules,
   onFind,
   onSettings,
   onSignOut,
@@ -2254,6 +2916,7 @@ function CalendarScreen({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
@@ -2351,6 +3014,7 @@ function Home({
   onBoard,
   onBacklog,
   onSprints,
+  onSchedules,
   onFind,
   onCalendar,
   onSettings,
@@ -2371,6 +3035,7 @@ function Home({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
@@ -2444,6 +3109,7 @@ function FindScreen({
   onBoard,
   onBacklog,
   onSprints,
+  onSchedules,
   onCalendar,
   onCreate,
   onSettings,
@@ -2460,6 +3126,7 @@ function FindScreen({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
           <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
@@ -2724,6 +3391,7 @@ function Backlog({
   onProjects,
   onBoard,
   onSprints,
+  onSchedules,
   onFind,
   onCalendar,
   onSettings,
@@ -2743,6 +3411,7 @@ function Backlog({
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
@@ -2828,6 +3497,7 @@ function Board({
   onProjects,
   onBacklog,
   onSprints,
+  onSchedules,
   onFind,
   onCalendar,
   onSettings,
@@ -2847,6 +3517,7 @@ function Board({
           <TextButton label="Projects" onPress={onProjects} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
@@ -2940,6 +3611,7 @@ function Work({
   onBoard,
   onBacklog,
   onSprints,
+  onSchedules,
   onFind,
   onCalendar,
 }) {
@@ -2962,6 +3634,7 @@ function Work({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
           <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
@@ -3029,6 +3702,8 @@ function IssueDetail({
   onAddChild,
   onComment,
   onRemoveComment,
+  onRepeat,
+  onEditSeries,
 }) {
   const [stack, setStack] = useState([issueId]);
   const [page, setPage] = useState(null);
@@ -3382,6 +4057,19 @@ function IssueDetail({
                 disabled={false}
               />
             </View>
+          ) : null}
+          {page.formerSeries ? (
+            <Text style={styles.message}>Was part of {page.formerSeries}.</Text>
+          ) : null}
+          {page.complete && (page.seriesId || (saved && saved.raw && saved.raw.series_id)) ? (
+            <PrimaryButton
+              label="Edit series"
+              onPress={() => onEditSeries(page.seriesId || saved.raw.series_id, page)}
+              disabled={false}
+            />
+          ) : null}
+          {page.complete && !(page.seriesId || (saved && saved.raw && saved.raw.series_id)) && Number(currentId) > 0 ? (
+            <PrimaryButton label="Make this repeating" onPress={() => onRepeat(page)} disabled={false} />
           ) : null}
           <LinkGroup
             title="Blocks"
