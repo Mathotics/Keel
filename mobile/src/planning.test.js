@@ -103,6 +103,27 @@ test("a waiting issue follows the phone onto the open sprint", () => {
   assert.equal(detail.rows[0].pending, true);
 });
 
+test("the active sprint list drops issues the shared filter does not keep", () => {
+  const detail = sprintDetail({
+    library: library(),
+    projectId: 3,
+    sprint: library().projects[3].sprint,
+    online: false,
+    filter: {
+      types: ["epic", "story", "subtask"],
+      statuses: ["done"],
+      priorities: [],
+      sprints: [],
+      projects: [],
+      assignees: [],
+      reporters: [],
+      labels: [],
+    },
+  });
+  assert.equal(detail.name, "This month");
+  assert.equal(detail.rows.length, 0);
+});
+
 test("planning checks the name and the dates", () => {
   assert.equal(prepareSprint({ name: "  " }).error, "A sprint needs a name.");
   assert.equal(prepareSprint({ name: "Next", startsOn: "2026-13-01" }).error, "A sprint date could not be read.");

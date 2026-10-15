@@ -154,3 +154,27 @@ test("offline shows the saved active sprint and says other issues need a connect
   assert.equal(empty.empty, NOTHING);
   assert.equal(empty.columns.length, 6);
 });
+
+test("a shared status and project filter keeps every column", () => {
+  const view = boardView({
+    library: library([issue()]),
+    boards: [
+      boardFor(3, [issue()]),
+      boardFor(8, [issue({ id: 3, key: "DOCS-3", number: 3, project_id: 8, status: "in_review", sprint_id: 4 })]),
+    ],
+    projectId: null,
+    filter: {
+      types: ["epic", "story", "subtask"],
+      statuses: ["todo"],
+      priorities: [],
+      sprints: [],
+      projects: ["3"],
+      assignees: [],
+      reporters: [],
+      labels: [],
+    },
+  });
+  const keys = view.columns.flatMap((column) => column.cards.map((card) => card.key));
+  assert.deepEqual(keys, ["KEEL-9"]);
+  assert.equal(view.columns.length, 6);
+});

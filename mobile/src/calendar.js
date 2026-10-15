@@ -1,3 +1,4 @@
+const { matchesIssue } = require("./filters");
 const { statusLabel } = require("./work");
 
 const NEEDS_CONNECTION = "Dates outside the saved active sprint need a connection.";
@@ -169,7 +170,7 @@ function inScope(raw, projectId, userId) {
   return true;
 }
 
-function savedIssues(library, projectId, userId) {
+function savedIssues(library, projectId, userId, filter) {
   const rows = [];
   for (const project of enabledProjects(library)) {
     if (projectId != null && project.id !== projectId) {
@@ -184,18 +185,24 @@ function savedIssues(library, projectId, userId) {
       if (raw.sprint_id !== sprint.id || !inScope(raw, projectId, userId)) {
         continue;
       }
+      if (!matchesIssue(raw, filter, { projectId: project.id, ignoreProject: projectId != null })) {
+        continue;
+      }
       rows.push(decorate(raw, project, record.pending || record.conflict));
     }
   }
   return rows;
 }
 
-function onlineIssues(library, remote, projectId, userId) {
+function onlineIssues(library, remote, projectId, userId, filter) {
   const byId = new Map();
   const projects = (library && library.projects) || {};
   for (const raw of remote || []) {
     const project = projects[raw.project_id] || { key: raw.projectKey || "", enabled: true };
     if (project.enabled === false || !inScope(raw, projectId, userId)) {
+      continue;
+    }
+    if (!matchesIssue(raw, filter, { projectId: raw.project_id || project.id, ignoreProject: projectId != null })) {
       continue;
     }
     if (projectId != null && raw.project_id !== projectId && project.id !== projectId) {
@@ -211,6 +218,9 @@ function onlineIssues(library, remote, projectId, userId) {
       const raw = record.raw || {};
       const local = record.pending || record.conflict || raw.id < 0;
       if (!local || !inScope(raw, projectId, userId)) {
+        continue;
+      }
+      if (!matchesIssue(raw, filter, { projectId: project.id, ignoreProject: projectId != null })) {
         continue;
       }
       byId.set(raw.id, decorate(raw, project, true));
@@ -421,6 +431,7 @@ function calendarView({
   projectId = null,
   userId,
   offsetMinutes = 0,
+  filter,
 }) {
   const shownView = parseView(view);
   const shownMode = parseMode(mode);
@@ -428,8 +439,8 @@ function calendarView({
   const shownFocus = parseDay(focus, shownToday);
   const online = Array.isArray(remote);
   const issues = online
-    ? onlineIssues(library, remote, projectId, userId)
-    : savedIssues(library, projectId, userId);
+    ? onlineIssues(library, remote, projectId, userId, filter)
+    : savedIssues(library, projectId, userId, filter);
   let rangeStart = shownFocus;
   let rangeEnd = shownFocus;
   if (shownView === "month") {

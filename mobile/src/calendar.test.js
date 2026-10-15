@@ -242,3 +242,29 @@ test("previous, next, and today stay on the open view", () => {
   assert.equal(focusForView("day", "month", TODAY, TODAY), TODAY);
   assert.equal(focusForView("month", "day", TODAY, TODAY), TODAY);
 });
+
+test("a status filter narrows dated issues and leaves the month in place", () => {
+  const view = calendarView({
+    library: library(),
+    remote: null,
+    mode: "start",
+    view: "month",
+    focus: TODAY,
+    today: TODAY,
+    projectId: 3,
+    userId: 4,
+    filter: {
+      types: ["epic", "story", "subtask"],
+      statuses: ["done"],
+      priorities: [],
+      sprints: [],
+      projects: [],
+      assignees: [],
+      reporters: [],
+      labels: [],
+    },
+  });
+  const keys = view.weeks.flatMap((week) => week.days.flatMap((day) => day.issues.map((row) => row.key)));
+  assert.deepEqual([...new Set(keys)], ["KEEL-11"]);
+  assert.equal(view.label, "October 2026");
+});

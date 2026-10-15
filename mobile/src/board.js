@@ -1,3 +1,4 @@
+const { matchesIssue } = require("./filters");
 const { statusLabel } = require("./work");
 
 const COLUMNS = [
@@ -109,7 +110,7 @@ function localIssues(projects) {
   return records;
 }
 
-function savedCards(projects, people, master) {
+function savedCards(projects, people, master, filter, scoped) {
   const cards = [];
   for (const project of projects) {
     const sprint = project.sprint;
@@ -119,6 +120,9 @@ function savedCards(projects, people, master) {
     for (const issue of Object.values(project.issues || {})) {
       const raw = issue.raw || {};
       if (raw.sprint_id !== sprint.id) {
+        continue;
+      }
+      if (!matchesIssue(raw, filter, { projectId: project.id, ignoreProject: scoped })) {
         continue;
       }
       cards.push(
@@ -135,7 +139,7 @@ function savedCards(projects, people, master) {
   return cards;
 }
 
-function remoteCards(boards, projects, people, master) {
+function remoteCards(boards, projects, people, master, filter, scoped) {
   const allowed = new Map(projects.map((project) => [project.id, project]));
   const names = laneNames(boards);
   const locals = localIssues(projects);
@@ -153,6 +157,9 @@ function remoteCards(boards, projects, people, master) {
         const raw = waiting ? local.issue.raw : issue;
         const home = waiting ? local.project : project;
         seen.add(raw.id);
+        if (!matchesIssue(raw, filter, { projectId: home.id, ignoreProject: scoped })) {
+          continue;
+        }
         cards.push(
           present(
             raw,
@@ -173,6 +180,9 @@ function remoteCards(boards, projects, people, master) {
     if (!(local.issue.pending || local.issue.conflict || id < 0)) {
       continue;
     }
+    if (!matchesIssue(raw, filter, { projectId: local.project.id, ignoreProject: scoped })) {
+      continue;
+    }
     cards.push(
       present(
         raw,
@@ -186,7 +196,7 @@ function remoteCards(boards, projects, people, master) {
   return cards;
 }
 
-function boardView({ library, boards, projectId }) {
+function boardView({ library, boards, projectId, filter }) {
   const projects = enabledProjects(library);
   const chosen =
     projectId == null ? projects : projects.filter((project) => project.id === projectId);
@@ -194,9 +204,10 @@ function boardView({ library, boards, projectId }) {
   const people = (library && library.people) || [];
   const online = Array.isArray(boards);
   const master = projectId == null;
+  const scoped = projectId != null;
   const cards = online
-    ? remoteCards(boards, chosen, people, master)
-    : savedCards(chosen, people, master);
+    ? remoteCards(boards, chosen, people, master, filter, scoped)
+    : savedCards(chosen, people, master, filter, scoped);
   return {
     title: selected ? `${selected.key} board` : "Board",
     projects: projects.map((project) => ({ id: project.id, key: project.key })),

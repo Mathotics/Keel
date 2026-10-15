@@ -24,6 +24,7 @@ import { boardView } from "./src/board";
 import { calendarView, focusForView, moveFocus } from "./src/calendar";
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
+import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, sprintOptions, toggleChoice } from "./src/filters";
 import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
@@ -125,6 +126,8 @@ export default function App() {
   const [recipeScope, setRecipeScope] = useState("series");
   const [recipeIssue, setRecipeIssue] = useState(null);
   const [scheduleNotice, setScheduleNotice] = useState("");
+  const [listFilter, setListFilter] = useState(blankFilter);
+  const [filterSprints, setFilterSprints] = useState([]);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -469,13 +472,50 @@ export default function App() {
     }
   }
 
+  async function refreshFilterSprints(currentAccount, currentLibrary) {
+    const projects = enabledProjects(currentLibrary);
+    try {
+      const groups = await Promise.all(projects.map(async (project) => {
+        const sprints = await read(
+          currentAccount.origin,
+          currentAccount.token,
+          `/api/v1/projects/${project.id}/sprints`,
+        );
+        return (sprints || []).map((sprint) => ({
+          id: sprint.id,
+          name: sprint.name,
+          state: sprint.state,
+          projectId: project.id,
+          projectKey: project.key,
+        }));
+      }));
+      setFilterSprints(groups.flat().filter((sprint) => sprint.state !== "completed"));
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+    }
+  }
+
+  function filterChoices(projectId) {
+    return {
+      sprints: sprintOptions(library, filterSprints, projectId),
+      projects: projectOptions(library),
+      assignees: peopleOptions(library, "unassigned", "Unassigned"),
+      reporters: peopleOptions(library, "none", "None"),
+      labels: labelOptions(library),
+    };
+  }
+
   async function openBoard() {
     listPhase.current = "board";
     setPhase("board");
     setRefreshing(true);
     try {
       const store = await refreshLibrary(account, library);
-      await refreshBoard(account, store || library);
+      const current = store || library;
+      await refreshBoard(account, current);
+      await refreshFilterSprints(account, current);
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -632,7 +672,10 @@ export default function App() {
     setSprintNotice("");
     setRefreshing(true);
     try {
-      await refreshOpenSprint(account, library, projectId, sprintId);
+      const detail = await refreshOpenSprint(account, library, projectId, sprintId);
+      if (detail && detail.state === "active") {
+        await refreshFilterSprints(account, library);
+      }
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -827,7 +870,9 @@ export default function App() {
     setRefreshing(true);
     try {
       const store = await refreshLibrary(account, library);
-      await refreshCalendar(account, store || library, calendarProjectId, calendarWhen);
+      const current = store || library;
+      await refreshCalendar(account, current, calendarProjectId, calendarWhen);
+      await refreshFilterSprints(account, current);
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -1413,10 +1458,15 @@ export default function App() {
                   library,
                   boards: boardMode === "online" ? remoteBoards || [] : null,
                   projectId: boardProjectId,
+                  filter: listFilter,
                 })
           }
           busy={busy}
           error={workError}
+          filter={listFilter}
+          filterChoices={filterChoices(boardProjectId)}
+          onFilter={setListFilter}
+          showProject={boardProjectId == null}
           onCreate={() => {
             listPhase.current = "board";
             setMessage("");
@@ -1647,11 +1697,15 @@ export default function App() {
                   projectId: planningProjectId,
                   sprint: openSprint,
                   online: planningMode === "online" && Array.isArray(openSprint.issues),
+                  filter: openSprint.state === "active" ? listFilter : null,
                 })
               : null
           }
           error={workError}
+          filter={openSprint && openSprint.state === "active" ? listFilter : null}
+          filterChoices={filterChoices(planningProjectId)}
           notice={sprintNotice}
+          onFilter={setListFilter}
           onBack={() => {
             listPhase.current = "sprints";
             setPhase("sprints");
@@ -1789,11 +1843,16 @@ export default function App() {
                   projectId: calendarProjectId,
                   userId: Number(account.userId),
                   offsetMinutes: new Date().getTimezoneOffset(),
+                  filter: listFilter,
                 })
           }
           error={workError}
+          filter={listFilter}
+          filterChoices={filterChoices(calendarProjectId)}
           onBacklog={() => openBacklog()}
           onBoard={openBoard}
+          onFilter={setListFilter}
+          showProject={calendarProjectId == null}
           onCreate={() => {
             listPhase.current = "calendar";
             setMessage("");
@@ -2882,6 +2941,10 @@ function CalendarScreen({
   calendar,
   busy,
   error,
+  filter,
+  filterChoices,
+  showProject,
+  onFilter,
   refreshing,
   onRefresh,
   projectId,
@@ -2952,6 +3015,7 @@ function CalendarScreen({
           ))}
         </View>
       ) : null}
+      <FilterBar filter={filter} choices={filterChoices} showProject={showProject} onChange={onFilter} />
       <Text style={styles.projectName}>{calendar ? calendar.label : ""}</Text>
       {calendar === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -3286,6 +3350,9 @@ function SprintScreen({
   detail,
   busy,
   error,
+  filter,
+  filterChoices,
+  onFilter,
   notice,
   refreshing,
   onRefresh,
@@ -3337,6 +3404,7 @@ function SprintScreen({
           ) : null}
           {detail.canStart ? <PrimaryButton label="Start sprint" onPress={onStart} disabled={busy} /> : null}
           {detail.canComplete ? <PrimaryButton label="Complete sprint" onPress={onComplete} disabled={busy} /> : null}
+          <FilterBar filter={filter} choices={filterChoices} showProject={false} onChange={onFilter} />
           {detail.empty ? <Text style={styles.message}>{detail.empty}</Text> : null}
           {detail.rows.map((row) => (
             <Pressable key={row.id} accessibilityRole="button" onPress={() => onOpenIssue(row.id)} style={styles.issue}>
@@ -3482,11 +3550,58 @@ function Backlog({
   );
 }
 
+function FilterBar({ filter, choices, showProject, onChange }) {
+  const [open, setOpen] = useState("");
+  if (!filter) {
+    return null;
+  }
+  const menus = filterMenus(filter, choices || {}, showProject);
+  const current = menus.find((menu) => menu.id === open);
+  return (
+    <View>
+      <View style={styles.toolbarActions}>
+        {menus.map((menu) => (
+          <TextButton
+            key={menu.id}
+            label={open === menu.id ? `● ${menu.title}: ${menu.summary}` : `${menu.title}: ${menu.summary}`}
+            onPress={() => setOpen(open === menu.id ? "" : menu.id)}
+            disabled={false}
+          />
+        ))}
+        <TextButton
+          label="Reset all"
+          onPress={() => {
+            onChange(blankFilter());
+            setOpen("");
+          }}
+          disabled={false}
+        />
+      </View>
+      {current ? (
+        <View style={styles.toolbarActions}>
+          {current.options.map(([value, label]) => (
+            <TextButton
+              key={value}
+              label={(filter[current.id] || []).includes(value) ? `● ${label}` : label}
+              onPress={() => onChange(toggleChoice(filter, current.id, value))}
+              disabled={false}
+            />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 function Board({
   account,
   board,
   busy,
   error,
+  filter,
+  filterChoices,
+  showProject,
+  onFilter,
   refreshing,
   onRefresh,
   onOpenIssue,
@@ -3539,6 +3654,7 @@ function Board({
           ))}
         </View>
       ) : null}
+      <FilterBar filter={filter} choices={filterChoices} showProject={showProject} onChange={onFilter} />
       {board === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {board && board.banner ? <Text style={styles.message}>{board.banner}</Text> : null}

@@ -1,3 +1,4 @@
+const { matchesIssue } = require("./filters");
 const { statusLabel } = require("./work");
 
 const STATES = [
@@ -146,14 +147,14 @@ function waitingIssues(project) {
   return records;
 }
 
-function savedIssues(project, sprintId, people) {
+function savedIssues(project, sprintId, people, filter) {
   return Object.values((project && project.issues) || {})
-    .filter((issue) => issue.raw && issue.raw.sprint_id === sprintId)
+    .filter((issue) => issue.raw && issue.raw.sprint_id === sprintId && matchesIssue(issue.raw, filter, { ignoreProject: true }))
     .map((issue) => presentIssue(issue.raw, issue.pending || issue.conflict || issue.raw.id < 0, people))
     .sort((left, right) => left.number - right.number);
 }
 
-function mergedIssues(project, sprintId, remote, people) {
+function mergedIssues(project, sprintId, remote, people, filter) {
   const waiting = waitingIssues(project);
   const rows = [];
   const seen = new Set();
@@ -161,13 +162,15 @@ function mergedIssues(project, sprintId, remote, people) {
     const local = waiting.get(issue.id);
     if (local) {
       const raw = local.raw || {};
-      if (raw.sprint_id === sprintId) {
+      if (raw.sprint_id === sprintId && matchesIssue(raw, filter, { ignoreProject: true })) {
         rows.push(presentIssue(raw, true, people));
       }
       seen.add(issue.id);
       continue;
     }
-    rows.push(presentIssue(issue, false, people));
+    if (matchesIssue(issue, filter, { ignoreProject: true })) {
+      rows.push(presentIssue(issue, false, people));
+    }
     seen.add(issue.id);
   }
   for (const [id, local] of waiting) {
@@ -175,22 +178,22 @@ function mergedIssues(project, sprintId, remote, people) {
       continue;
     }
     const raw = local.raw || {};
-    if (raw.sprint_id === sprintId) {
+    if (raw.sprint_id === sprintId && matchesIssue(raw, filter, { ignoreProject: true })) {
       rows.push(presentIssue(raw, true, people));
     }
   }
   return rows.sort((left, right) => left.number - right.number);
 }
 
-function sprintDetail({ library, projectId, sprint, online }) {
+function sprintDetail({ library, projectId, sprint, online, filter }) {
   const project = selectedProject(library, projectId);
   const people = (library && library.people) || [];
   const connected = Boolean(online && sprint && Array.isArray(sprint.issues));
   const rows = !sprint
     ? []
     : connected
-      ? mergedIssues(project, sprint.id, sprint.issues, people)
-      : savedIssues(project, sprint.id, people);
+      ? mergedIssues(project, sprint.id, sprint.issues, people, filter)
+      : savedIssues(project, sprint.id, people, filter);
   return {
     id: sprint ? sprint.id : null,
     name: sprint ? sprint.name || "" : "",
