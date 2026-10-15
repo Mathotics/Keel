@@ -228,6 +228,15 @@ body {
   gap: 0.35rem;
 }
 
+/* The Menu control is for a phone-narrow viewport. A wide window keeps the
+   section links, Help, and the account on the bar, so this toggle stays out
+   of the layout and out of the tab order. */
+.keel-menu-toggle,
+.keel-menu-toggle__label,
+.keel-menu-toggle__close {
+  display: none;
+}
+
 /* Marked forms submit themselves once the script runs, so the button is only
    needed when it did not. */
 [data-keel-js] .keel-find__fallback,
@@ -2049,41 +2058,153 @@ select.keel-type-select[data-type] {
   }
 
   .keel-topbar {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 0.35rem 0.5rem;
-    padding: 0.3rem 0.5rem;
-    --keel-control-height: 1.625rem;
-    --keel-control-font-size: 0.8125rem;
+    gap: 0.4rem;
+    padding: 0.4rem 0.5rem;
+    --keel-control-height: 2.75rem;
+    --keel-control-font-size: 1rem;
   }
 
   .keel-topbar__home {
+    grid-column: 1;
+    grid-row: 1;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .keel-topbar__home img {
     width: 2.4rem;
     height: 2.4rem;
   }
 
-  .keel-topbar__home img {
-    width: 2.15rem;
-    height: 2.15rem;
-  }
-
-  .keel-topbar__nav {
-    flex: 1 1 12rem;
-    margin-left: 0.4rem;
-  }
-
   .keel-find {
-    flex: 1 1 8rem;
+    grid-column: 2;
+    grid-row: 1;
     margin-left: 0;
+    min-width: 0;
   }
 
   .keel-find input.keel-topbar__control {
-    width: 100%;
-    min-width: 6rem;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
   }
 
+  /* Undo the wide-viewport hide so the checkbox stays operable and the
+     label sits on the bar. The clip class still keeps the checkbox unseen. */
+  .keel-menu-toggle {
+    display: block;
+  }
+
+  .keel-menu-toggle__label {
+    display: inline-flex;
+    grid-column: 3;
+    grid-row: 1;
+    justify-content: center;
+  }
+
+  .keel-menu-toggle:focus-visible + .keel-menu-toggle__label {
+    outline: 2px solid var(--keel-white);
+    outline-offset: 2px;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-menu-toggle__label .keel-menu-toggle__open {
+    display: none;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-menu-toggle__label .keel-menu-toggle__close {
+    display: inline;
+  }
+
+  .keel-topbar__nav,
   .keel-topbar__right {
+    display: none;
     margin-left: 0;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-topbar__nav {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-topbar__nav .keel-nav__item {
+    flex-direction: column;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-topbar__nav .keel-nav__item > a {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-topbar__nav .keel-nav__fallback {
+    width: 100%;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-topbar__nav .keel-nav__fallback .keel-topbar__control {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .keel-menu-toggle:checked ~ .keel-topbar__right {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0.35rem;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .keel-account {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-column: 2 / -1;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .keel-account__label {
+    display: none;
+  }
+
+  .keel-help {
+    display: flex;
+    min-width: 0;
+  }
+
+  .keel-help > summary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .keel-help__menu {
+    left: 0;
+    right: auto;
+  }
+
+  .keel-account > a.keel-topbar__control {
+    min-width: 0;
+    justify-content: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .keel-account form {
+    margin: 0;
+  }
+
+  .keel-account form .keel-topbar__control {
+    width: 100%;
+    justify-content: center;
   }
 
   .keel-main {

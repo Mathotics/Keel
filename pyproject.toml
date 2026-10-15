@@ -66,6 +66,7 @@ quote-style = "double"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-q --strict-markers"
 markers = [
     "unit: isolated tests of a single module or function",
@@ -153,5 +154,5 @@ help = "Run pre-commit on all files"
 cmd = "pre-commit run --all-files"
 
 [tool.poe.tasks.check]
-help = "Run pre-commit hooks, which include the full test suite"
-sequence = ["pre-commit"]
+help = "Run pre-commit hooks, then the full test suite at 90% coverage"
+sequence = ["pre-commit", "test"]

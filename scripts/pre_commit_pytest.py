@@ -1,4 +1,8 @@
-"""Run the coverage pytest suite using the project virtualenv when present."""
+"""Run the unit tests using the project virtualenv when present.
+
+The full suite, including the 90% coverage gate, stays on ``poe test`` and in
+CI. This hook is what ``git commit`` waits on, so it runs only the unit tests.
+"""
 
 import subprocess
 import sys
@@ -24,9 +28,9 @@ def main() -> int:
             str(_python()),
             "-m",
             "pytest",
-            "--cov=keel",
-            "--cov-report=term-missing",
-            "--cov-fail-under=90",
+            "tests/unit",
+            "-m",
+            "unit",
             *sys.argv[1:],
         ]
     )

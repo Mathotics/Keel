@@ -1,5 +1,8 @@
+import os
+import sqlite3
+
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, event, pool
 
 import keel.db.models  # noqa: F401  (imported so autogenerate sees every table)
 from keel.db.base import Base
@@ -35,6 +38,18 @@ def run_migrations_online() -> None:
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+
+    def _skip_fsync_during_tests(dbapi_connection: object, _record: object) -> None:
+        # A migration fsyncs every statement. Tests opt out; a server must not.
+        if os.environ.get("KEEL_FAST_SQLITE") != "1":
+            return
+        if not isinstance(dbapi_connection, sqlite3.Connection):
+            return
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA synchronous=OFF")
+        cursor.close()
+
+    event.listen(connectable, "connect", _skip_fsync_during_tests)
     with connectable.connect() as connection:
         context.configure(
             connection=connection,

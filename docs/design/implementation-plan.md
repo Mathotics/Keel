@@ -2,7 +2,7 @@
 
 The order in which Keel v1 is built. Phases are vertical slices: each one ends with something usable through the browser, the JSON API, and the test suite, rather than a layer that cannot yet be exercised.
 
-Every phase ends green on `poe check`, which runs pre-commit — including isort, mypy, and the full pytest run at 90% coverage.
+Every phase ends green on `poe check`, which runs pre-commit — including isort, mypy, and the unit tests — and then the full pytest run at 90% coverage. `git commit` runs the pre-commit hooks only.
 
 Coverage is measured across every suite rather than the unit tests alone. The routers and form handlers are thin translations between HTTP and the services, and they cannot be reached without an application and a database, so holding them to a unit-only figure would either exempt them or force integration tests to masquerade as unit tests.
 

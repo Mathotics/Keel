@@ -173,7 +173,7 @@ flowchart TD
 
 ## Tests
 
-The suites in `tests/` keep their current shape and markers. Unit tests cover `keel.domain` directly and services against a temporary SQLite database per test, holding the 90% coverage gate. Integration tests drive routes through httpx. System tests run against a live server. The board's JavaScript is not executed by the test suite; its endpoints and its non-JavaScript fallback routes are covered instead, and dragging is verified by hand ([ADR 009](../adr/ADR-009.md)).
+The suites in `tests/` keep their current shape and markers. Unit tests cover `keel.domain` directly and services against a temporary SQLite database per test. The full suite holds the 90% coverage gate. Integration tests drive routes through httpx. System tests run against a live server. The board's JavaScript is not executed by the test suite; its endpoints and its non-JavaScript fallback routes are covered instead, and dragging is verified by hand ([ADR 009](../adr/ADR-009.md)).
 
 ## Related documents
 

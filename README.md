@@ -128,7 +128,7 @@ A Backup workflow on the same Pi runner copies the live database onto `/mnt/libr
 poe check
 ```
 
-That runs [pre-commit](https://pre-commit.com/) on all files, including isort, mypy, and the full pytest run with 90% coverage. Hooks also run on `git commit` after onboarding. Re-run `poe hooks` to reinstall git hooks and refresh hook environments.
+That runs [pre-commit](https://pre-commit.com/) on all files, including isort, mypy, and the unit tests, then the full pytest run with 90% coverage. `git commit` runs those hooks without the full suite, so a commit waits on the unit tests only. Re-run `poe hooks` to reinstall git hooks and refresh hook environments.
 
 Tests are grouped under `tests/`:
 

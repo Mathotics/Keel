@@ -1,9 +1,10 @@
 import os
 
 os.environ.setdefault("KEEL_FAST_PASSWORD_HASH", "1")
+os.environ.setdefault("KEEL_FAST_SQLITE", "1")
 
+import uuid
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
@@ -28,17 +29,27 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 @pytest.fixture
-def settings(tmp_path: Path) -> KeelSettings:
-    """Settings pointed at a throwaway database file."""
-    url = f"sqlite+pysqlite:///{(tmp_path / 'keel.db').as_posix()}"
+def settings() -> KeelSettings:
+    """Settings pointed at a throwaway in-memory database.
+
+    A file database spends about a second creating the schema on this machine,
+    and nearly every test pays that cost. A named shared-cache database is
+    still empty per test, and a second engine (the app opens its own) sees the
+    same schema for as long as one connection stays open.
+    """
+    name = uuid.uuid4().hex
+    url = f"sqlite+pysqlite:///file:{name}?mode=memory&cache=shared&uri=true"
     return KeelSettings(_env_file=None, database_url=url, default_user="Tester")
 
 
 @pytest.fixture
 def engine(settings: KeelSettings) -> Iterator[Engine]:
     engine = create_db_engine(settings.resolved_database_url())
-    Base.metadata.create_all(engine)
+    held = engine.connect()
+    Base.metadata.create_all(held)
+    held.commit()
     yield engine
+    held.close()
     engine.dispose()
 
 
