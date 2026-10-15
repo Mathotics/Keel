@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { formatMinutes, formatWhen, issuePage, parseMarkdown } = require("./issue");
+const { formatMinutes, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
 
 test("formats effort the way the server does", () => {
   assert.equal(formatMinutes(null), "None");
@@ -58,8 +58,8 @@ test("assembles a read-only issue page", () => {
     children: [{ id: 10, key: "KEEL-10", title: "Sand", status: "done" }],
     dependencies: {
       blocks: [],
-      blocked_by: [{ id: 3, key: "BOAT-2", title: "Haul out", project_key: "BOAT" }],
-      relates_to: [],
+      blocked_by: [{ id: 3, dependency_id: 9, key: "BOAT-2", title: "Haul out", project_key: "BOAT" }],
+      relates_to: [{ id: 4, dependency_id: 10, key: "KEEL-4", title: "Same project", project_key: "KEEL" }],
     },
     history: [
       {
@@ -89,8 +89,26 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.parent.key, "KEEL-1");
   assert.equal(page.children[0].statusLabel, "Done");
   assert.equal(page.blockedBy[0].projectKey, "BOAT");
+  assert.equal(page.blockedBy[0].dependencyId, 9);
+  assert.equal(page.relatesTo[0].projectKey, null);
   assert.match(page.history[0], /title Old → Paint/);
   assert.equal(page.sprintName, "This week");
   assert.equal(page.comments[0].author, "Jacob Hootman");
   assert.equal(page.comments[0].blocks[0].inlines[1].bold, true);
+});
+
+test("a link points the right way and a key finds a saved issue", () => {
+  assert.deepEqual(issueKeyParts(" keel-12 "), { key: "KEEL", number: 12 });
+  assert.equal(issueKeyParts("nope"), null);
+  assert.deepEqual(linkEnds(9, 3, "blocks"), { source_id: 9, target_id: 3, kind: "blocks" });
+  assert.deepEqual(linkEnds(9, 3, "blocked_by"), { source_id: 3, target_id: 9, kind: "blocks" });
+  assert.deepEqual(linkEnds(9, 3, "relates_to"), { source_id: 9, target_id: 3, kind: "relates_to" });
+  const library = {
+    projects: {
+      8: { issues: { 3: { raw: { id: 3, key: "BOAT-2" } } } },
+      3: { issues: { "-1": { raw: { id: -1, key: "KEEL-9" } } } },
+    },
+  };
+  assert.equal(savedIssueId(library, "boat-2"), 3);
+  assert.equal(savedIssueId(library, "KEEL-9"), null);
 });

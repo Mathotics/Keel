@@ -51,7 +51,7 @@ import {
 } from "./src/offline";
 import { pullLibrary } from "./src/sync";
 import { inputWhen, prepareCreate, prepareUpdate } from "./src/create";
-import { formatMinutes } from "./src/issue";
+import { formatMinutes, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
 
 const ADDRESS_KEY = "keel.serverAddress";
 const LOCK_KEY = "keel.lockSetting";
@@ -3036,6 +3036,8 @@ function IssueDetail({
   const [editing, setEditing] = useState(false);
   const [childTitle, setChildTitle] = useState("");
   const [commentBody, setCommentBody] = useState("");
+  const [relation, setRelation] = useState("blocks");
+  const [linkKey, setLinkKey] = useState("");
   const currentId = stack[stack.length - 1];
   const saved = findIssue(library, currentId);
   const project = Object.values(library.projects || {}).find(
@@ -3051,6 +3053,8 @@ function IssueDetail({
     setEditing(false);
     setChildTitle("");
     setCommentBody("");
+    setRelation("blocks");
+    setLinkKey("");
   }, [currentId]);
 
   useEffect(() => {
@@ -3179,6 +3183,79 @@ function IssueDetail({
     }
     setChildTitle("");
     setError("");
+  }
+
+  async function reloadIssue() {
+    const detail = await loadIssueDetail(account.origin, account.token, currentId);
+    detail.page.complete = true;
+    setPage(detail.page);
+    await onRemember(detail.issue, detail.page);
+  }
+
+  async function addLink() {
+    if (Number(currentId) < 0) {
+      setError("This issue is not on the server yet.");
+      return;
+    }
+    const parts = issueKeyParts(linkKey);
+    if (!parts) {
+      setError("Choose an issue to link.");
+      return;
+    }
+    const ends = linkEnds(Number(currentId), 0, relation);
+    if (!ends) {
+      setError("That is not a valid dependency kind.");
+      return;
+    }
+    try {
+      let otherId = savedIssueId(library, linkKey);
+      if (!otherId) {
+        const projects = await read(account.origin, account.token, "/api/v1/projects");
+        const project = (projects || []).find((item) => String(item.key).toUpperCase() === parts.key);
+        const issues = project
+          ? await read(account.origin, account.token, `/api/v1/projects/${project.id}/issues`)
+          : [];
+        const found = (issues || []).find((item) => Number(item.number) === parts.number);
+        otherId = found ? found.id : null;
+      }
+      if (!otherId) {
+        setError("Choose an issue to link.");
+        return;
+      }
+      if (Number(otherId) === Number(currentId)) {
+        setError("An issue cannot depend on itself.");
+        return;
+      }
+      await send(account.origin, account.token, "POST", "/api/v1/dependencies", {
+        ...linkEnds(Number(currentId), Number(otherId), relation),
+      });
+      await reloadIssue();
+      setLinkKey("");
+      setError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await onUnauthorized();
+        return;
+      }
+      setError(err.message || "Could not connect.");
+    }
+  }
+
+  async function removeLink(item) {
+    if (!item.dependencyId) {
+      return;
+    }
+    try {
+      await send(account.origin, account.token, "DELETE", `/api/v1/dependencies/${item.dependencyId}`);
+      await reloadIssue();
+      setError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await onUnauthorized();
+        return;
+      }
+      setError(err.message || "Could not connect.");
+    }
   }
 
   return (
@@ -3310,17 +3387,34 @@ function IssueDetail({
             title="Blocks"
             items={page.blocks}
             onOpen={(id) => setStack((current) => [...current, id])}
+            onRemove={page.complete ? removeLink : null}
           />
           <LinkGroup
             title="Blocked by"
             items={page.blockedBy}
             onOpen={(id) => setStack((current) => [...current, id])}
+            onRemove={page.complete ? removeLink : null}
           />
           <LinkGroup
             title="Relates to"
             items={page.relatesTo}
             onOpen={(id) => setStack((current) => [...current, id])}
+            onRemove={page.complete ? removeLink : null}
           />
+          {Number(currentId) < 0 ? (
+            <Text style={styles.message}>This issue is not on the server yet.</Text>
+          ) : page.complete ? (
+            <View>
+              <Text style={styles.sectionHeading}>Link an issue</Text>
+              <Choice selected={relation === "blocks"} title="Blocks" onPress={() => setRelation("blocks")} />
+              <Choice selected={relation === "blocked_by"} title="Blocked by" onPress={() => setRelation("blocked_by")} />
+              <Choice selected={relation === "relates_to"} title="Relates to" onPress={() => setRelation("relates_to")} />
+              <Field label="Issue" value={linkKey} onChange={setLinkKey} placeholder="KEEL-12" />
+              <PrimaryButton label="Add link" onPress={addLink} disabled={false} />
+            </View>
+          ) : (
+            <Text style={styles.message}>A link needs a connection.</Text>
+          )}
           <Text style={styles.sectionHeading}>History</Text>
           {page.complete ? (
             page.historyAvailable ? (
@@ -3418,13 +3512,18 @@ function LinkedRow({ item, onPress }) {
   );
 }
 
-function LinkGroup({ title, items, onOpen }) {
+function LinkGroup({ title, items, onOpen, onRemove }) {
   return (
     <View>
       <Text style={styles.sectionHeading}>{title}</Text>
       {items.length ? (
         items.map((item) => (
-          <LinkedRow item={item} key={item.id} onPress={() => onOpen(item.id)} />
+          <View key={item.dependencyId || item.id}>
+            <LinkedRow item={item} onPress={() => onOpen(item.id)} />
+            {onRemove && item.dependencyId ? (
+              <TextButton label="Remove" onPress={() => onRemove(item)} disabled={false} />
+            ) : null}
+          </View>
         ))
       ) : (
         <Text style={styles.message}>None</Text>

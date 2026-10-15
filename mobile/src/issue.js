@@ -159,10 +159,49 @@ function linkedIssue(issue, link) {
   const otherProject = !String(issue.key || "").startsWith(`${link.project_key}-`);
   return {
     id: link.id,
+    dependencyId: link.dependency_id,
     key: link.key,
     title: link.title,
     projectKey: otherProject ? link.project_key : null,
   };
+}
+
+function issueKeyParts(raw) {
+  const matched = /^([A-Za-z][A-Za-z0-9]{1,9})-(\d+)$/.exec(String(raw || "").trim());
+  if (!matched) {
+    return null;
+  }
+  return { key: matched[1].toUpperCase(), number: Number(matched[2]) };
+}
+
+function savedIssueId(library, rawKey) {
+  const parts = issueKeyParts(rawKey);
+  if (!parts) {
+    return null;
+  }
+  const wanted = `${parts.key}-${parts.number}`;
+  for (const project of Object.values((library && library.projects) || {})) {
+    for (const record of Object.values((project && project.issues) || {})) {
+      const issue = record.raw || {};
+      if (String(issue.key || "").toUpperCase() === wanted && Number(issue.id) > 0) {
+        return issue.id;
+      }
+    }
+  }
+  return null;
+}
+
+function linkEnds(issueId, otherId, relation) {
+  if (relation === "blocks") {
+    return { source_id: issueId, target_id: otherId, kind: "blocks" };
+  }
+  if (relation === "blocked_by") {
+    return { source_id: otherId, target_id: issueId, kind: "blocks" };
+  }
+  if (relation === "relates_to") {
+    return { source_id: issueId, target_id: otherId, kind: "relates_to" };
+  }
+  return null;
 }
 
 function issuePage({
@@ -240,6 +279,9 @@ module.exports = {
   commentView,
   formatMinutes,
   formatWhen,
+  issueKeyParts,
   issuePage,
+  linkEnds,
   parseMarkdown,
+  savedIssueId,
 };
