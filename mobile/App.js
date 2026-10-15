@@ -18,9 +18,10 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadBacklog, loadBoards, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { loadBacklog, loadBoards, loadCalendarIssues, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
 import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
+import { calendarView, focusForView, moveFocus } from "./src/calendar";
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
@@ -107,6 +108,13 @@ export default function App() {
   const [openSprint, setOpenSprint] = useState(null);
   const [sprintNotice, setSprintNotice] = useState("");
   const [findResult, setFindResult] = useState(null);
+  const [remoteCalendar, setRemoteCalendar] = useState(null);
+  const [completedAt, setCompletedAt] = useState(null);
+  const [calendarLink, setCalendarLink] = useState("loading");
+  const [calendarProjectId, setCalendarProjectId] = useState(null);
+  const [calendarViewName, setCalendarViewName] = useState("month");
+  const [calendarWhen, setCalendarWhen] = useState("start");
+  const [calendarFocus, setCalendarFocus] = useState(localToday);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -776,6 +784,54 @@ export default function App() {
     }
   }
 
+  async function refreshCalendar(currentAccount, currentLibrary, projectId, when) {
+    const projects = enabledProjects(currentLibrary);
+    try {
+      const issues = await loadCalendarIssues(
+        currentAccount.origin,
+        currentAccount.token,
+        projects,
+        Number(currentAccount.userId),
+        projectId,
+      );
+      const times = when === "completed"
+        ? await loadCompletedAt(currentAccount.origin, currentAccount.token, issues)
+        : null;
+      setRemoteCalendar(issues);
+      setCompletedAt(times);
+      setCalendarLink("online");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setRemoteCalendar(null);
+      setCompletedAt(null);
+      setCalendarLink("offline");
+    }
+  }
+
+  async function openCalendar() {
+    listPhase.current = "calendar";
+    setPhase("calendar");
+    setRefreshing(true);
+    try {
+      const store = await refreshLibrary(account, library);
+      await refreshCalendar(account, store || library, calendarProjectId, calendarWhen);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setCalendarLink("offline");
+      setWorkError(err.message || FAILED);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setLibraryReady(false);
@@ -955,6 +1011,7 @@ export default function App() {
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
           onFind={openFind}
+          onCalendar={openCalendar}
           onRefresh={async () => {
             setRefreshing(true);
             try {
@@ -1026,6 +1083,7 @@ export default function App() {
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
           onFind={openFind}
+          onCalendar={openCalendar}
           onOpenIssue={(id) => {
             listPhase.current = "projects";
             setIssueId(id);
@@ -1094,6 +1152,7 @@ export default function App() {
           onBacklog={() => openBacklog()}
           onSprints={openSprints}
           onFind={openFind}
+          onCalendar={openCalendar}
           onRefresh={openBoard}
           onSettings={() => {
             listPhase.current = "board";
@@ -1154,6 +1213,7 @@ export default function App() {
           onBoard={openBoard}
           onSprints={openSprints}
           onFind={openFind}
+          onCalendar={openCalendar}
           onCreate={() => {
             listPhase.current = "backlog";
             setMessage("");
@@ -1238,6 +1298,7 @@ export default function App() {
           onBacklog={() => openBacklog()}
           onBoard={openBoard}
           onFind={openFind}
+          onCalendar={openCalendar}
           onCreate={() => {
             listPhase.current = "sprints";
             setMessage("");
@@ -1327,6 +1388,119 @@ export default function App() {
           onRefresh={() => showSprint(planningProjectId, openSprint && openSprint.id)}
         />
       ) : null}
+      {phase === "calendar" && account ? (
+        <CalendarScreen
+          account={account}
+          busy={busy}
+          calendar={
+            calendarLink === "loading"
+              ? null
+              : calendarView({
+                  library,
+                  remote: calendarLink === "online" ? remoteCalendar || [] : null,
+                  completedAt,
+                  mode: calendarWhen,
+                  view: calendarViewName,
+                  focus: calendarFocus,
+                  today: localToday(),
+                  projectId: calendarProjectId,
+                  userId: Number(account.userId),
+                  offsetMinutes: new Date().getTimezoneOffset(),
+                })
+          }
+          error={workError}
+          onBacklog={() => openBacklog()}
+          onBoard={openBoard}
+          onCreate={() => {
+            listPhase.current = "calendar";
+            setMessage("");
+            setPhase("create");
+          }}
+          onFind={openFind}
+          onHome={() => {
+            listPhase.current = "home";
+            setPhase("home");
+          }}
+          onMode={async (when) => {
+            setCalendarWhen(when);
+            setRefreshing(true);
+            try {
+              await refreshCalendar(account, library, calendarProjectId, when);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setCalendarLink("offline");
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onMove={(direction) => {
+            setCalendarFocus((current) => moveFocus(calendarViewName, current, localToday(), direction));
+          }}
+          onOpenIssue={(id) => {
+            listPhase.current = "calendar";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onProject={async (projectId) => {
+            setCalendarProjectId(projectId);
+            setRefreshing(true);
+            try {
+              await refreshCalendar(account, library, projectId, calendarWhen);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setCalendarLink("offline");
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onProjects={() => {
+            listPhase.current = "projects";
+            setPhase("projects");
+          }}
+          onRefresh={async () => {
+            setRefreshing(true);
+            try {
+              const store = await refreshLibrary(account, library);
+              await refreshCalendar(account, store || library, calendarProjectId, calendarWhen);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setCalendarLink("offline");
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onSettings={() => {
+            listPhase.current = "calendar";
+            openSettings();
+          }}
+          onSignOut={onSignOut}
+          onSprints={openSprints}
+          onView={(next) => {
+            setCalendarFocus((current) => focusForView(next, calendarViewName, current, localToday()));
+            setCalendarViewName(next);
+          }}
+          projectId={calendarProjectId}
+          refreshing={refreshing}
+        />
+      ) : null}
       {phase === "find" && account ? (
         <FindScreen
           account={account}
@@ -1334,6 +1508,7 @@ export default function App() {
           error={workError}
           onBacklog={() => openBacklog()}
           onBoard={openBoard}
+          onCalendar={openCalendar}
           onCreate={() => {
             listPhase.current = "find";
             setMessage("");
@@ -2029,6 +2204,139 @@ function localToday() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+function CalendarIssue({ issue, onPress }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.issue}>
+      <Text style={[styles.issueKey, { color: issue.color }]}>{issue.key || "New"}</Text>
+      <Text style={styles.issueTitle}>{issue.title}</Text>
+      <Text style={styles.issueStatus}>{issue.statusLabel}</Text>
+      {issue.time ? <Text style={styles.issueStatus}>{issue.time}</Text> : null}
+      {issue.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+    </Pressable>
+  );
+}
+
+function CalendarScreen({
+  account,
+  calendar,
+  busy,
+  error,
+  refreshing,
+  onRefresh,
+  projectId,
+  onView,
+  onMode,
+  onMove,
+  onProject,
+  onOpenIssue,
+  onCreate,
+  onHome,
+  onProjects,
+  onBoard,
+  onBacklog,
+  onSprints,
+  onFind,
+  onSettings,
+  onSignOut,
+}) {
+  const selected = (current, value, label) => (current === value ? `● ${label}` : label);
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbar}>
+        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
+        <View style={styles.toolbarActions}>
+          <TextButton label="Home" onPress={onHome} disabled={busy} />
+          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
+          <TextButton label="Board" onPress={onBoard} disabled={busy} />
+          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
+          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Create" onPress={onCreate} disabled={busy} />
+          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
+          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
+        </View>
+      </View>
+      <Text style={styles.sectionHeading}>Calendar</Text>
+      <View style={styles.toolbarActions}>
+        <TextButton label={selected(calendar && calendar.view, "month", "Month")} onPress={() => onView("month")} disabled={busy} />
+        <TextButton label={selected(calendar && calendar.view, "week", "Week")} onPress={() => onView("week")} disabled={busy} />
+        <TextButton label={selected(calendar && calendar.view, "day", "Day")} onPress={() => onView("day")} disabled={busy} />
+      </View>
+      <View style={styles.toolbarActions}>
+        <TextButton label={selected(calendar && calendar.mode, "start", "Start to due")} onPress={() => onMode("start")} disabled={busy} />
+        <TextButton label={selected(calendar && calendar.mode, "completed", "Completed")} onPress={() => onMode("completed")} disabled={busy} />
+        <TextButton label={selected(calendar && calendar.mode, "created", "Created")} onPress={() => onMode("created")} disabled={busy} />
+      </View>
+      <View style={styles.toolbarActions}>
+        <TextButton label="Previous" onPress={() => onMove(-1)} disabled={busy} />
+        <TextButton label="Today" onPress={() => onMove("today")} disabled={busy} />
+        <TextButton label="Next" onPress={() => onMove(1)} disabled={busy} />
+      </View>
+      {calendar ? (
+        <View style={styles.toolbarActions}>
+          <TextButton label={projectId == null ? "● Mine" : "Mine"} onPress={() => onProject(null)} disabled={busy} />
+          {calendar.projects.map((project) => (
+            <TextButton
+              key={project.id}
+              label={projectId === project.id ? `● ${project.key}` : project.key}
+              onPress={() => onProject(project.id)}
+              disabled={busy}
+            />
+          ))}
+        </View>
+      ) : null}
+      <Text style={styles.projectName}>{calendar ? calendar.label : ""}</Text>
+      {calendar === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {calendar && calendar.banner ? <Text style={styles.message}>{calendar.banner}</Text> : null}
+      {calendar && calendar.empty ? <Text style={styles.message}>{calendar.empty}</Text> : null}
+      {calendar && calendar.view === "month" ? (
+        <View>
+          <View style={styles.calendarWeek}>
+            {calendar.weekdays.map((name) => (
+              <Text key={name} style={styles.calendarWeekday}>{name}</Text>
+            ))}
+          </View>
+          {calendar.weeks.map((week) => (
+            <View key={week.days[0].date} style={styles.calendarWeek}>
+              {week.days.map((day) => (
+                <View
+                  key={day.date}
+                  style={[styles.calendarDay, !day.inMonth && styles.calendarMuted, day.isToday && styles.calendarToday]}
+                >
+                  <Text style={styles.calendarDate}>{day.number}</Text>
+                  {day.issues.map((issue) => (
+                    <Pressable key={issue.id} accessibilityRole="button" onPress={() => onOpenIssue(issue.id)}>
+                      <Text numberOfLines={1} style={[styles.calendarChip, { color: issue.color }]}>{issue.key || "New"}</Text>
+                      <Text numberOfLines={1} style={styles.calendarStatus}>{issue.statusLabel}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {calendar && calendar.view !== "month"
+        ? calendar.days.map((day) => (
+            <View key={day.date} style={styles.project}>
+              {calendar.view === "week" ? <Text style={styles.projectName}>{day.heading}</Text> : null}
+              {day.issues.length
+                ? day.issues.map((issue) => (
+                    <CalendarIssue key={issue.id} issue={issue} onPress={() => onOpenIssue(issue.id)} />
+                  ))
+                : null}
+            </View>
+          ))
+        : null}
+    </ScrollView>
+  );
+}
+
 function Home({
   account,
   inbox,
@@ -2044,6 +2352,7 @@ function Home({
   onBacklog,
   onSprints,
   onFind,
+  onCalendar,
   onSettings,
   onSignOut,
 }) {
@@ -2063,6 +2372,7 @@ function Home({
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
         </View>
@@ -2134,6 +2444,7 @@ function FindScreen({
   onBoard,
   onBacklog,
   onSprints,
+  onCalendar,
   onCreate,
   onSettings,
   onSignOut,
@@ -2149,6 +2460,7 @@ function FindScreen({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2210,6 +2522,7 @@ function Sprints({
   onBoard,
   onBacklog,
   onFind,
+  onCalendar,
   onSettings,
   onSignOut,
 }) {
@@ -2232,6 +2545,7 @@ function Sprints({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2411,6 +2725,7 @@ function Backlog({
   onBoard,
   onSprints,
   onFind,
+  onCalendar,
   onSettings,
   onSignOut,
 }) {
@@ -2429,6 +2744,7 @@ function Backlog({
           <TextButton label="Board" onPress={onBoard} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2513,6 +2829,7 @@ function Board({
   onBacklog,
   onSprints,
   onFind,
+  onCalendar,
   onSettings,
   onSignOut,
 }) {
@@ -2531,6 +2848,7 @@ function Board({
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -2623,6 +2941,7 @@ function Work({
   onBacklog,
   onSprints,
   onFind,
+  onCalendar,
 }) {
   return (
     <ScrollView
@@ -2644,6 +2963,7 @@ function Work({
           <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
           <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
           <TextButton label="Find" onPress={onFind} disabled={busy} />
+          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
           <TextButton label="Create" onPress={onCreate} disabled={busy} />
           <TextButton label="Settings" onPress={onSettings} disabled={busy} />
           <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
@@ -3357,6 +3677,43 @@ const styles = StyleSheet.create({
     color: "#0F7A73",
     fontSize: 14,
     marginTop: 4,
+  },
+  calendarWeek: {
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+  calendarWeekday: {
+    color: "#0062AB",
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  calendarDay: {
+    borderColor: "#D6E6F2",
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 72,
+    padding: 2,
+  },
+  calendarMuted: {
+    opacity: 0.45,
+  },
+  calendarToday: {
+    backgroundColor: "#E8F3FB",
+  },
+  calendarDate: {
+    color: "#0062AB",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  calendarChip: {
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  calendarStatus: {
+    color: "#0F7A73",
+    fontSize: 9,
   },
   pending: {
     color: "#9A3412",

@@ -177,6 +177,18 @@ async function loadBacklog(origin, token, project) {
   };
 }
 
+async function loadCalendarIssues(origin, token, projects, userId, projectId) {
+  if (projectId != null) {
+    const project = (projects || []).find((item) => item.id === projectId);
+    if (!project) {
+      return [];
+    }
+    const issues = await read(origin, token, `/api/v1/projects/${project.id}/issues`);
+    return (issues || []).map((issue) => ({ ...issue, projectKey: project.key }));
+  }
+  return loadInboxIssues(origin, token, projects, userId);
+}
+
 async function loadInboxIssues(origin, token, projects, userId) {
   const lists = await Promise.all(
     (projects || []).map(async (project) => {
@@ -298,6 +310,7 @@ async function send(origin, token, method, path, payload) {
 module.exports = {
   loadBacklog,
   loadBoards,
+  loadCalendarIssues,
   loadCatalog,
   loadCompletedAt,
   loadInboxIssues,
