@@ -22,6 +22,7 @@ import { loadBacklog, loadBoards, loadCalendarIssues, loadCatalog, loadCompleted
 import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
 import { calendarView, focusForView, moveFocus } from "./src/calendar";
+import { arrangeInbox, blankLayout, hideSection, homeKey, moveSection, parseLayout, showSection } from "./src/home";
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
 import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, sprintOptions, toggleChoice } from "./src/filters";
@@ -128,6 +129,7 @@ export default function App() {
   const [scheduleNotice, setScheduleNotice] = useState("");
   const [listFilter, setListFilter] = useState(blankFilter);
   const [filterSprints, setFilterSprints] = useState([]);
+  const [homeLayout, setHomeLayout] = useState(null);
   const accountRef = useRef(null);
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -1163,6 +1165,30 @@ export default function App() {
   }
 
   useEffect(() => {
+    const userId = account && account.userId;
+    if (!userId) {
+      setHomeLayout(account ? blankLayout() : null);
+      return undefined;
+    }
+    let active = true;
+    AsyncStorage.getItem(homeKey(userId)).then((raw) => {
+      if (active) {
+        setHomeLayout(parseLayout(raw));
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [account && account.userId]);
+
+  async function rememberHome(next) {
+    setHomeLayout(next);
+    if (account && account.userId) {
+      await AsyncStorage.setItem(homeKey(account.userId), JSON.stringify(next));
+    }
+  }
+
+  useEffect(() => {
     if (!account) {
       setLibraryReady(false);
       return undefined;
@@ -1313,16 +1339,18 @@ export default function App() {
           busy={busy}
           error={workError}
           inbox={
-            account.userId && inboxMode !== "loading"
-              ? inboxView({
+            account.userId && inboxMode !== "loading" && homeLayout
+              ? arrangeInbox(inboxView({
                   library,
                   userId: Number(account.userId),
                   today: localToday(),
                   remote: inboxMode === "online" ? remoteIssues || [] : null,
                   offsetMinutes: new Date().getTimezoneOffset(),
-                })
+                }), homeLayout)
               : null
           }
+          layout={homeLayout}
+          onLayout={rememberHome}
           onCreate={() => {
             listPhase.current = "home";
             setMessage("");
@@ -3083,8 +3111,11 @@ function Home({
   onCalendar,
   onSettings,
   onSignOut,
+  layout,
+  onLayout,
 }) {
   const [openStatus, setOpenStatus] = useState(null);
+  const visible = inbox ? inbox.sections.map((section) => section.key) : [];
   return (
     <ScrollView
       contentContainerStyle={styles.workContent}
@@ -3111,10 +3142,28 @@ function Home({
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {inbox && inbox.banner ? <Text style={styles.message}>{inbox.banner}</Text> : null}
       {inbox && inbox.empty ? <Text style={styles.message}>{inbox.empty}</Text> : null}
+      {inbox && inbox.allHidden ? <Text style={styles.message}>{inbox.allHidden}</Text> : null}
       {inbox
         ? inbox.sections.map((section) => (
             <View key={section.key} style={styles.project}>
               <Text style={styles.projectName}>{section.title}</Text>
+              <View style={styles.toolbarActions}>
+                <TextButton
+                  label="Up"
+                  onPress={() => onLayout(moveSection(layout, visible, section.key, "up"))}
+                  disabled={busy}
+                />
+                <TextButton
+                  label="Down"
+                  onPress={() => onLayout(moveSection(layout, visible, section.key, "down"))}
+                  disabled={busy}
+                />
+                <TextButton
+                  label="Remove"
+                  onPress={() => onLayout(hideSection(layout, section.key))}
+                  disabled={busy}
+                />
+              </View>
               {section.needsConnection ? <Text style={styles.message}>{inbox.needsConnection}</Text> : null}
               {section.rows.map((row) => (
                 <View key={`${section.key}-${row.id}`} style={styles.issue}>
@@ -3157,6 +3206,21 @@ function Home({
             </View>
           ))
         : null}
+      {inbox && inbox.hidden && inbox.hidden.length ? (
+        <View style={styles.project}>
+          <Text style={styles.projectName}>Add a panel</Text>
+          <View style={styles.toolbarActions}>
+            {inbox.hidden.map((panel) => (
+              <TextButton
+                key={panel.key}
+                label={panel.title}
+                onPress={() => onLayout(showSection(layout, panel.key))}
+                disabled={busy}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

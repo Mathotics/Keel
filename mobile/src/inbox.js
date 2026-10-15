@@ -194,6 +194,7 @@ module.exports = {
   NOTHING_SAVED,
   OTHER_ISSUES,
   SAVED_SPRINT,
+  SECTIONS,
   inboxView,
   localCalendarDay,
 };
