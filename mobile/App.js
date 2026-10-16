@@ -5121,8 +5121,8 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
         >
           <Text style={[styles.drawerItem, phase === "settings" ? styles.drawerItemActive : null]}>Settings</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.drawerRow}>
-          <Text style={styles.drawerSignOut}>Sign out</Text>
+        <Pressable accessibilityLabel="Log Out" accessibilityRole="button" onPress={onSignOut} style={styles.drawerRow}>
+          <Text style={styles.drawerSignOut}>Log Out</Text>
         </Pressable>
         </View>
       </View>
