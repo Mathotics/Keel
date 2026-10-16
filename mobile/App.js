@@ -33,6 +33,7 @@ import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepar
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
+import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, preparePerson, prepareProfile, prepareRename } from "./src/account";
 import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
 import {
@@ -113,6 +114,8 @@ export default function App() {
   const [remoteBoards, setRemoteBoards] = useState(null);
   const [boardMode, setBoardMode] = useState("loading");
   const [boardProjectId, setBoardProjectId] = useState(null);
+  const [accountView, setAccountView] = useState(null);
+  const [accountLink, setAccountLink] = useState("loading");
   const [settingsProjectId, setSettingsProjectId] = useState(null);
   const [settingsProject, setSettingsProject] = useState(null);
   const [settingsLink, setSettingsLink] = useState("loading");
@@ -1415,6 +1418,215 @@ export default function App() {
     setPhase("settings");
   }
 
+  async function openAccount() {
+    if (TAB_PHASES.includes(phase)) {
+      listPhase.current = phase;
+    }
+    setAccountView(null);
+    setAccountLink("loading");
+    setWorkError("");
+    setDrawerOpen(false);
+    setPhase("account");
+    setRefreshing(true);
+    try {
+      const [profile, tokens, catalog] = await Promise.all([
+        loadProfile(account.origin, account.token),
+        read(account.origin, account.token, "/api/v1/profile/tokens"),
+        loadCatalog(account.origin, account.token),
+      ]);
+      setAccountView({ profile, tokens: tokens || [], people: catalog.people || [] });
+      setAccountLink("online");
+      const next = { ...library, people: catalog.people || [], labels: catalog.labels || library.labels };
+      await persistLibrary(account.userId, next);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setAccountView(null);
+      setAccountLink(err.status ? "error" : "offline");
+      setWorkError(err.status ? err.message || FAILED : "");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function rememberProfile(profile) {
+    await SecureStore.setItemAsync(NAME_KEY, profile.display_name);
+    setAccount({ ...account, displayName: profile.display_name });
+    setUsername(profile.username);
+  }
+
+  async function saveProfile(draft) {
+    const prepared = prepareProfile(draft);
+    if (prepared.error) {
+      return prepared.error;
+    }
+    setBusy(true);
+    try {
+      const saved = await send(account.origin, account.token, "PATCH", "/api/v1/profile", prepared.body);
+      await rememberProfile(saved);
+      setAccountView((current) => current ? { ...current, profile: saved } : current);
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "Sign in.";
+      }
+      return err.message || FAILED;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function savePassword(draft) {
+    const prepared = preparePassword({ ...draft, username: accountView && accountView.profile ? accountView.profile.username : "" });
+    if (prepared.error) {
+      return prepared.error;
+    }
+    setBusy(true);
+    try {
+      await send(account.origin, account.token, "POST", "/api/v1/profile/password", prepared.body);
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "Sign in.";
+      }
+      return err.message || FAILED;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function askRevokeDevice(token) {
+    const mine = isThisPhone(token, account.tokenId);
+    Alert.alert(
+      mine ? "Revoke this phone?" : `Revoke ${token.label}?`,
+      mine
+        ? "Keel will return to sign-in. The server address stays."
+        : "That device will have to sign in again.",
+      [
+        { text: "Keep it", style: "cancel" },
+        { text: "Revoke", style: "destructive", onPress: () => revokeDevice(token) },
+      ],
+    );
+  }
+
+  async function revokeDevice(token) {
+    const mine = isThisPhone(token, account.tokenId);
+    setBusy(true);
+    try {
+      await send(account.origin, account.token, "DELETE", `/api/v1/profile/tokens/${token.id}`);
+      if (mine) {
+        await clearAccount();
+        return;
+      }
+      const tokens = await read(account.origin, account.token, "/api/v1/profile/tokens");
+      setAccountView((current) => current ? { ...current, tokens: tokens || [] } : current);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reloadPeople() {
+    const catalog = await loadCatalog(account.origin, account.token);
+    const profile = await loadProfile(account.origin, account.token);
+    await rememberProfile(profile);
+    const next = { ...library, people: catalog.people || [], labels: catalog.labels || library.labels };
+    await persistLibrary(account.userId, next);
+    setAccountView((current) => current ? { ...current, profile, people: catalog.people || [] } : current);
+  }
+
+  async function addPerson(draft) {
+    const prepared = preparePerson(draft);
+    if (prepared.error) {
+      return prepared.error;
+    }
+    setBusy(true);
+    try {
+      await send(account.origin, account.token, "POST", "/api/v1/users", prepared.body);
+      await reloadPeople();
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "Sign in.";
+      }
+      return err.message || FAILED;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function renamePerson(userId, displayName) {
+    const prepared = prepareRename(displayName);
+    if (prepared.error) {
+      return prepared.error;
+    }
+    setBusy(true);
+    try {
+      await send(account.origin, account.token, "PATCH", `/api/v1/users/${userId}`, { display_name: prepared.value });
+      await reloadPeople();
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "Sign in.";
+      }
+      return err.message || FAILED;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function askDeletePerson(person) {
+    Alert.alert(
+      `Delete ${person.display_name}?`,
+      "This cannot be undone.",
+      [
+        { text: "Keep them", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => removePerson(person.id) },
+      ],
+    );
+  }
+
+  async function removePerson(userId) {
+    setBusy(true);
+    try {
+      await send(account.origin, account.token, "DELETE", `/api/v1/users/${userId}`);
+      await reloadPeople();
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveLabel() {
     if (!account) {
       return;
@@ -1481,6 +1693,7 @@ export default function App() {
       schedule: "Schedule",
       create: "Create issue",
       settings: "Settings",
+      account: "Account",
       issue: "Issue",
     };
     return titles[phase] || "Keel";
@@ -1495,7 +1708,7 @@ export default function App() {
       }
       return;
     }
-    if (phase === "create" || phase === "settings") {
+    if (phase === "create" || phase === "settings" || phase === "account") {
       setMessage("");
       setPhase(listPhase.current);
       return;
@@ -1574,6 +1787,10 @@ export default function App() {
     }
     if (next === "settings") {
       openSettings();
+      return;
+    }
+    if (next === "account") {
+      openAccount();
     }
   }
 
@@ -1586,7 +1803,7 @@ export default function App() {
           menu={MENU_PHASES.includes(phase)}
           onAvatar={() => {
             setDrawerOpen(false);
-            openSettings();
+            openAccount();
           }}
           onBack={shellBack}
           onMenu={() => setDrawerOpen(true)}
@@ -2498,6 +2715,22 @@ export default function App() {
             setMessage("Sign in.");
           }}
           library={library}
+        />
+      ) : null}
+      {phase === "account" && account ? (
+        <AccountScreen
+          busy={busy}
+          error={workError}
+          link={accountLink}
+          refreshing={refreshing}
+          tokenId={account.tokenId}
+          view={accountView}
+          onAddPerson={addPerson}
+          onDeletePerson={askDeletePerson}
+          onRenamePerson={renamePerson}
+          onRevoke={askRevokeDevice}
+          onSavePassword={savePassword}
+          onSaveProfile={saveProfile}
         />
       ) : null}
       {phase === "settings" && account ? (
@@ -4851,6 +5084,7 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
     { id: "calendar", label: "Calendar" },
     { id: "find", label: "Find" },
     { id: "create", label: "Create issue" },
+    { id: "account", label: "Account" },
     { id: "settings", label: "Settings" },
   ];
   return (
@@ -4889,6 +5123,187 @@ function TextButton({ label, onPress, disabled }) {
     <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
       <Text style={styles.textButton}>{label}</Text>
     </Pressable>
+  );
+}
+
+function AccountScreen({
+  view,
+  link,
+  busy,
+  error,
+  refreshing,
+  tokenId,
+  onSaveProfile,
+  onSavePassword,
+  onRevoke,
+  onAddPerson,
+  onRenamePerson,
+  onDeletePerson,
+}) {
+  const profile = view && view.profile;
+  const [displayName, setDisplayName] = useState(profile ? profile.display_name : "");
+  const [login, setLogin] = useState(profile ? profile.username : "");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [personName, setPersonName] = useState("");
+  const [personLogin, setPersonLogin] = useState("");
+  const [personPassword, setPersonPassword] = useState("");
+  const [personConfirm, setPersonConfirm] = useState("");
+  const [names, setNames] = useState({});
+  const [profileError, setProfileError] = useState("");
+  const [profileNotice, setProfileNotice] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordNotice, setPasswordNotice] = useState("");
+  const [personError, setPersonError] = useState("");
+  const [personNotice, setPersonNotice] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const profileKey = profile ? `${profile.id}|${profile.display_name}|${profile.username}` : "";
+  const peopleKey = (view && view.people ? view.people : []).map((person) => `${person.id}:${person.display_name}`).join("|");
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+    setDisplayName(profile.display_name || "");
+    setLogin(profile.username || "");
+  }, [profileKey]);
+  useEffect(() => {
+    const next = {};
+    (view && view.people ? view.people : []).forEach((person) => {
+      next[person.id] = person.display_name;
+    });
+    setNames(next);
+  }, [peopleKey]);
+  const tokens = (view && view.tokens ? view.tokens : []).slice().sort((left, right) => {
+    const leftMine = isThisPhone(left, tokenId) ? 0 : 1;
+    const rightMine = isThisPhone(right, tokenId) ? 0 : 1;
+    return leftMine - rightMine || String(left.label).localeCompare(String(right.label));
+  });
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      {link === "loading" || (refreshing && !profile) ? <ActivityIndicator color="#0068B0" /> : null}
+      {link === "offline" ? <Text style={styles.message}>{ACCOUNT_OFFLINE}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {profile ? (
+        <View>
+          <Text style={styles.sectionHeading}>Your account</Text>
+          <Field label="Display name" value={displayName} onChange={setDisplayName} />
+          <Field label="Username" value={login} onChange={setLogin} />
+          {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
+          {profileNotice ? <Text style={[styles.message, styles.ok]}>{profileNotice}</Text> : null}
+          <PrimaryButton
+            label="Save account"
+            disabled={busy}
+            onPress={async () => {
+              setProfileNotice("");
+              const failure = await onSaveProfile({ displayName, username: login });
+              setProfileError(failure || "");
+              if (!failure) {
+                setProfileNotice("Saved.");
+              }
+            }}
+          />
+          <Text style={styles.sectionHeading}>Password</Text>
+          <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} disabled={busy} />
+          <PasswordField label="New password" value={nextPassword} onChange={setNextPassword} disabled={busy} />
+          <PasswordField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} disabled={busy} />
+          {passwordError ? <Text style={styles.error}>{passwordError}</Text> : null}
+          {passwordNotice ? <Text style={[styles.message, styles.ok]}>{passwordNotice}</Text> : null}
+          <PrimaryButton
+            label="Save password"
+            disabled={busy}
+            onPress={async () => {
+              setPasswordNotice("");
+              const failure = await onSavePassword({
+                current: currentPassword,
+                next: nextPassword,
+                confirm: confirmPassword,
+              });
+              setPasswordError(failure || "");
+              if (!failure) {
+                setCurrentPassword("");
+                setNextPassword("");
+                setConfirmPassword("");
+                setPasswordNotice("Password saved.");
+              }
+            }}
+          />
+          <Text style={styles.sectionHeading}>Devices</Text>
+          {tokens.map((token) => {
+            const mine = isThisPhone(token, tokenId);
+            return (
+              <View key={token.id} style={styles.issue}>
+                <Text style={styles.issueKey}>{mine ? `This phone · ${token.label}` : token.label}</Text>
+                <Text style={styles.issueTitle}>{token.token_prefix}</Text>
+                <Text style={styles.issueStatus}>
+                  {token.last_used_at ? `Last used ${deviceWhen(token.last_used_at)}` : "Not used yet"}
+                </Text>
+                <TextButton label="Revoke" onPress={() => onRevoke(token)} disabled={busy} />
+              </View>
+            );
+          })}
+          <Text style={styles.sectionHeading}>People</Text>
+          <Text style={styles.message}>People who can be assigned work.</Text>
+          {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
+          {(view.people || []).map((person) => (
+            <View key={person.id} style={styles.issue}>
+              <Text style={styles.issueStatus}>{person.username}</Text>
+              <Field
+                label="Display name"
+                value={names[person.id] || ""}
+                onChange={(value) => setNames((current) => ({ ...current, [person.id]: value }))}
+              />
+              <TextButton
+                label="Rename"
+                disabled={busy}
+                onPress={async () => {
+                  const failure = await onRenamePerson(person.id, names[person.id]);
+                  setRenameError(failure || "");
+                }}
+              />
+              {profile.id !== person.id ? (
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={busy}
+                  onPress={() => onDeletePerson(person)}
+                  style={styles.deleteProject}
+                >
+                  <Text style={styles.drawerSignOut}>Delete</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ))}
+          <Text style={styles.projectName}>Add someone</Text>
+          <Field label="Display name" value={personName} onChange={setPersonName} />
+          <Field label="Username" value={personLogin} onChange={setPersonLogin} placeholder="Defaults to the display name" />
+          <PasswordField label="Password" value={personPassword} onChange={setPersonPassword} disabled={busy} />
+          <PasswordField label="Confirm password" value={personConfirm} onChange={setPersonConfirm} disabled={busy} />
+          {personError ? <Text style={styles.error}>{personError}</Text> : null}
+          {personNotice ? <Text style={[styles.message, styles.ok]}>{personNotice}</Text> : null}
+          <PrimaryButton
+            label="Add"
+            disabled={busy}
+            onPress={async () => {
+              setPersonNotice("");
+              const failure = await onAddPerson({
+                displayName: personName,
+                username: personLogin,
+                password: personPassword,
+                confirm: personConfirm,
+              });
+              setPersonError(failure || "");
+              if (!failure) {
+                setPersonName("");
+                setPersonLogin("");
+                setPersonPassword("");
+                setPersonConfirm("");
+                setPersonNotice("Added.");
+              }
+            }}
+          />
+        </View>
+      ) : null}
+    </ScrollView>
   );
 }
 
@@ -4937,14 +5352,15 @@ function SignedOut({
   );
 }
 
-function PasswordField({ value, onChange, disabled }) {
+function PasswordField({ label, value, onChange, disabled }) {
   const [revealed, setRevealed] = useState(false);
+  const title = label || "Password";
   return (
     <View>
-      <Text style={styles.label}>Password</Text>
+      <Text style={styles.label}>{title}</Text>
       <View style={styles.passwordRow}>
         <TextInput
-          accessibilityLabel="Password"
+          accessibilityLabel={title}
           autoCapitalize="none"
           autoCorrect={false}
           editable={!disabled}
