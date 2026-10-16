@@ -5077,7 +5077,7 @@ function TabBar({ phase, onHome, onProjects, onBoard, onFind }) {
 }
 
 function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
-  const { width } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
   const items = [
     { id: "home", label: "Home" },
     { id: "projects", label: "Projects" },
@@ -5091,9 +5091,15 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
     { id: "account", label: "Profile" },
   ];
   return (
-    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+    <Modal animationType="fade" onRequestClose={onClose} statusBarTranslucent transparent visible>
       <View style={styles.drawerLayer}>
-        <Pressable accessibilityLabel="Close menu" onPress={onClose} style={styles.drawerScrim} />
+        <Pressable
+          accessibilityLabel="Close menu"
+          onPress={onClose}
+          style={[styles.drawerScrim, { height, width }]}
+        >
+          <View style={styles.drawerScrimFill} />
+        </Pressable>
         <View style={[styles.drawer, { width: Math.round(width * 0.82) }]}>
         <View style={styles.drawerHead}>
           <View style={styles.avatarLarge}>
@@ -5548,8 +5554,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   drawerScrim: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 35, 52, 0.45)",
+    left: 0,
+    position: "absolute",
+    top: 0,
+  },
+  drawerScrimFill: {
+    flex: 1,
   },
   drawer: {
     backgroundColor: "#FFFFFF",
