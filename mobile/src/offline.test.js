@@ -8,6 +8,7 @@ const {
   discardIssue,
   dropProject,
   emptyStore,
+  forgetProject,
   enqueue,
   hasWaiting,
   queueComment,
@@ -90,6 +91,20 @@ test("turning a project off drops its waiting changes", () => {
   assert.equal(hasWaiting(store, 3), false);
   assert.equal(workView(store).length, 0);
   assert.equal(store.projects[3].enabled, false);
+});
+
+test("forgetting a deleted project removes it and its waiting changes", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = enqueue(store, {
+    kind: "patch",
+    issueId: 9,
+    method: "PATCH",
+    path: "/api/v1/issues/9",
+    body: { title: "Phone title" },
+  });
+  store = forgetProject(store, 3);
+  assert.equal(store.projects[3], undefined);
+  assert.equal(store.queue.length, 0);
 });
 
 test("a quiet change uploads and a disagreement waits", async () => {

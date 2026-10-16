@@ -33,6 +33,7 @@ import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepar
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
+import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
 import {
   NOT_ON_SERVER,
@@ -41,6 +42,7 @@ import {
   discardIssue,
   dropProject,
   emptyStore,
+  forgetProject,
   enableProject,
   findIssue,
   hasWaiting,
@@ -51,6 +53,7 @@ import {
   queueRemoveComment,
   queueUpdate,
   rememberDetail,
+  renameProject,
   storeKey,
   workView,
 } from "./src/offline";
@@ -110,6 +113,9 @@ export default function App() {
   const [remoteBoards, setRemoteBoards] = useState(null);
   const [boardMode, setBoardMode] = useState("loading");
   const [boardProjectId, setBoardProjectId] = useState(null);
+  const [settingsProjectId, setSettingsProjectId] = useState(null);
+  const [settingsProject, setSettingsProject] = useState(null);
+  const [settingsLink, setSettingsLink] = useState("loading");
   const [remoteBacklog, setRemoteBacklog] = useState(null);
   const [remoteSprints, setRemoteSprints] = useState(null);
   const [backlogMode, setBacklogMode] = useState("loading");
@@ -953,6 +959,122 @@ export default function App() {
     }
   }
 
+  async function openProjectSettings(projectId) {
+    listPhase.current = "projects";
+    setSettingsProjectId(projectId);
+    setSettingsProject(null);
+    setSettingsLink("loading");
+    setWorkError("");
+    setPhase("project");
+    setRefreshing(true);
+    try {
+      const project = await read(account.origin, account.token, `/api/v1/projects/${projectId}`);
+      setSettingsProject(project);
+      setSettingsLink("online");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setSettingsProject(null);
+      setSettingsLink(err.status ? "error" : "offline");
+      setWorkError(err.status ? err.message || FAILED : "");
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function saveProjectSettings(draft) {
+    const prepared = prepareProjectUpdate(draft);
+    if (prepared.error) {
+      return prepared.error;
+    }
+    setBusy(true);
+    try {
+      const saved = await send(
+        account.origin,
+        account.token,
+        "PATCH",
+        `/api/v1/projects/${settingsProjectId}`,
+        prepared.body,
+      );
+      setSettingsProject(saved);
+      const named = renameProject(library, saved.id, saved.name);
+      await persistLibrary(account.userId, named);
+      try {
+        await refreshLibrary(account, named);
+      } catch (err) {
+        if (err.status === 401) {
+          throw err;
+        }
+      }
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "Sign in.";
+      }
+      return err.message || FAILED;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function projectWaiting(projectId) {
+    const project = library.projects && library.projects[projectId];
+    const queued = (library.queue || []).some((item) => item.projectId === projectId);
+    const pending = project
+      ? Object.values(project.issues || {}).some((issue) => issue.pending || issue.conflict)
+      : false;
+    return queued || pending;
+  }
+
+  function askDeleteProject() {
+    const project = settingsProject;
+    if (!project) {
+      return;
+    }
+    const waiting = projectWaiting(project.id)
+      ? " Changes waiting on this phone for this project will be dropped."
+      : "";
+    Alert.alert(
+      `Delete ${project.key}?`,
+      `Delete ${project.key} and every issue, sprint, comment, and dependency link in it? This cannot be undone.${waiting}`,
+      [
+        { text: "Keep it", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: () => removeProject(project.id) },
+      ],
+    );
+  }
+
+  async function removeProject(projectId) {
+    setBusy(true);
+    try {
+      await send(account.origin, account.token, "DELETE", `/api/v1/projects/${projectId}`);
+      await persistLibrary(account.userId, forgetProject(library, projectId));
+      if (boardProjectId === projectId) {
+        setBoardProjectId(null);
+      }
+      setSettingsProject(null);
+      setPhase("projects");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setWorkError(err.message || FAILED);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function showSchedule(seriesId, issue) {
     listPhase.current = issue ? listPhase.current : "schedules";
     setPhase("schedule");
@@ -1336,6 +1458,16 @@ export default function App() {
     if (phase === "sprint" && openSprint && openSprint.name) {
       return openSprint.name;
     }
+    if (phase === "project") {
+      if (settingsProject && settingsProject.key) {
+        return settingsProject.key;
+      }
+      const local = settingsProjectId != null && library.projects && library.projects[settingsProjectId];
+      if (local) {
+        return local.key;
+      }
+      return "Project";
+    }
     const titles = {
       home: "Home",
       projects: "Projects",
@@ -1371,6 +1503,11 @@ export default function App() {
     if (phase === "sprint") {
       listPhase.current = "sprints";
       setPhase("sprints");
+      return;
+    }
+    if (phase === "project") {
+      listPhase.current = "projects";
+      setPhase("projects");
       return;
     }
     if (phase === "schedule") {
@@ -1601,6 +1738,7 @@ export default function App() {
             setBoardProjectId(projectId);
             openBoard();
           }}
+          onProjectSettings={openProjectSettings}
           onCreate={() => {
             listPhase.current = "projects";
             setMessage("");
@@ -1626,6 +1764,17 @@ export default function App() {
           onSignOut={onSignOut}
           refreshing={refreshing}
           sections={libraryReady ? workView(library) : null}
+        />
+      ) : null}
+      {phase === "project" && account ? (
+        <ProjectSettings
+          busy={busy}
+          error={workError}
+          link={settingsLink}
+          project={settingsProject}
+          refreshing={refreshing}
+          onDelete={askDeleteProject}
+          onSave={saveProjectSettings}
         />
       ) : null}
       {phase === "board" && account ? (
@@ -3828,6 +3977,96 @@ function Board({
   );
 }
 
+function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDelete }) {
+  const [name, setName] = useState(project ? project.name : "");
+  const [description, setDescription] = useState(project ? project.description || "" : "");
+  const [cadence, setCadence] = useState(project ? project.sprint_cadence : "off");
+  const [days, setDays] = useState(
+    project && project.sprint_cadence_days ? String(project.sprint_cadence_days) : "",
+  );
+  const [ahead, setAhead] = useState(project ? String(project.sprint_ahead ?? 0) : "0");
+  const [formError, setFormError] = useState("");
+  const [notice, setNotice] = useState("");
+  const signature = project
+    ? `${project.id}|${project.name}|${project.description}|${project.sprint_cadence}|${project.sprint_cadence_days}|${project.sprint_ahead}`
+    : "";
+  useEffect(() => {
+    if (!project) {
+      return;
+    }
+    setName(project.name || "");
+    setDescription(project.description || "");
+    setCadence(project.sprint_cadence || "off");
+    setDays(project.sprint_cadence_days ? String(project.sprint_cadence_days) : "");
+    setAhead(String(project.sprint_ahead ?? 0));
+    setFormError("");
+  }, [signature]);
+
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      {link === "loading" || (refreshing && !project) ? <ActivityIndicator color="#0068B0" /> : null}
+      {link === "offline" ? <Text style={styles.message}>{PROJECT_OFFLINE}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {project ? (
+        <View>
+          <Text style={styles.label}>Key</Text>
+          <Text style={styles.message}>{project.key}</Text>
+          <Field label="Name" value={name} onChange={setName} />
+          <Field label="Description" value={description} onChange={setDescription} />
+          <Text style={styles.label}>Sprint cadence</Text>
+          {CADENCES.map(([id, title]) => (
+            <Choice
+              key={id}
+              selected={cadence === id}
+              title={title}
+              onPress={() => setCadence(id)}
+            />
+          ))}
+          <Field
+            label="Every N days"
+            value={days}
+            onChange={setDays}
+            placeholder="10"
+            keyboardType="number-pad"
+          />
+          <Field
+            label="Sprints in advance"
+            value={ahead}
+            onChange={setAhead}
+            placeholder="0"
+            keyboardType="number-pad"
+          />
+          <Text style={styles.message}>
+            A cadence other than Off opens a sprint when this project has none active. Zero sprints in advance waits until the current one ends. Up to 12 can stay planned.
+          </Text>
+          {formError ? <Text style={styles.error}>{formError}</Text> : null}
+          {notice ? <Text style={[styles.message, styles.ok]}>{notice}</Text> : null}
+          <PrimaryButton
+            label="Save"
+            disabled={busy}
+            onPress={async () => {
+              setNotice("");
+              const failure = await onSave({ name, description, cadence, days, ahead });
+              setFormError(failure || "");
+              if (!failure) {
+                setNotice("Saved.");
+              }
+            }}
+          />
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={onDelete}
+            style={styles.deleteProject}
+          >
+            <Text style={styles.drawerSignOut}>Delete project</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 function Work({
   account,
   busy,
@@ -3840,6 +4079,7 @@ function Work({
   onSignOut,
   onOpenIssue,
   onOpenProject,
+  onProjectSettings,
   onHome,
   onBoard,
   onBacklog,
@@ -3890,6 +4130,11 @@ function Work({
                 </View>
                 <Text style={styles.chevron}>›</Text>
               </Pressable>
+              <TextButton
+                label="Project settings"
+                onPress={() => onProjectSettings(section.projectId)}
+                disabled={busy}
+              />
               {!section.saved ? (
                 <Text style={styles.message}>
                   This project has not been saved on this phone yet.
@@ -4916,6 +5161,10 @@ const styles = StyleSheet.create({
   drawerItemActive: {
     color: "#0068B0",
     fontWeight: "700",
+  },
+  deleteProject: {
+    marginTop: 28,
+    paddingVertical: 8,
   },
   drawerSignOut: {
     color: "#9A3412",

@@ -246,6 +246,23 @@ function queueRecreate(store, issueId) {
   return next;
 }
 
+function renameProject(store, projectId, name) {
+  const next = clone(store);
+  const project = next.projects[projectId];
+  if (!project) {
+    return next;
+  }
+  project.name = name;
+  return next;
+}
+
+function forgetProject(store, projectId) {
+  const next = clone(store);
+  delete next.projects[projectId];
+  next.queue = next.queue.filter((item) => item.projectId !== projectId);
+  return next;
+}
+
 function dropProject(store, projectId) {
   const next = clone(store);
   const project = next.projects[projectId];
@@ -721,6 +738,7 @@ module.exports = {
   chooseServer,
   discardIssue,
   dropProject,
+  forgetProject,
   emptyStore,
   enableProject,
   enqueue,
@@ -736,6 +754,7 @@ module.exports = {
   queueRemoveComment,
   queueUpdate,
   rememberDetail,
+  renameProject,
   storeKey,
   workView,
 };
