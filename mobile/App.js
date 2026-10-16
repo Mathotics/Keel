@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  StatusBar as NativeStatusBar,
   StyleSheet,
   Switch,
   Text,
@@ -65,6 +67,11 @@ const LABEL_KEY = "keel.label";
 const USER_ID_KEY = "keel.userId";
 const CONNECTED = "Connected";
 const FAILED = "Could not connect.";
+const TOP_INSET = Platform.OS === "android" ? NativeStatusBar.currentHeight || 24 : 44;
+const MENU_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "schedules"];
+const TAB_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "schedules"];
+const CREATE_PHASES = ["home", "projects", "board", "backlog", "find", "calendar", "sprints", "schedules"];
+const MARKS = ["#0068B0", "#7C3AED", "#0F7A73", "#DB2777", "#D97706"];
 
 const LOCK_OPTIONS = [
   { id: ALWAYS, title: "Remain unlocked" },
@@ -96,6 +103,8 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const prompting = useRef(false);
   const listPhase = useRef("home");
+  const issueBackRef = useRef(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [remoteIssues, setRemoteIssues] = useState(null);
   const [inboxMode, setInboxMode] = useState("loading");
   const [remoteBoards, setRemoteBoards] = useState(null);
@@ -1275,8 +1284,12 @@ export default function App() {
   }
 
   function openSettings() {
+    if (TAB_PHASES.includes(phase)) {
+      listPhase.current = phase;
+    }
     setDraftLabel(account ? account.label : "");
     setMessage("");
+    setDrawerOpen(false);
     setPhase("settings");
   }
 
@@ -1307,10 +1320,145 @@ export default function App() {
     }
   }
 
+  const signedIn = Boolean(account) && phase !== "booting" && phase !== "locked" && phase !== "signedOut";
+
+  function barTitle() {
+    if (phase === "board" && boardProjectId != null && library.projects && library.projects[boardProjectId]) {
+      return `${library.projects[boardProjectId].key} board`;
+    }
+    if (phase === "issue" && issueId != null) {
+      const saved = findIssue(library, issueId);
+      const key = saved && ((saved.page && saved.page.key) || (saved.raw && saved.raw.key));
+      if (key) {
+        return key;
+      }
+    }
+    if (phase === "sprint" && openSprint && openSprint.name) {
+      return openSprint.name;
+    }
+    const titles = {
+      home: "Home",
+      projects: "Projects",
+      board: "Board",
+      find: "Find",
+      backlog: "Backlog",
+      sprints: "Sprints",
+      sprint: "Sprint",
+      calendar: "Calendar",
+      schedules: "Schedules",
+      schedule: "Schedule",
+      create: "Create issue",
+      settings: "Settings",
+      issue: "Issue",
+    };
+    return titles[phase] || "Keel";
+  }
+
+  function shellBack() {
+    if (phase === "issue") {
+      if (issueBackRef.current) {
+        issueBackRef.current();
+      } else {
+        setPhase(listPhase.current);
+      }
+      return;
+    }
+    if (phase === "create" || phase === "settings") {
+      setMessage("");
+      setPhase(listPhase.current);
+      return;
+    }
+    if (phase === "sprint") {
+      listPhase.current = "sprints";
+      setPhase("sprints");
+      return;
+    }
+    if (phase === "schedule") {
+      if (recipeIssue) {
+        setIssueId(recipeIssue.id);
+        setPhase("issue");
+        return;
+      }
+      setRecipe(blankRecipe());
+      setRecipeMode("create");
+      setPhase("schedules");
+    }
+  }
+
+  function openCreate() {
+    if (CREATE_PHASES.includes(phase)) {
+      listPhase.current = phase;
+    }
+    setMessage("");
+    setDrawerOpen(false);
+    setPhase("create");
+  }
+
+  function goDrawer(next) {
+    setDrawerOpen(false);
+    setMessage("");
+    if (next === "home") {
+      listPhase.current = "home";
+      setPhase("home");
+      return;
+    }
+    if (next === "projects") {
+      listPhase.current = "projects";
+      setPhase("projects");
+      return;
+    }
+    if (next === "board") {
+      openBoard();
+      return;
+    }
+    if (next === "backlog") {
+      openBacklog();
+      return;
+    }
+    if (next === "sprints") {
+      openSprints();
+      return;
+    }
+    if (next === "schedules") {
+      openSchedules();
+      return;
+    }
+    if (next === "calendar") {
+      openCalendar();
+      return;
+    }
+    if (next === "find") {
+      openFind();
+      return;
+    }
+    if (next === "create") {
+      openCreate();
+      return;
+    }
+    if (next === "settings") {
+      openSettings();
+    }
+  }
+
   return (
-    <View style={styles.screen}>
-      <StatusBar style="dark" />
-      <Text style={styles.title}>Keel</Text>
+    <View style={signedIn ? styles.shell : styles.screen}>
+      <StatusBar style={signedIn ? "light" : "dark"} />
+      {signedIn ? (
+        <AppBar
+          initialsText={initials(account.displayName)}
+          menu={MENU_PHASES.includes(phase)}
+          onAvatar={() => {
+            setDrawerOpen(false);
+            openSettings();
+          }}
+          onBack={shellBack}
+          onMenu={() => setDrawerOpen(true)}
+          title={barTitle()}
+        />
+      ) : (
+        <Text style={styles.title}>Keel</Text>
+      )}
+      <View style={signedIn ? styles.shellBody : null}>
       {phase === "booting" ? <ActivityIndicator color="#0068B0" /> : null}
       {phase === "locked" ? (
         <View>
@@ -1448,6 +1596,10 @@ export default function App() {
             listPhase.current = "projects";
             setIssueId(id);
             setPhase("issue");
+          }}
+          onOpenProject={(projectId) => {
+            setBoardProjectId(projectId);
+            openBoard();
           }}
           onCreate={() => {
             listPhase.current = "projects";
@@ -2051,6 +2203,9 @@ export default function App() {
           account={account}
           issueId={issueId}
           onBack={() => setPhase(listPhase.current)}
+          onRegisterBack={(action) => {
+            issueBackRef.current = action;
+          }}
           onDiscard={async (id) => {
             await persistLibrary(account.userId, discardIssue(library, id));
           }}
@@ -2248,15 +2403,35 @@ export default function App() {
           {message ? (
             <Text style={tone === "ok" ? styles.ok : styles.error}>{message}</Text>
           ) : null}
-          <PrimaryButton
-            label="Back"
-            onPress={() => {
-              setMessage("");
-              setPhase(listPhase.current);
-            }}
-            disabled={busy}
-          />
         </View>
+      ) : null}
+      </View>
+      {signedIn && TAB_PHASES.includes(phase) ? (
+        <TabBar
+          phase={phase === "projects" ? "projects" : phase}
+          onBoard={() => goDrawer("board")}
+          onFind={() => goDrawer("find")}
+          onHome={() => goDrawer("home")}
+          onProjects={() => goDrawer("projects")}
+        />
+      ) : null}
+      {signedIn && CREATE_PHASES.includes(phase) ? (
+        <Pressable accessibilityLabel="Create issue" accessibilityRole="button" onPress={openCreate} style={styles.fab}>
+          <Text style={styles.fabText}>+</Text>
+        </Pressable>
+      ) : null}
+      {signedIn && drawerOpen ? (
+        <Drawer
+          label={account.label}
+          name={account.displayName}
+          phase={phase}
+          onClose={() => setDrawerOpen(false)}
+          onSelect={goDrawer}
+          onSignOut={() => {
+            setDrawerOpen(false);
+            onSignOut();
+          }}
+        />
       ) : null}
     </View>
   );
@@ -2373,15 +2548,12 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
     return (
       <View>
         <Text style={styles.message}>Save a project before creating an issue.</Text>
-        <TextButton label="Back" onPress={onCancel} disabled={false} />
       </View>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
-      <TextButton label="Back" onPress={onCancel} disabled={busy} />
-      <Text style={styles.sectionHeading}>Create an issue</Text>
       <Text style={styles.label}>Project</Text>
       {projects.map((item) => (
         <Choice
@@ -2807,21 +2979,7 @@ function Schedules({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
-      <Text style={styles.sectionHeading}>Schedules</Text>
+
       <View style={styles.toolbarActions}>
         {projects.map((project) => (
           <TextButton
@@ -2894,21 +3052,7 @@ function SeriesScreen({
   const title = mode === "repeat" ? "Make this repeating" : mode === "occurrence" ? "Edit series" : (series && series.title) || "Schedule";
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Back" onPress={onBack} disabled={busy} />
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
+
       <Text style={styles.sectionHeading}>{title}</Text>
       {series ? (
         <Text style={styles.message}>{series.cadence_summary}. {series.state === "paused" ? "Paused" : "Active"}.</Text>
@@ -2999,22 +3143,7 @@ function CalendarScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
-      <Text style={styles.sectionHeading}>Calendar</Text>
+
       <View style={styles.toolbarActions}>
         <TextButton label={selected(calendar && calendar.view, "month", "Month")} onPress={() => onView("month")} disabled={busy} />
         <TextButton label={selected(calendar && calendar.view, "week", "Week")} onPress={() => onView("week")} disabled={busy} />
@@ -3122,22 +3251,7 @@ function Home({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
-      <Text style={styles.sectionHeading}>Home</Text>
+
       {inbox === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {inbox && inbox.banner ? <Text style={styles.message}>{inbox.banner}</Text> : null}
@@ -3246,22 +3360,7 @@ function FindScreen({
   const [query, setQuery] = useState("");
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
-      <Text style={styles.sectionHeading}>Find</Text>
+
       <TextInput
         style={styles.input}
         value={query}
@@ -3332,20 +3431,7 @@ function Sprints({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
+
       <Text style={styles.sectionHeading}>{planning ? planning.title : "Sprints"}</Text>
       {planning ? (
         <View style={styles.toolbarActions}>
@@ -3444,19 +3530,13 @@ function SprintScreen({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Back" onPress={onBack} disabled={busy} />
-        </View>
-      </View>
+
       {detail === null && refreshing ? <ActivityIndicator color="#0068B0" /> : null}
       {detail === null && !refreshing ? <Text style={styles.message}>{NEEDS_CONNECTION}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {notice ? <Text style={styles.message}>{notice}</Text> : null}
       {detail ? (
         <View>
-          <Text style={styles.sectionHeading}>{detail.name}</Text>
           <Text style={styles.message}>
             {detail.stateLabel}
             {detail.goal ? ` — ${detail.goal}` : ""}
@@ -3475,8 +3555,9 @@ function SprintScreen({
               <Text style={styles.issueKey}>{row.key || "New"}</Text>
               <Text style={styles.issueTitle}>{row.title}</Text>
               <Text style={styles.issueStatus}>
-                {row.typeLabel} · {row.priority} · {row.statusLabel} · {row.assignee}
+                {row.typeLabel} · {row.priority} · {row.assignee}
               </Text>
+              <StatusChip label={row.statusLabel} status={row.status} />
               {row.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
             </Pressable>
           ))}
@@ -3536,21 +3617,7 @@ function Backlog({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
+
       <Text style={styles.sectionHeading}>{backlog ? backlog.title : "Backlog"}</Text>
       {backlog ? (
         <View style={styles.toolbarActions}>
@@ -3689,22 +3756,7 @@ function Board({
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Projects" onPress={onProjects} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
-      <Text style={styles.sectionHeading}>{board ? board.title : "Board"}</Text>
+
       {board ? (
         <View style={styles.toolbarActions}>
           <TextButton label="All" onPress={() => onProject(null)} disabled={busy} />
@@ -3787,6 +3839,7 @@ function Work({
   onCreate,
   onSignOut,
   onOpenIssue,
+  onOpenProject,
   onHome,
   onBoard,
   onBacklog,
@@ -3807,32 +3860,36 @@ function Work({
       }
       style={styles.work}
     >
-      <View style={styles.toolbar}>
-        <Text style={styles.signedIn}>Signed in as {account.displayName}</Text>
-        <View style={styles.toolbarActions}>
-          <TextButton label="Home" onPress={onHome} disabled={busy} />
-          <TextButton label="Board" onPress={onBoard} disabled={busy} />
-          <TextButton label="Backlog" onPress={onBacklog} disabled={busy} />
-          <TextButton label="Sprints" onPress={onSprints} disabled={busy} />
-          <TextButton label="Schedules" onPress={onSchedules} disabled={busy} />
-          <TextButton label="Find" onPress={onFind} disabled={busy} />
-          <TextButton label="Calendar" onPress={onCalendar} disabled={busy} />
-          <TextButton label="Create" onPress={onCreate} disabled={busy} />
-          <TextButton label="Settings" onPress={onSettings} disabled={busy} />
-          <TextButton label="Sign out" onPress={onSignOut} disabled={busy} />
-        </View>
-      </View>
+
       {sections === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {sections && sections.length === 0 && !error ? (
         <Text style={styles.message}>{NO_PROJECTS}</Text>
       ) : null}
       {sections
-        ? sections.map((section) => (
-            <View key={section.projectId} style={styles.project}>
-              <Text style={styles.projectName}>
-                {section.projectKey} · {section.projectName}
-              </Text>
+        ? sections.map((section) => {
+            const open = section.issues.filter(
+              (issue) => issue.status !== "done" && issue.status !== "cancelled",
+            ).length;
+            return (
+            <View key={section.projectId}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => onOpenProject(section.projectId)}
+                style={styles.projectCard}
+              >
+                <View style={[styles.projectMark, { backgroundColor: projectColor(section.projectKey) }]}>
+                  <Text style={styles.projectMarkText}>{(section.projectKey || "?").slice(0, 1)}</Text>
+                </View>
+                <View style={styles.projectCardBody}>
+                  <Text style={styles.projectCardName}>{section.projectName}</Text>
+                  <Text style={styles.projectCardMeta}>
+                    {section.projectKey}
+                    {section.saved ? ` · ${open} open` : ""}
+                  </Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
               {!section.saved ? (
                 <Text style={styles.message}>
                   This project has not been saved on this phone yet.
@@ -3855,12 +3912,13 @@ function Work({
                 >
                   <Text style={styles.issueKey}>{issue.key || "New"}</Text>
                   <Text style={styles.issueTitle}>{issue.title}</Text>
-                  <Text style={styles.issueStatus}>{issue.statusLabel}</Text>
+                  <StatusChip label={issue.statusLabel} status={issue.status} />
                   {issue.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
                 </Pressable>
               ))}
             </View>
-          ))
+            );
+          })
         : null}
     </ScrollView>
   );
@@ -3871,6 +3929,7 @@ function IssueDetail({
   issueId,
   library,
   onBack,
+  onRegisterBack,
   onUnauthorized,
   onRemember,
   onKeepPhone,
@@ -3987,6 +4046,14 @@ function IssueDetail({
     }
     setStack((current) => current.slice(0, -1));
   }
+
+  useEffect(() => {
+    if (!onRegisterBack) {
+      return undefined;
+    }
+    onRegisterBack(goBack);
+    return () => onRegisterBack(null);
+  });
 
   function askDelete() {
     const name = `${(page && page.key) || "New"} ${(saved && saved.raw && saved.raw.title) || ""}`.trim();
@@ -4115,7 +4182,6 @@ function IssueDetail({
 
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
-      <TextButton label="Back" onPress={goBack} disabled={false} />
       {editing && saved && saved.raw ? (
         <EditIssue
           account={account}
@@ -4177,6 +4243,7 @@ function IssueDetail({
           ) : null}
           <Text style={styles.issueKey}>{page.key || "New"}</Text>
           <Text style={styles.detailTitle}>{page.title}</Text>
+          <StatusChip label={page.statusLabel} status={page.status} />
           {saved && saved.raw && !(saved.conflict) ? (
             <View style={styles.toolbarActions}>
               <TextButton label="Edit" onPress={() => setEditing(true)} disabled={false} />
@@ -4360,10 +4427,10 @@ function IssueDetail({
 
 function DetailLine({ label, value }) {
   return (
-    <Text style={styles.detailLine}>
-      <Text style={styles.detailLabel}>{label}: </Text>
-      {value}
-    </Text>
+    <View style={styles.fieldRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.fieldValue}>{value || "None"}</Text>
+    </View>
   );
 }
 
@@ -4445,6 +4512,131 @@ function Runs({ runs }) {
       {run.text}
     </Text>
   ));
+}
+
+function initials(name) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) {
+    return "K";
+  }
+  return parts.slice(0, 2).map((part) => part.slice(0, 1).toUpperCase()).join("");
+}
+
+function projectColor(key) {
+  let hash = 0;
+  const text = String(key || "");
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash + text.charCodeAt(index)) % MARKS.length;
+  }
+  return MARKS[hash];
+}
+
+function chipTone(status, label) {
+  const value = status || "";
+  const text = label || "";
+  if (value === "done" || value === "cancelled" || text === "Done" || text === "Cancelled") {
+    return "done";
+  }
+  if (value === "in_progress" || value === "in_review" || text === "In Progress" || text === "In Review") {
+    return "active";
+  }
+  if (value === "blocked" || text === "Blocked") {
+    return "blocked";
+  }
+  return "open";
+}
+
+function StatusChip({ label, status }) {
+  const tone = chipTone(status, label);
+  return (
+    <View style={[styles.chip, styles[`chip${tone}`]]}>
+      <Text style={[styles.chipText, styles[`chipText${tone}`]]}>{label}</Text>
+    </View>
+  );
+}
+
+function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar }) {
+  return (
+    <View style={styles.appBar}>
+      <Pressable
+        accessibilityLabel={menu ? "Open menu" : "Back"}
+        accessibilityRole="button"
+        onPress={menu ? onMenu : onBack}
+        style={styles.appBarSide}
+      >
+        <Text style={styles.appBarIcon}>{menu ? "☰" : "‹"}</Text>
+      </Pressable>
+      <Text numberOfLines={1} style={styles.appBarTitle}>{title}</Text>
+      <Pressable accessibilityLabel="Account" accessibilityRole="button" onPress={onAvatar} style={styles.avatar}>
+        <Text style={styles.avatarText}>{initialsText}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function TabBar({ phase, onHome, onProjects, onBoard, onFind }) {
+  const tabs = [
+    { id: "home", label: "Home", onPress: onHome },
+    { id: "projects", label: "Projects", onPress: onProjects },
+    { id: "board", label: "Board", onPress: onBoard },
+    { id: "find", label: "Find", onPress: onFind },
+  ];
+  return (
+    <View style={styles.tabBar}>
+      {tabs.map((tab) => {
+        const active = phase === tab.id;
+        return (
+          <Pressable key={tab.id} accessibilityRole="button" onPress={tab.onPress} style={styles.tab}>
+            <Text style={[styles.tabLabel, active ? styles.tabLabelActive : null]}>{tab.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
+  const items = [
+    { id: "home", label: "Home" },
+    { id: "projects", label: "Projects" },
+    { id: "board", label: "Board" },
+    { id: "backlog", label: "Backlog" },
+    { id: "sprints", label: "Sprints" },
+    { id: "schedules", label: "Schedules" },
+    { id: "calendar", label: "Calendar" },
+    { id: "find", label: "Find" },
+    { id: "create", label: "Create issue" },
+    { id: "settings", label: "Settings" },
+  ];
+  return (
+    <View style={styles.drawerLayer}>
+      <Pressable accessibilityLabel="Close menu" onPress={onClose} style={styles.drawerScrim} />
+      <View style={styles.drawer}>
+        <View style={styles.drawerHead}>
+          <View style={styles.avatarLarge}>
+            <Text style={[styles.avatarText, styles.avatarTextOnBrand]}>{initials(name)}</Text>
+          </View>
+          <Text style={styles.drawerName}>{name}</Text>
+          {label ? <Text style={styles.drawerLabel}>{label}</Text> : null}
+        </View>
+        <ScrollView>
+          {items.map((item) => (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              onPress={() => onSelect(item.id)}
+              style={[styles.drawerRow, phase === item.id ? styles.drawerRowActive : null]}
+            >
+              <Text style={[styles.drawerItem, phase === item.id ? styles.drawerItemActive : null]}>{item.label}</Text>
+            </Pressable>
+          ))}
+          <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.drawerRow}>
+            <Text style={styles.drawerSignOut}>Sign out</Text>
+          </Pressable>
+        </ScrollView>
+      </View>
+    </View>
+  );
 }
 
 function TextButton({ label, onPress, disabled }) {
@@ -4574,15 +4766,257 @@ function PrimaryButton({ label, onPress, disabled }) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F4F7FB",
     paddingHorizontal: 24,
     paddingTop: 72,
+  },
+  shell: {
+    backgroundColor: "#F4F7FB",
+    flex: 1,
+  },
+  shellBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+  },
+  appBar: {
+    alignItems: "center",
+    backgroundColor: "#0068B0",
+    flexDirection: "row",
+    minHeight: TOP_INSET + 56,
+    paddingBottom: 10,
+    paddingHorizontal: 8,
+    paddingTop: TOP_INSET,
+  },
+  appBarSide: {
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  appBarIcon: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    fontWeight: "700",
+  },
+  appBarTitle: {
+    color: "#FFFFFF",
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "700",
+    marginHorizontal: 8,
+  },
+  avatar: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
+  avatarLarge: {
+    alignItems: "center",
+    backgroundColor: "#0068B0",
+    borderRadius: 28,
+    height: 56,
+    justifyContent: "center",
+    width: 56,
+  },
+  avatarText: {
+    color: "#0068B0",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  avatarTextOnBrand: {
+    color: "#FFFFFF",
+    fontSize: 18,
+  },
+  tabBar: {
+    backgroundColor: "#FFFFFF",
+    borderTopColor: "#E6EEF5",
+    borderTopWidth: 1,
+    flexDirection: "row",
+    paddingBottom: 10,
+    paddingTop: 8,
+  },
+  tab: {
+    alignItems: "center",
+    flex: 1,
+  },
+  tabLabel: {
+    color: "#8AA0B2",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  tabLabelActive: {
+    color: "#0068B0",
+  },
+  fab: {
+    alignItems: "center",
+    backgroundColor: "#0068B0",
+    borderRadius: 28,
+    bottom: 72,
+    elevation: 6,
+    height: 56,
+    justifyContent: "center",
+    position: "absolute",
+    right: 20,
+    width: 56,
+  },
+  fabText: {
+    color: "#FFFFFF",
+    fontSize: 32,
+    lineHeight: 34,
+    fontWeight: "400",
+  },
+  drawerLayer: {
+    ...StyleSheet.absoluteFillObject,
+    elevation: 12,
+    zIndex: 20,
+  },
+  drawerScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 35, 52, 0.45)",
+  },
+  drawer: {
+    backgroundColor: "#FFFFFF",
+    bottom: 0,
+    left: 0,
+    paddingTop: TOP_INSET,
+    position: "absolute",
+    top: 0,
+    width: "82%",
+  },
+  drawerHead: {
+    borderBottomColor: "#E6EEF5",
+    borderBottomWidth: 1,
+    padding: 20,
+  },
+  drawerName: {
+    color: "#0062AB",
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 12,
+  },
+  drawerLabel: {
+    color: "#5C7A90",
+    fontSize: 14,
+    marginTop: 2,
+  },
+  drawerRow: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  drawerRowActive: {
+    backgroundColor: "#E8F3FB",
+  },
+  drawerItem: {
+    color: "#0062AB",
+    fontSize: 16,
+  },
+  drawerItemActive: {
+    color: "#0068B0",
+    fontWeight: "700",
+  },
+  drawerSignOut: {
+    color: "#9A3412",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  projectCard: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E6EEF5",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    marginTop: 12,
+    padding: 12,
+  },
+  projectMark: {
+    alignItems: "center",
+    borderRadius: 10,
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  projectMarkText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  projectCardBody: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  projectCardName: {
+    color: "#123044",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  projectCardMeta: {
+    color: "#5C7A90",
+    fontSize: 13,
+    marginTop: 2,
+  },
+  chevron: {
+    color: "#8AA0B2",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  chip: {
+    alignSelf: "flex-start",
+    borderRadius: 8,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  chipopen: {
+    backgroundColor: "#E8F3FB",
+  },
+  chipactive: {
+    backgroundColor: "#E5F4F2",
+  },
+  chipdone: {
+    backgroundColor: "#E7F6EE",
+  },
+  chipblocked: {
+    backgroundColor: "#FDECEC",
+  },
+  chipText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  chipTextopen: {
+    color: "#0068B0",
+  },
+  chipTextactive: {
+    color: "#0F7A73",
+  },
+  chipTextdone: {
+    color: "#0F7A73",
+  },
+  chipTextblocked: {
+    color: "#9A3412",
+  },
+  fieldRow: {
+    borderBottomColor: "#E6EEF5",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+  },
+  fieldValue: {
+    color: "#123044",
+    flex: 1,
+    fontSize: 15,
+    textAlign: "right",
   },
   work: {
     flex: 1,
   },
   workContent: {
-    paddingBottom: 32,
+    paddingBottom: 96,
+    paddingTop: 8,
   },
   toolbar: {
     marginBottom: 8,
@@ -4603,7 +5037,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   project: {
-    marginTop: 20,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E6EEF5",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 12,
+    padding: 12,
   },
   projectName: {
     color: "#0068B0",
@@ -4619,16 +5058,20 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   boardColumn: {
+    backgroundColor: "#E8EEF4",
+    borderRadius: 12,
     marginRight: 12,
+    padding: 8,
     width: 260,
   },
   issue: {
-    borderColor: "#0068B0",
-    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E6EEF5",
+    borderRadius: 12,
     borderWidth: 1,
     marginTop: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   issueKey: {
     color: "#0068B0",
@@ -4714,7 +5157,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   detailLabel: {
+    color: "#5C7A90",
+    fontSize: 15,
     fontWeight: "700",
+    marginRight: 12,
   },
   sectionHeading: {
     color: "#0068B0",
@@ -4768,10 +5214,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   input: {
-    borderColor: "#0068B0",
-    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    borderColor: "#D6E4EF",
+    borderRadius: 12,
     borderWidth: 1,
-    color: "#0062AB",
+    color: "#123044",
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -4799,7 +5246,7 @@ const styles = StyleSheet.create({
   button: {
     alignItems: "center",
     backgroundColor: "#0068B0",
-    borderRadius: 8,
+    borderRadius: 12,
     marginTop: 16,
     minHeight: 48,
     justifyContent: "center",

@@ -229,6 +229,7 @@ function issuePage({
     assigneeId: issue.assignee_id || null,
     title: issue.title,
     typeLabel: typeLabel(issue.type),
+    status: issue.status,
     statusLabel: statusLabel(issue.status),
     priorityLabel: priorityLabel(issue.priority),
     assignee: personName(users, issue.assignee_id, "Unassigned"),

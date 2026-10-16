@@ -134,6 +134,7 @@ function workView(store) {
         id: issue.id,
         key: issue.page ? issue.page.key : issue.raw.key,
         title: issue.page ? issue.page.title : issue.raw.title,
+        status: issue.raw ? issue.raw.status : "",
         statusLabel: issue.page
           ? issue.page.statusLabel
           : statusLabel(issue.raw.status),

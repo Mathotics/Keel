@@ -131,6 +131,7 @@ function presentIssue(raw, pending, people) {
     title: raw.title || "",
     typeLabel: TYPE_LABELS[raw.type] || raw.type || "",
     priority: String(raw.priority || "").toUpperCase(),
+    status: raw.status,
     statusLabel: statusLabel(raw.status),
     assignee: personName(people, raw.assignee_id),
     pending: Boolean(pending),
