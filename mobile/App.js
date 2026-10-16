@@ -8,6 +8,7 @@ import {
   Alert,
   AppState,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   RefreshControl,
@@ -2733,6 +2734,7 @@ export default function App() {
           onRevoke={askRevokeDevice}
           onSavePassword={savePassword}
           onSaveProfile={saveProfile}
+          onSignOut={onSignOut}
         />
       ) : null}
       {phase === "settings" && account ? (
@@ -5078,6 +5080,20 @@ function TabBar({ phase, onHome, onProjects, onBoard, onFind }) {
 
 function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
   const { height, width } = useWindowDimensions();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const swipeLeft = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+        gesture.dx <= -24 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderRelease: (_event, gesture) => {
+        if (gesture.dx <= -48 || gesture.vx <= -0.4) {
+          closeRef.current();
+        }
+      },
+      onPanResponderTerminationRequest: () => false,
+    }),
+  ).current;
   const items = [
     { id: "home", label: "Home" },
     { id: "projects", label: "Projects" },
@@ -5092,7 +5108,7 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
   ];
   return (
     <Modal animationType="fade" onRequestClose={onClose} statusBarTranslucent transparent visible>
-      <View style={styles.drawerLayer}>
+      <View style={styles.drawerLayer} {...swipeLeft.panHandlers}>
         <Pressable
           accessibilityLabel="Close menu"
           onPress={onClose}
@@ -5157,6 +5173,7 @@ function AccountScreen({
   onAddPerson,
   onRenamePerson,
   onDeletePerson,
+  onSignOut,
 }) {
   const profile = view && view.profile;
   const [displayName, setDisplayName] = useState(profile ? profile.display_name : "");
@@ -5319,6 +5336,15 @@ function AccountScreen({
               }
             }}
           />
+          <Pressable
+            accessibilityLabel="Log Out"
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={onSignOut}
+            style={styles.logOutButton}
+          >
+            <Text style={styles.logOutButtonText}>Log Out</Text>
+          </Pressable>
         </View>
       ) : null}
     </ScrollView>
@@ -5614,6 +5640,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   drawerSignOut: {
+    color: "#9A3412",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  logOutButton: {
+    alignItems: "center",
+    borderColor: "#9A3412",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 28,
+    minHeight: 48,
+    justifyContent: "center",
+  },
+  logOutButtonText: {
     color: "#9A3412",
     fontSize: 16,
     fontWeight: "700",
