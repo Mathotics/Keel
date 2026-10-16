@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Series
 from keel.domain.enums import SeriesState
-from keel.schemas.series import SeriesCreate, SeriesRead, SeriesUpdate
+from keel.domain.errors import InvalidSeriesError
+from keel.schemas.series import OccurrenceEdit, SeriesCreate, SeriesRead, SeriesUpdate
+from keel.services import history as history_service
 from keel.services import labels as label_service
 from keel.services import series as series_service
 
@@ -134,6 +136,57 @@ def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
         session,
         series_service.set_state(session, series_id, SeriesState.ACTIVE),
     )
+
+
+@router.post("/issues/{issue_id}/series", response_model=SeriesRead)
+def edit_occurrence(
+    issue_id: int,
+    payload: OccurrenceEdit,
+    session: SessionDep,
+    acting_user: ActingUserDep,
+) -> SeriesRead:
+    supplied = payload.model_fields_set
+    kwargs: dict[str, object] = {}
+    for name in (
+        "title",
+        "description",
+        "priority",
+        "spawn_mode",
+        "sprint_basis",
+        "freq",
+        "interval",
+        "month_day",
+        "nth_week",
+        "month",
+        "starts_on",
+        "ends_on",
+        "occurrence_count",
+        "look_ahead_n",
+        "start_offset_days",
+        "start_minute_of_day",
+        "due_offset_days",
+        "due_minute_of_day",
+        "labels",
+    ):
+        if name in supplied:
+            kwargs[name] = getattr(payload, name)
+    if "weekdays" in supplied:
+        kwargs["weekdays"] = tuple(payload.weekdays or ())
+    actor_name = (
+        history_service.SYSTEM_ACTOR
+        if acting_user is None
+        else acting_user.display_name
+    )
+    issue = series_service.apply_occurrence_edit(
+        session,
+        issue_id,
+        payload.scope,
+        actor_name=actor_name,
+        **kwargs,  # type: ignore[arg-type]
+    )
+    if issue.series_id is None:
+        raise InvalidSeriesError("This issue is not part of a series.")
+    return _read(session, series_service.get_series(session, issue.series_id))
 
 
 @router.delete("/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT)

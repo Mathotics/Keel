@@ -156,3 +156,49 @@ def test_the_series_api_stores_labels_on_spawned_copies(client: TestClient) -> N
         json={"labels": []},
     )
     assert patched.json()["labels"] == []
+
+
+def test_an_occurrence_edit_can_cover_one_copy_or_the_series(
+    client: TestClient,
+) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "ONCE", "name": "Once"},
+    ).json()
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"title": "Backup", "type": "story"},
+    ).json()
+    created = client.post(
+        f"/api/v1/projects/{project['id']}/series",
+        json={
+            "title": "Backup",
+            "type": "story",
+            "spawn_mode": "calendar",
+            "sprint_basis": "created_on",
+            "freq": "daily",
+            "starts_on": "2026-09-12",
+            "seed_issue_id": issue["id"],
+        },
+    )
+    assert created.status_code == 201
+    series_id = created.json()["id"]
+    one = client.post(
+        f"/api/v1/issues/{issue['id']}/series",
+        json={"scope": "this", "title": "Just this"},
+    )
+    assert one.status_code == 200
+    assert one.json()["title"] == "Backup"
+    assert client.get(f"/api/v1/issues/{issue['id']}").json()["title"] == "Just this"
+    whole = client.post(
+        f"/api/v1/issues/{issue['id']}/series",
+        json={"scope": "series", "title": "All of them"},
+    )
+    assert whole.status_code == 200
+    assert whole.json()["id"] == series_id
+    assert whole.json()["title"] == "All of them"
+    missing = client.post(
+        "/api/v1/issues/404/series",
+        json={"scope": "this", "title": "Gone"},
+    )
+    assert missing.status_code == 404

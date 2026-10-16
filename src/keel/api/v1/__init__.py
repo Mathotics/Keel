@@ -4,6 +4,7 @@ from keel.api.v1 import (
     boards,
     comments,
     dependencies,
+    find,
     issues,
     labels,
     login,
@@ -26,3 +27,4 @@ router.include_router(sprints.router)
 router.include_router(series.router)
 router.include_router(dependencies.router)
 router.include_router(comments.router)
+router.include_router(find.router)

@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from keel.db.models import Series
 from keel.domain.enums import (
     INITIAL_PRIORITY,
+    EditScope,
     IssuePriority,
     IssueType,
     RecurrenceFreq,
@@ -69,6 +70,32 @@ class SeriesUpdate(BaseModel):
     assignee_id: int | None = None
     labels: list[str] | None = None
     state: SeriesState | None = None
+
+
+class OccurrenceEdit(BaseModel):
+    """Outlook-scoped recipe edit from one issue."""
+
+    scope: EditScope
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    description: str | None = None
+    priority: IssuePriority | None = None
+    spawn_mode: SeriesSpawnMode | None = None
+    sprint_basis: SeriesSprintBasis | None = None
+    freq: RecurrenceFreq | None = None
+    interval: int | None = Field(default=None, ge=1)
+    weekdays: list[int] | None = None
+    month_day: int | None = None
+    nth_week: int | None = None
+    month: int | None = None
+    starts_on: date | None = None
+    ends_on: date | None = None
+    occurrence_count: int | None = Field(default=None, ge=1)
+    look_ahead_n: int | None = Field(default=None, ge=1)
+    start_offset_days: int | None = Field(default=None, ge=0)
+    start_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
+    due_offset_days: int | None = Field(default=None, ge=0)
+    due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
+    labels: list[str] | None = None
 
 
 class SeriesRead(BaseModel):

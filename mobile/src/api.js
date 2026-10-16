@@ -152,12 +152,89 @@ async function loadProfile(origin, token) {
   return read(origin, token, "/api/v1/profile");
 }
 
+async function loadBoards(origin, token, projects) {
+  return Promise.all(
+    (projects || []).map(async (project) => {
+      const board = await read(origin, token, `/api/v1/projects/${project.id}/board`);
+      return { ...board, projectKey: project.key };
+    }),
+  );
+}
+
+async function loadProjectSprints(origin, token, project) {
+  const sprints = await read(origin, token, `/api/v1/projects/${project.id}/sprints`);
+  return sprints || [];
+}
+
+async function loadBacklog(origin, token, project) {
+  const [issues, sprints] = await Promise.all([
+    read(origin, token, `/api/v1/projects/${project.id}/backlog`),
+    read(origin, token, `/api/v1/projects/${project.id}/sprints`),
+  ]);
+  return {
+    issues: (issues || []).map((issue) => ({ ...issue, projectKey: project.key })),
+    sprints: sprints || [],
+  };
+}
+
+async function loadCalendarIssues(origin, token, projects, userId, projectId) {
+  if (projectId != null) {
+    const project = (projects || []).find((item) => item.id === projectId);
+    if (!project) {
+      return [];
+    }
+    const issues = await read(origin, token, `/api/v1/projects/${project.id}/issues`);
+    return (issues || []).map((issue) => ({ ...issue, projectKey: project.key }));
+  }
+  return loadInboxIssues(origin, token, projects, userId);
+}
+
+async function loadInboxIssues(origin, token, projects, userId) {
+  const lists = await Promise.all(
+    (projects || []).map(async (project) => {
+      const issues = await read(
+        origin,
+        token,
+        `/api/v1/projects/${project.id}/issues?assignee_id=${userId}`,
+      );
+      return (issues || []).map((issue) => ({ ...issue, projectKey: project.key }));
+    }),
+  );
+  return lists.flat();
+}
+
+async function loadCompletedAt(origin, token, issues) {
+  const done = (issues || []).filter((issue) => issue.status === "done");
+  const times = {};
+  await Promise.all(
+    done.map(async (issue) => {
+      let history = [];
+      try {
+        history = await read(origin, token, `/api/v1/issues/${issue.id}/history`);
+      } catch (error) {
+        if (error.status !== 404) {
+          throw error;
+        }
+      }
+      const events = (history || []).filter((event) => event.field === "status");
+      const latest = events[events.length - 1];
+      if (!latest) {
+        times[issue.id] = issue.created_at;
+      } else if (latest.to_value === "Done") {
+        times[issue.id] = latest.created_at;
+      }
+    }),
+  );
+  return times;
+}
+
 async function loadIssueDetail(origin, token, issueId) {
-  const [issue, children, dependencies, users] = await Promise.all([
+  const [issue, children, dependencies, users, comments] = await Promise.all([
     read(origin, token, `/api/v1/issues/${issueId}`),
     read(origin, token, `/api/v1/issues/${issueId}/children`),
     read(origin, token, `/api/v1/issues/${issueId}/dependencies`),
     read(origin, token, "/api/v1/users"),
+    read(origin, token, `/api/v1/issues/${issueId}/comments`),
   ]);
   const parent = issue.parent_id
     ? await read(origin, token, `/api/v1/issues/${issue.parent_id}`)
@@ -186,6 +263,7 @@ async function loadIssueDetail(origin, token, issueId) {
       history,
       historyAvailable,
       sprint,
+      comments,
     }),
   };
 }
@@ -230,10 +308,16 @@ async function send(origin, token, method, path, payload) {
 }
 
 module.exports = {
+  loadBacklog,
+  loadBoards,
+  loadCalendarIssues,
   loadCatalog,
+  loadCompletedAt,
+  loadInboxIssues,
   loadIssue,
   loadIssueDetail,
   loadProfile,
+  loadProjectSprints,
   loadSnapshots,
   loadWork,
   login,
