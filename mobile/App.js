@@ -5496,16 +5496,19 @@ const styles = StyleSheet.create({
     borderTopColor: "#E6EEF5",
     borderTopWidth: 1,
     flexDirection: "row",
-    paddingBottom: 10,
-    paddingTop: 8,
+    paddingBottom: 6,
+    paddingTop: 4,
   },
   tab: {
     alignItems: "center",
     flex: 1,
+    justifyContent: "center",
+    minHeight: 56,
+    paddingVertical: 12,
   },
   tabLabel: {
     color: "#8AA0B2",
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
   },
   tabLabelActive: {
@@ -5515,7 +5518,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#0068B0",
     borderRadius: 28,
-    bottom: 72,
+    bottom: 88,
     elevation: 6,
     height: 56,
     justifyContent: "center",
@@ -5680,7 +5683,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   workContent: {
-    paddingBottom: 96,
+    paddingBottom: 112,
     paddingTop: 8,
   },
   toolbar: {
