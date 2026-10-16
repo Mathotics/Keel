@@ -1695,7 +1695,7 @@ export default function App() {
       schedule: "Schedule",
       create: "Create issue",
       settings: "Settings",
-      account: "Account",
+      account: "Profile",
       issue: "Issue",
     };
     return titles[phase] || "Keel";
@@ -5048,7 +5048,7 @@ function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar }) {
         <Text style={styles.appBarIcon}>{menu ? "☰" : "‹"}</Text>
       </Pressable>
       <Text numberOfLines={1} style={styles.appBarTitle}>{title}</Text>
-      <Pressable accessibilityLabel="Account" accessibilityRole="button" onPress={onAvatar} style={styles.avatar}>
+      <Pressable accessibilityLabel="Profile" accessibilityRole="button" hitSlop={12} onPress={onAvatar} style={styles.avatar}>
         <Text style={styles.avatarText}>{initialsText}</Text>
       </Pressable>
     </View>
@@ -5088,8 +5088,7 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
     { id: "calendar", label: "Calendar" },
     { id: "find", label: "Find" },
     { id: "create", label: "Create issue" },
-    { id: "account", label: "Account" },
-    { id: "settings", label: "Settings" },
+    { id: "account", label: "Profile" },
   ];
   return (
     <Modal animationType="fade" onRequestClose={onClose} transparent visible>
@@ -5103,7 +5102,7 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
           <Text style={styles.drawerName}>{name}</Text>
           {label ? <Text style={styles.drawerLabel}>{label}</Text> : null}
         </View>
-        <ScrollView>
+        <ScrollView style={styles.drawerList}>
           {items.map((item) => (
             <Pressable
               key={item.id}
@@ -5114,10 +5113,17 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
               <Text style={[styles.drawerItem, phase === item.id ? styles.drawerItemActive : null]}>{item.label}</Text>
             </Pressable>
           ))}
-          <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.drawerRow}>
-            <Text style={styles.drawerSignOut}>Sign out</Text>
-          </Pressable>
         </ScrollView>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onSelect("settings")}
+          style={[styles.drawerRow, styles.drawerSettings, phase === "settings" ? styles.drawerRowActive : null]}
+        >
+          <Text style={[styles.drawerItem, phase === "settings" ? styles.drawerItemActive : null]}>Settings</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onSignOut} style={styles.drawerRow}>
+          <Text style={styles.drawerSignOut}>Sign out</Text>
+        </Pressable>
         </View>
       </View>
     </Modal>
@@ -5192,7 +5198,7 @@ function AccountScreen({
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {profile ? (
         <View>
-          <Text style={styles.sectionHeading}>Your account</Text>
+          <Text style={styles.sectionHeading}>Profile</Text>
           <Field label="Display name" value={displayName} onChange={setDisplayName} />
           <Field label="Username" value={login} onChange={setLogin} />
           {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
@@ -5558,6 +5564,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E6EEF5",
     borderBottomWidth: 1,
     padding: 20,
+  },
+  drawerList: {
+    flex: 1,
+  },
+  drawerSettings: {
+    borderTopColor: "#E6EEF5",
+    borderTopWidth: 1,
   },
   drawerName: {
     color: "#0062AB",
