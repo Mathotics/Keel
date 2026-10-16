@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -16,6 +17,7 @@ import {
   Switch,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -5039,6 +5041,7 @@ function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar }) {
       <Pressable
         accessibilityLabel={menu ? "Open menu" : "Back"}
         accessibilityRole="button"
+        hitSlop={12}
         onPress={menu ? onMenu : onBack}
         style={styles.appBarSide}
       >
@@ -5074,6 +5077,7 @@ function TabBar({ phase, onHome, onProjects, onBoard, onFind }) {
 }
 
 function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
+  const { width } = useWindowDimensions();
   const items = [
     { id: "home", label: "Home" },
     { id: "projects", label: "Projects" },
@@ -5088,9 +5092,10 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
     { id: "settings", label: "Settings" },
   ];
   return (
-    <View style={styles.drawerLayer}>
-      <Pressable accessibilityLabel="Close menu" onPress={onClose} style={styles.drawerScrim} />
-      <View style={styles.drawer}>
+    <Modal animationType="fade" onRequestClose={onClose} transparent visible>
+      <View style={styles.drawerLayer}>
+        <Pressable accessibilityLabel="Close menu" onPress={onClose} style={styles.drawerScrim} />
+        <View style={[styles.drawer, { width: Math.round(width * 0.82) }]}>
         <View style={styles.drawerHead}>
           <View style={styles.avatarLarge}>
             <Text style={[styles.avatarText, styles.avatarTextOnBrand]}>{initials(name)}</Text>
@@ -5113,8 +5118,9 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
             <Text style={styles.drawerSignOut}>Sign out</Text>
           </Pressable>
         </ScrollView>
+        </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
@@ -5450,9 +5456,9 @@ const styles = StyleSheet.create({
   },
   appBarSide: {
     alignItems: "center",
-    height: 40,
+    height: 48,
     justifyContent: "center",
-    width: 40,
+    width: 48,
   },
   appBarIcon: {
     color: "#FFFFFF",
@@ -5533,9 +5539,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   drawerLayer: {
-    ...StyleSheet.absoluteFillObject,
-    elevation: 12,
-    zIndex: 20,
+    flex: 1,
   },
   drawerScrim: {
     ...StyleSheet.absoluteFillObject,
@@ -5544,11 +5548,11 @@ const styles = StyleSheet.create({
   drawer: {
     backgroundColor: "#FFFFFF",
     bottom: 0,
+    elevation: 16,
     left: 0,
     paddingTop: TOP_INSET,
     position: "absolute",
     top: 0,
-    width: "82%",
   },
   drawerHead: {
     borderBottomColor: "#E6EEF5",
