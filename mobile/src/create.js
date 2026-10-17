@@ -232,8 +232,23 @@ function prepareUpdate(input) {
   return { error: null, changes };
 }
 
+function assignableSprints(sprints) {
+  const labels = { active: "Active", planned: "Planned" };
+  const choices = (sprints || []).filter(
+    (sprint) => sprint.state === "active" || sprint.state === "planned",
+  );
+  return [
+    { id: "", title: "Unscheduled" },
+    ...choices.map((sprint) => ({
+      id: String(sprint.id),
+      title: `${sprint.name} (${labels[sprint.state]})`,
+    })),
+  ];
+}
+
 module.exports = {
   inputWhen,
   prepareCreate,
   prepareUpdate,
+  assignableSprints,
 };

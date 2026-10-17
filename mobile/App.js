@@ -34,6 +34,7 @@ import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, 
 import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
+import { setReachable, subscribeReachability } from "./src/reach";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, preparePerson, prepareProfile, prepareRename } from "./src/account";
@@ -62,7 +63,9 @@ import {
   workView,
 } from "./src/offline";
 import { pullLibrary } from "./src/sync";
-import { inputWhen, prepareCreate, prepareUpdate } from "./src/create";
+import { inputWhen, prepareCreate, prepareUpdate, assignableSprints } from "./src/create";
+import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
+import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
 import { formatMinutes, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
 
 const ADDRESS_KEY = "keel.serverAddress";
@@ -112,6 +115,7 @@ export default function App() {
   const listPhase = useRef("home");
   const issueBackRef = useRef(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [online, setOnline] = useState(false);
   const [remoteIssues, setRemoteIssues] = useState(null);
   const [inboxMode, setInboxMode] = useState("loading");
   const [remoteBoards, setRemoteBoards] = useState(null);
@@ -152,6 +156,7 @@ export default function App() {
   const [filterSprints, setFilterSprints] = useState([]);
   const [homeLayout, setHomeLayout] = useState(null);
   const accountRef = useRef(null);
+  const probeRef = useRef(() => {});
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
 
@@ -186,8 +191,51 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => subscribeReachability(setOnline), []);
+
+  useEffect(() => {
+    const origin = account && account.origin;
+    if (!origin) {
+      setReachable(false);
+      return undefined;
+    }
+    let stopped = false;
+    async function probe() {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 5000);
+      try {
+        const response = await fetch(healthUrl(origin), { signal: controller.signal });
+        let body = null;
+        try {
+          body = await response.json();
+        } catch {
+          body = null;
+        }
+        if (!stopped) {
+          setReachable(response.ok && isConnected(body));
+        }
+      } catch {
+        if (!stopped) {
+          setReachable(false);
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    probe();
+    probeRef.current = probe;
+    const interval = setInterval(probe, 15000);
+    return () => {
+      stopped = true;
+      clearInterval(interval);
+    };
+  }, [account]);
+
   useEffect(() => {
     const sub = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        probeRef.current();
+      }
       if (next !== "active" || prompting.current) {
         return;
       }
@@ -311,13 +359,16 @@ export default function App() {
         body = null;
       }
       if (response.ok && isConnected(body)) {
+        setReachable(true);
         setTone("ok");
         setMessage(CONNECTED);
       } else {
+        setReachable(false);
         setTone("error");
         setMessage(FAILED);
       }
     } catch {
+      setReachable(false);
       setTone("error");
       setMessage(FAILED);
     } finally {
@@ -1810,6 +1861,7 @@ export default function App() {
           }}
           onBack={shellBack}
           onMenu={() => setDrawerOpen(true)}
+          online={online}
           title={barTitle()}
         />
       ) : (
@@ -2848,7 +2900,11 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   const projects = Object.values(library.projects || {})
     .filter((project) => project.enabled)
     .sort((left, right) => left.key.localeCompare(right.key));
-  const [projectId, setProjectId] = useState(projects[0] ? String(projects[0].id) : "");
+  const opening = projects[0] || null;
+  const openingLabel = opening ? projectLabel(opening) : "";
+  const [projectId, setProjectId] = useState(opening ? String(opening.id) : "");
+  const [projectQuery, setProjectQuery] = useState(openingLabel);
+  const [projectCommitted, setProjectCommitted] = useState(openingLabel);
   const project = projects.find((item) => String(item.id) === projectId) || null;
   const [type, setType] = useState("story");
   const [title, setTitle] = useState("");
@@ -2856,7 +2912,11 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("p4");
   const [assigneeId, setAssigneeId] = useState("");
-  const [parentId, setParentId] = useState("");
+  const [assigneeQuery, setAssigneeQuery] = useState("");
+  const [assigneeCommitted, setAssigneeCommitted] = useState("");
+  const [parentIssue, setParentIssue] = useState(null);
+  const [parentQuery, setParentQuery] = useState("");
+  const [parentCommitted, setParentCommitted] = useState("");
   const [sprintId, setSprintId] = useState(project && project.sprint ? String(project.sprint.id) : "");
   const [labels, setLabels] = useState("");
   const [estimate, setEstimate] = useState("");
@@ -2864,15 +2924,30 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   const [start, setStart] = useState("");
   const [due, setDue] = useState("");
   const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
+  const [issueCatalog, setIssueCatalog] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    setParentIssue(null);
+    setParentQuery("");
+    setParentCommitted("");
     if (!project) {
+      setSprints([]);
+      setIssueCatalog([]);
+      setSprintId("");
       return undefined;
     }
     setSprintId(project.sprint ? String(project.sprint.id) : "");
-    setParentId("");
     let active = true;
+    const saved = Object.values(project.issues || {})
+      .filter((issue) => Number(issue.id) > 0 && issue.raw)
+      .map((issue) => ({
+        id: issue.id,
+        key: issue.raw.key,
+        title: issue.raw.title,
+        type: issue.raw.type,
+        projectId: project.id,
+      }));
     read(account.origin, account.token, `/api/v1/projects/${project.id}/sprints`)
       .then((rows) => {
         if (!active) {
@@ -2888,31 +2963,80 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
           setSprints(project.sprint ? [project.sprint] : []);
         }
       });
+    read(account.origin, account.token, `/api/v1/projects/${project.id}/issues`)
+      .then((rows) => {
+        if (!active) {
+          return;
+        }
+        setIssueCatalog(
+          (rows || []).map((row) => ({
+            id: row.id,
+            key: row.key,
+            title: row.title,
+            type: row.type,
+            projectId: project.id,
+          })),
+        );
+      })
+      .catch(() => {
+        if (active) {
+          setIssueCatalog(saved);
+        }
+      });
     return () => {
       active = false;
     };
   }, [account.origin, account.token, project && project.id]);
 
-  const expectedParent = type === "story" ? "epic" : type === "subtask" ? "story" : null;
-  const parents = expectedParent && project
-    ? Object.values(project.issues || {}).filter(
-        (issue) => Number(issue.id) > 0 && issue.raw && issue.raw.type === expectedParent,
-      )
-    : [];
+  function chooseProject(option) {
+    const next = projects.find((item) => item.id === option.id);
+    if (!next) {
+      return;
+    }
+    setProjectId(String(next.id));
+    setProjectQuery(option.label);
+    setProjectCommitted(option.label);
+  }
+
+  function chooseAssignee(option) {
+    setAssigneeId(option.id == null ? "" : String(option.id));
+    const shown = option.id == null ? "" : option.label;
+    setAssigneeQuery(shown);
+    setAssigneeCommitted(shown);
+  }
+
+  function chooseParent(option) {
+    setParentIssue({
+      id: option.id,
+      type: option.type,
+      projectId: option.projectId,
+    });
+    setParentQuery(option.label);
+    setParentCommitted(option.label);
+  }
 
   async function file() {
-    const parent = parents.find((issue) => String(issue.id) === parentId);
+    if (!project || lookupDirty(projectCommitted, projectQuery)) {
+      setError(LOOKUP_PROJECT);
+      return;
+    }
+    if (lookupDirty(assigneeCommitted, assigneeQuery)) {
+      setError(LOOKUP_PERSON);
+      return;
+    }
+    if (lookupDirty(parentCommitted, parentQuery)) {
+      setError(LOOKUP_ISSUE);
+      return;
+    }
     const prepared = prepareCreate({
       title,
-      projectId: project ? project.id : null,
+      projectId: project.id,
       type,
       description,
       status,
       priority,
       assigneeId: assigneeId ? Number(assigneeId) : null,
-      parent: parent
-        ? { id: parent.id, type: parent.raw.type, projectId: project.id }
-        : null,
+      parent: parentIssue,
       sprintId: sprintId ? Number(sprintId) : null,
       estimate,
       remaining,
@@ -2939,70 +3063,60 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
-      <Text style={styles.label}>Project</Text>
-      {projects.map((item) => (
-        <Choice
-          key={item.id}
-          selected={String(item.id) === projectId}
-          title={`${item.key} · ${item.name}`}
-          onPress={() => setProjectId(String(item.id))}
-        />
-      ))}
-      <Text style={styles.label}>Type</Text>
-      {TYPE_OPTIONS.map((item) => (
-        <Choice key={item.id} selected={type === item.id} title={item.title} onPress={() => setType(item.id)} />
-      ))}
+    <ScrollView contentContainerStyle={styles.workContent} keyboardShouldPersistTaps="handled" style={styles.work}>
+      <LookupField
+        label="Project"
+        placeholder="Choose a project"
+        query={projectQuery}
+        options={suggestProjects(projects, projectQuery)}
+        onChangeText={(text) => {
+          setProjectQuery(text);
+          if (!text.trim()) {
+            setProjectId("");
+            setProjectCommitted("");
+          }
+        }}
+        onPick={chooseProject}
+      />
+      <Dropdown label="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
       <Field label="Title" value={title} onChange={setTitle} />
       <Field label="Description" value={description} onChange={setDescription} multiline />
-      <Text style={styles.label}>Status</Text>
-      {STATUS_OPTIONS.map((item) => (
-        <Choice key={item.id} selected={status === item.id} title={item.title} onPress={() => setStatus(item.id)} />
-      ))}
-      <Text style={styles.label}>Priority</Text>
-      {PRIORITY_OPTIONS.map((item) => (
-        <Choice
-          key={item.id}
-          selected={priority === item.id}
-          title={item.title}
-          onPress={() => setPriority(item.id)}
-        />
-      ))}
-      <Text style={styles.label}>Assignee</Text>
-      <Choice selected={assigneeId === ""} title="Unassigned" onPress={() => setAssigneeId("")} />
-      {(library.people || []).map((person) => (
-        <Choice
-          key={person.id}
-          selected={assigneeId === String(person.id)}
-          title={person.display_name}
-          onPress={() => setAssigneeId(String(person.id))}
-        />
-      ))}
-      <Text style={styles.label}>Parent</Text>
-      <Choice selected={parentId === ""} title="No parent" onPress={() => setParentId("")} />
-      {parents.map((issue) => (
-        <Choice
-          key={issue.id}
-          selected={parentId === String(issue.id)}
-          title={`${issue.raw.key} ${issue.raw.title}`}
-          onPress={() => setParentId(String(issue.id))}
-        />
-      ))}
-      <Text style={styles.label}>Sprint</Text>
-      <Choice selected={sprintId === ""} title="Unscheduled" onPress={() => setSprintId("")} />
-      {sprints.map((sprint) => (
-        <Choice
-          key={sprint.id}
-          selected={sprintId === String(sprint.id)}
-          title={sprint.name}
-          onPress={() => setSprintId(String(sprint.id))}
-        />
-      ))}
+      <Dropdown label="Status" value={status} options={STATUS_OPTIONS} onChange={setStatus} />
+      <Dropdown label="Priority" value={priority} options={PRIORITY_OPTIONS} onChange={setPriority} />
+      <LookupField
+        label="Assignee"
+        placeholder="Unassigned"
+        query={assigneeQuery}
+        options={suggestPeople(library.people || [], assigneeQuery)}
+        onChangeText={(text) => {
+          setAssigneeQuery(text);
+          if (!text.trim()) {
+            setAssigneeId("");
+            setAssigneeCommitted("");
+          }
+        }}
+        onPick={chooseAssignee}
+      />
+      <LookupField
+        label="Parent"
+        placeholder="No parent"
+        query={parentQuery}
+        options={suggestIssues(issueCatalog, parentQuery)}
+        onChangeText={(text) => {
+          setParentQuery(text);
+          if (!text.trim()) {
+            setParentIssue(null);
+            setParentCommitted("");
+          }
+        }}
+        onPick={chooseParent}
+      />
+      <Dropdown label="Sprint" value={sprintId} options={assignableSprints(sprints)} onChange={setSprintId} />
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
-      <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
-      <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
+      <DateTimeField label="Start" value={start} onChange={setStart} />
+      <DateTimeField label="Due" value={due} onChange={setDue} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton label="Create issue" onPress={file} disabled={busy} />
     </ScrollView>
@@ -5037,7 +5151,7 @@ function StatusChip({ label, status }) {
   );
 }
 
-function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar }) {
+function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online }) {
   return (
     <View style={styles.appBar}>
       <Pressable
@@ -5050,9 +5164,29 @@ function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar }) {
         <Text style={styles.appBarIcon}>{menu ? "☰" : "‹"}</Text>
       </Pressable>
       <Text numberOfLines={1} style={styles.appBarTitle}>{title}</Text>
+      <ConnectionMark online={online} />
       <Pressable accessibilityLabel="Profile" accessibilityRole="button" hitSlop={12} onPress={onAvatar} style={styles.avatar}>
         <Text style={styles.avatarText}>{initialsText}</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function ConnectionMark({ online }) {
+  const label = online ? "Online" : "Offline";
+  return (
+    <View
+      accessibilityLabel={label}
+      accessibilityRole="image"
+      style={[styles.connection, online ? styles.connectionOnline : styles.connectionOffline]}
+    >
+      <View style={styles.wifiGlyph}>
+        <View style={[styles.wifiArc, styles.wifiArcOuter]} />
+        <View style={[styles.wifiArc, styles.wifiArcMiddle]} />
+        <View style={[styles.wifiArc, styles.wifiArcInner]} />
+        <View style={styles.wifiDot} />
+      </View>
+      {online ? null : <View style={styles.wifiSlash} />}
     </View>
   );
 }
@@ -5468,6 +5602,207 @@ function PrimaryButton({ label, onPress, disabled }) {
   );
 }
 
+function Dropdown({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.id === value);
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <Pressable
+        accessibilityLabel={label}
+        accessibilityRole="button"
+        onPress={() => setOpen(true)}
+        style={styles.dropdown}
+      >
+        <Text style={styles.dropdownText}>{selected ? selected.title : ""}</Text>
+        <Text style={styles.dropdownChevron}>▾</Text>
+      </Pressable>
+      <Modal animationType="fade" onRequestClose={() => setOpen(false)} transparent visible={open}>
+        <View style={styles.dropdownLayer}>
+          <Pressable accessibilityLabel="Close" onPress={() => setOpen(false)} style={styles.dropdownScrim} />
+          <View style={styles.dropdownSheet}>
+            <Text style={styles.dropdownHeading}>{label}</Text>
+            <ScrollView>
+              {options.map((option) => {
+                const active = option.id === value;
+                return (
+                  <Pressable
+                    key={option.id || "none"}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      onChange(option.id);
+                      setOpen(false);
+                    }}
+                    style={[styles.dropdownOption, active ? styles.dropdownOptionActive : null]}
+                  >
+                    <Text style={[styles.dropdownOptionText, active ? styles.dropdownOptionTextActive : null]}>
+                      {option.title}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function LookupField({ label, placeholder, query, options, onChangeText, onPick }) {
+  const [focused, setFocused] = useState(false);
+  const typed = String(query || "").trim();
+  const show = focused && (options.length > 0 || typed.length > 0);
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        accessibilityLabel={label}
+        autoCapitalize="none"
+        autoCorrect={false}
+        onBlur={() => setFocused(false)}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        placeholder={placeholder}
+        placeholderTextColor="#8AA0B2"
+        style={styles.input}
+        value={query}
+      />
+      {show ? (
+        <View style={styles.lookupList}>
+          {options.length ? options.map((option) => (
+            <Pressable
+              key={`${option.id}-${option.label}`}
+              accessibilityRole="button"
+              onPressIn={() => {
+                onPick(option);
+                setFocused(false);
+              }}
+              style={styles.lookupOption}
+            >
+              <Text style={styles.lookupOptionText}>{option.label}</Text>
+            </Pressable>
+          )) : (
+            <Text style={styles.lookupEmpty}>No matches</Text>
+          )}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function DateTimeField({ label, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(() => readWhen(value));
+
+  function openPicker() {
+    setDraft(readWhen(value));
+    setOpen(true);
+  }
+
+  function moveMonth(delta) {
+    const next = shiftMonth(draft.year, draft.month, delta);
+    const count = new Date(next.year, next.month + 1, 0).getDate();
+    setDraft((current) => ({
+      ...current,
+      year: next.year,
+      month: next.month,
+      day: Math.min(current.day, count),
+    }));
+  }
+
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={openPicker} style={styles.dropdown}>
+        <Text style={value ? styles.dropdownText : styles.dropdownPlaceholder}>
+          {value || "Choose a date and time"}
+        </Text>
+      </Pressable>
+      <Modal animationType="fade" onRequestClose={() => setOpen(false)} transparent visible={open}>
+        <View style={styles.dropdownLayer}>
+          <Pressable accessibilityLabel="Close" onPress={() => setOpen(false)} style={styles.dropdownScrim} />
+          <View style={styles.calendarSheet}>
+            <View style={styles.calendarHead}>
+              <Pressable accessibilityLabel="Previous month" onPress={() => moveMonth(-1)} style={styles.calendarNav}>
+                <Text style={styles.calendarNavText}>‹</Text>
+              </Pressable>
+              <Text style={styles.calendarTitle}>{monthTitle(draft.year, draft.month)}</Text>
+              <Pressable accessibilityLabel="Next month" onPress={() => moveMonth(1)} style={styles.calendarNav}>
+                <Text style={styles.calendarNavText}>›</Text>
+              </Pressable>
+            </View>
+            <View style={styles.calendarGrid}>
+              {CALENDAR_DAYS.map((day) => (
+                <Text key={day} style={styles.calendarDow}>{day}</Text>
+              ))}
+              {monthCells(draft.year, draft.month).map((day, index) => {
+                const selected = day === draft.day;
+                return (
+                  <Pressable
+                    key={`${draft.year}-${draft.month}-${index}`}
+                    accessibilityLabel={day ? `${monthTitle(draft.year, draft.month)} ${day}` : undefined}
+                    disabled={!day}
+                    onPress={() => setDraft((current) => ({ ...current, day }))}
+                    style={styles.calendarCell}
+                  >
+                    <Text style={[styles.calendarDay, selected ? styles.calendarDaySelected : null]}>
+                      {day || ""}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.timeRow}>
+              <TimeStep
+                label="Hour"
+                value={draft.hour}
+                onChange={(hour) => setDraft((current) => ({ ...current, hour }))}
+                max={23}
+              />
+              <TimeStep
+                label="Minute"
+                value={draft.minute}
+                onChange={(minute) => setDraft((current) => ({ ...current, minute }))}
+                max={59}
+              />
+            </View>
+            <View style={styles.calendarActions}>
+              <TextButton label="Clear" onPress={() => { onChange(""); setOpen(false); }} disabled={false} />
+              <TextButton label="Cancel" onPress={() => setOpen(false)} disabled={false} />
+              <TextButton
+                label="Use"
+                onPress={() => {
+                  onChange(formatWhen(draft));
+                  setOpen(false);
+                }}
+                disabled={false}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function TimeStep({ label, value, onChange, max }) {
+  return (
+    <View style={styles.timeStep}>
+      <Text style={styles.timeLabel}>{label}</Text>
+      <View style={styles.timeControls}>
+        <Pressable accessibilityLabel={`Decrease ${label}`} onPress={() => onChange(wrapUnit(value - 1, max))} style={styles.timeButton}>
+          <Text style={styles.timeButtonText}>−</Text>
+        </Pressable>
+        <Text style={styles.timeValue}>{String(value).padStart(2, "0")}</Text>
+        <Pressable accessibilityLabel={`Increase ${label}`} onPress={() => onChange(wrapUnit(value + 1, max))} style={styles.timeButton}>
+          <Text style={styles.timeButtonText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -5509,6 +5844,71 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "700",
     marginHorizontal: 8,
+  },
+  connection: {
+    alignItems: "center",
+    borderRadius: 16,
+    height: 32,
+    justifyContent: "center",
+    marginRight: 8,
+    overflow: "hidden",
+    width: 32,
+  },
+  connectionOnline: {
+    backgroundColor: "#2EAE4F",
+  },
+  connectionOffline: {
+    backgroundColor: "#8E949B",
+  },
+  wifiGlyph: {
+    alignItems: "center",
+    height: 16,
+    justifyContent: "flex-end",
+    width: 18,
+  },
+  wifiArc: {
+    borderColor: "transparent",
+    borderBottomColor: "#FFFFFF",
+    borderLeftColor: "#FFFFFF",
+    position: "absolute",
+    transform: [{ rotate: "-45deg" }],
+  },
+  wifiArcOuter: {
+    borderRadius: 9,
+    borderWidth: 2,
+    bottom: -3,
+    height: 18,
+    width: 18,
+  },
+  wifiArcMiddle: {
+    borderRadius: 6,
+    borderWidth: 2,
+    bottom: -2,
+    height: 12,
+    width: 12,
+  },
+  wifiArcInner: {
+    borderRadius: 4,
+    borderWidth: 2,
+    bottom: -1,
+    height: 7,
+    width: 7,
+  },
+  wifiDot: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 2,
+    height: 3,
+    width: 3,
+  },
+  wifiSlash: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 1,
+    height: 26,
+    left: 15,
+    position: "absolute",
+    top: 3,
+    transform: [{ rotate: "45deg" }],
+    width: 2,
   },
   avatar: {
     alignItems: "center",
@@ -5958,6 +6358,190 @@ const styles = StyleSheet.create({
     fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  dropdown: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#D6E4EF",
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    minHeight: 48,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  dropdownText: {
+    color: "#123044",
+    flex: 1,
+    fontSize: 16,
+  },
+  dropdownPlaceholder: {
+    color: "#8AA0B2",
+    flex: 1,
+    fontSize: 16,
+  },
+  dropdownChevron: {
+    color: "#0068B0",
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  dropdownLayer: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  dropdownScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 35, 52, 0.45)",
+  },
+  dropdownSheet: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    elevation: 8,
+    marginHorizontal: 24,
+    maxHeight: 420,
+    paddingVertical: 8,
+  },
+  dropdownHeading: {
+    color: "#0062AB",
+    fontSize: 16,
+    fontWeight: "700",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  dropdownOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  dropdownOptionActive: {
+    backgroundColor: "#E8F3FB",
+  },
+  dropdownOptionText: {
+    color: "#123044",
+    fontSize: 16,
+  },
+  dropdownOptionTextActive: {
+    color: "#0068B0",
+    fontWeight: "700",
+  },
+  lookupList: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#D6E4EF",
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  lookupOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  lookupOptionText: {
+    color: "#123044",
+    fontSize: 16,
+  },
+  lookupEmpty: {
+    color: "#8AA0B2",
+    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  calendarSheet: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    elevation: 8,
+    marginHorizontal: 16,
+    padding: 16,
+  },
+  calendarHead: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  calendarTitle: {
+    color: "#123044",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  calendarNav: {
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  calendarNavText: {
+    color: "#0068B0",
+    fontSize: 28,
+    fontWeight: "700",
+  },
+  calendarGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 8,
+  },
+  calendarDow: {
+    color: "#0062AB",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+    width: "14.28%",
+  },
+  calendarCell: {
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: "14.28%",
+  },
+  calendarDay: {
+    color: "#123044",
+    fontSize: 16,
+  },
+  calendarDaySelected: {
+    backgroundColor: "#0068B0",
+    borderRadius: 16,
+    color: "#FFFFFF",
+    overflow: "hidden",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  timeRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 8,
+  },
+  timeStep: {
+    alignItems: "center",
+  },
+  timeLabel: {
+    color: "#0062AB",
+    fontSize: 14,
+  },
+  timeControls: {
+    alignItems: "center",
+    flexDirection: "row",
+    marginTop: 4,
+  },
+  timeButton: {
+    alignItems: "center",
+    height: 40,
+    justifyContent: "center",
+    width: 40,
+  },
+  timeButtonText: {
+    color: "#0068B0",
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  timeValue: {
+    color: "#123044",
+    fontSize: 20,
+    fontVariant: ["tabular-nums"],
+    minWidth: 36,
+    textAlign: "center",
+  },
+  calendarActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 12,
   },
   multiline: {
     minHeight: 96,
