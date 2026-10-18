@@ -37,7 +37,7 @@ import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { setReachable, subscribeReachability } from "./src/reach";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
-import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, preparePerson, prepareProfile, prepareRename } from "./src/account";
+import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
 import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
 import {
@@ -57,6 +57,7 @@ import {
   queueRecreate,
   queueRemoveComment,
   queueUpdate,
+  presentQueue,
   rememberDetail,
   renameProject,
   storeKey,
@@ -114,6 +115,7 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const prompting = useRef(false);
   const listPhase = useRef("home");
+  const queueFrom = useRef("home");
   const issueBackRef = useRef(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [online, setOnline] = useState(false);
@@ -1463,6 +1465,18 @@ export default function App() {
     await AsyncStorage.setItem(LOCK_KEY, setting);
   }
 
+  function openQueue() {
+    if (phase !== "queue") {
+      queueFrom.current = TAB_PHASES.includes(phase) ? phase : listPhase.current;
+    }
+    if (TAB_PHASES.includes(phase)) {
+      listPhase.current = phase;
+    }
+    setMessage("");
+    setDrawerOpen(false);
+    setPhase("queue");
+  }
+
   function openLicense() {
     if (TAB_PHASES.includes(phase)) {
       listPhase.current = phase;
@@ -1607,90 +1621,6 @@ export default function App() {
     }
   }
 
-  async function reloadPeople() {
-    const catalog = await loadCatalog(account.origin, account.token);
-    const profile = await loadProfile(account.origin, account.token);
-    await rememberProfile(profile);
-    const next = { ...library, people: catalog.people || [], labels: catalog.labels || library.labels };
-    await persistLibrary(account.userId, next);
-    setAccountView((current) => current ? { ...current, profile, people: catalog.people || [] } : current);
-  }
-
-  async function addPerson(draft) {
-    const prepared = preparePerson(draft);
-    if (prepared.error) {
-      return prepared.error;
-    }
-    setBusy(true);
-    try {
-      await send(account.origin, account.token, "POST", "/api/v1/users", prepared.body);
-      await reloadPeople();
-      return null;
-    } catch (err) {
-      if (err.status === 401) {
-        await clearAccount();
-        setTone("error");
-        setMessage("Sign in.");
-        return "Sign in.";
-      }
-      return err.message || FAILED;
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function renamePerson(userId, displayName) {
-    const prepared = prepareRename(displayName);
-    if (prepared.error) {
-      return prepared.error;
-    }
-    setBusy(true);
-    try {
-      await send(account.origin, account.token, "PATCH", `/api/v1/users/${userId}`, { display_name: prepared.value });
-      await reloadPeople();
-      return null;
-    } catch (err) {
-      if (err.status === 401) {
-        await clearAccount();
-        setTone("error");
-        setMessage("Sign in.");
-        return "Sign in.";
-      }
-      return err.message || FAILED;
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function askDeletePerson(person) {
-    Alert.alert(
-      `Delete ${person.display_name}?`,
-      "This cannot be undone.",
-      [
-        { text: "Keep them", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: () => removePerson(person.id) },
-      ],
-    );
-  }
-
-  async function removePerson(userId) {
-    setBusy(true);
-    try {
-      await send(account.origin, account.token, "DELETE", `/api/v1/users/${userId}`);
-      await reloadPeople();
-    } catch (err) {
-      if (err.status === 401) {
-        await clearAccount();
-        setTone("error");
-        setMessage("Sign in.");
-        return;
-      }
-      setWorkError(err.message || FAILED);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   async function saveLabel() {
     if (!account) {
       return;
@@ -1759,6 +1689,7 @@ export default function App() {
       settings: "Settings",
       account: "Profile",
       license: "License",
+      queue: "Offline Queue",
       issue: "Issue",
     };
     return titles[phase] || "Keel";
@@ -1776,6 +1707,11 @@ export default function App() {
     if (phase === "create" || phase === "settings" || phase === "account" || phase === "license") {
       setMessage("");
       setPhase(listPhase.current);
+      return;
+    }
+    if (phase === "queue") {
+      setMessage("");
+      setPhase(queueFrom.current || "home");
       return;
     }
     if (phase === "sprint") {
@@ -1856,6 +1792,10 @@ export default function App() {
     }
     if (next === "license") {
       openLicense();
+      return;
+    }
+    if (next === "queue") {
+      openQueue();
       return;
     }
     if (next === "account") {
@@ -2795,9 +2735,6 @@ export default function App() {
           refreshing={refreshing}
           tokenId={account.tokenId}
           view={accountView}
-          onAddPerson={addPerson}
-          onDeletePerson={askDeletePerson}
-          onRenamePerson={renamePerson}
           onRevoke={askRevokeDevice}
           onSavePassword={savePassword}
           onSaveProfile={saveProfile}
@@ -2863,6 +2800,16 @@ export default function App() {
           <Text selectable style={styles.licenseText}>{LICENSE_TEXT}</Text>
         </ScrollView>
       ) : null}
+      {phase === "queue" ? (
+        <OfflineQueue
+          rows={presentQueue(library)}
+          onOpen={(id) => {
+            listPhase.current = "queue";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+        />
+      ) : null}
       </View>
       {signedIn && TAB_PHASES.includes(phase) ? (
         <TabBar
@@ -2883,6 +2830,7 @@ export default function App() {
           label={account.label}
           name={account.displayName}
           phase={phase}
+          waiting={(library.queue || []).length}
           onClose={() => setDrawerOpen(false)}
           onSelect={goDrawer}
           onSignOut={() => {
@@ -5232,7 +5180,7 @@ function TabBar({ phase, onHome, onProjects, onBoard, onFind }) {
   );
 }
 
-function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
+function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
   const { height, width } = useWindowDimensions();
   const [helpOpen, setHelpOpen] = useState(true);
   const closeRef = useRef(onClose);
@@ -5293,8 +5241,17 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
         </ScrollView>
         <Pressable
           accessibilityRole="button"
+          onPress={() => onSelect("queue")}
+          style={[styles.drawerRow, styles.drawerSettings, phase === "queue" ? styles.drawerRowActive : null]}
+        >
+          <Text style={[styles.drawerItem, phase === "queue" ? styles.drawerItemActive : null]}>
+            {waiting ? `Offline Queue · ${waiting}` : "Offline Queue"}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           onPress={() => onSelect("settings")}
-          style={[styles.drawerRow, styles.drawerSettings, phase === "settings" ? styles.drawerRowActive : null]}
+          style={[styles.drawerRow, phase === "settings" ? styles.drawerRowActive : null]}
         >
           <Text style={[styles.drawerItem, phase === "settings" ? styles.drawerItemActive : null]}>Settings</Text>
         </Pressable>
@@ -5324,6 +5281,31 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
   );
 }
 
+function OfflineQueue({ rows, onOpen }) {
+  if (!rows.length) {
+    return (
+      <View style={styles.work}>
+        <Text style={styles.message}>Nothing is waiting to reach the server.</Text>
+      </View>
+    );
+  }
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      <Text style={styles.message}>These changes are still on this phone.</Text>
+      {rows.map((row) => (
+        <Pressable key={row.id} accessibilityRole="button" onPress={() => onOpen(row.issueId)} style={styles.issue}>
+          <Text style={styles.issueKey}>{row.action}</Text>
+          <Text style={styles.issueTitle}>{row.issue}</Text>
+          {row.project ? <Text style={styles.issueStatus}>{row.project}</Text> : null}
+          {row.detail ? <Text style={styles.queueDetail}>{row.detail}</Text> : null}
+          {row.held ? <Text style={styles.pending}>Waiting on a conflict.</Text> : null}
+          {row.error ? <Text style={styles.pending}>{row.error}</Text> : null}
+        </Pressable>
+      ))}
+    </ScrollView>
+  );
+}
+
 function TextButton({ label, onPress, disabled }) {
   return (
     <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
@@ -5342,9 +5324,6 @@ function AccountScreen({
   onSaveProfile,
   onSavePassword,
   onRevoke,
-  onAddPerson,
-  onRenamePerson,
-  onDeletePerson,
   onSignOut,
 }) {
   const profile = view && view.profile;
@@ -5353,20 +5332,11 @@ function AccountScreen({
   const [currentPassword, setCurrentPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [personName, setPersonName] = useState("");
-  const [personLogin, setPersonLogin] = useState("");
-  const [personPassword, setPersonPassword] = useState("");
-  const [personConfirm, setPersonConfirm] = useState("");
-  const [names, setNames] = useState({});
   const [profileError, setProfileError] = useState("");
   const [profileNotice, setProfileNotice] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordNotice, setPasswordNotice] = useState("");
-  const [personError, setPersonError] = useState("");
-  const [personNotice, setPersonNotice] = useState("");
-  const [renameError, setRenameError] = useState("");
   const profileKey = profile ? `${profile.id}|${profile.display_name}|${profile.username}` : "";
-  const peopleKey = (view && view.people ? view.people : []).map((person) => `${person.id}:${person.display_name}`).join("|");
   useEffect(() => {
     if (!profile) {
       return;
@@ -5374,13 +5344,6 @@ function AccountScreen({
     setDisplayName(profile.display_name || "");
     setLogin(profile.username || "");
   }, [profileKey]);
-  useEffect(() => {
-    const next = {};
-    (view && view.people ? view.people : []).forEach((person) => {
-      next[person.id] = person.display_name;
-    });
-    setNames(next);
-  }, [peopleKey]);
   const tokens = (view && view.tokens ? view.tokens : []).slice().sort((left, right) => {
     const leftMine = isThisPhone(left, tokenId) ? 0 : 1;
     const rightMine = isThisPhone(right, tokenId) ? 0 : 1;
@@ -5449,65 +5412,6 @@ function AccountScreen({
               </View>
             );
           })}
-          <Text style={styles.sectionHeading}>People</Text>
-          <Text style={styles.message}>People who can be assigned work.</Text>
-          {renameError ? <Text style={styles.error}>{renameError}</Text> : null}
-          {(view.people || []).map((person) => (
-            <View key={person.id} style={styles.issue}>
-              <Text style={styles.issueStatus}>{person.username}</Text>
-              <Field
-                label="Display name"
-                value={names[person.id] || ""}
-                onChange={(value) => setNames((current) => ({ ...current, [person.id]: value }))}
-              />
-              <TextButton
-                label="Rename"
-                disabled={busy}
-                onPress={async () => {
-                  const failure = await onRenamePerson(person.id, names[person.id]);
-                  setRenameError(failure || "");
-                }}
-              />
-              {profile.id !== person.id ? (
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={busy}
-                  onPress={() => onDeletePerson(person)}
-                  style={styles.deleteProject}
-                >
-                  <Text style={styles.drawerSignOut}>Delete</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ))}
-          <Text style={styles.projectName}>Add someone</Text>
-          <Field label="Display name" value={personName} onChange={setPersonName} />
-          <Field label="Username" value={personLogin} onChange={setPersonLogin} placeholder="Defaults to the display name" />
-          <PasswordField label="Password" value={personPassword} onChange={setPersonPassword} disabled={busy} />
-          <PasswordField label="Confirm password" value={personConfirm} onChange={setPersonConfirm} disabled={busy} />
-          {personError ? <Text style={styles.error}>{personError}</Text> : null}
-          {personNotice ? <Text style={[styles.message, styles.ok]}>{personNotice}</Text> : null}
-          <PrimaryButton
-            label="Add"
-            disabled={busy}
-            onPress={async () => {
-              setPersonNotice("");
-              const failure = await onAddPerson({
-                displayName: personName,
-                username: personLogin,
-                password: personPassword,
-                confirm: personConfirm,
-              });
-              setPersonError(failure || "");
-              if (!failure) {
-                setPersonName("");
-                setPersonLogin("");
-                setPersonPassword("");
-                setPersonConfirm("");
-                setPersonNotice("Added.");
-              }
-            }}
-          />
           <Pressable
             accessibilityLabel="Log Out"
             accessibilityRole="button"
@@ -6076,6 +5980,12 @@ const styles = StyleSheet.create({
     color: "#123044",
     fontSize: 16,
     lineHeight: 24,
+  },
+  queueDetail: {
+    color: "#123044",
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 6,
   },
   drawerItemActive: {
     color: "#0068B0",
