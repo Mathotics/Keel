@@ -65,6 +65,7 @@ import {
 import { pullLibrary } from "./src/sync";
 import { inputWhen, prepareCreate, prepareUpdate, assignableSprints } from "./src/create";
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
+import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
 import { formatMinutes, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
 
@@ -1462,6 +1463,15 @@ export default function App() {
     await AsyncStorage.setItem(LOCK_KEY, setting);
   }
 
+  function openLicense() {
+    if (TAB_PHASES.includes(phase)) {
+      listPhase.current = phase;
+    }
+    setMessage("");
+    setDrawerOpen(false);
+    setPhase("license");
+  }
+
   function openSettings() {
     if (TAB_PHASES.includes(phase)) {
       listPhase.current = phase;
@@ -1748,6 +1758,7 @@ export default function App() {
       create: "Create issue",
       settings: "Settings",
       account: "Profile",
+      license: "License",
       issue: "Issue",
     };
     return titles[phase] || "Keel";
@@ -1762,7 +1773,7 @@ export default function App() {
       }
       return;
     }
-    if (phase === "create" || phase === "settings" || phase === "account") {
+    if (phase === "create" || phase === "settings" || phase === "account" || phase === "license") {
       setMessage("");
       setPhase(listPhase.current);
       return;
@@ -1841,6 +1852,10 @@ export default function App() {
     }
     if (next === "settings") {
       openSettings();
+      return;
+    }
+    if (next === "license") {
+      openLicense();
       return;
     }
     if (next === "account") {
@@ -2842,6 +2857,11 @@ export default function App() {
             <Text style={tone === "ok" ? styles.ok : styles.error}>{message}</Text>
           ) : null}
         </View>
+      ) : null}
+      {phase === "license" ? (
+        <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+          <Text selectable style={styles.licenseText}>{LICENSE_TEXT}</Text>
+        </ScrollView>
       ) : null}
       </View>
       {signedIn && TAB_PHASES.includes(phase) ? (
@@ -5214,6 +5234,7 @@ function TabBar({ phase, onHome, onProjects, onBoard, onFind }) {
 
 function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
   const { height, width } = useWindowDimensions();
+  const [helpOpen, setHelpOpen] = useState(true);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const swipeLeft = useRef(
@@ -5277,6 +5298,23 @@ function Drawer({ name, label, phase, onClose, onSelect, onSignOut }) {
         >
           <Text style={[styles.drawerItem, phase === "settings" ? styles.drawerItemActive : null]}>Settings</Text>
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setHelpOpen((open) => !open)}
+          style={styles.drawerRow}
+        >
+          <Text style={styles.drawerItem}>Help</Text>
+        </Pressable>
+        {helpOpen ? (
+          <Pressable
+            accessibilityLabel="License"
+            accessibilityRole="button"
+            onPress={() => onSelect("license")}
+            style={[styles.drawerRow, styles.drawerLicense, phase === "license" ? styles.drawerRowActive : null]}
+          >
+            <Text style={[styles.drawerItem, phase === "license" ? styles.drawerItemActive : null]}>License</Text>
+          </Pressable>
+        ) : null}
         <Pressable accessibilityLabel="Log Out" accessibilityRole="button" onPress={onSignOut} style={styles.drawerRow}>
           <Text style={styles.drawerSignOut}>Log Out</Text>
         </Pressable>
@@ -6009,6 +6047,9 @@ const styles = StyleSheet.create({
     borderTopColor: "#E6EEF5",
     borderTopWidth: 1,
   },
+  drawerLicense: {
+    paddingLeft: 36,
+  },
   drawerName: {
     color: "#0062AB",
     fontSize: 18,
@@ -6030,6 +6071,11 @@ const styles = StyleSheet.create({
   drawerItem: {
     color: "#0062AB",
     fontSize: 16,
+  },
+  licenseText: {
+    color: "#123044",
+    fontSize: 16,
+    lineHeight: 24,
   },
   drawerItemActive: {
     color: "#0068B0",
