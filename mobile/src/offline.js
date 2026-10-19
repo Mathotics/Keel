@@ -731,6 +731,125 @@ function queueRemoveComment(store, issueId, commentId) {
   return { store: next, error: null };
 }
 
+const QUEUE_ACTION = {
+  create: "Create",
+  update: "Update",
+  delete: "Delete",
+  comment: "Comment",
+  uncomment: "Remove comment",
+};
+
+const QUEUE_FIELD = {
+  type: "Type",
+  title: "Title",
+  description: "Description",
+  status: "Status",
+  priority: "Priority",
+  assignee_id: "Assignee",
+  parent_id: "Parent",
+  sprint_id: "Sprint",
+  estimate_minutes: "Estimate",
+  remaining_minutes: "Remaining",
+  start_at: "Start",
+  due_at: "Due",
+  labels: "Labels",
+};
+
+function queueIssueName(store, issueId) {
+  const issue = findIssue(store, issueId);
+  if (!issue || !issue.raw) {
+    return "Issue";
+  }
+  const title = issue.raw.title || "Untitled";
+  return issue.raw.key ? `${issue.raw.key} ${title}` : title;
+}
+
+function queueProjectName(store, projectId) {
+  const project = store.projects && store.projects[projectId];
+  if (!project) {
+    return "";
+  }
+  return project.key ? `${project.key} · ${project.name}` : project.name || "";
+}
+
+function queuePerson(store, personId) {
+  if (personId == null) {
+    return "Unassigned";
+  }
+  const person = (store.people || []).find((item) => item.id === personId);
+  return person ? person.display_name : "Someone";
+}
+
+function queueSprint(store, sprintId) {
+  if (sprintId == null) {
+    return "Unscheduled";
+  }
+  for (const project of Object.values(store.projects || {})) {
+    if (project.sprint && project.sprint.id === sprintId) {
+      return project.sprint.name;
+    }
+  }
+  return "A sprint";
+}
+
+function queueValue(store, key, value) {
+  if (key === "status") {
+    return statusLabel(value);
+  }
+  if (key === "assignee_id") {
+    return queuePerson(store, value);
+  }
+  if (key === "parent_id") {
+    return value == null ? "No parent" : queueIssueName(store, value);
+  }
+  if (key === "sprint_id") {
+    return queueSprint(store, value);
+  }
+  if (key === "labels") {
+    return (value || []).length ? value.join(", ") : "None";
+  }
+  if (key === "estimate_minutes" || key === "remaining_minutes") {
+    return value == null ? "None" : `${value}m`;
+  }
+  if (value == null || value === "") {
+    return "Cleared";
+  }
+  return String(value);
+}
+
+function queueDetail(store, item) {
+  if (item.kind === "comment") {
+    return item.body && item.body.body ? item.body.body : "";
+  }
+  if (item.kind === "uncomment") {
+    return item.comment && item.comment.body ? item.comment.body : "";
+  }
+  if (item.kind === "delete") {
+    return "This issue will be deleted on the server.";
+  }
+  const body = item.body || {};
+  return Object.keys(body)
+    .filter((key) => key !== "description" || body.description)
+    .map((key) => `${QUEUE_FIELD[key] || key}: ${queueValue(store, key, body[key])}`)
+    .join("\n");
+}
+
+function presentQueue(store) {
+  return (store.queue || []).map((item) => {
+    const issue = findIssue(store, item.issueId);
+    return {
+      id: item.id,
+      issueId: item.issueId,
+      project: queueProjectName(store, item.projectId),
+      issue: queueIssueName(store, item.issueId),
+      action: QUEUE_ACTION[item.kind] || item.kind,
+      detail: queueDetail(store, item),
+      held: Boolean(issue && issue.conflict),
+      error: issue && issue.error ? issue.error : "",
+    };
+  });
+}
+
 module.exports = {
   NOT_ON_SERVER,
   applyRefresh,
@@ -747,6 +866,7 @@ module.exports = {
   markConflict,
   markError,
   noteUploaded,
+  presentQueue,
   queueComment,
   queueCreate,
   queueDelete,

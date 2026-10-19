@@ -17,6 +17,7 @@ const {
   queueRecreate,
   queueRemoveComment,
   queueUpdate,
+  presentQueue,
   workView,
 } = require("./offline");
 const { uploadQueue } = require("./sync");
@@ -390,4 +391,19 @@ test("removing a waiting comment drops it, and a saved comment waits to be remov
   });
   assert.equal(uploaded.queue.length, 0);
   assert.equal(uploaded.projects[3].issues[9].page.comments.length, 0);
+});
+
+test("the queue lists each change that has not reached the server", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const filed = queueCreate(store, { projectId: 3, title: "New hull", type: "story", status: "todo" });
+  store = queueUpdate(filed.store, 9, { title: "Paint the deck" }).store;
+  const rows = presentQueue(store);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].action, "Create");
+  assert.equal(rows[0].issue, "New hull");
+  assert.match(rows[0].detail, /Title: New hull/);
+  assert.equal(rows[1].action, "Update");
+  assert.equal(rows[1].issue, "KEEL-9 Paint the deck");
+  assert.equal(rows[1].project, "KEEL · Keel");
+  assert.match(rows[1].detail, /Title: Paint the deck/);
 });

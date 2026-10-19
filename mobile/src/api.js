@@ -1,5 +1,6 @@
 const { activeSprint, workSection } = require("./work");
 const { issuePage } = require("./issue");
+const { setReachable } = require("./reach");
 
 const FAILED = "Could not connect.";
 
@@ -26,7 +27,12 @@ async function request(url, options) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    setReachable(true);
+    return response;
+  } catch (error) {
+    setReachable(false);
+    throw error;
   } finally {
     clearTimeout(timer);
   }

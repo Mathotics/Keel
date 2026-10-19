@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { prepareCreate, prepareUpdate } = require("./create");
+const { prepareCreate, prepareUpdate, assignableSprints } = require("./create");
 const { applyRefresh, queueCreate, workView } = require("./offline");
 const { uploadQueue } = require("./sync");
 
@@ -163,4 +163,19 @@ test("the backlog needs a connection and the active sprint does not", () => {
   const online = prepareUpdate(updateInput({ sprintId: null, online: true }));
   assert.equal(online.error, null);
   assert.deepEqual(online.changes, { sprint_id: null });
+});
+
+test("sprint choices are the active sprint, planned sprints, and unscheduled", () => {
+  assert.deepEqual(
+    assignableSprints([
+      { id: 7, name: "This month", state: "active" },
+      { id: 8, name: "Next", state: "planned" },
+      { id: 6, name: "Last", state: "completed" },
+    ]),
+    [
+      { id: "", title: "Unscheduled" },
+      { id: "7", title: "This month (Active)" },
+      { id: "8", title: "Next (Planned)" },
+    ],
+  );
 });
