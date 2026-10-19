@@ -724,7 +724,23 @@ def test_completed_and_created_modes_place_issues_on_those_dates(
         mode="completed",
     )
     block = _block(day, "KEEL-1", local.date())
-    assert (block.start_minute, block.end_minute) == (
-        local.hour * 60 + local.minute,
-        local.hour * 60 + local.minute + 60,
+    minute = local.hour * 60 + local.minute
+    assert block.instant is True
+    assert (block.start_minute, block.end_minute) == (minute, minute)
+
+    created_day = calendar_service.day_calendar(
+        session,
+        ada.id,
+        focus=_local(finished.created_at).date(),
+        today=TODAY,
+        mode="created",
+    )
+    created_block = _block(created_day, "KEEL-1", _local(finished.created_at).date())
+    created_minute = (
+        _local(finished.created_at).hour * 60 + _local(finished.created_at).minute
+    )
+    assert created_block.instant is True
+    assert (created_block.start_minute, created_block.end_minute) == (
+        created_minute,
+        created_minute,
     )

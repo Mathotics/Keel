@@ -255,7 +255,8 @@ body {
 
 .keel-main {
   flex: 1 0 auto;
-  padding: 1.5rem 1.75rem 2rem;
+  /* The extra 2rem is the pinned footer, which is out of flow on a wide window. */
+  padding: 1.5rem 1.75rem calc(2rem + 2rem);
 }
 
 .keel-main > h1 {
@@ -658,15 +659,18 @@ body {
   color: #667085;
 }
 
-.keel-cal__bar[data-type="epic"] {
+.keel-cal__bar[data-type="epic"],
+.keel-cal__instant[data-type="epic"] {
   --keel-type: var(--keel-type-epic);
 }
 
-.keel-cal__bar[data-type="story"] {
+.keel-cal__bar[data-type="story"],
+.keel-cal__instant[data-type="story"] {
   --keel-type: var(--keel-type-story);
 }
 
-.keel-cal__bar[data-type="subtask"] {
+.keel-cal__bar[data-type="subtask"],
+.keel-cal__instant[data-type="subtask"] {
   --keel-type: var(--keel-type-subtask);
 }
 
@@ -777,6 +781,56 @@ body {
   text-overflow: unset;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* A completion or creation is one minute. The tick sits on that minute and
+   the chip hangs under it, one line tall, so the mark is not a duration. */
+.keel-cal__hour-col .keel-cal__instant {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  text-decoration: none;
+  background: transparent;
+}
+
+.keel-cal__instant-tick {
+  display: block;
+  height: 2px;
+  margin-bottom: 1px;
+  background: var(--keel-type, var(--keel-blue));
+}
+
+.keel-cal__instant-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  height: 1.55rem;
+  overflow: hidden;
+  padding: 0 0.45rem;
+  border: 1px solid var(--keel-blue);
+  border-left-width: 4px;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--keel-type, var(--keel-blue)) 22%, var(--keel-white));
+  border-color: color-mix(in srgb, var(--keel-type, var(--keel-blue)) 55%, var(--keel-white));
+  border-left-color: var(--keel-type, var(--keel-blue));
+  color: var(--keel-blue-deep);
+  font-size: 0.8125rem;
+  line-height: 1.55rem;
+}
+
+.keel-cal__hour-col .keel-cal__instant:hover .keel-cal__instant-chip {
+  background: color-mix(in srgb, var(--keel-type, var(--keel-blue)) 32%, var(--keel-white));
+}
+
+.keel-cal__hour-col .keel-cal__instant .keel-cal__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .keel-cal--hours .keel-cal__bar--continued {
@@ -1537,6 +1591,11 @@ body {
 }
 
 .keel-footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 90;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2278,6 +2337,7 @@ select.keel-type-select[data-type] {
   }
 
   .keel-footer {
+    position: static;
     flex-wrap: wrap;
     min-height: 0;
     padding: 0.4rem 0.75rem;
