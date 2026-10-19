@@ -95,9 +95,9 @@ test("start to due spans the saved sprint and a project calendar keeps other peo
     today: TODAY,
     userId: 4,
   });
-  assert.match(mine.banner, /saved active sprint/);
+  assert.match(mine.banner, /saved copy/);
   const fourteenth = mine.weeks[2].days[2];
-  assert.deepEqual(fourteenth.issues.map((row) => row.key), ["KEEL-9"]);
+  assert.deepEqual(fourteenth.issues.map((row) => row.key), ["KEEL-9", "KEEL-10"]);
   assert.equal(fourteenth.issues[0].statusLabel, "To Do");
   assert.equal(mine.weeks[2].days[4].issues[0].key, "KEEL-9");
   assert.equal(mine.weeks[2].days[5].issues.length, 0);
@@ -112,7 +112,7 @@ test("start to due spans the saved sprint and a project calendar keeps other peo
     projectId: 3,
     userId: 4,
   });
-  assert.deepEqual(project.days[0].issues.map((row) => row.key), ["KEEL-9", "KEEL-11"]);
+  assert.deepEqual(project.days[0].issues.map((row) => row.key), ["KEEL-9", "KEEL-10", "KEEL-11"]);
   assert.equal(project.days[0].issues[0].time, "From 1 PM");
   assert.equal(project.label, "Wednesday, October 14, 2026");
 });

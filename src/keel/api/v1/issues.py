@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Issue, Project
 from keel.domain.enums import IssuePriority, IssueStatus, IssueType
-from keel.schemas.history import HistoryEventRead
+from keel.schemas.history import CompletionTimeRead, HistoryEventRead
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
@@ -74,6 +74,24 @@ def list_issues(
         ),
     )
     return _reads(session, found, project)
+
+
+@router.get(
+    "/projects/{project_id}/completion-times",
+    response_model=list[CompletionTimeRead],
+)
+def list_completion_times(
+    project_id: int,
+    session: SessionDep,
+) -> list[CompletionTimeRead]:
+    """When each Done issue in the project was completed, in one query."""
+    project = project_service.get_project(session, project_id)
+    found = issue_service.list_issues(session, project.id, IssueFilters())
+    times = history_service.completion_times(session, found)
+    return [
+        CompletionTimeRead(issue_id=issue_id, completed_at=moment)
+        for issue_id, moment in sorted(times.items())
+    ]
 
 
 @router.post(

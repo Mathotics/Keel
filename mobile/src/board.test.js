@@ -136,14 +136,14 @@ test("open work returned for a completed sprint stays, and omitted closed work s
   assert.equal(view.columns[3].cards[0].sprintName, "Last month");
 });
 
-test("offline shows the saved active sprint and says other issues need a connection", () => {
+test("offline shows every saved issue", () => {
   const saved = library([
     issue({ status: "done" }),
     issue({ id: 15, key: "KEEL-15", number: 15, status: "todo", sprint_id: 2 }),
   ]);
   const view = boardView({ library: saved, boards: null, projectId: null });
   const keys = view.columns.flatMap((column) => column.cards.map((card) => card.key));
-  assert.deepEqual(keys, ["DOCS-3", "KEEL-9"]);
+  assert.deepEqual(keys, ["KEEL-15", "DOCS-3", "KEEL-9"]);
   assert.equal(view.banner, SAVED_BOARD);
   assert.equal(view.columns[4].cards[0].key, "KEEL-9");
   const empty = boardView({

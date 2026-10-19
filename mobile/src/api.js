@@ -210,24 +210,23 @@ async function loadInboxIssues(origin, token, projects, userId) {
 }
 
 async function loadCompletedAt(origin, token, issues) {
-  const done = (issues || []).filter((issue) => issue.status === "done");
+  const projectIds = [
+    ...new Set(
+      (issues || [])
+        .filter((issue) => issue.status === "done" && issue.project_id != null)
+        .map((issue) => issue.project_id),
+    ),
+  ];
   const times = {};
   await Promise.all(
-    done.map(async (issue) => {
-      let history = [];
-      try {
-        history = await read(origin, token, `/api/v1/issues/${issue.id}/history`);
-      } catch (error) {
-        if (error.status !== 404) {
-          throw error;
-        }
-      }
-      const events = (history || []).filter((event) => event.field === "status");
-      const latest = events[events.length - 1];
-      if (!latest) {
-        times[issue.id] = issue.created_at;
-      } else if (latest.to_value === "Done") {
-        times[issue.id] = latest.created_at;
+    projectIds.map(async (projectId) => {
+      const rows = await read(
+        origin,
+        token,
+        `/api/v1/projects/${projectId}/completion-times`,
+      );
+      for (const row of rows || []) {
+        times[row.issue_id] = row.completed_at;
       }
     }),
   );

@@ -1,7 +1,7 @@
 # Android app offline mode
 
 * **Status:** Accepted
-* **Date:** 2026-10-10
+* **Date:** 2026-10-19
 
 ## Background
 
@@ -23,12 +23,12 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 ### In-Scope
 
 * The offline rule for the Android app, including the local copy, the waiting queue, conflict choice, project settings, and sign-out.
-* The active sprint of each enabled project.
+* The issues of each enabled project, including the backlog and issues in any sprint.
 
 ### Out-of-Scope
 
 * Building the cache, the queue, or issue screens in this pass.
-* Saving future sprints, the backlog, or completed sprints. Those screens require a connection.
+* Saving sprint plans, schedules, and account settings. Those screens still need a connection when that data has never been loaded.
 * A new server sync API. The phone uses the existing JSON API.
 * Changing the website.
 
@@ -39,15 +39,16 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 ## Technical Requirements
 
 * **Must** treat the server as the source of truth after a change has uploaded successfully.
-* **Must** save the active sprint for every project on a new install. The user may turn a project off in settings.
+* **Must** save the issues of every enabled project, not only the active sprint. The user may turn a project off in settings.
 * **Must** ask before turning a project off while that project has waiting changes. Continuing drops that project’s waiting changes and stops saving it. Cancelling leaves the project on.
 * **Must** let every later action on a saved issue work offline. The phone stores those actions in order and uploads them when it reconnects.
-* **Must** require a connection for the first sign-in, and for any screen whose data is not saved (future sprints, backlog, completed sprints, and a project that has never refreshed).
+* **Must** open a screen from the saved copy without waiting on the network. A refresh updates that screen after it is already showing. Pull to refresh is the action that waits on the server.
+* **Must** require a connection for the first sign-in, and for any screen whose data is not saved (sprint plans, schedules, and a project that has never refreshed).
 * **Must** show “Not on the server yet” on each issue that is waiting, including an issue waiting on a conflict choice.
 * **Must** upload issues that do not disagree with the server. When both sides changed an issue, leave that issue unsynced until the user picks the phone’s version or the server’s version. The user may leave the choice and keep using the app.
 * **Must** ask before signing out while changes are waiting. Confirming signs out and keeps those changes for the next sign-in of the same user. Cancelling stays signed in.
 * **Must** keep one account’s waiting changes private from another account on the same phone.
-* **May** refresh the saved active sprints whenever the phone has a connection.
+* **May** refresh the saved issues whenever the phone has a connection.
 * **Must Not** overwrite a saved issue that has a waiting edit or an unresolved conflict during refresh.
 * **Must Not** upload one account’s waiting changes after a different account signs in.
 * **Must Not** build the offline cache as part of accepting this record.
@@ -55,13 +56,13 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 ## Consequences
 
 * **Good:** Later screens share one offline behavior. The Pi stays the source of truth. No new server endpoint is required.
-* **Bad:** Until a project has refreshed once, that project’s sprint is unavailable offline. Future sprints stay unavailable offline. A postponed conflict stays on the phone until the user chooses.
+* **Bad:** Until a project has refreshed once, that project’s issues are unavailable offline. Sprint plans and schedules stay unavailable until they have been loaded. A postponed conflict stays on the phone until the user chooses.
 * **Risk:** A long wait between edits can make the two copies hard to compare. Dropping a project, or signing in as someone else, must not send the wrong queue.
 
 ## Assumptions
 
 * The waiting queue belongs to the signed-in account. A different person signing in on the same phone does not see it and does not upload it.
-* While connected, the app refreshes the active sprint of each enabled project. It leaves an issue alone when that issue has a waiting edit or an unresolved conflict.
+* While connected, the app refreshes the issues of each enabled project. It leaves an issue alone when that issue has a waiting edit or an unresolved conflict. Opening a screen does not wait for that refresh.
 * A new issue has no KEEL number until the server accepts it. It still shows “Not on the server yet”.
 * If the server deleted the issue, the user chooses to recreate it from the phone’s copy or discard the phone’s copy. That issue stays marked until they choose.
 * If the server rejects a waiting change for another reason, the app shows the error on that issue and leaves the change waiting.
@@ -72,7 +73,7 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 
 ### Technical Stack and Architecture
 
-The phone keeps its own copy of each enabled project’s active sprint, plus the people, labels, and active-sprint identity needed to act on those issues. Waiting actions are an ordered queue tied to the signed-in user. On reconnect the phone replays that queue through the existing `/api/v1` issue routes. A conflict is a waiting edit whose server copy changed after the phone saved its base. Choosing the phone sends the phone’s current issue. Choosing the server discards the phone’s waiting edits for that issue and shows the server copy. If the server copy is gone, the choice is to recreate the issue or discard the phone’s copy. This pass adds no code and no dependency. The implementation that follows this rule chooses the on-phone store then.
+The phone keeps its own copy of the issues in each enabled project, plus the people, labels, and active-sprint identity needed to act on those issues. A full issue page, including comments, is kept after that issue has been opened. Waiting actions are an ordered queue tied to the signed-in user. On reconnect the phone replays that queue through the existing `/api/v1` issue routes. A conflict is a waiting edit whose server copy changed after the phone saved its base. Choosing the phone sends the phone’s current issue. Choosing the server discards the phone’s waiting edits for that issue and shows the server copy. If the server copy is gone, the choice is to recreate the issue or discard the phone’s copy. This pass adds no code and no dependency. The implementation that follows this rule chooses the on-phone store then.
 
 ### UML Diagrams
 

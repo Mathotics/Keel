@@ -69,6 +69,34 @@ def record(
     return event
 
 
+def completion_times(session: Session, issues: Sequence[Issue]) -> dict[int, datetime]:
+    """Latest move to Done, or created_at when an issue was born Done."""
+    done = [issue for issue in issues if issue.status is IssueStatus.DONE]
+    if not done:
+        return {}
+    ids = [issue.id for issue in done]
+    rows = session.scalars(
+        select(IssueHistory)
+        .where(
+            IssueHistory.issue_id.in_(ids),
+            IssueHistory.field == FIELD_STATUS,
+        )
+        .order_by(IssueHistory.created_at, IssueHistory.id),
+    ).all()
+    latest: dict[int, IssueHistory] = {}
+    for row in rows:
+        latest[row.issue_id] = row
+    done_label = status_label(IssueStatus.DONE)
+    times: dict[int, datetime] = {}
+    for issue in done:
+        event = latest.get(issue.id)
+        if event is None:
+            times[issue.id] = issue.created_at
+        elif event.to_value == done_label:
+            times[issue.id] = event.created_at
+    return times
+
+
 def status_label(value: IssueStatus) -> str:
     return label(value)
 

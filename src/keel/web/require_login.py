@@ -4,7 +4,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from keel.services.identity import SESSION_COOKIE, resolve_current_user
+from keel.services.identity import SESSION_COOKIE, finish_lookup, resolve_current_user
 
 _PUBLIC_PATHS = frozenset({"/health", "/login", "/favicon.ico", "/api/v1/login"})
 _JSON_PATHS = frozenset({"/openapi.json", "/docs", "/redoc"})
@@ -27,9 +27,11 @@ class RequireLogin:
                 session,
                 authorization=request.headers.get("authorization"),
                 session_cookie=request.cookies.get(SESSION_COOKIE),
+                touch=False,
             )
-            session.commit()
-        if user is not None:
+            signed_in = user is not None
+            finish_lookup(session)
+        if signed_in:
             await self.app(scope, receive, send)
             return
         response: Response

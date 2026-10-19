@@ -54,6 +54,7 @@ Separately, the deferred feature queue in [v1 scope](../architecture/v1-scope.md
 * **Must** store all entities in one SQLite database file requiring no separate server.
 * **Must** define ORM models with SQLAlchemy 2.0 typed `Mapped[...]` annotations that pass mypy in strict mode.
 * **Must** enable `PRAGMA foreign_keys=ON` on every connection, since SQLite does not enforce foreign keys by default.
+* **Must** use WAL journal mode and `synchronous=NORMAL` on a file database, so a commit is durable across an application crash without a full fsync on every request. In-memory databases are unchanged. Tests may set `KEEL_FAST_SQLITE=1` to turn synchronous checks off.
 * **Must** manage schema changes through Alembic revisions, one per implementation phase, so a database created at any point can be brought forward.
 * **Must** resolve the database location from `KEEL_DATABASE_URL`, defaulting to a `keel.db` file inside the OS user-data directory resolved by `platformdirs`.
 * **Must** apply migrations only on explicit invocation of `keel db upgrade`; `keel serve` verifies the revision and refuses to start when it is behind, naming the command to run.
@@ -76,7 +77,7 @@ Separately, the deferred feature queue in [v1 scope](../architecture/v1-scope.md
 
 ### Technical Stack and Architecture
 
-SQLAlchemy 2.0 declarative models live in `keel/db/models/`, one module per entity, over a shared `DeclarativeBase`. `keel/db/engine.py` builds the engine from `KEEL_DATABASE_URL` and registers a connect-time listener applying `PRAGMA foreign_keys=ON` and a busy timeout. `keel/db/session.py` exposes a session dependency with per-request commit or rollback.
+SQLAlchemy 2.0 declarative models live in `keel/db/models/`, one module per entity, over a shared `DeclarativeBase`. `keel/db/engine.py` builds the engine from `KEEL_DATABASE_URL` and registers a connect-time listener applying `PRAGMA foreign_keys=ON`, a busy timeout, and WAL with `synchronous=NORMAL` on file databases. `keel/db/session.py` exposes a session dependency with per-request commit or rollback.
 
 Only the service layer touches models; the domain layer operates on plain values, and the API and web layers receive already-loaded objects. Alembic lives in `migrations/` at the repository root, with its `env.py` reading the same settings object, so the CLI and the application never disagree about which file they address.
 

@@ -34,7 +34,7 @@ import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, 
 import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
-import { setReachable, subscribeReachability } from "./src/reach";
+import { reachability, reachabilityKnown, setReachable, subscribeReachability } from "./src/reach";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
@@ -42,6 +42,7 @@ import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } f
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
 import {
   NOT_ON_SERVER,
+  absorbIssues,
   choosePhone,
   chooseServer,
   discardIssue,
@@ -120,9 +121,9 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [online, setOnline] = useState(false);
   const [remoteIssues, setRemoteIssues] = useState(null);
-  const [inboxMode, setInboxMode] = useState("loading");
+  const [inboxMode, setInboxMode] = useState("offline");
   const [remoteBoards, setRemoteBoards] = useState(null);
-  const [boardMode, setBoardMode] = useState("loading");
+  const [boardMode, setBoardMode] = useState("offline");
   const [boardProjectId, setBoardProjectId] = useState(null);
   const [accountView, setAccountView] = useState(null);
   const [accountLink, setAccountLink] = useState("loading");
@@ -131,23 +132,23 @@ export default function App() {
   const [settingsLink, setSettingsLink] = useState("loading");
   const [remoteBacklog, setRemoteBacklog] = useState(null);
   const [remoteSprints, setRemoteSprints] = useState(null);
-  const [backlogMode, setBacklogMode] = useState("loading");
+  const [backlogMode, setBacklogMode] = useState("offline");
   const [backlogProjectId, setBacklogProjectId] = useState(null);
   const [planningSprints, setPlanningSprints] = useState(null);
-  const [planningMode, setPlanningMode] = useState("loading");
+  const [planningMode, setPlanningMode] = useState("offline");
   const [planningProjectId, setPlanningProjectId] = useState(null);
   const [openSprint, setOpenSprint] = useState(null);
   const [sprintNotice, setSprintNotice] = useState("");
   const [findResult, setFindResult] = useState(null);
   const [remoteCalendar, setRemoteCalendar] = useState(null);
   const [completedAt, setCompletedAt] = useState(null);
-  const [calendarLink, setCalendarLink] = useState("loading");
+  const [calendarLink, setCalendarLink] = useState("offline");
   const [calendarProjectId, setCalendarProjectId] = useState(null);
   const [calendarViewName, setCalendarViewName] = useState("month");
   const [calendarWhen, setCalendarWhen] = useState("start");
   const [calendarFocus, setCalendarFocus] = useState(localToday);
   const [remoteSeries, setRemoteSeries] = useState(null);
-  const [scheduleLink, setScheduleLink] = useState("loading");
+  const [scheduleLink, setScheduleLink] = useState("offline");
   const [scheduleProjectId, setScheduleProjectId] = useState(null);
   const [openSeries, setOpenSeries] = useState(null);
   const [recipe, setRecipe] = useState(blankRecipe);
@@ -159,6 +160,11 @@ export default function App() {
   const [filterSprints, setFilterSprints] = useState([]);
   const [homeLayout, setHomeLayout] = useState(null);
   const accountRef = useRef(null);
+  const phaseRef = useRef("booting");
+  const libraryRef = useRef(emptyStore());
+  const libraryGen = useRef(0);
+  const librarySyncedAt = useRef(0);
+  const syncTail = useRef(Promise.resolve());
   const probeRef = useRef(() => {});
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -166,6 +172,10 @@ export default function App() {
   useEffect(() => {
     accountRef.current = account;
   }, [account]);
+
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   useEffect(() => {
     lockRef.current = lockSetting;
@@ -477,14 +487,29 @@ export default function App() {
     setPhase("signedOut");
   }
 
-  async function persistLibrary(userId, store) {
+  function adoptLibrary(store) {
+    libraryGen.current += 1;
+    libraryRef.current = store;
     setLibrary(store);
+  }
+
+  async function persistLibrary(userId, store) {
+    adoptLibrary(store);
     if (userId) {
       await AsyncStorage.setItem(storeKey(userId), JSON.stringify(store));
     }
   }
 
-  async function refreshLibrary(currentAccount, currentStore) {
+  function knownOffline() {
+    return reachabilityKnown() && !reachability();
+  }
+
+  async function refreshLibrary(currentAccount, currentStore, options) {
+    const maxAgeMs = options && options.maxAgeMs;
+    if (maxAgeMs && Date.now() - librarySyncedAt.current < maxAgeMs) {
+      return currentStore;
+    }
+    const started = libraryGen.current;
     const client = {
       profile: () => loadProfile(currentAccount.origin, currentAccount.token),
       snapshots: () => loadSnapshots(currentAccount.origin, currentAccount.token),
@@ -494,14 +519,89 @@ export default function App() {
         send(currentAccount.origin, currentAccount.token, method, path, body),
     };
     const result = await pullLibrary(currentStore, client);
+    if (started !== libraryGen.current) {
+      return libraryRef.current;
+    }
+    let nextStore = result.store;
+    const projects = Object.values(nextStore.projects || {}).filter((project) => project.enabled);
+    const lists = await Promise.all(
+      projects.map(async (project) => {
+        try {
+          const issues = await read(
+            currentAccount.origin,
+            currentAccount.token,
+            `/api/v1/projects/${project.id}/issues`,
+          );
+          return { id: project.id, issues: issues || [] };
+        } catch (err) {
+          if (err.status === 401) {
+            throw err;
+          }
+          return null;
+        }
+      }),
+    );
+    for (const list of lists) {
+      if (list) {
+        nextStore = absorbIssues(nextStore, list.id, list.issues);
+      }
+    }
+    if (started !== libraryGen.current) {
+      return libraryRef.current;
+    }
     const userId = String(result.userId);
     if (userId !== currentAccount.userId) {
       await SecureStore.setItemAsync(USER_ID_KEY, userId);
       setAccount({ ...currentAccount, userId });
     }
-    await persistLibrary(userId, result.store);
+    await persistLibrary(userId, nextStore);
+    librarySyncedAt.current = Date.now();
     setWorkError("");
-    return result.store;
+    return nextStore;
+  }
+
+  async function openLibrary(options) {
+    if (knownOffline()) {
+      return { offline: true, store: libraryRef.current };
+    }
+    const maxAgeMs = options && options.force ? 0 : 20000;
+    const store = await refreshLibrary(account, libraryRef.current, { maxAgeMs });
+    return { offline: false, store: store || libraryRef.current };
+  }
+
+  function scheduleSync(currentAccount, store) {
+    const started = libraryGen.current;
+    syncTail.current = syncTail.current.catch(() => {}).then(async () => {
+      if (started !== libraryGen.current) {
+        return;
+      }
+      if (knownOffline()) {
+        return;
+      }
+      try {
+        const before = libraryGen.current;
+        const next = await refreshLibrary(currentAccount, store);
+        if (!next || libraryGen.current > before + 1) {
+          return;
+        }
+        const showing = phaseRef.current;
+        if (showing === "home") {
+          await refreshInbox(currentAccount, next);
+        } else if (showing === "board") {
+          await refreshBoard(currentAccount, next);
+        } else if (showing === "backlog") {
+          await refreshBacklog(currentAccount, next, backlogProjectId);
+        } else if (showing === "calendar") {
+          await refreshCalendar(currentAccount, next, calendarProjectId, calendarWhen);
+        }
+      } catch (err) {
+        if (err.status === 401) {
+          await clearAccount();
+          setTone("error");
+          setMessage("Sign in.");
+        }
+      }
+    });
   }
 
   async function refreshInbox(currentAccount, currentLibrary) {
@@ -584,15 +684,28 @@ export default function App() {
     };
   }
 
-  async function openBoard() {
+  function wantsPull(arg) {
+    return Boolean(arg && arg.pull);
+  }
+
+  async function openBoard(arg) {
+    const pull = wantsPull(arg);
     listPhase.current = "board";
     setPhase("board");
-    setRefreshing(true);
+    if (boardMode !== "online") {
+      setBoardMode("offline");
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
     try {
-      const store = await refreshLibrary(account, library);
-      const current = store || library;
-      await refreshBoard(account, current);
-      await refreshFilterSprints(account, current);
+      const loaded = await openLibrary({ force: pull });
+      if (loaded.offline) {
+        setBoardMode("offline");
+        return;
+      }
+      await refreshBoard(account, loaded.store);
+      await refreshFilterSprints(account, loaded.store);
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -603,7 +716,9 @@ export default function App() {
       setBoardMode("offline");
       setWorkError(err.message || FAILED);
     } finally {
-      setRefreshing(false);
+      if (pull) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -638,13 +753,24 @@ export default function App() {
     }
   }
 
-  async function openBacklog(projectId) {
+  async function openBacklog(arg) {
+    const pull = wantsPull(arg);
+    const projectId = arg && typeof arg === "object" ? arg.projectId : arg;
     listPhase.current = "backlog";
     setPhase("backlog");
-    setRefreshing(true);
+    if (backlogMode !== "online") {
+      setBacklogMode("offline");
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
     try {
-      const store = await refreshLibrary(account, library);
-      const current = store || library;
+      const loaded = await openLibrary({ force: pull });
+      if (loaded.offline) {
+        setBacklogMode("offline");
+        return;
+      }
+      const current = loaded.store;
       const projects = enabledProjects(current);
       const chosen = projectId || backlogProjectId || (projects[0] && projects[0].id) || null;
       if (chosen) {
@@ -661,7 +787,9 @@ export default function App() {
       setBacklogMode("offline");
       setWorkError(err.message || FAILED);
     } finally {
-      setRefreshing(false);
+      if (pull) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -714,14 +842,25 @@ export default function App() {
     }
   }
 
-  async function openSprints(projectId) {
+  async function openSprints(arg) {
+    const pull = wantsPull(arg);
+    const projectId = arg && typeof arg === "object" ? arg.projectId : arg;
     listPhase.current = "sprints";
     setPhase("sprints");
     setSprintNotice("");
-    setRefreshing(true);
+    if (planningMode !== "online") {
+      setPlanningMode("offline");
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
     try {
-      const store = await refreshLibrary(account, library);
-      const current = store || library;
+      const loaded = await openLibrary({ force: pull });
+      if (loaded.offline) {
+        setPlanningMode("offline");
+        return;
+      }
+      const current = loaded.store;
       const projects = enabledProjects(current);
       const chosen = projectId || planningProjectId || (projects[0] && projects[0].id) || null;
       if (chosen) {
@@ -738,16 +877,25 @@ export default function App() {
       setPlanningMode("offline");
       setWorkError(err.message || FAILED);
     } finally {
-      setRefreshing(false);
+      if (pull) {
+        setRefreshing(false);
+      }
     }
   }
 
-  async function showSprint(projectId, sprintId) {
+  async function showSprint(projectId, sprintId, options) {
+    const pull = wantsPull(options);
     listPhase.current = "sprint";
-    setOpenSprint(null);
     setPhase("sprint");
     setSprintNotice("");
-    setRefreshing(true);
+    if (!pull) {
+      const saved = savedActiveSprint(library, projectId);
+      const listed = (planningSprints || []).find((sprint) => sprint.id === sprintId);
+      setOpenSprint(saved && saved.id === sprintId ? saved : listed || null);
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
     try {
       const detail = await refreshOpenSprint(account, library, projectId, sprintId);
       if (detail && detail.state === "active") {
@@ -760,7 +908,9 @@ export default function App() {
         setMessage("Sign in.");
       }
     } finally {
-      setRefreshing(false);
+      if (pull) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -941,15 +1091,24 @@ export default function App() {
     }
   }
 
-  async function openCalendar() {
+  async function openCalendar(arg) {
+    const pull = wantsPull(arg);
     listPhase.current = "calendar";
     setPhase("calendar");
-    setRefreshing(true);
+    if (calendarLink !== "online") {
+      setCalendarLink("offline");
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
     try {
-      const store = await refreshLibrary(account, library);
-      const current = store || library;
-      await refreshCalendar(account, current, calendarProjectId, calendarWhen);
-      await refreshFilterSprints(account, current);
+      const loaded = await openLibrary({ force: pull });
+      if (loaded.offline) {
+        setCalendarLink("offline");
+        return;
+      }
+      await refreshCalendar(account, loaded.store, calendarProjectId, calendarWhen);
+      await refreshFilterSprints(account, loaded.store);
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -960,7 +1119,9 @@ export default function App() {
       setCalendarLink("offline");
       setWorkError(err.message || FAILED);
     } finally {
-      setRefreshing(false);
+      if (pull) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -993,18 +1154,31 @@ export default function App() {
     }
   }
 
-  async function openSchedules(projectId) {
+  async function openSchedules(arg) {
+    const pull = wantsPull(arg);
+    const projectId = arg && typeof arg === "object" ? arg.projectId : arg;
     listPhase.current = "schedules";
     setPhase("schedules");
     setScheduleNotice("");
-    setRecipe(blankRecipe());
-    setRecipeMode("create");
-    setRecipeIssue(null);
-    setOpenSeries(null);
-    setRefreshing(true);
+    if (!pull) {
+      setRecipe(blankRecipe());
+      setRecipeMode("create");
+      setRecipeIssue(null);
+      setOpenSeries(null);
+    }
+    if (scheduleLink !== "online") {
+      setScheduleLink("offline");
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
     try {
-      const store = await refreshLibrary(account, library);
-      await refreshSchedules(account, store || library, projectId || scheduleProjectId);
+      const loaded = await openLibrary({ force: pull });
+      if (loaded.offline) {
+        setScheduleLink("offline");
+        return;
+      }
+      await refreshSchedules(account, loaded.store, projectId || scheduleProjectId);
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -1015,7 +1189,9 @@ export default function App() {
       setScheduleLink("offline");
       setWorkError(err.message || FAILED);
     } finally {
-      setRefreshing(false);
+      if (pull) {
+        setRefreshing(false);
+      }
     }
   }
 
@@ -1063,13 +1239,7 @@ export default function App() {
       setSettingsProject(saved);
       const named = renameProject(library, saved.id, saved.name);
       await persistLibrary(account.userId, named);
-      try {
-        await refreshLibrary(account, named);
-      } catch (err) {
-        if (err.status === 401) {
-          throw err;
-        }
-      }
+      scheduleSync(account, named);
       return null;
     } catch (err) {
       if (err.status === 401) {
@@ -1400,9 +1570,11 @@ export default function App() {
       if (!active) {
         return;
       }
-      setLibrary(store);
+      adoptLibrary(store);
       setLibraryReady(true);
-      setRefreshing(true);
+      if (account.userId) {
+        setInboxMode("offline");
+      }
       try {
         const next = await refreshLibrary(account, store);
         if (active && account.userId) {
@@ -1426,10 +1598,6 @@ export default function App() {
             ? "Showing the saved copy. Could not connect."
             : err.message || FAILED,
         );
-      } finally {
-        if (active) {
-          setRefreshing(false);
-        }
       }
     })();
     return () => {
@@ -1851,14 +2019,14 @@ export default function App() {
           busy={busy}
           error={workError}
           inbox={
-            account.userId && inboxMode !== "loading" && homeLayout
+            account.userId && libraryReady
               ? arrangeInbox(inboxView({
                   library,
                   userId: Number(account.userId),
                   today: localToday(),
                   remote: inboxMode === "online" ? remoteIssues || [] : null,
                   offsetMinutes: new Date().getTimezoneOffset(),
-                }), homeLayout)
+                }), homeLayout || blankLayout())
               : null
           }
           layout={homeLayout}
@@ -1913,16 +2081,7 @@ export default function App() {
                 return;
               }
               await persistLibrary(account.userId, updated.store);
-              try {
-                const store = await refreshLibrary(account, updated.store);
-                await refreshInbox(account, store || updated.store);
-              } catch (err) {
-                if (err.status === 401) {
-                  await clearAccount();
-                  setTone("error");
-                  setMessage("Sign in.");
-                }
-              }
+              scheduleSync(account, updated.store);
               return;
             }
             try {
@@ -2007,16 +2166,12 @@ export default function App() {
       {phase === "board" && account ? (
         <Board
           account={account}
-          board={
-            boardMode === "loading"
-              ? null
-              : boardView({
-                  library,
-                  boards: boardMode === "online" ? remoteBoards || [] : null,
-                  projectId: boardProjectId,
-                  filter: listFilter,
-                })
-          }
+          board={boardView({
+            library,
+            boards: boardMode === "online" ? remoteBoards || [] : null,
+            projectId: boardProjectId,
+            filter: listFilter,
+          })}
           busy={busy}
           error={workError}
           filter={listFilter}
@@ -2047,7 +2202,7 @@ export default function App() {
           onSchedules={openSchedules}
           onFind={openFind}
           onCalendar={openCalendar}
-          onRefresh={openBoard}
+          onRefresh={() => openBoard({ pull: true })}
           onSettings={() => {
             listPhase.current = "board";
             openSettings();
@@ -2061,16 +2216,7 @@ export default function App() {
                 return;
               }
               await persistLibrary(account.userId, updated.store);
-              try {
-                const store = await refreshLibrary(account, updated.store);
-                await refreshBoard(account, store || updated.store);
-              } catch (err) {
-                if (err.status === 401) {
-                  await clearAccount();
-                  setTone("error");
-                  setMessage("Sign in.");
-                }
-              }
+              scheduleSync(account, updated.store);
               return;
             }
             try {
@@ -2092,16 +2238,12 @@ export default function App() {
       {phase === "backlog" && account ? (
         <Backlog
           account={account}
-          backlog={
-            backlogMode === "loading"
-              ? null
-              : backlogView({
-                  library,
-                  projectId: backlogProjectId,
-                  issues: backlogMode === "online" ? remoteBacklog || [] : null,
-                  sprints: backlogMode === "online" ? remoteSprints || [] : null,
-                })
-          }
+          backlog={backlogView({
+            library,
+            projectId: backlogProjectId,
+            issues: backlogMode === "online" ? remoteBacklog || [] : null,
+            sprints: backlogMode === "online" ? remoteSprints || [] : null,
+          })}
           busy={busy}
           error={workError}
           onBoard={openBoard}
@@ -2142,7 +2284,7 @@ export default function App() {
             listPhase.current = "projects";
             setPhase("projects");
           }}
-          onRefresh={() => openBacklog()}
+          onRefresh={() => openBacklog({ pull: true })}
           onSchedule={async (id, sprint) => {
             if (findIssue(library, id)) {
               const updated = queueUpdate(library, id, { sprint_id: sprint.id }, { online: true, sprint });
@@ -2151,22 +2293,12 @@ export default function App() {
                 return;
               }
               await persistLibrary(account.userId, updated.store);
-              try {
-                const store = await refreshLibrary(account, updated.store);
-                await refreshBacklog(account, store || updated.store, backlogProjectId);
-              } catch (err) {
-                if (err.status === 401) {
-                  await clearAccount();
-                  setTone("error");
-                  setMessage("Sign in.");
-                }
-              }
+              scheduleSync(account, updated.store);
               return;
             }
             try {
               await send(account.origin, account.token, "PATCH", `/api/v1/issues/${id}`, { sprint_id: sprint.id });
-              const store = await refreshLibrary(account, library);
-              await refreshBacklog(account, store || library, backlogProjectId);
+              scheduleSync(account, libraryRef.current);
             } catch (err) {
               if (err.status === 401) {
                 await clearAccount();
@@ -2224,21 +2356,17 @@ export default function App() {
             listPhase.current = "projects";
             setPhase("projects");
           }}
-          onRefresh={() => openSprints()}
+          onRefresh={() => openSprints({ pull: true })}
           onSettings={() => {
             listPhase.current = "sprints";
             openSettings();
           }}
           onSignOut={onSignOut}
-          planning={
-            planningMode === "loading"
-              ? null
-              : planningView({
-                  library,
-                  projectId: planningProjectId,
-                  sprints: planningMode === "online" ? planningSprints || [] : null,
-                })
-          }
+          planning={planningView({
+            library,
+            projectId: planningProjectId,
+            sprints: planningMode === "online" ? planningSprints || [] : null,
+          })}
           refreshing={refreshing}
         />
       ) : null}
@@ -2284,7 +2412,7 @@ export default function App() {
           onSave={saveSprint}
           onStart={startOpenSprint}
           refreshing={refreshing}
-          onRefresh={() => showSprint(planningProjectId, openSprint && openSprint.id)}
+          onRefresh={() => showSprint(planningProjectId, openSprint && openSprint.id, { pull: true })}
         />
       ) : null}
       {phase === "schedules" && account ? (
@@ -2309,7 +2437,7 @@ export default function App() {
             listPhase.current = "projects";
             setPhase("projects");
           }}
-          onRefresh={() => openSchedules(scheduleProjectId)}
+          onRefresh={() => openSchedules({ pull: true, projectId: scheduleProjectId })}
           onSettings={() => {
             listPhase.current = "schedules";
             openSettings();
@@ -2321,14 +2449,10 @@ export default function App() {
           projects={enabledProjects(library).map((project) => ({ id: project.id, key: project.key }))}
           recipe={recipe}
           refreshing={refreshing}
-          view={
-            scheduleLink === "loading"
-              ? null
-              : seriesView({
-                  series: remoteSeries,
-                  online: scheduleLink === "online",
-                })
-          }
+          view={seriesView({
+            series: remoteSeries,
+            online: scheduleLink === "online",
+          })}
         />
       ) : null}
       {phase === "schedule" && account ? (
@@ -2385,10 +2509,7 @@ export default function App() {
         <CalendarScreen
           account={account}
           busy={busy}
-          calendar={
-            calendarLink === "loading"
-              ? null
-              : calendarView({
+          calendar={calendarView({
                   library,
                   remote: calendarLink === "online" ? remoteCalendar || [] : null,
                   completedAt,
@@ -2400,8 +2521,7 @@ export default function App() {
                   userId: Number(account.userId),
                   offsetMinutes: new Date().getTimezoneOffset(),
                   filter: listFilter,
-                })
-          }
+                })}
           error={workError}
           filter={listFilter}
           filterChoices={filterChoices(calendarProjectId)}
@@ -2561,15 +2681,7 @@ export default function App() {
             }
             await persistLibrary(account.userId, filed.store);
             setPhase(listPhase.current);
-            try {
-              await refreshLibrary(account, filed.store);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-                setTone("error");
-                setMessage("Sign in.");
-              }
-            }
+            scheduleSync(account, filed.store);
             return null;
           }}
         />
@@ -2588,13 +2700,7 @@ export default function App() {
           onKeepPhone={async (id) => {
             const next = choosePhone(library, id);
             await persistLibrary(account.userId, next);
-            try {
-              await refreshLibrary(account, next);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-              }
-            }
+            scheduleSync(account, next);
           }}
           onKeepServer={async (id, serverIssue) => {
             await persistLibrary(account.userId, chooseServer(library, id, serverIssue, null));
@@ -2602,13 +2708,7 @@ export default function App() {
           onRecreate={async (id) => {
             const next = queueRecreate(library, id);
             await persistLibrary(account.userId, next);
-            try {
-              await refreshLibrary(account, next);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-              }
-            }
+            scheduleSync(account, next);
           }}
           onEditSeries={(seriesId, page) => showSchedule(seriesId, page)}
           onRepeat={openRepeat}
@@ -2621,15 +2721,7 @@ export default function App() {
               return updated.error;
             }
             await persistLibrary(account.userId, updated.store);
-            try {
-              await refreshLibrary(account, updated.store);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-                setTone("error");
-                setMessage("Sign in.");
-              }
-            }
+            scheduleSync(account, updated.store);
             return null;
           }}
           onDelete={async (id) => {
@@ -2639,15 +2731,7 @@ export default function App() {
             }
             await persistLibrary(account.userId, removed.store);
             setPhase(listPhase.current);
-            try {
-              await refreshLibrary(account, removed.store);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-                setTone("error");
-                setMessage("Sign in.");
-              }
-            }
+            scheduleSync(account, removed.store);
             return null;
           }}
           onComment={async (id, text) => {
@@ -2673,15 +2757,7 @@ export default function App() {
               return added.error;
             }
             await persistLibrary(account.userId, added.store);
-            try {
-              await refreshLibrary(account, added.store);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-                setTone("error");
-                setMessage("Sign in.");
-              }
-            }
+            scheduleSync(account, added.store);
             return null;
           }}
           onRemoveComment={async (id, commentId) => {
@@ -2690,15 +2766,7 @@ export default function App() {
               return removed.error;
             }
             await persistLibrary(account.userId, removed.store);
-            try {
-              await refreshLibrary(account, removed.store);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-                setTone("error");
-                setMessage("Sign in.");
-              }
-            }
+            scheduleSync(account, removed.store);
             return null;
           }}
           onAddChild={async (draft) => {
@@ -2707,16 +2775,7 @@ export default function App() {
               return filed.error;
             }
             await persistLibrary(account.userId, filed.store);
-            try {
-              await refreshLibrary(account, filed.store);
-            } catch (err) {
-              if (err.status === 401) {
-                await clearAccount();
-                setTone("error");
-                setMessage("Sign in.");
-                return "Sign in.";
-              }
-            }
+            scheduleSync(account, filed.store);
             return null;
           }}
           onUnauthorized={async () => {
@@ -4796,7 +4855,7 @@ function IssueDetail({
       ) : null}
       {saved && saved.error ? <Text style={styles.error}>{saved.error}</Text> : null}
       {!saved && page ? (
-        <Text style={styles.message}>This issue is no longer in the saved sprint.</Text>
+        <Text style={styles.message}>This issue is not saved on this phone.</Text>
       ) : null}
       {page === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}

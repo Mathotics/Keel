@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const {
+  absorbIssues,
   applyRefresh,
   choosePhone,
   chooseServer,
@@ -52,6 +53,47 @@ function snapshot() {
     ],
   };
 }
+
+test("a sprint refresh keeps issues saved outside that sprint", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store.projects[3].issues[15] = {
+    id: 15,
+    projectId: 3,
+    raw: { id: 15, key: "KEEL-15", title: "Later", sprint_id: null, status: "todo" },
+    page: { key: "KEEL-15", title: "Later" },
+    pending: false,
+    conflict: null,
+  };
+  store = applyRefresh(store, [snapshot()], { people: [], labels: [] });
+  assert.equal(store.projects[3].issues[15].raw.title, "Later");
+  assert.equal(store.projects[3].issues[9].raw.title, "Paint");
+});
+
+test("a full issue list replaces the saved copy and keeps a waiting edit", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = enqueue(store, {
+    kind: "patch",
+    issueId: 9,
+    method: "PATCH",
+    path: "/api/v1/issues/9",
+    body: { title: "Phone title" },
+  });
+  store = absorbIssues(store, 3, [
+    { ...snapshot().issues[0], title: "Server title" },
+    {
+      id: 15,
+      key: "KEEL-15",
+      title: "Backlog",
+      status: "todo",
+      sprint_id: null,
+      project_id: 3,
+      updated_at: "2026-10-02T00:00:00",
+    },
+  ]);
+  assert.equal(store.projects[3].catalog, true);
+  assert.equal(store.projects[3].issues[9].raw.title, "Paint");
+  assert.equal(store.projects[3].issues[15].raw.title, "Backlog");
+});
 
 test("a new project starts saved and enabled", () => {
   const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });

@@ -82,6 +82,16 @@ test("a waiting local schedule leaves the backlog and a new unscheduled issue jo
   assert.equal(view.rows[0].key, "");
 });
 
+test("a saved backlog opens without a connection", () => {
+  const saved = library({
+    9: { id: 9, raw: issue({ title: "Waiting" }) },
+  });
+  saved.projects[3].saved = true;
+  const view = backlogView({ library: saved, projectId: 3, issues: null, sprints: null });
+  assert.equal(view.banner, "Showing the saved copy.");
+  assert.deepEqual(view.rows.map((row) => row.title), ["Waiting"]);
+});
+
 test("offline asks for a connection and an empty backlog says so", () => {
   const offline = backlogView({ library: library(), projectId: 3, issues: null, sprints: null });
   assert.equal(offline.banner, NEEDS_CONNECTION);

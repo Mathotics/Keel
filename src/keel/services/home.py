@@ -8,7 +8,7 @@ from datetime import UTC, date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Issue, IssueHistory, Project, Sprint
+from keel.db.models import Issue, Project, Sprint
 from keel.domain.enums import (
     CLOSED_STATUSES,
     IssueStatus,
@@ -98,7 +98,10 @@ def personal_inbox(
     unfinished = [
         item for item, _sprint in packed if item.issue.status not in CLOSED_STATUSES
     ]
-    times = _completion_times(session, [item.issue for item, _sprint in packed])
+    times = history_service.completion_times(
+        session,
+        [item.issue for item, _sprint in packed],
+    )
     return HomeInbox(
         assigned=_sorted_by_key(unfinished),
         due=_sorted_by_due(
@@ -273,31 +276,3 @@ def _sorted_by_completed(items: Sequence[HomeRow]) -> tuple[HomeRow, ...]:
             ),
         ),
     )
-
-
-def _completion_times(session: Session, issues: Sequence[Issue]) -> dict[int, datetime]:
-    """Latest move to Done, or created_at when an issue was born Done."""
-    done = [issue for issue in issues if issue.status is IssueStatus.DONE]
-    if not done:
-        return {}
-    ids = [issue.id for issue in done]
-    rows = session.scalars(
-        select(IssueHistory)
-        .where(
-            IssueHistory.issue_id.in_(ids),
-            IssueHistory.field == history_service.FIELD_STATUS,
-        )
-        .order_by(IssueHistory.created_at, IssueHistory.id),
-    ).all()
-    latest: dict[int, IssueHistory] = {}
-    for row in rows:
-        latest[row.issue_id] = row
-    done_label = history_service.status_label(IssueStatus.DONE)
-    times: dict[int, datetime] = {}
-    for issue in done:
-        event = latest.get(issue.id)
-        if event is None:
-            times[issue.id] = issue.created_at
-        elif event.to_value == done_label:
-            times[issue.id] = event.created_at
-    return times

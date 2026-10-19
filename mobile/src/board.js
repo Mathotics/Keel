@@ -16,7 +16,7 @@ const TYPE_LABELS = {
   subtask: "Subtask",
 };
 
-const SAVED_BOARD = "Showing the saved active sprint. Other board issues need a connection.";
+const SAVED_BOARD = "Showing the saved copy.";
 const NOTHING = "Nothing to show.";
 
 function enabledProjects(library) {
@@ -110,18 +110,21 @@ function localIssues(projects) {
   return records;
 }
 
+function savedSprintName(raw, project, master) {
+  if (!raw.sprint_id) {
+    return sprintLabel(project, "Unscheduled", master);
+  }
+  if (project.sprint && raw.sprint_id === project.sprint.id) {
+    return sprintLabel(project, project.sprint.name, master);
+  }
+  return null;
+}
+
 function savedCards(projects, people, master, filter, scoped) {
   const cards = [];
   for (const project of projects) {
-    const sprint = project.sprint;
-    if (!sprint) {
-      continue;
-    }
     for (const issue of Object.values(project.issues || {})) {
       const raw = issue.raw || {};
-      if (raw.sprint_id !== sprint.id) {
-        continue;
-      }
       if (!matchesIssue(raw, filter, { projectId: project.id, ignoreProject: scoped })) {
         continue;
       }
@@ -130,7 +133,7 @@ function savedCards(projects, people, master, filter, scoped) {
           raw,
           project,
           issue.pending || issue.conflict || raw.id < 0,
-          sprintLabel(project, sprint.name, master),
+          savedSprintName(raw, project, master),
           people,
         ),
       );

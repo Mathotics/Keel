@@ -12,6 +12,7 @@ const STATE_LABELS = {
 };
 
 const NEEDS_CONNECTION = "The backlog needs a connection.";
+const SAVED_BACKLOG = "Showing the saved copy.";
 const NOTHING = "Nothing in the backlog.";
 const NO_SPRINT = "No active or planned sprint";
 
@@ -130,6 +131,13 @@ function sprintChoices(sprints, projectId) {
     }));
 }
 
+function localRows(project, people) {
+  return Object.values((project && project.issues) || {})
+    .filter((issue) => onBacklog(issue.raw))
+    .map((issue) => present(issue.raw, issue.pending || issue.conflict, people))
+    .sort(byAge);
+}
+
 function backlogView({ library, projectId, issues, sprints }) {
   const projects = enabledProjects(library);
   const selected =
@@ -138,14 +146,15 @@ function backlogView({ library, projectId, issues, sprints }) {
       : projects.find((project) => project.id === projectId) || null;
   const people = (library && library.people) || [];
   const online = Array.isArray(issues);
+  const saved = Boolean(selected && (selected.catalog || selected.saved));
   const choices = online && selected ? sprintChoices(sprints, selected.id) : [];
-  const rows = online && selected ? rowsFor(selected, issues, people) : [];
+  const rows = online && selected ? rowsFor(selected, issues, people) : localRows(selected, people);
   return {
     title: selected ? `${selected.key} backlog` : "Backlog",
     projects: projects.map((project) => ({ id: project.id, key: project.key })),
     selectedProjectId: selected ? selected.id : null,
-    banner: online ? "" : NEEDS_CONNECTION,
-    empty: online && rows.length === 0 ? NOTHING : "",
+    banner: online ? "" : saved ? SAVED_BACKLOG : NEEDS_CONNECTION,
+    empty: rows.length === 0 && (online || saved) ? NOTHING : "",
     noSprint: online && rows.length > 0 && choices.length === 0 ? NO_SPRINT : "",
     sprints: choices,
     rows,

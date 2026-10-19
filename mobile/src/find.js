@@ -1,4 +1,4 @@
-const NEEDS_CONNECTION = "Anything outside the saved active sprint needs a connection.";
+const NEEDS_CONNECTION = "Showing saved issues. Projects, sprints, and people need a connection.";
 const ENTER_QUERY = "Enter a query.";
 const NONE = "None.";
 const MORE = {
@@ -48,15 +48,8 @@ function issueNumber(issue) {
 function savedIssues(library) {
   const rows = [];
   for (const project of enabledProjects(library)) {
-    const sprintId = project.sprint && project.sprint.state === "active" ? project.sprint.id : null;
-    if (!sprintId) {
-      continue;
-    }
     for (const issue of Object.values(project.issues || {})) {
       const raw = issue.raw || {};
-      if (raw.sprint_id !== sprintId) {
-        continue;
-      }
       const comments = ((issue.page && issue.page.comments) || []).map((comment) => comment.body || "");
       rows.push({ raw, project, comments });
     }

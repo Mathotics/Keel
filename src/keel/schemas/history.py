@@ -3,6 +3,11 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class CompletionTimeRead(BaseModel):
+    issue_id: int
+    completed_at: datetime
+
+
 class HistoryEventRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

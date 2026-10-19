@@ -69,6 +69,19 @@ def test_connections_enforce_foreign_keys(engine: Engine) -> None:
         assert connection.execute(text("PRAGMA busy_timeout")).scalar() == 5000
 
 
+def test_file_databases_use_wal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("KEEL_FAST_SQLITE", raising=False)
+    url = f"sqlite+pysqlite:///{(tmp_path / 'wal.db').as_posix()}"
+    engine = create_db_engine(url)
+    with engine.connect() as connection:
+        assert connection.execute(text("PRAGMA journal_mode")).scalar() == "wal"
+        assert connection.execute(text("PRAGMA synchronous")).scalar() == 1
+    engine.dispose()
+
+
 def test_session_factory_round_trips_a_model(tmp_path: Path) -> None:
     url = f"sqlite+pysqlite:///{(tmp_path / 'roundtrip.db').as_posix()}"
     engine = create_db_engine(url)
