@@ -121,9 +121,17 @@ cmd = "ruff format --check ."
 help = "Sort imports with isort"
 cmd = "isort src tests"
 
+[tool.poe.tasks.isort.env]
+# isort 9 opens NUL with the process encoding. On Windows that is cp1252,
+# so a source line containing U+2192 is reported as unparsable and skipped.
+PYTHONUTF8 = "1"
+
 [tool.poe.tasks.isort-check]
 help = "Check import order with isort"
 cmd = "isort --check-only --diff src tests"
+
+[tool.poe.tasks.isort-check.env]
+PYTHONUTF8 = "1"
 
 [tool.poe.tasks.mypy]
 help = "Type-check with mypy"
