@@ -65,6 +65,8 @@ _HOUR_LABELS = (
     "11 PM",
 )
 _DAY_MINUTES = 24 * 60
+# A one-line chip under the tick is about this much of the 2.75rem hour row.
+_INSTANT_LANE_MINUTES = 34
 _MONTHS_SHORT = (
     "Jan",
     "Feb",
@@ -112,6 +114,7 @@ class HourBlock:
     lanes: int
     continues_before: bool
     continues_after: bool
+    instant: bool = False
 
 
 @dataclass(frozen=True)
@@ -170,6 +173,7 @@ class _Bar:
     end: date
     start_at: datetime
     end_at: datetime
+    instant: bool = False
 
 
 def chosen_month(
@@ -498,6 +502,7 @@ def _bars(
                 end=bar_end,
                 start_at=start_at,
                 end_at=end_at,
+                instant=mode in ("completed", "created"),
             ),
         )
     bars.sort(key=lambda bar: (bar.start, bar.project_key, bar.number))
@@ -698,9 +703,10 @@ def _blocks_on(bars: Sequence[_Bar], day: date) -> tuple[HourBlock, ...]:
             if not day_start <= bar.start_at < day_end:
                 continue
             start_minute = bar.start_at.hour * 60 + bar.start_at.minute
-            pieces.append(
-                (bar, start_minute, min(_DAY_MINUTES, start_minute + 60), False, False),
+            end_minute = (
+                start_minute if bar.instant else min(_DAY_MINUTES, start_minute + 60)
             )
+            pieces.append((bar, start_minute, end_minute, False, False))
             continue
         shown_start = max(bar.start_at, day_start)
         shown_end = min(bar.end_at, day_end)
@@ -732,16 +738,23 @@ def _hour_lanes(
     until: list[int] = []
     placed: list[tuple[_Bar, int, int, bool, bool, int]] = []
     for bar, start_minute, end_minute, before, after in pieces:
-        if end_minute <= start_minute:
+        # An instant keeps its minute. Nearby chips still take a lane so they
+        # do not paint on top of each other.
+        occupies = end_minute
+        if bar.instant:
+            occupies = min(_DAY_MINUTES, start_minute + _INSTANT_LANE_MINUTES)
+            end_minute = start_minute
+        elif end_minute <= start_minute:
             end_minute = min(_DAY_MINUTES, start_minute + 1)
+            occupies = end_minute
         lane: int | None = None
         for index, occupied in enumerate(until):
             if start_minute >= occupied:
-                until[index] = end_minute
+                until[index] = occupies
                 lane = index
                 break
         if lane is None:
-            until.append(end_minute)
+            until.append(occupies)
             lane = len(until) - 1
         placed.append((bar, start_minute, end_minute, before, after, lane))
     count = max(len(until), 1)
@@ -758,6 +771,7 @@ def _hour_lanes(
             lanes=count,
             continues_before=before,
             continues_after=after,
+            instant=bar.instant,
         )
         for bar, start_minute, end_minute, before, after, lane in placed
     )

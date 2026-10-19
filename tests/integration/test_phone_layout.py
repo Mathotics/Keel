@@ -64,7 +64,10 @@ def test_phone_layout_is_a_narrow_media_query(client: TestClient) -> None:
             1,
         )[0]
     )
-    assert "position: sticky" not in desktop_footer
+    assert "position: fixed" in desktop_footer
+    assert "bottom: 0" in desktop_footer
+    phone_footer = phone.split(".keel-footer {", 1)[1].split("}", 1)[0]
+    assert "position: static" in phone_footer
 
 
 def test_phone_chrome_still_shows_every_bar_control(client: TestClient) -> None:

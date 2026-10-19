@@ -127,7 +127,11 @@
                 <div class="keel-cal__slot"></div>
                 {% endfor %}
                 {% for block in day.blocks %}
+                {% if block.instant %}
+                <a class="keel-cal__instant" data-type="{{ block.type }}" href="/issues/{{ block.key }}" title="{{ block.key }} {{ block.title }}" style="top: {{ block.start_minute / 14.4 }}%; left: calc({{ block.lane }} * (100% / {{ block.lanes }})); width: calc(100% / {{ block.lanes }});"><span class="keel-cal__instant-tick"></span><span class="keel-cal__instant-chip"><span class="keel-cal__text">{{ block.key }} {{ block.title }}</span><span class="keel-cal__status" data-status="{{ block.status.value }}">{{ block.status | label }}</span></span></a>
+                {% else %}
                 <a class="keel-cal__bar{% if block.continues_before %} keel-cal__bar--continued{% endif %}{% if block.continues_after %} keel-cal__bar--continues{% endif %}" data-type="{{ block.type }}" href="/issues/{{ block.key }}" style="top: {{ block.start_minute / 14.4 }}%; min-height: {{ (block.end_minute - block.start_minute) / 14.4 }}%; left: calc({{ block.lane }} * (100% / {{ block.lanes }})); width: calc(100% / {{ block.lanes }});"><span class="keel-cal__text">{{ block.key }} {{ block.title }}</span><span class="keel-cal__status" data-status="{{ block.status.value }}">{{ block.status | label }}</span></a>
+                {% endif %}
                 {% endfor %}
               </div>
               {% endfor %}
