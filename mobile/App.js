@@ -34,7 +34,7 @@ import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, 
 import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
-import { reachability, reachabilityKnown, setReachable, subscribeReachability } from "./src/reach";
+import { connectionMode, forcedOffline, reachability, reachabilityKnown, setForcedOffline, setReachable, shouldStayOffline, subscribeReachability } from "./src/reach";
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
@@ -78,6 +78,7 @@ const TOKEN_ID_KEY = "keel.tokenId";
 const NAME_KEY = "keel.displayName";
 const LABEL_KEY = "keel.label";
 const USER_ID_KEY = "keel.userId";
+const OFFLINE_KEY = "keel.forceOffline";
 const CONNECTED = "Connected";
 const FAILED = "Could not connect.";
 const TOP_INSET = Platform.OS === "android" ? NativeStatusBar.currentHeight || 24 : 44;
@@ -120,6 +121,7 @@ export default function App() {
   const issueBackRef = useRef(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [online, setOnline] = useState(false);
+  const [forceOffline, setForceOffline] = useState(false);
   const [remoteIssues, setRemoteIssues] = useState(null);
   const [inboxMode, setInboxMode] = useState("offline");
   const [remoteBoards, setRemoteBoards] = useState(null);
@@ -267,10 +269,11 @@ export default function App() {
   }, []);
 
   async function boot() {
-    const [savedAddress, savedLock, token, tokenId, displayName, label, userId, level] =
+    const [savedAddress, savedLock, savedOffline, token, tokenId, displayName, label, userId, level] =
       await Promise.all([
         AsyncStorage.getItem(ADDRESS_KEY),
         AsyncStorage.getItem(LOCK_KEY),
+        AsyncStorage.getItem(OFFLINE_KEY),
         SecureStore.getItemAsync(TOKEN_KEY),
         SecureStore.getItemAsync(TOKEN_ID_KEY),
         SecureStore.getItemAsync(NAME_KEY),
@@ -292,10 +295,12 @@ export default function App() {
             userId: userId || null,
           }
         : null;
-    return { savedAddress: savedAddress || "", setting, enrolled, signedIn };
+    return { savedAddress: savedAddress || "", setting, enrolled, signedIn, forceOffline: savedOffline === "1" };
   }
 
   function applyBoot(next) {
+    setForcedOffline(next.forceOffline);
+    setForceOffline(next.forceOffline);
     setAddress(next.savedAddress);
     setLockSetting(next.setting);
     setHasDeviceLock(next.enrolled);
@@ -501,10 +506,45 @@ export default function App() {
   }
 
   function knownOffline() {
-    return reachabilityKnown() && !reachability();
+    return shouldStayOffline({
+      known: reachabilityKnown(),
+      online: reachability(),
+      forced: forcedOffline(),
+    });
+  }
+
+  function useSavedCopy() {
+    setInboxMode("offline");
+    setBoardMode("offline");
+    setBacklogMode("offline");
+    setPlanningMode("offline");
+    setCalendarLink("offline");
+    setScheduleLink("offline");
+    setAccountLink("offline");
+    setSettingsLink("offline");
+  }
+
+  async function toggleForceOffline() {
+    if (forcedOffline()) {
+      setForcedOffline(false);
+      setForceOffline(false);
+      await AsyncStorage.setItem(OFFLINE_KEY, "0");
+      await probeRef.current();
+      if (reachability()) {
+        scheduleSync(account, libraryRef.current);
+      }
+      return;
+    }
+    setForcedOffline(true);
+    setForceOffline(true);
+    await AsyncStorage.setItem(OFFLINE_KEY, "1");
+    useSavedCopy();
   }
 
   async function refreshLibrary(currentAccount, currentStore, options) {
+    if (forcedOffline()) {
+      return currentStore;
+    }
     const maxAgeMs = options && options.maxAgeMs;
     if (maxAgeMs && Date.now() - librarySyncedAt.current < maxAgeMs) {
       return currentStore;
@@ -593,6 +633,13 @@ export default function App() {
           await refreshBacklog(currentAccount, next, backlogProjectId);
         } else if (showing === "calendar") {
           await refreshCalendar(currentAccount, next, calendarProjectId, calendarWhen);
+        } else if (showing === "sprints" || showing === "sprint") {
+          await refreshPlanning(currentAccount, next, planningProjectId);
+          if (showing === "sprint" && openSprint) {
+            await refreshOpenSprint(currentAccount, next, planningProjectId, openSprint.id);
+          }
+        } else if (showing === "schedules") {
+          await refreshSchedules(currentAccount, next, scheduleProjectId);
         }
       } catch (err) {
         if (err.status === 401) {
@@ -605,7 +652,7 @@ export default function App() {
   }
 
   async function refreshInbox(currentAccount, currentLibrary) {
-    if (!currentAccount.userId) {
+    if (forcedOffline() || !currentAccount.userId) {
       return;
     }
     const projects = Object.values((currentLibrary && currentLibrary.projects) || {}).filter(
@@ -632,6 +679,9 @@ export default function App() {
   }
 
   async function refreshBoard(currentAccount, currentLibrary) {
+    if (forcedOffline()) {
+      return;
+    }
     const projects = Object.values((currentLibrary && currentLibrary.projects) || {}).filter(
       (project) => project.enabled,
     );
@@ -650,6 +700,9 @@ export default function App() {
   }
 
   async function refreshFilterSprints(currentAccount, currentLibrary) {
+    if (forcedOffline()) {
+      return;
+    }
     const projects = enabledProjects(currentLibrary);
     try {
       const groups = await Promise.all(projects.map(async (project) => {
@@ -729,6 +782,9 @@ export default function App() {
   }
 
   async function refreshBacklog(currentAccount, currentLibrary, projectId) {
+    if (forcedOffline()) {
+      return;
+    }
     const project = enabledProjects(currentLibrary).find((item) => item.id === projectId);
     if (!project) {
       setRemoteBacklog([]);
@@ -802,6 +858,9 @@ export default function App() {
   }
 
   async function refreshPlanning(currentAccount, currentLibrary, projectId) {
+    if (forcedOffline()) {
+      return null;
+    }
     const project = enabledProjects(currentLibrary).find((item) => item.id === projectId);
     if (!project) {
       setPlanningSprints([]);
@@ -826,6 +885,9 @@ export default function App() {
   }
 
   async function refreshOpenSprint(currentAccount, currentLibrary, projectId, sprintId) {
+    if (forcedOffline()) {
+      return null;
+    }
     try {
       const detail = await read(currentAccount.origin, currentAccount.token, `/api/v1/sprints/${sprintId}`);
       setOpenSprint(detail);
@@ -1036,6 +1098,10 @@ export default function App() {
       openFound(view.jump);
       return;
     }
+    if (knownOffline()) {
+      setFindResult(view);
+      return;
+    }
     try {
       const payload = await read(
         account.origin,
@@ -1065,6 +1131,9 @@ export default function App() {
   }
 
   async function refreshCalendar(currentAccount, currentLibrary, projectId, when) {
+    if (forcedOffline()) {
+      return;
+    }
     const projects = enabledProjects(currentLibrary);
     try {
       const issues = await loadCalendarIssues(
@@ -1126,6 +1195,9 @@ export default function App() {
   }
 
   async function refreshSchedules(currentAccount, currentLibrary, projectId) {
+    if (forcedOffline()) {
+      return;
+    }
     const projects = enabledProjects(currentLibrary);
     const project = projects.find((item) => item.id === projectId) || projects[0];
     if (!project) {
@@ -1576,9 +1648,11 @@ export default function App() {
         setInboxMode("offline");
       }
       try {
-        const next = await refreshLibrary(account, store);
-        if (active && account.userId) {
-          await refreshInbox(account, next || store);
+        if (!knownOffline()) {
+          const next = await refreshLibrary(account, store);
+          if (active && account.userId) {
+            await refreshInbox(account, next || store);
+          }
         }
       } catch (err) {
         if (!active) {
@@ -1984,7 +2058,8 @@ export default function App() {
           }}
           onBack={shellBack}
           onMenu={() => setDrawerOpen(true)}
-          online={online}
+          onConnection={toggleForceOffline}
+          online={connectionMode(online, forceOffline)}
           title={barTitle()}
         />
       ) : (
@@ -2712,6 +2787,7 @@ export default function App() {
           }}
           onEditSeries={(seriesId, page) => showSchedule(seriesId, page)}
           onRepeat={openRepeat}
+          holdOffline={forceOffline}
           onRemember={async (issue, page) => {
             await persistLibrary(account.userId, rememberDetail(library, issue.id, issue, page));
           }}
@@ -4549,6 +4625,7 @@ function Work({
 
 function IssueDetail({
   account,
+  holdOffline,
   issueId,
   library,
   onBack,
@@ -4625,7 +4702,7 @@ function IssueDetail({
     let active = true;
     setPage(saved && saved.page ? saved.page : null);
     setError("");
-    if (Number(currentId) < 0) {
+    if (Number(currentId) < 0 || holdOffline) {
       return undefined;
     }
     loadIssueDetail(account.origin, account.token, currentId)
@@ -4655,7 +4732,7 @@ function IssueDetail({
     return () => {
       active = false;
     };
-  }, [account.origin, account.token, currentId]);
+  }, [account.origin, account.token, currentId, holdOffline]);
 
   function goBack() {
     if (editing) {
@@ -4738,6 +4815,10 @@ function IssueDetail({
   }
 
   async function addLink() {
+    if (holdOffline) {
+      setError("Offline is locked.");
+      return;
+    }
     if (Number(currentId) < 0) {
       setError("This issue is not on the server yet.");
       return;
@@ -4787,6 +4868,10 @@ function IssueDetail({
   }
 
   async function removeLink(item) {
+    if (holdOffline) {
+      setError("Offline is locked.");
+      return;
+    }
     if (!item.dependencyId) {
       return;
     }
@@ -5178,7 +5263,7 @@ function StatusChip({ label, status }) {
   );
 }
 
-function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online }) {
+function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online, onConnection }) {
   return (
     <View style={styles.appBar}>
       <Pressable
@@ -5191,7 +5276,7 @@ function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online })
         <Text style={styles.appBarIcon}>{menu ? "☰" : "‹"}</Text>
       </Pressable>
       <Text numberOfLines={1} style={styles.appBarTitle}>{title}</Text>
-      <ConnectionMark online={online} />
+      <ConnectionMark mode={online} onPress={onConnection} />
       <Pressable accessibilityLabel="Profile" accessibilityRole="button" hitSlop={12} onPress={onAvatar} style={styles.avatar}>
         <Text style={styles.avatarText}>{initialsText}</Text>
       </Pressable>
@@ -5199,13 +5284,17 @@ function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online })
   );
 }
 
-function ConnectionMark({ online }) {
-  const label = online ? "Online" : "Offline";
+function ConnectionMark({ mode, onPress }) {
+  const label = mode === "locked" ? "Offline, locked" : mode === "online" ? "Online" : "Offline";
+  const tone = mode === "locked" ? styles.connectionLocked : mode === "online" ? styles.connectionOnline : styles.connectionOffline;
   return (
-    <View
+    <Pressable
+      accessibilityHint={mode === "locked" ? "Try to go online" : "Stay offline"}
       accessibilityLabel={label}
-      accessibilityRole="image"
-      style={[styles.connection, online ? styles.connectionOnline : styles.connectionOffline]}
+      accessibilityRole="button"
+      hitSlop={12}
+      onPress={onPress}
+      style={[styles.connection, tone]}
     >
       <View style={styles.wifiGlyph}>
         <View style={[styles.wifiArc, styles.wifiArcOuter]} />
@@ -5213,8 +5302,10 @@ function ConnectionMark({ online }) {
         <View style={[styles.wifiArc, styles.wifiArcInner]} />
         <View style={styles.wifiDot} />
       </View>
-      {online ? null : <View style={styles.wifiSlash} />}
-    </View>
+      {mode === "online" ? null : <View style={styles.wifiSlash} />}
+      {mode === "locked" ? <View style={styles.connectionShackle} /> : null}
+      {mode === "locked" ? <View style={styles.connectionLock} /> : null}
+    </Pressable>
   );
 }
 
@@ -5860,6 +5951,31 @@ const styles = StyleSheet.create({
   },
   connectionOffline: {
     backgroundColor: "#8E949B",
+  },
+  connectionLocked: {
+    backgroundColor: "#C47B00",
+  },
+  connectionLock: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 1,
+    bottom: 5,
+    height: 6,
+    position: "absolute",
+    right: 5,
+    width: 8,
+  },
+  connectionShackle: {
+    borderColor: "#FFFFFF",
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    borderTopWidth: 2,
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    bottom: 10,
+    height: 5,
+    position: "absolute",
+    right: 6,
+    width: 6,
   },
   wifiGlyph: {
     alignItems: "center",

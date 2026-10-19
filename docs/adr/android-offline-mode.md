@@ -43,6 +43,7 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 * **Must** ask before turning a project off while that project has waiting changes. Continuing drops that project’s waiting changes and stops saving it. Cancelling leaves the project on.
 * **Must** let every later action on a saved issue work offline. The phone stores those actions in order and uploads them when it reconnects.
 * **Must** open a screen from the saved copy without waiting on the network. A refresh updates that screen after it is already showing. Pull to refresh is the action that waits on the server.
+* **Must** let the user lock the phone into offline mode from the connection mark. While that lock is on, a reachable server must not refresh or upload. Pressing the mark again clears the lock and tries the server. If that try fails, the phone stays in ordinary offline mode and goes online on its own when a later probe succeeds.
 * **Must** require a connection for the first sign-in, and for any screen whose data is not saved (sprint plans, schedules, and a project that has never refreshed).
 * **Must** show “Not on the server yet” on each issue that is waiting, including an issue waiting on a conflict choice.
 * **Must** upload issues that do not disagree with the server. When both sides changed an issue, leave that issue unsynced until the user picks the phone’s version or the server’s version. The user may leave the choice and keep using the app.
@@ -62,7 +63,7 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 ## Assumptions
 
 * The waiting queue belongs to the signed-in account. A different person signing in on the same phone does not see it and does not upload it.
-* While connected, the app refreshes the issues of each enabled project. It leaves an issue alone when that issue has a waiting edit or an unresolved conflict. Opening a screen does not wait for that refresh.
+* While connected, and while the user has not locked offline mode, the app refreshes the issues of each enabled project. It leaves an issue alone when that issue has a waiting edit or an unresolved conflict. Opening a screen does not wait for that refresh.
 * A new issue has no KEEL number until the server accepts it. It still shows “Not on the server yet”.
 * If the server deleted the issue, the user chooses to recreate it from the phone’s copy or discard the phone’s copy. That issue stays marked until they choose.
 * If the server rejects a waiting change for another reason, the app shows the error on that issue and leaves the change waiting.

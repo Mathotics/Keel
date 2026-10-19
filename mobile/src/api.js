@@ -1,8 +1,19 @@
 const { activeSprint, workSection } = require("./work");
 const { issuePage } = require("./issue");
-const { setReachable } = require("./reach");
+const { forcedOffline, setReachable } = require("./reach");
 
 const FAILED = "Could not connect.";
+const LOCKED = "Offline is locked.";
+
+function refuseLocked() {
+  if (!forcedOffline()) {
+    return;
+  }
+  const error = new Error(LOCKED);
+  error.status = 0;
+  error.locked = true;
+  throw error;
+}
 
 function detailMessage(body, fallback) {
   const detail = body && body.detail;
@@ -74,6 +85,7 @@ async function revokeToken(origin, token, tokenId) {
 }
 
 async function read(origin, token, path) {
+  refuseLocked();
   let response;
   try {
     response = await request(`${origin}${path}`, {
@@ -279,6 +291,7 @@ async function loadIssue(origin, token, issueId) {
 }
 
 async function send(origin, token, method, path, payload) {
+  refuseLocked();
   let response;
   try {
     response = await request(`${origin}${path}`, {
