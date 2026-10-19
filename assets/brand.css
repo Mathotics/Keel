@@ -255,7 +255,8 @@ body {
 
 .keel-main {
   flex: 1 0 auto;
-  padding: 1.5rem 1.75rem 2rem;
+  /* The extra 2rem is the pinned footer, which is out of flow on a wide window. */
+  padding: 1.5rem 1.75rem calc(2rem + 2rem);
 }
 
 .keel-main > h1 {
@@ -1537,6 +1538,11 @@ body {
 }
 
 .keel-footer {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 90;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2278,6 +2284,7 @@ select.keel-type-select[data-type] {
   }
 
   .keel-footer {
+    position: static;
     flex-wrap: wrap;
     min-height: 0;
     padding: 0.4rem 0.75rem;
