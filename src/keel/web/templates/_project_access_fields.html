@@ -1,22 +1,18 @@
           {% set current_role = grant_role if grant_role is defined else everyone_role %}
           {% set current_direct = grant_direct if grant_direct is defined else everyone_direct_codes %}
-          <div class="keel-fields">
-            <p>
-              <label>
-                <input type="radio" name="role" value="" {% if not current_role %}checked{% endif %}/>
-                None
-              </label>
-            </p>
+          <div class="keel-choices">
+            <label>
+              <input type="radio" name="role" value="" {% if not current_role %}checked{% endif %}/>
+              None
+            </label>
             {% for code, label in project_roles %}
-            <p>
-              <label>
-                <input type="radio" name="role" value="{{ code }}" {% if current_role == code %}checked{% endif %}/>
-                {{ label }}
-              </label>
-            </p>
+            <label>
+              <input type="radio" name="role" value="{{ code }}" {% if current_role == code %}checked{% endif %}/>
+              {{ label }}
+            </label>
             {% endfor %}
           </div>
-          <fieldset>
+          <fieldset class="keel-permissions">
             <legend>Project permissions</legend>
             {% for code, label, requires, requires_codes in permission_choices %}
             {% set from_role = current_role and code in role_bundles[current_role].split() %}

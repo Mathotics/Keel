@@ -1016,7 +1016,7 @@ body {
   margin: 0;
 }
 
-.keel-form input:not([type="checkbox"]),
+.keel-form input:not([type="checkbox"]):not([type="radio"]),
 .keel-form select,
 .keel-form textarea,
 .keel-form button {
@@ -1077,7 +1077,8 @@ body {
   color: var(--keel-white);
 }
 
-.keel-form input[type="checkbox"] {
+.keel-form input[type="checkbox"],
+.keel-form input[type="radio"] {
   width: 1rem;
   height: 1rem;
   margin: 0;
@@ -1140,7 +1141,7 @@ body {
   font-weight: 650;
 }
 
-.keel-form--stacked input,
+.keel-form--stacked input:not([type="checkbox"]):not([type="radio"]),
 .keel-form--stacked select,
 .keel-form--stacked textarea {
   flex: 1 1 auto;
@@ -1176,6 +1177,37 @@ body {
 
 .keel-fields__full {
   grid-column: 1 / -1;
+}
+
+.keel-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1.35rem;
+  margin: 0 0 1.05rem;
+}
+
+.keel-form--stacked .keel-choices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+}
+
+.keel-form--stacked .keel-permissions > p {
+  margin: 0 0 0.3rem;
+}
+
+.keel-form--stacked .keel-permissions > p > label {
+  display: block;
+  position: relative;
+  padding-left: 1.5rem;
+  font-weight: 500;
+}
+
+.keel-form--stacked .keel-permissions > p > label > input {
+  position: absolute;
+  left: 0;
+  top: 0.12rem;
 }
 
 .keel-form--stacked fieldset {
@@ -2313,7 +2345,7 @@ select.keel-type-select[data-type] {
     max-width: none;
   }
 
-  .keel-form input:not([type="checkbox"]),
+  .keel-form input:not([type="checkbox"]):not([type="radio"]),
   .keel-form select,
   .keel-form textarea {
     max-width: 100%;
