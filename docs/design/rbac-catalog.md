@@ -6,13 +6,14 @@ A direct grant uses the same permissions as a role. Saving a grant adds anything
 
 ## Global roles
 
-* **Owner.** Unrestricted on the whole server and inside every project. More than one Owner is allowed. Only an Owner can grant or revoke Owner. The last Owner cannot be removed. An Owner is not also stored as Editor, Member, or Custom.
-* **Admin.** Every global permission. No project permission. An Admin can see project names and keys, and can create or delete projects and users. Opening a project still requires a project role or a direct project grant. An Admin is not also stored as Editor, Member, or Custom.
-* **Editor.** View projects, and the global create, edit, and delete permissions for issues, schedules, and sprints, plus Create comments and Delete comments. Comments are created and deleted; there is no separate edit-comment permission. Creating and deleting projects and users stay with Admin, as do renaming users, resetting passwords, and the Admin menu. Work in a project still needs that project's role. Selecting Editor replaces Member and Custom.
+* **Owner.** Unrestricted on the whole server and inside every project. More than one Owner is allowed. Only an Owner can grant or revoke Owner. The last Owner cannot be removed. An Owner is not also stored as Editor, Member, Custom, or No Access.
+* **Admin.** Every global permission. No project permission. An Admin can see project names and keys, and can create or delete projects and users. Opening a project still requires a project role or a direct project grant. An Admin is not also stored as Editor, Member, Custom, or No Access.
+* **Editor.** View projects, and the global create, edit, and delete permissions for issues, schedules, and sprints, plus Create comments and Delete comments. Comments are created and deleted; there is no separate edit-comment permission. Creating and deleting projects and users stay with Admin, as do renaming users, resetting passwords, and the Admin menu. Work in a project still needs that project's role. Selecting Editor replaces Member, Custom, and No Access.
 * **Member.** View projects, the global create and edit permissions for issues and schedules, and the global Create comments permission. Not delete, not sprints, and not Delete comments. Work in a project still needs that project's role. This is the default global role.
-* **Custom.** No permissions of its own. The person's global access is only the permissions granted to that person, each one chosen for them. Selecting Custom replaces Member.
+* **Custom.** No permissions of its own. The person's global access is only the permissions granted to that person, each one chosen for them. Selecting Custom replaces Member and No Access.
+* **No Access.** No permissions. The permission boxes stay clear and cannot be granted while this role is selected. Saving it removes that person's direct grants, project roles, and project grants. Profile, own password, own API tokens, home and nav arrangement, sign out, and Help stay available to every signed-in person. Selecting No Access replaces Editor, Member, and Custom. Selecting Owner or Admin replaces No Access. Clearing No Access assigns Member again.
 
-Every person has a global role. A person may hold Owner and Admin together. Member is the role when Owner, Admin, Editor, and Custom are all clear. The global page shows Member in that case, Editor when Editor is selected, and Custom when Custom is selected. Selecting Owner or Admin clears Editor, Member, and Custom. Clearing Owner and Admin assigns Member again, unless Editor or Custom is selected.
+Every person has a global role. A person may hold Owner and Admin together. Member is the role when Owner, Admin, Editor, Custom, and No Access are all clear. The global page shows Member in that case, and Editor, Custom, or No Access when that role is selected. Selecting Owner or Admin clears Editor, Member, Custom, and No Access. Clearing Owner and Admin assigns Member again, unless Editor, Custom, or No Access is selected.
 
 ## Project roles
 
@@ -50,7 +51,7 @@ Several Project Owners are allowed. A Project Owner cannot remove the last Proje
 * **Edit sprints.** Requires View projects. Necessary before editing a sprint in a project. It does not edit sprints in every project.
 * **Delete sprints.** Requires View projects. Necessary before deleting a sprint in a project. It does not delete sprints in every project. Starting or completing a sprint has no global gate.
 
-Admin holds every global permission. Editor holds View projects and the global create, edit, and delete permissions for issues, schedules, and sprints, plus Create comments and Delete comments. Member holds View projects, Create issues, Edit issues, Create comments, Create schedules, and Edit schedules. Custom holds none. Owner bypasses them.
+Admin holds every global permission. Editor holds View projects and the global create, edit, and delete permissions for issues, schedules, and sprints, plus Create comments and Delete comments. Member holds View projects, Create issues, Edit issues, Create comments, Create schedules, and Edit schedules. Custom holds none of its own. No Access holds none and clears stored grants. Owner bypasses them.
 
 ## Project permissions
 

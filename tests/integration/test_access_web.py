@@ -108,6 +108,13 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     )
     assert ada_editor is not None
     assert "checked" not in ada_editor.group(0)
+    ada_none = re.search(
+        r'<input type="checkbox" name="no_access".*?/>',
+        ada_panel,
+        re.DOTALL,
+    )
+    assert ada_none is not None
+    assert "checked" not in ada_none.group(0)
     for code in (
         "view_projects",
         "may_create_issues",
@@ -218,6 +225,60 @@ def test_an_editor_cannot_create_users_or_projects(client: TestClient) -> None:
         json={"key": "NOPE", "name": "Nope"},
     )
     assert refused_project.status_code == 403
+
+
+def test_no_access_removes_grants_and_project_roles(
+    client: TestClient,
+    app: FastAPI,
+) -> None:
+    ada = _ada(client)
+    ada_id = ada["id"]
+    assert isinstance(ada_id, int)
+    created = client.post("/api/v1/projects", json={"key": "KEEP", "name": "Keep"})
+    assert created.status_code == 201, created.text
+    project_id = created.json()["id"]
+    assert isinstance(project_id, int)
+    granted = client.put(
+        f"/api/v1/access/global/{ada_id}",
+        json={
+            "owner": False,
+            "admin": False,
+            "custom": True,
+            "direct_permissions": ["view_projects"],
+        },
+    )
+    assert granted.status_code == 200, granted.text
+    with app.state.session_factory() as session:
+        access_service.set_project_role(
+            session,
+            ada_id,
+            project_id,
+            RoleCode.CONTRIBUTOR,
+        )
+        session.commit()
+    saved = client.put(
+        f"/api/v1/access/global/{ada_id}",
+        json={
+            "owner": False,
+            "admin": False,
+            "editor": True,
+            "custom": True,
+            "no_access": True,
+            "direct_permissions": ["view_projects", "create_users"],
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert body["roles"] == ["no_access"]
+    assert body["direct_permissions"] == []
+    with app.state.session_factory() as session:
+        assert access_service.global_direct(session, ada_id) == frozenset()
+        loaded = access_service.load_access(session, ada_id)
+        assert loaded.project_ids == frozenset()
+    _sign_in(client, "ada", ADA_PASSWORD)
+    assert client.get("/api/v1/projects").json() == []
+    assert client.get("/admin/access").status_code == 403
+    assert client.get("/users").status_code == 403
 
 
 def test_an_admin_cannot_remove_the_last_owner(client: TestClient) -> None:

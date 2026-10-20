@@ -18,6 +18,7 @@ class GlobalGrantUpdate(BaseModel):
     admin: bool = False
     editor: bool = False
     custom: bool = False
+    no_access: bool = False
     direct_permissions: list[str] = Field(default_factory=list)
 
 

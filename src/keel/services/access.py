@@ -216,6 +216,7 @@ def save_global_grant(
     requested_admin: bool,
     requested_editor: bool,
     requested_custom: bool,
+    requested_no_access: bool,
     submitted_direct: frozenset[Permission],
 ) -> GlobalGrant:
     require(actor, Permission.MANAGE_GLOBAL_RBAC)
@@ -230,15 +231,20 @@ def save_global_grant(
         requested_admin=requested_admin,
         requested_editor=requested_editor,
         requested_custom=requested_custom,
+        requested_no_access=requested_no_access,
         actor_is_owner=actor.is_owner,
         target_is_owner=target_is_owner,
         other_owners=others,
     )
-    previous = global_direct(session, person.id)
-    direct = apply_direct_grants(
-        previous,
-        frozenset(item for item in submitted_direct if item in GLOBAL_PERMISSIONS),
-    )
+    if RoleCode.NO_ACCESS in roles:
+        direct: frozenset[Permission] = frozenset()
+        _clear_project_assignments(session, person.id)
+    else:
+        previous = global_direct(session, person.id)
+        direct = apply_direct_grants(
+            previous,
+            frozenset(item for item in submitted_direct if item in GLOBAL_PERMISSIONS),
+        )
     replace_global_roles(session, person.id, roles)
     replace_global_direct(session, person.id, direct)
     return GlobalGrant(
@@ -371,6 +377,23 @@ def replace_global_roles(
     session.flush()
 
 
+def _clear_project_assignments(session: Session, user_id: int) -> None:
+    """Remove project roles and project grants. No Access keeps none of them."""
+    session.execute(
+        delete(UserRole).where(
+            UserRole.user_id == user_id,
+            UserRole.project_id.is_not(None),
+        )
+    )
+    session.execute(
+        delete(UserPermission).where(
+            UserPermission.user_id == user_id,
+            UserPermission.project_id.is_not(None),
+        )
+    )
+    session.flush()
+
+
 def replace_global_direct(
     session: Session,
     user_id: int,
@@ -401,6 +424,7 @@ _CATALOG_ROLES: tuple[RoleCode, ...] = (
     RoleCode.EDITOR,
     RoleCode.MEMBER,
     RoleCode.CUSTOM,
+    RoleCode.NO_ACCESS,
     RoleCode.VIEWER,
     RoleCode.CONTRIBUTOR,
     RoleCode.PROJECT_OWNER,

@@ -48,6 +48,7 @@ def test_the_catalog_names_role_bundles_and_dependencies() -> None:
     assert "Create projects" not in by_role["Editor"]
     assert "Create users" not in by_role["Editor"]
     assert by_role["Custom"] == "None"
+    assert by_role["No Access"] == "None"
     assert "Delete own comments" in by_role["Contributor"]
     assert "Delete any comment" not in by_role["Contributor"]
     assert "Delete any comment" in by_role["Project Owner"]
@@ -205,6 +206,7 @@ def test_only_an_owner_can_change_owner_membership() -> None:
             requested_admin=False,
             requested_editor=False,
             requested_custom=False,
+            requested_no_access=False,
             actor_is_owner=False,
             target_is_owner=False,
             other_owners=1,
@@ -218,6 +220,7 @@ def test_the_last_owner_cannot_be_removed() -> None:
             requested_admin=True,
             requested_editor=False,
             requested_custom=False,
+            requested_no_access=False,
             actor_is_owner=True,
             target_is_owner=True,
             other_owners=0,
@@ -230,6 +233,7 @@ def test_clearing_owner_and_admin_stores_member() -> None:
         requested_admin=False,
         requested_editor=False,
         requested_custom=False,
+        requested_no_access=False,
         actor_is_owner=True,
         target_is_owner=False,
         other_owners=1,
@@ -243,6 +247,7 @@ def test_owner_and_admin_can_be_held_together() -> None:
         requested_admin=True,
         requested_editor=False,
         requested_custom=False,
+        requested_no_access=False,
         actor_is_owner=True,
         target_is_owner=True,
         other_owners=0,
@@ -257,6 +262,7 @@ def test_custom_holds_only_the_grants_for_that_person() -> None:
         requested_admin=False,
         requested_editor=False,
         requested_custom=True,
+        requested_no_access=False,
         actor_is_owner=True,
         target_is_owner=False,
         other_owners=1,
@@ -267,6 +273,7 @@ def test_custom_holds_only_the_grants_for_that_person() -> None:
         requested_admin=False,
         requested_editor=False,
         requested_custom=True,
+        requested_no_access=False,
         actor_is_owner=True,
         target_is_owner=False,
         other_owners=1,
@@ -295,6 +302,7 @@ def test_editor_can_do_the_day_to_day_work_without_user_or_project_admin() -> No
         requested_admin=False,
         requested_editor=True,
         requested_custom=True,
+        requested_no_access=False,
         actor_is_owner=True,
         target_is_owner=False,
         other_owners=1,
@@ -327,3 +335,40 @@ def test_editor_can_do_the_day_to_day_work_without_user_or_project_admin() -> No
     assert Permission.DELETE_OWN_COMMENTS in as_contributor
     assert Permission.DELETE_ISSUES not in as_contributor
     assert Permission.CREATE_SPRINTS not in as_contributor
+
+
+def test_no_access_holds_nothing_and_drops_grants() -> None:
+    assert ROLE_PERMISSIONS[RoleCode.NO_ACCESS] == frozenset()
+    roles = resolve_global_roles(
+        requested_owner=False,
+        requested_admin=False,
+        requested_editor=True,
+        requested_custom=True,
+        requested_no_access=True,
+        actor_is_owner=True,
+        target_is_owner=False,
+        other_owners=1,
+    )
+    assert roles == frozenset({RoleCode.NO_ACCESS})
+    replaced = resolve_global_roles(
+        requested_owner=True,
+        requested_admin=False,
+        requested_editor=False,
+        requested_custom=False,
+        requested_no_access=True,
+        actor_is_owner=True,
+        target_is_owner=False,
+        other_owners=1,
+    )
+    assert replaced == frozenset({RoleCode.OWNER})
+    _owner, held = effective_global(
+        frozenset({RoleCode.NO_ACCESS}),
+        frozenset({Permission.VIEW_PROJECTS, Permission.MAY_CREATE_ISSUES}),
+    )
+    assert held == frozenset()
+    project = effective_project(
+        frozenset({RoleCode.NO_ACCESS}),
+        frozenset({RoleCode.PROJECT_OWNER}),
+        frozenset({Permission.VIEW_ISSUES}),
+    )[1]
+    assert project == frozenset()

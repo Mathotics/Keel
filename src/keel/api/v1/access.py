@@ -57,6 +57,7 @@ def update_global_grant(
         requested_admin=payload.admin,
         requested_editor=payload.editor,
         requested_custom=payload.custom,
+        requested_no_access=payload.no_access,
         submitted_direct=frozenset(submitted),
     )
     return _read(saved)

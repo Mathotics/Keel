@@ -20,6 +20,7 @@ class RoleCode(StrEnum):
     EDITOR = "editor"
     MEMBER = "member"
     CUSTOM = "custom"
+    NO_ACCESS = "no_access"
     PROJECT_OWNER = "project_owner"
     CONTRIBUTOR = "contributor"
     VIEWER = "viewer"
@@ -220,6 +221,7 @@ ROLE_SCOPE: dict[RoleCode, Scope] = {
     RoleCode.EDITOR: Scope.GLOBAL,
     RoleCode.MEMBER: Scope.GLOBAL,
     RoleCode.CUSTOM: Scope.GLOBAL,
+    RoleCode.NO_ACCESS: Scope.GLOBAL,
     RoleCode.PROJECT_OWNER: Scope.PROJECT,
     RoleCode.CONTRIBUTOR: Scope.PROJECT,
     RoleCode.VIEWER: Scope.PROJECT,
@@ -272,6 +274,7 @@ ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
         }
     ),
     RoleCode.CUSTOM: frozenset(),
+    RoleCode.NO_ACCESS: frozenset(),
     RoleCode.VIEWER: _VIEWS,
     RoleCode.CONTRIBUTOR: _VIEWS
     | frozenset(
@@ -293,6 +296,7 @@ ROLE_LABELS: dict[RoleCode, str] = {
     RoleCode.EDITOR: "Editor",
     RoleCode.MEMBER: "Member",
     RoleCode.CUSTOM: "Custom",
+    RoleCode.NO_ACCESS: "No Access",
     RoleCode.PROJECT_OWNER: "Project Owner",
     RoleCode.CONTRIBUTOR: "Contributor",
     RoleCode.VIEWER: "Viewer",
@@ -372,6 +376,7 @@ def resolve_global_roles(
     requested_admin: bool,
     requested_editor: bool,
     requested_custom: bool,
+    requested_no_access: bool,
     actor_is_owner: bool,
     target_is_owner: bool,
     other_owners: int,
@@ -380,8 +385,9 @@ def resolve_global_roles(
 
     Member is the default. Editor replaces Member and holds the day-to-day
     work permissions. Custom replaces Member and holds no permissions of its
-    own. Owner and Admin replace Editor, Custom, and Member. Only an Owner
-    may change Owner membership, and the last Owner stays.
+    own. No Access replaces Editor, Custom, and Member, and holds nothing.
+    Owner and Admin replace No Access. Only an Owner may change Owner
+    membership, and the last Owner stays.
     """
     if requested_owner != target_is_owner and not actor_is_owner:
         raise OwnerChangeDeniedError("Only an Owner can grant or revoke Owner.")
@@ -392,10 +398,14 @@ def resolve_global_roles(
         roles.add(RoleCode.OWNER)
     if requested_admin:
         roles.add(RoleCode.ADMIN)
-    if not roles and requested_editor:
+    if not roles and requested_no_access:
+        roles.add(RoleCode.NO_ACCESS)
+    elif not roles and requested_editor:
         roles.add(RoleCode.EDITOR)
-    if not roles:
-        roles.add(RoleCode.CUSTOM if requested_custom else RoleCode.MEMBER)
+    elif not roles and requested_custom:
+        roles.add(RoleCode.CUSTOM)
+    elif not roles:
+        roles.add(RoleCode.MEMBER)
     return frozenset(roles)
 
 
@@ -417,9 +427,14 @@ def effective_global(
     roles: frozenset[RoleCode],
     direct: frozenset[Permission],
 ) -> tuple[bool, frozenset[Permission]]:
-    """Owner bypass, otherwise role bundles plus direct global grants."""
+    """Owner bypass, otherwise role bundles plus direct global grants.
+
+    No Access drops every global permission, including direct grants.
+    """
     if RoleCode.OWNER in roles:
         return True, frozenset(GLOBAL_PERMISSIONS)
+    if RoleCode.NO_ACCESS in roles:
+        return False, frozenset()
     held: set[Permission] = set()
     for role in roles:
         if ROLE_SCOPE[role] is Scope.GLOBAL:
@@ -435,12 +450,15 @@ def effective_project(
 ) -> tuple[bool, frozenset[Permission]]:
     """Owner bypasses the project.
 
-    Other global roles do not add project permissions. Creating, editing, or
-    deleting issues, schedules, or sprints, and creating or deleting comments,
-    still needs the matching global permission.
+    No Access drops every project permission. Other global roles do not add
+    project permissions. Creating, editing, or deleting issues, schedules, or
+    sprints, and creating or deleting comments, still needs the matching
+    global permission.
     """
     if RoleCode.OWNER in global_roles:
         return True, frozenset(PROJECT_PERMISSIONS)
+    if RoleCode.NO_ACCESS in global_roles:
+        return False, frozenset()
     held: set[Permission] = set()
     for role in project_roles:
         if ROLE_SCOPE[role] is Scope.PROJECT:

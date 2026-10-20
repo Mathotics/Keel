@@ -82,6 +82,7 @@ def save_access(
     admin: Annotated[str, Form()] = "",
     editor: Annotated[str, Form()] = "",
     custom: Annotated[str, Form()] = "",
+    no_access: Annotated[str, Form()] = "",
     permission: Annotated[list[str] | None, Form()] = None,
     permissions_locked: Annotated[str, Form()] = "",
 ) -> HTMLResponse | RedirectResponse:
@@ -105,6 +106,7 @@ def save_access(
             requested_admin=admin == "1",
             requested_editor=editor == "1",
             requested_custom=custom == "1",
+            requested_no_access=no_access == "1",
             submitted_direct=frozenset(submitted),
         )
     except DomainError as exc:
