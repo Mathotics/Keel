@@ -18,7 +18,7 @@ A household tracker now has people who should not all administer the server or a
 - Give Owner unrestricted access, and give everyone else only the roles and direct grants they hold.
 - Keep an Admin who can run the server without automatically entering a project.
 - Keep project work on Project Owner, Contributor, and Viewer.
-- Give every other person the global role Member, which grants nothing by itself.
+- Give every other person the global role Member, which can see projects and holds the global create and edit permissions for issues and schedules.
 - Refuse a grant that omits a permission it depends on.
 - On the current server, record the day-one grants named in the catalog.
 - Show a signed-in person a forbidden page when a global action is refused, distinct from the login redirect.
@@ -54,7 +54,8 @@ A household tracker now has people who should not all administer the server or a
 * **Must** treat Owner as a bypass of every global and project check. Owner does not depend on also holding Admin.
 * **Must** allow more than one Owner. **Must** allow only an Owner to grant or revoke Owner. **Must Not** allow the last Owner to be removed, including by deleting that user.
 * **Must** give Admin every global permission and no project permission.
-* **Must** give every person a global role. Member grants no global permissions and is the default. Granting Owner or Admin replaces Member. Removing the last of those assigns Member again.
+* **Must** give every person a global role. Member is the default and holds View projects plus the global create and edit permissions for issues and schedules. Granting Owner or Admin replaces Member. Removing the last of those assigns Member again.
+* **Must** require both a global permission and the matching project permission to create, edit, or delete issues, schedules, or sprints. The global permission is necessary and is not sufficient to do that action in every project. Starting or completing a sprint, and updating an issue's status, assignee, or sprint placement, have no global gate.
 * **Must** assign Member when a person is created.
 * **Must** give the creator of a project the Project Owner role on that project.
 * **Must** compute access as the union of role permissions and direct grants. **Must Not** store a deny.
@@ -83,7 +84,7 @@ The permission list, role bundles, dependencies, and day-one usernames are the c
 
 The same FastAPI app, SQLite database, Alembic migration, and Jinja pages. Pure allow-or-deny rules live in `src/keel/domain/access.py`. `src/keel/services/access.py` loads roles and direct grants and is the only writer. HTML routes and `/api/v1` call it before a global read or change. `resolve_current_user` still only answers who is signed in.
 
-Stored shape: `permissions`, `permission_dependencies`, `roles`, `role_permissions`, `user_roles`, and `user_permissions`. A global row leaves `project_id` empty. Owner is the role with `bypass`. Member and Owner have no rows in `role_permissions`. Startup seeds the catalog and guarantees an Owner. The upgrade also writes the day-one project roles. Creating a user assigns Member. Creating a project assigns Project Owner to the creator.
+Stored shape: `permissions`, `permission_dependencies`, `roles`, `role_permissions`, `user_roles`, and `user_permissions`. A global row leaves `project_id` empty. Owner is the role with `bypass` and has no rows in `role_permissions`. Member's rows are View projects and the global create and edit permissions for issues and schedules. Startup seeds the catalog and guarantees an Owner. The upgrade also writes the day-one project roles. Creating a user assigns Member. Creating a project assigns Project Owner to the creator. A project create, edit, or delete of issues, schedules, or sprints is kept only when the matching global permission is held. Project routes do not call that rule until KEEL-105.
 
 A missing global permission becomes `access.denied`. HTML renders `forbidden.html` inside the normal shell. The API returns 403 and the domain error body. A person who is not signed in still goes to `/login`, or receives 401 from the API.
 

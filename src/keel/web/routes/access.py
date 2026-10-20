@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from keel.domain.access import Permission, parse_permission
+from keel.domain.access import ROLE_PERMISSIONS, Permission, RoleCode, parse_permission
 from keel.domain.errors import DomainError
 from keel.services import access as access_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
@@ -59,6 +59,9 @@ def access_page(
             catalog_roles=roles,
             catalog_permissions=permissions,
             permission_choices=access_service.permission_choices(),
+            member_permission_codes=[
+                permission.value for permission in ROLE_PERMISSIONS[RoleCode.MEMBER]
+            ],
             can_manage=chrome.access.allows(Permission.MANAGE_GLOBAL_RBAC.value),
             actor_is_owner=chrome.access.is_owner,
             error=error,

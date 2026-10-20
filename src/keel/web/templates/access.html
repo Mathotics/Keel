@@ -2,7 +2,7 @@
 {% block title %}Access{% endblock %}
 {% block main %}
       <h1>Access</h1>
-      <p class="keel-note">Global roles and permissions for each person. The tables below show which role includes which permissions, and which permissions require another.</p>
+      <p class="keel-note">Global roles and permissions for each person. The tables below show which role includes which permissions, and which permissions require another. Creating, editing, or deleting issues, schedules, or sprints also needs the matching project permission.</p>
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
@@ -46,13 +46,15 @@
           <fieldset>
             <legend>Global permissions</legend>
             {% for code, label, requires, requires_codes in permission_choices %}
+            {% set from_member = 'member' in grant.role_codes and code in member_permission_codes %}
             <p>
               <label>
                 <input type="checkbox" name="permission" value="{{ code }}"
                   data-direct="{{ '1' if code in grant.direct_codes else '0' }}"
                   data-requires="{{ requires_codes }}"
-                  {% if role_includes_all or code in grant.direct_codes %}checked{% endif %}
-                  {% if role_includes_all %}disabled{% endif %}/>
+                  data-member="{{ '1' if code in member_permission_codes else '0' }}"
+                  {% if role_includes_all or from_member or code in grant.direct_codes %}checked{% endif %}
+                  {% if role_includes_all or from_member %}disabled{% endif %}/>
                 {{ label }}
                 {% if requires %}
                 <span class="keel-requires">Requires {{ requires }}</span>
@@ -70,7 +72,7 @@
       {% endfor %}
       <div class="keel-panel">
         <h2>Roles and permissions</h2>
-        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. Member includes none. A direct grant uses the same permissions.</p>
+        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. A global create, edit, or delete permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
         <div class="keel-table-scroll">
           <table class="keel-table keel-access-catalog">
             <thead>
@@ -135,8 +137,9 @@
                 box.checked = true;
                 box.disabled = true;
               } else {
-                box.disabled = false;
-                box.checked = box.dataset.direct === "1";
+                var fromMember = member !== null && member.checked && box.dataset.member === "1";
+                box.disabled = fromMember;
+                box.checked = fromMember || box.dataset.direct === "1";
               }
             });
           }

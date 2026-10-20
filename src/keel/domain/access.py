@@ -27,6 +27,15 @@ class Permission(StrEnum):
     VIEW_PROJECTS = "view_projects"
     CREATE_PROJECTS = "create_projects"
     DELETE_PROJECTS = "delete_projects"
+    MAY_CREATE_ISSUES = "may_create_issues"
+    MAY_EDIT_ISSUES = "may_edit_issues"
+    MAY_DELETE_ISSUES = "may_delete_issues"
+    MAY_CREATE_SCHEDULES = "may_create_schedules"
+    MAY_EDIT_SCHEDULES = "may_edit_schedules"
+    MAY_DELETE_SCHEDULES = "may_delete_schedules"
+    MAY_CREATE_SPRINTS = "may_create_sprints"
+    MAY_EDIT_SPRINTS = "may_edit_sprints"
+    MAY_DELETE_SPRINTS = "may_delete_sprints"
     DISPLAY_ADMIN_MENU = "display_admin_menu"
     VIEW_LOG_TRACKER = "view_log_tracker"
     VIEW_GLOBAL_RBAC = "view_global_rbac"
@@ -67,6 +76,15 @@ class Permission(StrEnum):
 DEPENDENCIES: dict[Permission, frozenset[Permission]] = {
     Permission.CREATE_PROJECTS: frozenset({Permission.VIEW_PROJECTS}),
     Permission.DELETE_PROJECTS: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_CREATE_ISSUES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_EDIT_ISSUES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_DELETE_ISSUES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_CREATE_SCHEDULES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_EDIT_SCHEDULES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_DELETE_SCHEDULES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_CREATE_SPRINTS: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_EDIT_SPRINTS: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_DELETE_SPRINTS: frozenset({Permission.VIEW_PROJECTS}),
     Permission.VIEW_LOG_TRACKER: frozenset({Permission.DISPLAY_ADMIN_MENU}),
     Permission.VIEW_GLOBAL_RBAC: frozenset({Permission.DISPLAY_ADMIN_MENU}),
     Permission.MANAGE_GLOBAL_RBAC: frozenset({Permission.VIEW_GLOBAL_RBAC}),
@@ -102,6 +120,15 @@ LABELS: dict[Permission, str] = {
     Permission.VIEW_PROJECTS: "View projects",
     Permission.CREATE_PROJECTS: "Create projects",
     Permission.DELETE_PROJECTS: "Delete projects",
+    Permission.MAY_CREATE_ISSUES: "Create issues",
+    Permission.MAY_EDIT_ISSUES: "Edit issues",
+    Permission.MAY_DELETE_ISSUES: "Delete issues",
+    Permission.MAY_CREATE_SCHEDULES: "Create schedules",
+    Permission.MAY_EDIT_SCHEDULES: "Edit schedules",
+    Permission.MAY_DELETE_SCHEDULES: "Delete schedules",
+    Permission.MAY_CREATE_SPRINTS: "Create sprints",
+    Permission.MAY_EDIT_SPRINTS: "Edit sprints",
+    Permission.MAY_DELETE_SPRINTS: "Delete sprints",
     Permission.DISPLAY_ADMIN_MENU: "Display Admin menu",
     Permission.VIEW_LOG_TRACKER: "View Log Tracker",
     Permission.VIEW_GLOBAL_RBAC: "View global RBAC page",
@@ -117,21 +144,21 @@ LABELS: dict[Permission, str] = {
     Permission.VIEW_CALENDAR: "View calendar",
     Permission.VIEW_SPRINTS: "View sprints",
     Permission.VIEW_SCHEDULES: "View schedules",
-    Permission.CREATE_ISSUES: "Create issues",
-    Permission.EDIT_ISSUES: "Edit issues",
+    Permission.CREATE_ISSUES: "Create issues in a project",
+    Permission.EDIT_ISSUES: "Edit issues in a project",
     Permission.UPDATE_ISSUES: "Update issues",
-    Permission.DELETE_ISSUES: "Delete issues",
+    Permission.DELETE_ISSUES: "Delete issues in a project",
     Permission.COMMENT_ISSUES: "Comment on issues",
     Permission.DELETE_OWN_COMMENTS: "Delete own comments",
     Permission.DELETE_ANY_COMMENTS: "Delete any comment",
     Permission.MANAGE_DEPENDENCIES: "Manage dependencies",
-    Permission.CREATE_SPRINTS: "Create sprints",
-    Permission.EDIT_SPRINTS: "Edit sprints",
-    Permission.DELETE_SPRINTS: "Delete sprints",
+    Permission.CREATE_SPRINTS: "Create sprints in a project",
+    Permission.EDIT_SPRINTS: "Edit sprints in a project",
+    Permission.DELETE_SPRINTS: "Delete sprints in a project",
     Permission.START_COMPLETE_SPRINTS: "Start or complete sprints",
-    Permission.CREATE_SCHEDULES: "Create schedules",
-    Permission.EDIT_SCHEDULES: "Edit schedules",
-    Permission.DELETE_SCHEDULES: "Delete schedules",
+    Permission.CREATE_SCHEDULES: "Create schedules in a project",
+    Permission.EDIT_SCHEDULES: "Edit schedules in a project",
+    Permission.DELETE_SCHEDULES: "Delete schedules in a project",
     Permission.CHANGE_PROJECT_SETTINGS: "Change project settings",
     Permission.DELETE_PROJECT: "Delete this project",
     Permission.VIEW_PROJECT_RBAC: "View project RBAC page",
@@ -142,6 +169,15 @@ GLOBAL_PERMISSIONS: tuple[Permission, ...] = (
     Permission.VIEW_PROJECTS,
     Permission.CREATE_PROJECTS,
     Permission.DELETE_PROJECTS,
+    Permission.MAY_CREATE_ISSUES,
+    Permission.MAY_EDIT_ISSUES,
+    Permission.MAY_DELETE_ISSUES,
+    Permission.MAY_CREATE_SCHEDULES,
+    Permission.MAY_EDIT_SCHEDULES,
+    Permission.MAY_DELETE_SCHEDULES,
+    Permission.MAY_CREATE_SPRINTS,
+    Permission.MAY_EDIT_SPRINTS,
+    Permission.MAY_DELETE_SPRINTS,
     Permission.DISPLAY_ADMIN_MENU,
     Permission.VIEW_LOG_TRACKER,
     Permission.VIEW_GLOBAL_RBAC,
@@ -177,10 +213,32 @@ ROLE_SCOPE: dict[RoleCode, Scope] = {
     RoleCode.VIEWER: Scope.PROJECT,
 }
 
+# A project write counts only when this global permission is held as well.
+# The global permission does not itself grant the action in any project.
+NECESSARY_GLOBAL: dict[Permission, Permission] = {
+    Permission.CREATE_ISSUES: Permission.MAY_CREATE_ISSUES,
+    Permission.EDIT_ISSUES: Permission.MAY_EDIT_ISSUES,
+    Permission.DELETE_ISSUES: Permission.MAY_DELETE_ISSUES,
+    Permission.CREATE_SCHEDULES: Permission.MAY_CREATE_SCHEDULES,
+    Permission.EDIT_SCHEDULES: Permission.MAY_EDIT_SCHEDULES,
+    Permission.DELETE_SCHEDULES: Permission.MAY_DELETE_SCHEDULES,
+    Permission.CREATE_SPRINTS: Permission.MAY_CREATE_SPRINTS,
+    Permission.EDIT_SPRINTS: Permission.MAY_EDIT_SPRINTS,
+    Permission.DELETE_SPRINTS: Permission.MAY_DELETE_SPRINTS,
+}
+
 ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
     RoleCode.OWNER: frozenset(),
     RoleCode.ADMIN: frozenset(GLOBAL_PERMISSIONS),
-    RoleCode.MEMBER: frozenset(),
+    RoleCode.MEMBER: frozenset(
+        {
+            Permission.VIEW_PROJECTS,
+            Permission.MAY_CREATE_ISSUES,
+            Permission.MAY_EDIT_ISSUES,
+            Permission.MAY_CREATE_SCHEDULES,
+            Permission.MAY_EDIT_SCHEDULES,
+        }
+    ),
     RoleCode.VIEWER: _VIEWS,
     RoleCode.CONTRIBUTOR: _VIEWS
     | frozenset(
@@ -318,7 +376,7 @@ def effective_global(
     roles: frozenset[RoleCode],
     direct: frozenset[Permission],
 ) -> tuple[bool, frozenset[Permission]]:
-    """Owner bypass, otherwise the Admin bundle plus direct global grants."""
+    """Owner bypass, otherwise role bundles plus direct global grants."""
     if RoleCode.OWNER in roles:
         return True, frozenset(GLOBAL_PERMISSIONS)
     held: set[Permission] = set()
@@ -334,7 +392,11 @@ def effective_project(
     project_roles: frozenset[RoleCode],
     direct: frozenset[Permission],
 ) -> tuple[bool, frozenset[Permission]]:
-    """Owner bypasses the project. Other global roles add nothing here."""
+    """Owner bypasses the project.
+
+    Other global roles do not add project permissions. A create, edit, or
+    delete of issues, schedules, or sprints still needs its global permission.
+    """
     if RoleCode.OWNER in global_roles:
         return True, frozenset(PROJECT_PERMISSIONS)
     held: set[Permission] = set()
@@ -342,4 +404,10 @@ def effective_project(
         if ROLE_SCOPE[role] is Scope.PROJECT:
             held |= ROLE_PERMISSIONS[role]
     held |= {permission for permission in direct if permission in PROJECT_PERMISSIONS}
-    return False, satisfied(frozenset(held))
+    _is_owner, global_held = effective_global(global_roles, direct)
+    allowed: set[Permission] = set()
+    for permission in satisfied(frozenset(held)):
+        gate = NECESSARY_GLOBAL.get(permission)
+        if gate is None or gate in global_held:
+            allowed.add(permission)
+    return False, frozenset(allowed)

@@ -3,7 +3,7 @@ import re
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from keel.domain.access import Permission, RoleCode
+from keel.domain.access import GLOBAL_PERMISSIONS, Permission, RoleCode
 from keel.services import access as access_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -77,7 +77,7 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
         owner_panel,
         re.DOTALL,
     )
-    assert len(permission_inputs) == 12
+    assert len(permission_inputs) == len(GLOBAL_PERMISSIONS)
     assert all("checked" in box and "disabled" in box for box in permission_inputs)
     owner_member = re.search(
         r'<input type="checkbox" data-role="member".*?/>',
@@ -94,6 +94,28 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     )
     assert ada_member is not None
     assert "checked" in ada_member.group(0)
+    for code in (
+        "view_projects",
+        "may_create_issues",
+        "may_edit_issues",
+        "may_create_schedules",
+        "may_edit_schedules",
+    ):
+        included = re.search(
+            rf'<input type="checkbox" name="permission" value="{code}".*?/>',
+            ada_panel,
+            re.DOTALL,
+        )
+        assert included is not None
+        assert "checked" in included.group(0)
+        assert "disabled" in included.group(0)
+    extra = re.search(
+        r'<input type="checkbox" name="permission" value="may_delete_issues".*?/>',
+        ada_panel,
+        re.DOTALL,
+    )
+    assert extra is not None
+    assert "checked" not in extra.group(0)
     saved = client.put(
         f"/api/v1/access/global/{ada['id']}",
         json={"owner": False, "admin": False, "direct_permissions": ["create_users"]},
