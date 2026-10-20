@@ -136,8 +136,16 @@ function mergeRemote(library, userId, remote) {
   return [...byId.values()];
 }
 
+function fullySaved(library) {
+  const projects = Object.values((library && library.projects) || {}).filter(
+    (project) => project.enabled,
+  );
+  return projects.length > 0 && projects.every((project) => project.catalog);
+}
+
 function inboxView({ library, userId, today, remote, offsetMinutes = 0 }) {
   const online = Array.isArray(remote);
+  const savedAll = fullySaved(library);
   const issues = online ? mergeRemote(library, userId, remote) : savedIssues(library, userId);
   const weekEnd = addDays(today, 7);
   const endOfMonth = monthEnd(today);
@@ -154,7 +162,7 @@ function inboxView({ library, userId, today, remote, offsetMinutes = 0 }) {
       return status || byKey(left, right);
     }),
     waiting: unfinished.filter((issue) => issue.seriesId && issue.occurrenceOn && issue.occurrenceOn <= today).sort(byDate("occurrenceOn")),
-    completed: online
+    completed: online || savedAll
       ? issues.filter((issue) => issue.status === "done" && localCalendarDay(issue.completedOn, offsetMinutes) === today).sort(byKey)
       : [],
   };
@@ -167,7 +175,7 @@ function inboxView({ library, userId, today, remote, offsetMinutes = 0 }) {
     sections.push({
       key,
       title,
-      needsConnection: !online && outside,
+      needsConnection: !online && !savedAll && outside,
       rows: rows.map((issue) => ({
         id: issue.id,
         key: issue.key,
@@ -182,8 +190,8 @@ function inboxView({ library, userId, today, remote, offsetMinutes = 0 }) {
   }
   return {
     online,
-    banner: online ? "" : SAVED_SPRINT,
-    empty: sections.length ? "" : online ? NOTHING_ASSIGNED : NOTHING_SAVED,
+    banner: online ? "" : savedAll ? "Showing the saved copy." : SAVED_SPRINT,
+    empty: sections.length ? "" : online || savedAll ? NOTHING_ASSIGNED : NOTHING_SAVED,
     needsConnection: OTHER_ISSUES,
     sections,
   };

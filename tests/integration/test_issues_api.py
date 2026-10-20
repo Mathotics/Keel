@@ -24,6 +24,22 @@ def create_issue(
     return created
 
 
+def test_completion_times_lists_issues_born_done(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(client, project_id, title="Finished", status="done")
+    open_issue = create_issue(client, project_id, title="Still open")
+
+    response = client.get(f"/api/v1/projects/{project_id}/completion-times")
+
+    assert response.status_code == 200
+    rows = response.json()
+    assert [row["issue_id"] for row in rows] == [issue["id"]]
+    assert rows[0]["completed_at"]
+    assert open_issue["id"] not in {row["issue_id"] for row in rows}
+
+
 def test_a_created_issue_carries_its_key(client: TestClient, project_id: int) -> None:
     issue = create_issue(client, project_id)
 

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
+import threading
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
+from time import monotonic
 
 from sqlalchemy import Select, delete, event, func, select
 from sqlalchemy.orm import Session
@@ -38,6 +40,9 @@ from keel.settings import KeelSettings
 PAGE_SIZE = 50
 _NOTE_LIMIT = 2000
 _ROW_OVERHEAD = 32
+_SIZE_CHECK_SECONDS = 60.0
+_size_lock = threading.Lock()
+_last_size_check = 0.0
 _PATH_LIMIT = 2048
 WRITE_METHODS = frozenset({"POST", "PATCH", "PUT", "DELETE"})
 LOG_PATH = "/admin/log"
@@ -168,17 +173,35 @@ def record_request(
     )
     session.add(row)
     session.flush()
-    enforce_retention(session, settings)
+    enforce_retention(session, settings, check_size=_size_check_due())
     return row
 
 
-def enforce_retention(session: Session, settings: KeelSettings) -> None:
+def _size_check_due() -> bool:
+    """The size scan reads every log row. Once a minute is enough."""
+    global _last_size_check
+    now = monotonic()
+    with _size_lock:
+        if now - _last_size_check < _SIZE_CHECK_SECONDS:
+            return False
+        _last_size_check = now
+        return True
+
+
+def enforce_retention(
+    session: Session,
+    settings: KeelSettings,
+    *,
+    check_size: bool = True,
+) -> None:
     """Drop the oldest rows past the age limit, then past the size limit."""
     days = max(settings.request_log_max_age_days, 0)
     if days:
         cutoff = datetime.now(UTC) - timedelta(days=days)
         session.execute(delete(RequestLog).where(RequestLog.created_at < cutoff))
         session.flush()
+    if not check_size:
+        return
     budget = max(settings.request_log_max_bytes, 0)
     if not budget:
         return

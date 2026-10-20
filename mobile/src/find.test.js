@@ -54,7 +54,7 @@ test("an exact saved key jumps and other saved matches stay listed", () => {
   assert.equal(jump.jump.issueId, 9);
   const listed = findView({ library: library(), query: "paint", payload: null });
   assert.equal(listed.banner, NEEDS_CONNECTION);
-  assert.deepEqual(listed.sections[0].rows.map((row) => row.title), ["KEEL-9"]);
+  assert.deepEqual(listed.sections[0].rows.map((row) => row.title), ["KEEL-9", "KEEL-10"]);
   assert.equal(listed.sections[1].needsConnection, true);
   const comment = findView({ library: library(), query: "hinge", payload: null });
   assert.equal(comment.sections[0].rows[0].snippet.includes("hinge"), true);

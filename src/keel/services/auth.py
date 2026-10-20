@@ -28,6 +28,8 @@ SESSION_TTL = timedelta(days=14)
 SESSION_MAX_AGE = int(SESSION_TTL.total_seconds())
 MAX_FAILURES = 8
 FAILURE_WINDOW = timedelta(minutes=15)
+# Rewriting last_used_at on every call turns each read into a SQLite commit.
+SEEN_WINDOW = timedelta(seconds=60)
 GENERIC_LOGIN_FAILURE = "Those credentials are not recognized."
 LOCKED_LOGIN = "Too many attempts. Try again later."
 TOKEN_PREFIX_LENGTH = 12
@@ -110,7 +112,12 @@ def start_session(session: Session, user: User) -> str:
     return raw
 
 
-def user_for_session(session: Session, raw_token: str) -> User | None:
+def user_for_session(
+    session: Session,
+    raw_token: str,
+    *,
+    touch: bool = True,
+) -> User | None:
     if not raw_token:
         return None
     row = session.scalars(
@@ -123,8 +130,9 @@ def user_for_session(session: Session, raw_token: str) -> User | None:
         session.delete(row)
         session.flush()
         return None
-    row.last_seen_at = now
-    session.flush()
+    if touch and not _seen_recently(row.last_seen_at, now):
+        row.last_seen_at = now
+        session.flush()
     return session.get(User, row.user_id)
 
 
@@ -195,7 +203,12 @@ def _live_token(session: Session, user_id: int, token_id: int) -> ApiToken:
     return row
 
 
-def user_for_api_token(session: Session, raw_token: str) -> User | None:
+def user_for_api_token(
+    session: Session,
+    raw_token: str,
+    *,
+    touch: bool = True,
+) -> User | None:
     if not raw_token:
         return None
     row = session.scalars(
@@ -203,8 +216,10 @@ def user_for_api_token(session: Session, raw_token: str) -> User | None:
     ).first()
     if row is None or row.revoked_at is not None:
         return None
-    row.last_used_at = utc_now()
-    session.flush()
+    now = utc_now()
+    if touch and not _seen_recently(row.last_used_at, now):
+        row.last_used_at = now
+        session.flush()
     user = session.get(User, row.user_id)
     return user
 
@@ -223,6 +238,14 @@ def _password_matches(user: User, password: str) -> bool:
 
 def _digest(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _seen_recently(value: datetime | None, now: datetime) -> bool:
+    if value is None:
+        return False
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return now - value < SEEN_WINDOW
 
 
 def _aware(value: datetime) -> datetime:

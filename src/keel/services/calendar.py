@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, Project
 from keel.domain.enums import IssueStatus
+from keel.services import history as history_service
 from keel.services import issues as issue_service
-from keel.services.home import _calendar_day, _completion_times
+from keel.services.home import _calendar_day
 from keel.services.issues import IssueFilters
 
 _MONTHS = (
@@ -477,7 +478,7 @@ def _bars(
         statement = issue_service.restrict(statement, filters)
     found = list(session.execute(statement).all())
     completed = (
-        _completion_times(session, [issue for issue, _project in found])
+        history_service.completion_times(session, [issue for issue, _project in found])
         if mode == "completed"
         else {}
     )

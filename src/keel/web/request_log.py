@@ -3,7 +3,7 @@
 from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from keel.services.identity import SESSION_COOKIE, resolve_current_user
+from keel.services.identity import SESSION_COOKIE, finish_lookup, resolve_current_user
 from keel.services.request_log import (
     begin_capture,
     finish_capture,
@@ -63,12 +63,13 @@ def _signed_in(scope: Scope) -> tuple[int, str] | None:
             session,
             authorization=request.headers.get("authorization"),
             session_cookie=request.cookies.get(SESSION_COOKIE),
+            touch=False,
         )
         if user is None:
-            session.rollback()
+            finish_lookup(session)
             return None
         identity = (user.id, user.display_name)
-        session.commit()
+        finish_lookup(session)
         return identity
 
 

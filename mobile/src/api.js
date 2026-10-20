@@ -1,8 +1,19 @@
 const { activeSprint, workSection } = require("./work");
 const { issuePage } = require("./issue");
-const { setReachable } = require("./reach");
+const { forcedOffline, setReachable } = require("./reach");
 
 const FAILED = "Could not connect.";
+const LOCKED = "Offline is locked.";
+
+function refuseLocked() {
+  if (!forcedOffline()) {
+    return;
+  }
+  const error = new Error(LOCKED);
+  error.status = 0;
+  error.locked = true;
+  throw error;
+}
 
 function detailMessage(body, fallback) {
   const detail = body && body.detail;
@@ -74,6 +85,7 @@ async function revokeToken(origin, token, tokenId) {
 }
 
 async function read(origin, token, path) {
+  refuseLocked();
   let response;
   try {
     response = await request(`${origin}${path}`, {
@@ -210,24 +222,23 @@ async function loadInboxIssues(origin, token, projects, userId) {
 }
 
 async function loadCompletedAt(origin, token, issues) {
-  const done = (issues || []).filter((issue) => issue.status === "done");
+  const projectIds = [
+    ...new Set(
+      (issues || [])
+        .filter((issue) => issue.status === "done" && issue.project_id != null)
+        .map((issue) => issue.project_id),
+    ),
+  ];
   const times = {};
   await Promise.all(
-    done.map(async (issue) => {
-      let history = [];
-      try {
-        history = await read(origin, token, `/api/v1/issues/${issue.id}/history`);
-      } catch (error) {
-        if (error.status !== 404) {
-          throw error;
-        }
-      }
-      const events = (history || []).filter((event) => event.field === "status");
-      const latest = events[events.length - 1];
-      if (!latest) {
-        times[issue.id] = issue.created_at;
-      } else if (latest.to_value === "Done") {
-        times[issue.id] = latest.created_at;
+    projectIds.map(async (projectId) => {
+      const rows = await read(
+        origin,
+        token,
+        `/api/v1/projects/${projectId}/completion-times`,
+      );
+      for (const row of rows || []) {
+        times[row.issue_id] = row.completed_at;
       }
     }),
   );
@@ -280,6 +291,7 @@ async function loadIssue(origin, token, issueId) {
 }
 
 async function send(origin, token, method, path, payload) {
+  refuseLocked();
   let response;
   try {
     response = await request(`${origin}${path}`, {

@@ -111,7 +111,7 @@ function applyRefresh(store, snapshots, extras) {
       }
     }
     for (const prior of Object.values(record.issues || {})) {
-      if ((prior.pending || prior.conflict) && !kept[prior.id]) {
+      if (!kept[prior.id]) {
         kept[prior.id] = prior;
       }
     }
@@ -389,11 +389,55 @@ function noteUploaded(store, item, saved) {
   return next;
 }
 
+function absorbIssues(store, projectId, issues) {
+  const next = clone(store);
+  const record = next.projects[projectId];
+  if (!record || !record.enabled) {
+    return next;
+  }
+  const incoming = new Set();
+  const list = issues || [];
+  for (const issue of list) {
+    incoming.add(issue.id);
+    const prior = record.issues[issue.id];
+    if (prior && (prior.pending || prior.conflict)) {
+      continue;
+    }
+    const fresh = freshIssue(record.id, issue, list, next.people, record.sprint);
+    if (issue.completed_at) {
+      fresh.raw.completedOn = issue.completed_at;
+    }
+    if (prior && prior.page && prior.page.complete) {
+      fresh.page = prior.page;
+      fresh.page.complete = true;
+    } else if (prior && prior.page && prior.page.comments) {
+      fresh.page.comments = prior.page.comments.filter((comment) => !comment.pending);
+    }
+    record.issues[issue.id] = fresh;
+  }
+  for (const prior of Object.values(record.issues)) {
+    if (Number(prior.id) > 0 && !incoming.has(prior.id) && !prior.pending && !prior.conflict) {
+      delete record.issues[prior.id];
+    }
+  }
+  record.saved = true;
+  record.catalog = true;
+  return next;
+}
+
 function rememberDetail(store, issueId, raw, page) {
   const next = clone(store);
-  const issue = findIssue(next, issueId);
-  if (!issue || issue.pending || issue.conflict) {
+  let issue = findIssue(next, issueId);
+  if (issue && (issue.pending || issue.conflict)) {
     return next;
+  }
+  if (!issue) {
+    const project = raw && next.projects[raw.project_id];
+    if (!project) {
+      return next;
+    }
+    issue = freshIssue(project.id, raw, [], next.people, project.sprint);
+    project.issues[issueId] = issue;
   }
   issue.raw = raw;
   issue.baseUpdatedAt = raw.updated_at;
@@ -852,6 +896,7 @@ function presentQueue(store) {
 
 module.exports = {
   NOT_ON_SERVER,
+  absorbIssues,
   applyRefresh,
   choosePhone,
   chooseServer,

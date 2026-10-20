@@ -1,7 +1,7 @@
 const { matchesIssue } = require("./filters");
 const { statusLabel } = require("./work");
 
-const NEEDS_CONNECTION = "Dates outside the saved active sprint need a connection.";
+const NEEDS_CONNECTION = "Showing the saved copy.";
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const WEEKDAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = [
@@ -176,13 +176,9 @@ function savedIssues(library, projectId, userId, filter) {
     if (projectId != null && project.id !== projectId) {
       continue;
     }
-    const sprint = project.sprint && project.sprint.state === "active" ? project.sprint : null;
-    if (!sprint) {
-      continue;
-    }
     for (const record of Object.values(project.issues || {})) {
       const raw = record.raw || {};
-      if (raw.sprint_id !== sprint.id || !inScope(raw, projectId, userId)) {
+      if (!inScope(raw, projectId, userId)) {
         continue;
       }
       if (!matchesIssue(raw, filter, { projectId: project.id, ignoreProject: projectId != null })) {

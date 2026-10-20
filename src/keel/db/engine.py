@@ -16,6 +16,13 @@ def _configure_sqlite(dbapi_connection: Any, _record: Any) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_MS}")
+    # A file database pays a full fsync on every commit under the default
+    # DELETE journal. WAL plus NORMAL keeps those commits durable across an
+    # application crash without that stall. In-memory databases have no file.
+    database_file = cursor.execute("PRAGMA database_list").fetchone()
+    if database_file is not None and database_file[2]:
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA synchronous=NORMAL")
     # Tests set this so a throwaway file database does not fsync every write.
     # A server must leave it unset.
     if os.environ.get("KEEL_FAST_SQLITE") == "1":
