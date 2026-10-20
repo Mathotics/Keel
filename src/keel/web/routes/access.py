@@ -72,15 +72,19 @@ def save_access(
     owner: Annotated[str, Form()] = "",
     admin: Annotated[str, Form()] = "",
     permission: Annotated[list[str] | None, Form()] = None,
+    permissions_locked: Annotated[str, Form()] = "",
 ) -> HTMLResponse | RedirectResponse:
     denied = require_page(request, chrome, Permission.MANAGE_GLOBAL_RBAC.value)
     if denied is not None:
         return denied
     submitted: set[Permission] = set()
-    for code in permission or []:
-        parsed = parse_permission(code)
-        if parsed is not None:
-            submitted.add(parsed)
+    if permissions_locked == "1":
+        submitted.update(access_service.global_direct(session, user_id))
+    else:
+        for code in permission or []:
+            parsed = parse_permission(code)
+            if parsed is not None:
+                submitted.add(parsed)
     try:
         access_service.save_global_grant(
             session,

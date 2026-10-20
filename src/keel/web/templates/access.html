@@ -2,7 +2,7 @@
 {% block title %}Access{% endblock %}
 {% block main %}
       <h1>Access</h1>
-      <p class="keel-note">Global roles and extra permissions. Member is the ordinary account. Admin includes every global permission. Owner bypasses every check. A direct permission also includes whatever it depends on.</p>
+      <p class="keel-note">Global roles and permissions. Member starts with none. Admin includes every global permission. Owner bypasses every check, so those boxes stay checked. A direct permission also includes whatever it depends on.</p>
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
@@ -32,13 +32,19 @@
           {% if not actor_is_owner and 'owner' in grant.role_codes %}
           <input type="hidden" name="owner" value="1"/>
           {% endif %}
+          {% set role_includes_all = 'owner' in grant.role_codes or 'admin' in grant.role_codes %}
+          {% if role_includes_all %}
+          <input type="hidden" name="permissions_locked" value="1"/>
+          {% endif %}
           <fieldset>
-            <legend>Extra global permissions</legend>
+            <legend>Global permissions</legend>
             {% for code, label in permission_choices %}
             <p>
               <label>
                 <input type="checkbox" name="permission" value="{{ code }}"
-                  {% if code in grant.direct_codes %}checked{% endif %}/>
+                  data-direct="{{ '1' if code in grant.direct_codes else '0' }}"
+                  {% if role_includes_all or code in grant.direct_codes %}checked{% endif %}
+                  {% if role_includes_all %}disabled{% endif %}/>
                 {{ label }}
               </label>
             </p>
@@ -51,4 +57,41 @@
         {% endif %}
       </div>
       {% endfor %}
+      {% if can_manage %}
+      <script>
+        document.querySelectorAll("form[action^='/web/access/']").forEach(function (form) {
+          var owner = form.querySelector("input[name='owner']:not([type='hidden'])");
+          var admin = form.querySelector("input[name='admin']");
+          function sync() {
+            var locked = (owner !== null && owner.checked) || (admin !== null && admin.checked);
+            var marker = form.querySelector("input[name='permissions_locked']");
+            if (locked && marker === null) {
+              marker = document.createElement("input");
+              marker.type = "hidden";
+              marker.name = "permissions_locked";
+              marker.value = "1";
+              form.appendChild(marker);
+            }
+            if (!locked && marker !== null) {
+              marker.remove();
+            }
+            form.querySelectorAll("input[name='permission']").forEach(function (box) {
+              if (locked) {
+                box.checked = true;
+                box.disabled = true;
+              } else {
+                box.disabled = false;
+                box.checked = box.dataset.direct === "1";
+              }
+            });
+          }
+          if (owner !== null) {
+            owner.addEventListener("change", sync);
+          }
+          if (admin !== null) {
+            admin.addEventListener("change", sync);
+          }
+        });
+      </script>
+      {% endif %}
 {% endblock %}

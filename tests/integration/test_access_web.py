@@ -1,3 +1,5 @@
+import re
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -58,6 +60,14 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     assert page.status_code == 200
     assert "Access" in page.text
     assert "Ada" in page.text
+    owner_panel = page.text.split("<h2>Tester</h2>", 1)[1].split("<h2>", 1)[0]
+    permission_inputs = re.findall(
+        r'<input type="checkbox" name="permission".*?/>',
+        owner_panel,
+        re.DOTALL,
+    )
+    assert len(permission_inputs) == 12
+    assert all("checked" in box and "disabled" in box for box in permission_inputs)
     saved = client.put(
         f"/api/v1/access/global/{ada['id']}",
         json={"owner": False, "admin": False, "direct_permissions": ["create_users"]},
