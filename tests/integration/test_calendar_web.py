@@ -395,6 +395,17 @@ def test_the_dates_menu_switches_completed_and_created(
     assert "Still open" not in start.text
     completed = client.get("/calendar?when=completed")
     assert "Filed then finished" in completed.text
+    completed_day = client.get("/calendar?view=day&when=completed")
+    assert 'class="keel-cal__instant"' in completed_day.text
+    assert 'class="keel-cal__instant-tick"' in completed_day.text
+    assert 'title="KEEL-1 Filed then finished"' in completed_day.text
+    instant = completed_day.text.split('class="keel-cal__instant"', 1)[1].split(
+        "</a>",
+        1,
+    )[0]
+    assert "min-height:" not in instant
+    created_day = client.get("/calendar?view=day&when=created")
+    assert 'class="keel-cal__instant"' in created_day.text
     assert "Still open" not in completed.text
     assert "Someone else" not in completed.text
     assert '<option value="completed" selected>Completed</option>' in completed.text

@@ -1,7 +1,9 @@
 # Calendar of assigned work
 
 * **Status:** Accepted
-* **Date:** 2026-10-05
+* **Date:** 2026-10-19
+
+> **Amended 2026-10-19.** On the week and day views, Completed and Created on are a tick at the exact local minute with a one-line chip under it. They are not a one-hour bar. Start to due is unchanged.
 
 ## Background
 
@@ -61,10 +63,10 @@ Planning from lists means scanning several panels to see what occupies a day. Th
 * **Must**, in Start to due, use the calendar date, the same way Home does.
 * **Must**, in Start to due on the month view, draw one bar from the start day through the due day, inclusive. When only one of those dates is set, the bar **Must** be that day. A bar that begins or ends outside the visible days **Must** be clipped to those days. A bar that crosses a Sunday **Must** continue on the next week.
 * **Must**, on the week and day views, lay each day out as the 24 hours from 12 AM through 11 PM. In Start to due a bar **Must** run from its start time to its due time, clipped to that day. When only one of those times is set, the bar **Must** occupy one hour beginning at that time. A bar that runs past midnight **Must** continue at the top of the next day. Bars that share an hour **Must** sit side by side.
-* **Must** show the issue key and title, and link the bar to the issue. **Must Not** repeat the project key in front of the issue key. **Must** show the status as its own mark, set apart from the key and title. On the month view that mark **Must** stay visible when the title is shortened to one line. **Must** wrap the title on the week and day views so the full wording is visible. The month view **Must** keep the title on one line.
+* **Must** show the issue key and title, and link the bar to the issue. **Must Not** repeat the project key in front of the issue key. **Must** show the status as its own mark, set apart from the key and title. On the month view that mark **Must** stay visible when the title is shortened to one line. **Must** wrap the title on a Start to due bar in the week and day views so the full wording is visible. The month view **Must** keep the title on one line. A Completed or Created on chip on the week and day views **Must** stay on one line, shorten the title, and carry the full key and title on the link so it shows on hover.
 * **Must** offer a View by menu with Start to due, Completed, and Created on. It **Must** sit beside Month, Week, and Day, outside the filter bar. Start to due **Must** be selected when `when` is missing or unusable. Choosing a mode **Must** stay on the month, week, or day already open, and Previous, Next, Today, the date dropdowns, and the filter bar **Must** keep that mode. Reset all **Must** clear filters and leave the mode as it is.
-* **Must**, in Completed mode, place a Done issue on the local calendar day it was finished, using the same completion time as Home: the latest move to Done, or the created time when the issue was born Done. On the week and day views that bar **Must** occupy one hour beginning at that local time. A Cancelled issue **Must** stay off this mode.
-* **Must**, in Created on mode, place an issue on the local calendar day it was filed, including a Done or Cancelled issue and an issue with no start or due. On the week and day views that bar **Must** occupy one hour beginning at that local time.
+* **Must**, in Completed mode, place a Done issue on the local calendar day it was finished, using the same completion time as Home: the latest move to Done, or the created time when the issue was born Done. On the week and day views that mark **Must** be a tick on the exact local minute, with a one-line chip under the tick. The chip **Must Not** cover a range of hours. A Cancelled issue **Must** stay off this mode.
+* **Must**, in Created on mode, place an issue on the local calendar day it was filed, including a Done or Cancelled issue and an issue with no start or due. On the week and day views that mark **Must** be a tick on the exact local minute, with a one-line chip under the tick. The chip **Must Not** cover a range of hours.
 * **Must** color a bar by issue type with the same epic, story, and subtask hues as a board card.
 * **Must** still show the day grid when nothing dated falls in the month, with a short note that nothing falls in it. An empty week **Must** still show its seven days and their hours, with a short note that nothing falls in the week. An empty day **Must** still show that day and its hours, with a short note that nothing falls on it.
 * **Must** work without JavaScript.
