@@ -190,6 +190,10 @@ class LastOwnerError(DomainError):
     code = "access.last_owner"
 
 
+class LastProjectOwnerError(DomainError):
+    code = "access.last_project_owner"
+
+
 class OwnerChangeDeniedError(DomainError):
     code = "access.owner_change"
     status_code = 403

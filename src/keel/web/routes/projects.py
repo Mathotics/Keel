@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from keel.domain.access import Permission
 from keel.domain.cadence import MAX_SPRINT_AHEAD
 from keel.domain.enums import sprint_cadences_in_menu_order, statuses_in_workflow_order
 from keel.services import access as access_service
@@ -67,6 +68,9 @@ def project_page(
             max_sprint_ahead=MAX_SPRINT_AHEAD,
             error=error,
             notice=notice,
+            can_view_project_access=access_service.holds_project(
+                session, chrome.access, project.id, Permission.VIEW_PROJECT_RBAC
+            ),
         ),
     )
 

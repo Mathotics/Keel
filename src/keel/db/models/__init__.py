@@ -1,6 +1,8 @@
 from keel.db.models.access import (
     PermissionDependency,
     PermissionRow,
+    ProjectEveryonePermission,
+    ProjectEveryoneRole,
     Role,
     RolePermission,
     UserPermission,
@@ -24,6 +26,8 @@ __all__ = [
     "ApiToken",
     "PermissionDependency",
     "PermissionRow",
+    "ProjectEveryonePermission",
+    "ProjectEveryoneRole",
     "Role",
     "RolePermission",
     "UserPermission",

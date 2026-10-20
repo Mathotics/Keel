@@ -4,6 +4,7 @@ Global checks are enforced by callers. Project route checks are a later story;
 this module still stores project roles so that story has the rows it needs.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import delete, func, select
@@ -13,6 +14,8 @@ from keel.db.models import (
     PermissionDependency,
     PermissionRow,
     Project,
+    ProjectEveryonePermission,
+    ProjectEveryoneRole,
     Role,
     RolePermission,
     User,
@@ -35,12 +38,17 @@ from keel.domain.access import (
     Scope,
     apply_direct_grants,
     effective_global,
+    effective_project,
     parse_permission,
     parse_role,
     permission_scope,
     resolve_global_roles,
 )
-from keel.domain.errors import NotFoundError, PermissionDeniedError
+from keel.domain.errors import (
+    LastProjectOwnerError,
+    NotFoundError,
+    PermissionDeniedError,
+)
 from keel.services import auth as auth_service
 from keel.services import users as user_service
 from keel.services.passwords import verify_password
@@ -278,6 +286,138 @@ def set_project_role(
     session.flush()
 
 
+def project_role(session: Session, user_id: int, project_id: int) -> RoleCode | None:
+    code = session.scalar(
+        select(Role.code)
+        .join(UserRole, UserRole.role_id == Role.id)
+        .where(UserRole.user_id == user_id, UserRole.project_id == project_id)
+    )
+    if code is None:
+        return None
+    parsed = parse_role(code)
+    if parsed is None or ROLE_SCOPE[parsed] is not Scope.PROJECT:
+        return None
+    return parsed
+
+
+def project_direct(
+    session: Session, user_id: int, project_id: int
+) -> frozenset[Permission]:
+    return _project_permission_codes(
+        session.scalars(
+            select(PermissionRow.code)
+            .join(UserPermission, UserPermission.permission_id == PermissionRow.id)
+            .where(
+                UserPermission.user_id == user_id,
+                UserPermission.project_id == project_id,
+            )
+        ).all()
+    )
+
+
+def everyone_role(session: Session, project_id: int) -> RoleCode | None:
+    code = session.scalar(
+        select(Role.code)
+        .join(ProjectEveryoneRole, ProjectEveryoneRole.role_id == Role.id)
+        .where(ProjectEveryoneRole.project_id == project_id)
+    )
+    if code is None:
+        return None
+    parsed = parse_role(code)
+    if parsed is None or ROLE_SCOPE[parsed] is not Scope.PROJECT:
+        return None
+    return parsed
+
+
+def everyone_direct(session: Session, project_id: int) -> frozenset[Permission]:
+    return _project_permission_codes(
+        session.scalars(
+            select(PermissionRow.code)
+            .join(
+                ProjectEveryonePermission,
+                ProjectEveryonePermission.permission_id == PermissionRow.id,
+            )
+            .where(ProjectEveryonePermission.project_id == project_id)
+        ).all()
+    )
+
+
+def holds_project(
+    session: Session,
+    actor: Access,
+    project_id: int,
+    permission: Permission,
+) -> bool:
+    if actor.user_id is None:
+        return False
+    _bypass, held = _held_project(session, actor, project_id)
+    return _bypass or permission in held
+
+
+def require_project(
+    session: Session,
+    actor: Access,
+    project_id: int,
+    permission: Permission,
+) -> None:
+    if not holds_project(session, actor, project_id, permission):
+        raise PermissionDeniedError(DENIED)
+
+
+def save_project_grant(
+    session: Session,
+    actor: Access,
+    project_id: int,
+    user_id: int,
+    *,
+    role: RoleCode | None,
+    submitted_direct: frozenset[Permission],
+) -> None:
+    require_project(session, actor, project_id, Permission.MANAGE_PROJECT_RBAC)
+    user_service.get_user(session, user_id)
+    if role is not None and ROLE_SCOPE[role] is not Scope.PROJECT:
+        raise NotFoundError("That role is not a project role.")
+    _keep_a_project_owner(
+        session,
+        actor,
+        project_id,
+        named_delta=_owner_delta(project_role(session, user_id, project_id), role),
+        everyone_is_owner=everyone_role(session, project_id) is RoleCode.PROJECT_OWNER,
+    )
+    direct = apply_direct_grants(
+        project_direct(session, user_id, project_id),
+        frozenset(item for item in submitted_direct if item in PROJECT_PERMISSIONS),
+    )
+    _replace_project_role(session, user_id, project_id, role)
+    _replace_project_direct(session, user_id, project_id, direct)
+
+
+def save_everyone_grant(
+    session: Session,
+    actor: Access,
+    project_id: int,
+    *,
+    role: RoleCode | None,
+    submitted_direct: frozenset[Permission],
+) -> None:
+    require_project(session, actor, project_id, Permission.MANAGE_PROJECT_RBAC)
+    if role is not None and ROLE_SCOPE[role] is not Scope.PROJECT:
+        raise NotFoundError("That role is not a project role.")
+    _keep_a_project_owner(
+        session,
+        actor,
+        project_id,
+        named_delta=0,
+        everyone_is_owner=role is RoleCode.PROJECT_OWNER,
+    )
+    direct = apply_direct_grants(
+        everyone_direct(session, project_id),
+        frozenset(item for item in submitted_direct if item in PROJECT_PERMISSIONS),
+    )
+    _replace_everyone_role(session, project_id, role)
+    _replace_everyone_direct(session, project_id, direct)
+
+
 def assert_may_delete_user(session: Session, actor: Access, user_id: int) -> None:
     """Deleting an Owner is an Owner change. The last Owner stays."""
     require(actor, Permission.DELETE_USERS)
@@ -499,15 +639,20 @@ def access_catalog() -> tuple[tuple[CatalogRole, ...], tuple[CatalogPermission, 
 
 
 def permission_choices() -> list[tuple[str, str, str, str]]:
-    return [
-        (
-            permission.value,
-            LABELS[permission],
-            _requires(permission),
-            _requires_codes(permission),
-        )
-        for permission in GLOBAL_PERMISSIONS
-    ]
+    return [_choice(permission) for permission in GLOBAL_PERMISSIONS]
+
+
+def project_permission_choices() -> list[tuple[str, str, str, str]]:
+    return [_choice(permission) for permission in PROJECT_PERMISSIONS]
+
+
+def _choice(permission: Permission) -> tuple[str, str, str, str]:
+    return (
+        permission.value,
+        LABELS[permission],
+        _requires(permission),
+        _requires_codes(permission),
+    )
 
 
 def role_label(code: RoleCode) -> str:
@@ -533,6 +678,8 @@ def _owner_count(session: Session) -> int:
 
 
 def _project_ids(session: Session, user_id: int) -> frozenset[int]:
+    if RoleCode.NO_ACCESS in global_roles(session, user_id):
+        return frozenset()
     from_roles = session.scalars(
         select(UserRole.project_id).where(
             UserRole.user_id == user_id,
@@ -545,9 +692,168 @@ def _project_ids(session: Session, user_id: int) -> frozenset[int]:
             UserPermission.project_id.is_not(None),
         )
     ).all()
+    from_everyone_roles = session.scalars(select(ProjectEveryoneRole.project_id)).all()
+    from_everyone_grants = session.scalars(
+        select(ProjectEveryonePermission.project_id)
+    ).all()
     return frozenset(
-        project_id for project_id in (*from_roles, *from_grants) if project_id
+        project_id
+        for project_id in (
+            *from_roles,
+            *from_grants,
+            *from_everyone_roles,
+            *from_everyone_grants,
+        )
+        if project_id
     )
+
+
+def _held_project(
+    session: Session, actor: Access, project_id: int
+) -> tuple[bool, frozenset[Permission]]:
+    assert actor.user_id is not None
+    roles = global_roles(session, actor.user_id)
+    personal = project_role(session, actor.user_id, project_id)
+    project_roles = frozenset({personal}) if personal is not None else frozenset()
+    direct = global_direct(session, actor.user_id) | project_direct(
+        session, actor.user_id, project_id
+    )
+    return effective_project(
+        roles,
+        project_roles,
+        direct,
+        everyone_role=everyone_role(session, project_id),
+        everyone_direct=everyone_direct(session, project_id),
+    )
+
+
+def _owner_delta(current: RoleCode | None, new: RoleCode | None) -> int:
+    was = current is RoleCode.PROJECT_OWNER
+    will = new is RoleCode.PROJECT_OWNER
+    if was and not will:
+        return -1
+    if will and not was:
+        return 1
+    return 0
+
+
+def _keep_a_project_owner(
+    session: Session,
+    actor: Access,
+    project_id: int,
+    *,
+    named_delta: int,
+    everyone_is_owner: bool,
+) -> None:
+    if actor.is_owner:
+        return
+    named = session.scalar(
+        select(func.count())
+        .select_from(UserRole)
+        .join(Role, Role.id == UserRole.role_id)
+        .where(
+            UserRole.project_id == project_id,
+            Role.code == RoleCode.PROJECT_OWNER.value,
+        )
+    )
+    remaining = int(named or 0) + named_delta + (1 if everyone_is_owner else 0)
+    if remaining < 1:
+        raise LastProjectOwnerError("The last Project Owner cannot be removed.")
+
+
+def _replace_project_role(
+    session: Session,
+    user_id: int,
+    project_id: int,
+    role: RoleCode | None,
+) -> None:
+    session.execute(
+        delete(UserRole).where(
+            UserRole.user_id == user_id,
+            UserRole.project_id == project_id,
+        )
+    )
+    if role is not None:
+        session.add(
+            UserRole(
+                user_id=user_id,
+                role_id=_require_role(session, role).id,
+                project_id=project_id,
+            )
+        )
+    session.flush()
+
+
+def _replace_project_direct(
+    session: Session,
+    user_id: int,
+    project_id: int,
+    permissions: frozenset[Permission],
+) -> None:
+    session.execute(
+        delete(UserPermission).where(
+            UserPermission.user_id == user_id,
+            UserPermission.project_id == project_id,
+        )
+    )
+    for permission in permissions:
+        if permission not in PROJECT_PERMISSIONS:
+            continue
+        session.add(
+            UserPermission(
+                user_id=user_id,
+                permission_id=_require_permission(session, permission).id,
+                project_id=project_id,
+            )
+        )
+    session.flush()
+
+
+def _replace_everyone_role(
+    session: Session, project_id: int, role: RoleCode | None
+) -> None:
+    session.execute(
+        delete(ProjectEveryoneRole).where(ProjectEveryoneRole.project_id == project_id)
+    )
+    if role is not None:
+        session.add(
+            ProjectEveryoneRole(
+                project_id=project_id,
+                role_id=_require_role(session, role).id,
+            )
+        )
+    session.flush()
+
+
+def _replace_everyone_direct(
+    session: Session,
+    project_id: int,
+    permissions: frozenset[Permission],
+) -> None:
+    session.execute(
+        delete(ProjectEveryonePermission).where(
+            ProjectEveryonePermission.project_id == project_id
+        )
+    )
+    for permission in permissions:
+        if permission not in PROJECT_PERMISSIONS:
+            continue
+        session.add(
+            ProjectEveryonePermission(
+                project_id=project_id,
+                permission_id=_require_permission(session, permission).id,
+            )
+        )
+    session.flush()
+
+
+def _project_permission_codes(codes: Sequence[str]) -> frozenset[Permission]:
+    found: set[Permission] = set()
+    for code in codes:
+        parsed = parse_permission(code)
+        if parsed is not None and parsed in PROJECT_PERMISSIONS:
+            found.add(parsed)
+    return frozenset(found)
 
 
 def _project_by_key(session: Session, key: str) -> Project | None:

@@ -25,6 +25,10 @@ One project role per person per project, plus any direct grants.
 
 Several Project Owners are allowed. A Project Owner cannot remove the last Project Owner of that project. A global Owner can.
 
+The project access page is `/projects/{key}/access`. The project page links to it with an Access button in the row with Board, Backlog, Sprints, Schedules, and New issue. That button is not in the Admin menu. Opening the page needs View project RBAC. Saving it needs Manage project RBAC. Project Owner holds both.
+
+**Everyone.** The project owner can grant one project role to every signed-in person, and can grant project permissions to every signed-in person, without adding each person. A person's own role and direct grants are added to those. No Access does not receive the everyone grant. A global permission that is necessary for a project action is still required. A project with an everyone role or everyone permission is listed for people who otherwise only see projects they belong to.
+
 ## Global permissions
 
 * **View projects.** See every project name and key. Without it, the project list includes only projects where the person holds a project role or a direct project grant. Member holds this permission.
@@ -95,7 +99,7 @@ Project administration:
 * **View project RBAC page.** Requires View issues.
 * **Manage project RBAC.** Requires View project RBAC page.
 
-Project route checks for these permissions are KEEL-105. The rows and the role bundles exist now.
+The project access page checks View project RBAC and Manage project RBAC. Other project route checks are KEEL-105. The rows and the role bundles exist now.
 
 ## Always allowed
 

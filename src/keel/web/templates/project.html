@@ -22,6 +22,9 @@
         <a class="keel-action" href="/projects/{{ project.key }}/sprints">Sprints</a>
         <a class="keel-action" href="/projects/{{ project.key }}/schedules">Schedules</a>
         <a class="keel-action" href="/create?project={{ project.key }}">New issue</a>
+        {% if can_view_project_access %}
+        <a class="keel-action" href="/projects/{{ project.key }}/access">Access</a>
+        {% endif %}
       </p>
 
       <div class="keel-table-scroll">

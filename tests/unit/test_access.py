@@ -372,3 +372,30 @@ def test_no_access_holds_nothing_and_drops_grants() -> None:
         frozenset({Permission.VIEW_ISSUES}),
     )[1]
     assert project == frozenset()
+
+
+def test_an_everyone_grant_is_added_for_each_person() -> None:
+    held = effective_project(
+        frozenset({RoleCode.MEMBER}),
+        frozenset(),
+        frozenset(),
+        everyone_role=RoleCode.VIEWER,
+    )[1]
+    assert Permission.VIEW_ISSUES in held
+    assert Permission.CREATE_ISSUES not in held
+    blocked = effective_project(
+        frozenset({RoleCode.NO_ACCESS}),
+        frozenset(),
+        frozenset(),
+        everyone_role=RoleCode.PROJECT_OWNER,
+        everyone_direct=frozenset({Permission.VIEW_ISSUES}),
+    )[1]
+    assert blocked == frozenset()
+    gated = effective_project(
+        frozenset({RoleCode.CUSTOM}),
+        frozenset(),
+        frozenset(),
+        everyone_role=RoleCode.PROJECT_OWNER,
+    )[1]
+    assert Permission.VIEW_ISSUES in gated
+    assert Permission.CREATE_ISSUES not in gated

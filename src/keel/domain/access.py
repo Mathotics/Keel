@@ -447,13 +447,17 @@ def effective_project(
     global_roles: frozenset[RoleCode],
     project_roles: frozenset[RoleCode],
     direct: frozenset[Permission],
+    *,
+    everyone_role: RoleCode | None = None,
+    everyone_direct: frozenset[Permission] = frozenset(),
 ) -> tuple[bool, frozenset[Permission]]:
     """Owner bypasses the project.
 
-    No Access drops every project permission. Other global roles do not add
-    project permissions. Creating, editing, or deleting issues, schedules, or
-    sprints, and creating or deleting comments, still needs the matching
-    global permission.
+    No Access drops every project permission, including grants made to
+    everyone. Other global roles do not add project permissions. A role or
+    permission granted to everyone is added for each other person. Creating,
+    editing, or deleting issues, schedules, or sprints, and creating or
+    deleting comments, still needs the matching global permission.
     """
     if RoleCode.OWNER in global_roles:
         return True, frozenset(PROJECT_PERMISSIONS)
@@ -463,7 +467,14 @@ def effective_project(
     for role in project_roles:
         if ROLE_SCOPE[role] is Scope.PROJECT:
             held |= ROLE_PERMISSIONS[role]
+    if everyone_role is not None and ROLE_SCOPE[everyone_role] is Scope.PROJECT:
+        held |= ROLE_PERMISSIONS[everyone_role]
     held |= {permission for permission in direct if permission in PROJECT_PERMISSIONS}
+    held |= {
+        permission
+        for permission in everyone_direct
+        if permission in PROJECT_PERMISSIONS
+    }
     _is_owner, global_held = effective_global(global_roles, direct)
     allowed: set[Permission] = set()
     for permission in satisfied(frozenset(held)):

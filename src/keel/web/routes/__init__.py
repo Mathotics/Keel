@@ -10,6 +10,7 @@ from keel.web.routes import (
     issues,
     lookup,
     pages,
+    project_access,
     projects,
     schedules,
     search,
@@ -24,6 +25,7 @@ router.include_router(access.router)
 router.include_router(pages.router)
 router.include_router(search.router)
 router.include_router(projects.router)
+router.include_router(project_access.router)
 router.include_router(board.router)
 router.include_router(board.project_router)
 router.include_router(backlog.router)

@@ -126,3 +126,30 @@ class UserPermission(Base):
         ForeignKey("projects.id", ondelete="CASCADE"),
         default=None,
     )
+
+
+class ProjectEveryoneRole(Base):
+    """One project role granted to every signed-in person on that project."""
+
+    __tablename__ = "project_everyone_roles"
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role_id: Mapped[int] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"))
+
+
+class ProjectEveryonePermission(Base):
+    """A project permission granted to every signed-in person on that project."""
+
+    __tablename__ = "project_everyone_permissions"
+
+    project_id: Mapped[int] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    permission_id: Mapped[int] = mapped_column(
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
