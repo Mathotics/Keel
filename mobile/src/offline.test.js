@@ -8,10 +8,12 @@ const {
   chooseServer,
   discardIssue,
   dropProject,
+  dropQueueItem,
   emptyStore,
   forgetProject,
   enqueue,
   hasWaiting,
+  markConflict,
   queueComment,
   queueCreate,
   queueDelete,
@@ -448,4 +450,139 @@ test("the queue lists each change that has not reached the server", () => {
   assert.equal(rows[1].issue, "KEEL-9 Paint the deck");
   assert.equal(rows[1].project, "KEEL · Keel");
   assert.match(rows[1].detail, /Title: Paint the deck/);
+});
+
+test("removing a waiting update restores the issue and sends nothing", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat", status: "done" }, { online: false }).store;
+  store = queueUpdate(store, 9, { priority: "p1" }, { online: false }).store;
+  assert.deepEqual(store.queue[0].prior, { title: "Paint", status: "todo", priority: "p4" });
+  const dropped = dropQueueItem(store, store.queue[0].id);
+  assert.equal(dropped.error, null);
+  assert.equal(dropped.store.queue.length, 0);
+  const issue = dropped.store.projects[3].issues[9];
+  assert.equal(issue.raw.title, "Paint");
+  assert.equal(issue.raw.status, "todo");
+  assert.equal(issue.raw.priority, "p4");
+  assert.equal(issue.page.title, "Paint");
+  assert.equal(issue.pending, false);
+  const uploaded = await uploadQueue(dropped.store, {
+    async read() {
+      throw new Error("nothing to read");
+    },
+    async send() {
+      throw new Error("nothing to send");
+    },
+  });
+  assert.equal(uploaded.projects[3].issues[9].raw.title, "Paint");
+});
+
+test("removing an update keeps a later comment", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  const added = queueComment(store, 9, "Hello", "Cursor");
+  const dropped = dropQueueItem(added.store, added.store.queue.find((item) => item.kind === "update").id);
+  assert.equal(dropped.error, null);
+  assert.equal(dropped.store.queue.length, 1);
+  assert.equal(dropped.store.queue[0].kind, "comment");
+  assert.equal(dropped.store.projects[3].issues[9].raw.title, "Paint");
+  assert.equal(dropped.store.projects[3].issues[9].page.comments.length, 1);
+  assert.equal(dropped.store.projects[3].issues[9].pending, true);
+});
+
+test("removing one waiting comment leaves the other", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const first = queueComment(store, 9, "Hello", "Cursor");
+  const second = queueComment(first.store, 9, "Again", "Cursor");
+  const dropped = dropQueueItem(second.store, `comment-${first.commentId}`);
+  assert.equal(dropped.store.queue.length, 1);
+  assert.equal(dropped.store.queue[0].commentId, second.commentId);
+  assert.equal(dropped.store.projects[3].issues[9].page.comments.length, 1);
+  assert.equal(dropped.store.projects[3].issues[9].page.comments[0].body, "Again");
+  assert.equal(dropped.store.projects[3].issues[9].pending, true);
+});
+
+test("removing a waiting comment deletion puts the comment back", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store.projects[3].issues[9].page.comments = [
+    { id: 4, author: "Cursor", created: "2026-10-14 17:00 UTC", body: "Hello", blocks: [], pending: false },
+  ];
+  const removed = queueRemoveComment(store, 9, 4);
+  const dropped = dropQueueItem(removed.store, removed.store.queue[0].id);
+  assert.equal(dropped.error, null);
+  assert.equal(dropped.store.queue.length, 0);
+  assert.equal(dropped.store.projects[3].issues[9].page.comments.length, 1);
+  assert.equal(dropped.store.projects[3].issues[9].page.comments[0].body, "Hello");
+  assert.equal(dropped.store.projects[3].issues[9].pending, false);
+});
+
+test("removing a waiting delete keeps the issue", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const removed = queueDelete(store, 9);
+  const dropped = dropQueueItem(removed.store, "delete-9");
+  assert.equal(dropped.error, null);
+  assert.equal(dropped.store.queue.length, 0);
+  assert.equal(dropped.store.projects[3].issues[9].raw.title, "Paint");
+  assert.equal(dropped.store.projects[3].issues[9].pending, false);
+});
+
+test("removing a waiting create drops that issue and its comments", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const filed = queueCreate(store, { projectId: 3, title: "New hull", type: "story", parent_id: 9 });
+  const added = queueComment(filed.store, filed.issueId, "Note", "Cursor");
+  assert.equal(
+    added.store.projects[3].issues[9].page.children.some((child) => child.id === filed.issueId),
+    true,
+  );
+  const dropped = dropQueueItem(added.store, `create-${filed.issueId}`);
+  assert.equal(dropped.error, null);
+  assert.equal(dropped.store.queue.length, 0);
+  assert.equal(dropped.store.projects[3].issues[filed.issueId], undefined);
+  assert.equal(
+    dropped.store.projects[3].issues[9].page.children.some((child) => child.id === filed.issueId),
+    false,
+  );
+});
+
+test("a waiting create with children stays in the queue", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const parent = queueCreate(store, { projectId: 3, title: "Hull", type: "epic" });
+  const child = queueCreate(parent.store, {
+    projectId: 3,
+    title: "Paint",
+    type: "subtask",
+    parent_id: parent.issueId,
+  });
+  const dropped = dropQueueItem(child.store, `create-${parent.issueId}`);
+  assert.equal(dropped.error, "Move or delete this issue's children first.");
+  assert.equal(dropped.store, child.store);
+  assert.equal(dropped.store.queue.length, 2);
+});
+
+test("removing a changed-conflict update clears the conflict", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  store = markConflict(store, 9, { kind: "changed", server: { title: "Server" } });
+  const dropped = dropQueueItem(store, store.queue[0].id);
+  assert.equal(dropped.store.projects[3].issues[9].raw.title, "Paint");
+  assert.equal(dropped.store.projects[3].issues[9].conflict, null);
+  assert.equal(dropped.store.projects[3].issues[9].pending, false);
+});
+
+test("removing an update keeps a deleted-on-server conflict", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  store = markConflict(store, 9, { kind: "deleted" });
+  const dropped = dropQueueItem(store, store.queue[0].id);
+  assert.equal(dropped.store.queue.length, 0);
+  assert.equal(dropped.store.projects[3].issues[9].raw.title, "Paint");
+  assert.equal(dropped.store.projects[3].issues[9].conflict.kind, "deleted");
+  assert.equal(dropped.store.projects[3].issues[9].pending, true);
+});
+
+test("removing a queue item that is already gone reports that", () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const dropped = dropQueueItem(store, "missing");
+  assert.equal(dropped.error, "That change is no longer waiting.");
+  assert.equal(dropped.store, store);
 });

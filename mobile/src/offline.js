@@ -611,30 +611,47 @@ function queueUpdate(store, issueId, changes, options = {}) {
   const next = clone(store);
   const record = findIssue(next, issueId);
   const home = next.projects[record.projectId];
+  const pendingCreate = next.queue.find((item) => item.issueId === record.id && item.kind === "create");
+  if (!pendingCreate) {
+    let pendingUpdate = next.queue.find((item) => item.issueId === record.id && item.kind === "update");
+    if (!pendingUpdate) {
+      pendingUpdate = {
+        id: `update-${record.id}`,
+        kind: "update",
+        issueId: record.id,
+        projectId: record.projectId,
+        method: "PATCH",
+        path: `/api/v1/issues/${record.id}`,
+        body: {},
+        prior: {},
+        baseUpdatedAt: record.baseUpdatedAt,
+        force: false,
+      };
+      next.queue.push(pendingUpdate);
+    }
+    if (!pendingUpdate.prior) {
+      pendingUpdate.prior = {};
+    }
+    for (const key of Object.keys(changes)) {
+      if (!Object.prototype.hasOwnProperty.call(pendingUpdate.prior, key)) {
+        const previous = record.raw[key];
+        if (previous && typeof previous === "object") {
+          pendingUpdate.prior[key] = clone(previous);
+        } else {
+          pendingUpdate.prior[key] = previous === undefined ? null : previous;
+        }
+      }
+    }
+  }
   Object.assign(record.raw, changes);
   rewritePage(record, home, next.people, changes, options);
   record.pending = true;
   record.error = null;
-  const pendingCreate = next.queue.find((item) => item.issueId === record.id && item.kind === "create");
   if (pendingCreate) {
     Object.assign(pendingCreate.body, changes);
     return { store: next, error: null };
   }
-  let pendingUpdate = next.queue.find((item) => item.issueId === record.id && item.kind === "update");
-  if (!pendingUpdate) {
-    pendingUpdate = {
-      id: `update-${record.id}`,
-      kind: "update",
-      issueId: record.id,
-      projectId: record.projectId,
-      method: "PATCH",
-      path: `/api/v1/issues/${record.id}`,
-      body: {},
-      baseUpdatedAt: record.baseUpdatedAt,
-      force: false,
-    };
-    next.queue.push(pendingUpdate);
-  }
+  const pendingUpdate = next.queue.find((item) => item.issueId === record.id && item.kind === "update");
   Object.assign(pendingUpdate.body, changes);
   return { store: next, error: null };
 }
@@ -878,6 +895,79 @@ function queueDetail(store, item) {
     .join("\n");
 }
 
+function unlinkChild(store, issueId) {
+  for (const project of Object.values(store.projects || {})) {
+    for (const issue of Object.values(project.issues || {})) {
+      if (!issue.page || !issue.page.children) {
+        continue;
+      }
+      issue.page.children = issue.page.children.filter((child) => child.id !== issueId);
+    }
+  }
+}
+
+function finishQueueEdit(issue, queue) {
+  const mine = queue.filter((item) => item.issueId === issue.id);
+  const structural = mine.some((item) => item.kind === "update" || item.kind === "delete");
+  if (!structural && issue.conflict && issue.conflict.kind !== "deleted") {
+    issue.conflict = null;
+  }
+  issue.pending = mine.length > 0 || Boolean(issue.conflict);
+  if (!issue.pending) {
+    issue.error = null;
+  }
+}
+
+function dropQueueItem(store, itemId) {
+  const item = (store.queue || []).find((entry) => entry.id === itemId);
+  if (!item) {
+    return { store, error: "That change is no longer waiting." };
+  }
+  if (item.kind === "create") {
+    const issue = findIssue(store, item.issueId);
+    const project = issue && store.projects[issue.projectId];
+    const children = project ? knownChildren(project, item.issueId) : [];
+    const listed = issue && issue.page && issue.page.children ? issue.page.children.length : 0;
+    if (children.length || listed) {
+      return { store, error: "Move or delete this issue's children first." };
+    }
+    const next = discardIssue(store, item.issueId);
+    unlinkChild(next, item.issueId);
+    return { store: next, error: null };
+  }
+  const next = clone(store);
+  const record = findIssue(next, item.issueId);
+  next.queue = next.queue.filter((entry) => entry.id !== item.id);
+  if (item.kind === "update" && record && item.prior) {
+    const changes = {};
+    for (const key of Object.keys(item.prior)) {
+      const previous = item.prior[key];
+      const restored = previous && typeof previous === "object" ? clone(previous) : previous;
+      record.raw[key] = restored;
+      changes[key] = restored;
+    }
+    if (Object.keys(changes).length) {
+      rewritePage(record, next.projects[record.projectId], next.people, changes, {});
+    }
+  }
+  if (item.kind === "comment" && record && record.page) {
+    record.page.comments = (record.page.comments || []).filter((comment) => comment.id !== item.commentId);
+  }
+  if (item.kind === "uncomment" && record && item.comment) {
+    if (!record.page) {
+      record.page = pageFromSnapshot(record.raw, [record.raw], next.people, null);
+    }
+    const comments = record.page.comments || [];
+    if (!comments.some((comment) => comment.id === item.comment.id)) {
+      record.page.comments = [...comments, clone(item.comment)];
+    }
+  }
+  if (record) {
+    finishQueueEdit(record, next.queue);
+  }
+  return { store: next, error: null };
+}
+
 function presentQueue(store) {
   return (store.queue || []).map((item) => {
     const issue = findIssue(store, item.issueId);
@@ -902,6 +992,7 @@ module.exports = {
   chooseServer,
   discardIssue,
   dropProject,
+  dropQueueItem,
   forgetProject,
   emptyStore,
   enableProject,
