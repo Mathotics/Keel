@@ -2,7 +2,7 @@
 {% block title %}Access{% endblock %}
 {% block main %}
       <h1>Access</h1>
-      <p class="keel-note">Global roles and permissions. Member starts with none. Admin includes every global permission. Owner bypasses every check, so those boxes stay checked. A direct permission also includes whatever it depends on.</p>
+      <p class="keel-note">Global roles and permissions for each person. The tables below show which role includes which permissions, and which permissions require another.</p>
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
@@ -45,14 +45,18 @@
           {% endif %}
           <fieldset>
             <legend>Global permissions</legend>
-            {% for code, label in permission_choices %}
+            {% for code, label, requires, requires_codes in permission_choices %}
             <p>
               <label>
                 <input type="checkbox" name="permission" value="{{ code }}"
                   data-direct="{{ '1' if code in grant.direct_codes else '0' }}"
+                  data-requires="{{ requires_codes }}"
                   {% if role_includes_all or code in grant.direct_codes %}checked{% endif %}
                   {% if role_includes_all %}disabled{% endif %}/>
                 {{ label }}
+                {% if requires %}
+                <span class="keel-requires">Requires {{ requires }}</span>
+                {% endif %}
               </label>
             </p>
             {% endfor %}
@@ -64,6 +68,46 @@
         {% endif %}
       </div>
       {% endfor %}
+      <div class="keel-panel">
+        <h2>Roles and permissions</h2>
+        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. Member includes none. A direct grant uses the same permissions.</p>
+        <div class="keel-table-scroll">
+          <table class="keel-table keel-access-catalog">
+            <thead>
+              <tr><th>Role</th><th>Where</th><th>Includes</th></tr>
+            </thead>
+            <tbody>
+              {% for role in catalog_roles %}
+              <tr>
+                <th scope="row">{{ role.label }}</th>
+                <td>{{ role.scope }}</td>
+                <td>{{ role.permissions }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="keel-panel">
+        <h2>Permission dependencies</h2>
+        <p class="keel-note">Granting a permission also grants what it requires. Removing a required permission removes every permission that depends on it.</p>
+        <div class="keel-table-scroll">
+          <table class="keel-table keel-access-catalog">
+            <thead>
+              <tr><th>Permission</th><th>Where</th><th>Requires</th></tr>
+            </thead>
+            <tbody>
+              {% for permission in catalog_permissions %}
+              <tr>
+                <th scope="row">{{ permission.label }}</th>
+                <td>{{ permission.scope }}</td>
+                <td>{{ permission.requires }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {% if can_manage %}
       <script>
         document.querySelectorAll("form[action^='/web/access/']").forEach(function (form) {
@@ -119,6 +163,43 @@
               sync();
             });
           }
+          var boxes = form.querySelectorAll("input[name='permission']");
+          var byCode = {};
+          boxes.forEach(function (box) {
+            byCode[box.value] = box;
+          });
+          function requiredCodes(box) {
+            return (box.dataset.requires || "").split(" ").filter(Boolean);
+          }
+          function checkRequired(box) {
+            requiredCodes(box).forEach(function (code) {
+              var needed = byCode[code];
+              if (needed && !needed.checked) {
+                needed.checked = true;
+                checkRequired(needed);
+              }
+            });
+          }
+          function uncheckDependents(code) {
+            boxes.forEach(function (box) {
+              if (box.checked && requiredCodes(box).indexOf(code) !== -1) {
+                box.checked = false;
+                uncheckDependents(box.value);
+              }
+            });
+          }
+          boxes.forEach(function (box) {
+            box.addEventListener("change", function () {
+              if (box.disabled) {
+                return;
+              }
+              if (box.checked) {
+                checkRequired(box);
+              } else {
+                uncheckDependents(box.value);
+              }
+            });
+          });
         });
       </script>
       {% endif %}

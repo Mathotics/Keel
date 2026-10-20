@@ -1572,6 +1572,17 @@ body {
   text-decoration: underline;
 }
 
+.keel-access-catalog td,
+.keel-access-catalog tbody th {
+  vertical-align: top;
+}
+
+.keel-requires {
+  margin-left: 0.35rem;
+  font-size: 0.8125rem;
+  opacity: 0.8;
+}
+
 .keel-empty {
   margin: 0 0 1rem;
   opacity: 0.75;

@@ -26,6 +26,7 @@ from keel.domain.access import (
     DEPENDENCIES,
     GLOBAL_PERMISSIONS,
     LABELS,
+    PROJECT_PERMISSIONS,
     ROLE_LABELS,
     ROLE_PERMISSIONS,
     ROLE_SCOPE,
@@ -390,8 +391,93 @@ def replace_global_direct(
     session.flush()
 
 
-def permission_choices() -> list[tuple[str, str]]:
-    return [(permission.value, LABELS[permission]) for permission in GLOBAL_PERMISSIONS]
+_CATALOG_ROLES: tuple[RoleCode, ...] = (
+    RoleCode.OWNER,
+    RoleCode.ADMIN,
+    RoleCode.MEMBER,
+    RoleCode.VIEWER,
+    RoleCode.CONTRIBUTOR,
+    RoleCode.PROJECT_OWNER,
+)
+_PERMISSION_ORDER: tuple[Permission, ...] = GLOBAL_PERMISSIONS + PROJECT_PERMISSIONS
+
+
+@dataclass(frozen=True)
+class CatalogRole:
+    """One role and the permissions it includes, for the Access page."""
+
+    label: str
+    scope: str
+    permissions: str
+
+
+@dataclass(frozen=True)
+class CatalogPermission:
+    """One permission and the permission it requires, for the Access page."""
+
+    code: str
+    label: str
+    scope: str
+    requires: str
+
+
+def _scope_label(scope: Scope) -> str:
+    if scope == Scope.GLOBAL:
+        return "Global"
+    return "Project"
+
+
+def _joined(permissions: frozenset[Permission]) -> str:
+    names = [LABELS[item] for item in _PERMISSION_ORDER if item in permissions]
+    return ", ".join(names)
+
+
+def _requires(permission: Permission) -> str:
+    return _joined(DEPENDENCIES.get(permission, frozenset()))
+
+
+def _requires_codes(permission: Permission) -> str:
+    needed = DEPENDENCIES.get(permission, frozenset())
+    return " ".join(item.value for item in _PERMISSION_ORDER if item in needed)
+
+
+def access_catalog() -> tuple[tuple[CatalogRole, ...], tuple[CatalogPermission, ...]]:
+    """Roles with the permissions they include, then each permission's requirement."""
+    roles: list[CatalogRole] = []
+    for code in _CATALOG_ROLES:
+        if code == RoleCode.OWNER:
+            included = "Bypasses every global and project permission"
+        else:
+            included = _joined(ROLE_PERMISSIONS[code]) or "None"
+        roles.append(
+            CatalogRole(
+                label=ROLE_LABELS[code],
+                scope=_scope_label(ROLE_SCOPE[code]),
+                permissions=included,
+            )
+        )
+    permissions = tuple(
+        CatalogPermission(
+            code=permission.value,
+            label=LABELS[permission],
+            scope=_scope_label(permission_scope(permission)),
+            requires=_requires(permission) or "None",
+        )
+        for permission in _PERMISSION_ORDER
+    )
+    return tuple(roles), permissions
+
+
+def permission_choices() -> list[tuple[str, str, str, str]]:
+    return [
+        (
+            permission.value,
+            LABELS[permission],
+            _requires(permission),
+            _requires_codes(permission),
+        )
+        for permission in GLOBAL_PERMISSIONS
+    ]
 
 
 def role_label(code: RoleCode) -> str:

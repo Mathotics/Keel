@@ -60,6 +60,17 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     assert page.status_code == 200
     assert "Access" in page.text
     assert "Ada" in page.text
+    assert "Roles and permissions" in page.text
+    assert "Permission dependencies" in page.text
+    assert "Bypasses every global and project permission" in page.text
+    assert "Requires View projects" in page.text
+    log_tracker = re.search(
+        r'<input type="checkbox" name="permission" value="view_log_tracker".*?/>',
+        page.text,
+        re.DOTALL,
+    )
+    assert log_tracker is not None
+    assert 'data-requires="display_admin_menu"' in log_tracker.group(0)
     owner_panel = page.text.split("<h2>Tester</h2>", 1)[1].split("<h2>", 1)[0]
     permission_inputs = re.findall(
         r'<input type="checkbox" name="permission".*?/>',

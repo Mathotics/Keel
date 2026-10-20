@@ -15,6 +15,33 @@ from keel.domain.access import (
 from keel.domain.errors import LastOwnerError, OwnerChangeDeniedError
 
 
+def test_permission_choices_name_the_required_code() -> None:
+    from keel.services.access import permission_choices
+
+    by_code = {code: required for code, _label, _text, required in permission_choices()}
+    assert by_code["view_log_tracker"] == "display_admin_menu"
+    assert by_code["manage_global_rbac"] == "view_global_rbac"
+    assert by_code["view_projects"] == ""
+
+
+def test_the_catalog_names_role_bundles_and_dependencies() -> None:
+    from keel.services.access import access_catalog
+
+    roles, permissions = access_catalog()
+    by_role = {row.label: row.permissions for row in roles}
+    assert "View users" in by_role["Admin"]
+    assert by_role["Member"] == "None"
+    assert by_role["Owner"] == "Bypasses every global and project permission"
+    assert "Delete own comments" in by_role["Contributor"]
+    assert "Delete any comment" not in by_role["Contributor"]
+    assert "Delete any comment" in by_role["Project Owner"]
+    by_permission = {row.label: row.requires for row in permissions}
+    assert by_permission["Create projects"] == "View projects"
+    assert by_permission["Manage global RBAC"] == "View global RBAC page"
+    assert by_permission["View projects"] == "None"
+    assert by_permission["Delete any comment"] == "Delete own comments"
+
+
 def test_checking_a_permission_adds_what_it_requires() -> None:
     saved = apply_direct_grants(
         frozenset(),

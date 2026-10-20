@@ -35,6 +35,7 @@ def access_page(
     denied = require_page(request, chrome, Permission.VIEW_GLOBAL_RBAC.value)
     if denied is not None:
         return denied
+    roles, permissions = access_service.access_catalog()
     grants = [
         _GrantView(
             user_id=grant.user_id,
@@ -55,6 +56,8 @@ def access_page(
             request,
             chrome,
             grants=grants,
+            catalog_roles=roles,
+            catalog_permissions=permissions,
             permission_choices=access_service.permission_choices(),
             can_manage=chrome.access.allows(Permission.MANAGE_GLOBAL_RBAC.value),
             actor_is_owner=chrome.access.is_owner,
