@@ -40,6 +40,7 @@ def test_the_catalog_names_role_bundles_and_dependencies() -> None:
     assert "Delete comments" not in by_role["Member"]
     assert "Create sprints" not in by_role["Member"]
     assert by_role["Owner"] == "Bypasses every global and project permission"
+    assert by_role["Custom"] == "None"
     assert "Delete own comments" in by_role["Contributor"]
     assert "Delete any comment" not in by_role["Contributor"]
     assert "Delete any comment" in by_role["Project Owner"]
@@ -195,6 +196,7 @@ def test_only_an_owner_can_change_owner_membership() -> None:
         resolve_global_roles(
             requested_owner=True,
             requested_admin=False,
+            requested_custom=False,
             actor_is_owner=False,
             target_is_owner=False,
             other_owners=1,
@@ -206,6 +208,7 @@ def test_the_last_owner_cannot_be_removed() -> None:
         resolve_global_roles(
             requested_owner=False,
             requested_admin=True,
+            requested_custom=False,
             actor_is_owner=True,
             target_is_owner=True,
             other_owners=0,
@@ -216,6 +219,7 @@ def test_clearing_owner_and_admin_stores_member() -> None:
     roles = resolve_global_roles(
         requested_owner=False,
         requested_admin=False,
+        requested_custom=False,
         actor_is_owner=True,
         target_is_owner=False,
         other_owners=1,
@@ -227,8 +231,45 @@ def test_owner_and_admin_can_be_held_together() -> None:
     roles = resolve_global_roles(
         requested_owner=True,
         requested_admin=True,
+        requested_custom=False,
         actor_is_owner=True,
         target_is_owner=True,
         other_owners=0,
     )
     assert roles == frozenset({RoleCode.OWNER, RoleCode.ADMIN})
+
+
+def test_custom_holds_only_the_grants_for_that_person() -> None:
+    assert ROLE_PERMISSIONS[RoleCode.CUSTOM] == frozenset()
+    roles = resolve_global_roles(
+        requested_owner=False,
+        requested_admin=False,
+        requested_custom=True,
+        actor_is_owner=True,
+        target_is_owner=False,
+        other_owners=1,
+    )
+    assert roles == frozenset({RoleCode.CUSTOM})
+    replaced = resolve_global_roles(
+        requested_owner=True,
+        requested_admin=False,
+        requested_custom=True,
+        actor_is_owner=True,
+        target_is_owner=False,
+        other_owners=1,
+    )
+    assert replaced == frozenset({RoleCode.OWNER})
+    is_owner, held = effective_global(
+        frozenset({RoleCode.CUSTOM}),
+        frozenset({Permission.VIEW_PROJECTS, Permission.MAY_CREATE_ISSUES}),
+    )
+    assert is_owner is False
+    assert held == frozenset({Permission.VIEW_PROJECTS, Permission.MAY_CREATE_ISSUES})
+    project = effective_project(
+        frozenset({RoleCode.CUSTOM}),
+        frozenset({RoleCode.PROJECT_OWNER}),
+        frozenset({Permission.VIEW_PROJECTS, Permission.MAY_CREATE_ISSUES}),
+    )[1]
+    assert Permission.CREATE_ISSUES in project
+    assert Permission.EDIT_ISSUES not in project
+    assert Permission.VIEW_ISSUES in project

@@ -18,6 +18,7 @@ class RoleCode(StrEnum):
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
+    CUSTOM = "custom"
     PROJECT_OWNER = "project_owner"
     CONTRIBUTOR = "contributor"
     VIEWER = "viewer"
@@ -216,6 +217,7 @@ ROLE_SCOPE: dict[RoleCode, Scope] = {
     RoleCode.OWNER: Scope.GLOBAL,
     RoleCode.ADMIN: Scope.GLOBAL,
     RoleCode.MEMBER: Scope.GLOBAL,
+    RoleCode.CUSTOM: Scope.GLOBAL,
     RoleCode.PROJECT_OWNER: Scope.PROJECT,
     RoleCode.CONTRIBUTOR: Scope.PROJECT,
     RoleCode.VIEWER: Scope.PROJECT,
@@ -251,6 +253,7 @@ ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
             Permission.MAY_EDIT_SCHEDULES,
         }
     ),
+    RoleCode.CUSTOM: frozenset(),
     RoleCode.VIEWER: _VIEWS,
     RoleCode.CONTRIBUTOR: _VIEWS
     | frozenset(
@@ -270,6 +273,7 @@ ROLE_LABELS: dict[RoleCode, str] = {
     RoleCode.OWNER: "Owner",
     RoleCode.ADMIN: "Admin",
     RoleCode.MEMBER: "Member",
+    RoleCode.CUSTOM: "Custom",
     RoleCode.PROJECT_OWNER: "Project Owner",
     RoleCode.CONTRIBUTOR: "Contributor",
     RoleCode.VIEWER: "Viewer",
@@ -347,14 +351,16 @@ def resolve_global_roles(
     *,
     requested_owner: bool,
     requested_admin: bool,
+    requested_custom: bool,
     actor_is_owner: bool,
     target_is_owner: bool,
     other_owners: int,
 ) -> frozenset[RoleCode]:
     """The global roles to store after a save.
 
-    Member is the default. Owner and Admin replace it. Only an Owner may
-    change Owner membership, and the last Owner stays.
+    Member is the default. Custom replaces Member and holds no permissions
+    of its own. Owner and Admin replace both. Only an Owner may change
+    Owner membership, and the last Owner stays.
     """
     if requested_owner != target_is_owner and not actor_is_owner:
         raise OwnerChangeDeniedError("Only an Owner can grant or revoke Owner.")
@@ -366,7 +372,7 @@ def resolve_global_roles(
     if requested_admin:
         roles.add(RoleCode.ADMIN)
     if not roles:
-        roles.add(RoleCode.MEMBER)
+        roles.add(RoleCode.CUSTOM if requested_custom else RoleCode.MEMBER)
     return frozenset(roles)
 
 

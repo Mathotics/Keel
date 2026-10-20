@@ -35,6 +35,13 @@
                 Member
               </label>
             </p>
+            <p>
+              <label>
+                <input type="checkbox" name="custom" value="1"
+                  {% if 'custom' in grant.role_codes %}checked{% endif %}/>
+                Custom
+              </label>
+            </p>
           </div>
           {% if not actor_is_owner and 'owner' in grant.role_codes %}
           <input type="hidden" name="owner" value="1"/>
@@ -72,7 +79,7 @@
       {% endfor %}
       <div class="keel-panel">
         <h2>Roles and permissions</h2>
-        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. A global create, edit, delete, or comment permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
+        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. Custom includes none, so that person's access is only the permissions granted to them. A global create, edit, delete, or comment permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
         <div class="keel-table-scroll">
           <table class="keel-table keel-access-catalog">
             <thead>
@@ -116,10 +123,15 @@
           var owner = form.querySelector("input[name='owner']:not([type='hidden'])");
           var admin = form.querySelector("input[name='admin']");
           var member = form.querySelector("input[data-role='member']");
+          var custom = form.querySelector("input[name='custom']");
           function sync() {
             var locked = (owner !== null && owner.checked) || (admin !== null && admin.checked);
+            var customOn = !locked && custom !== null && custom.checked;
+            if (custom !== null && locked) {
+              custom.checked = false;
+            }
             if (member !== null) {
-              member.checked = !locked;
+              member.checked = !locked && !customOn;
             }
             var marker = form.querySelector("input[name='permissions_locked']");
             if (locked && marker === null) {
@@ -136,6 +148,9 @@
               if (locked) {
                 box.checked = true;
                 box.disabled = true;
+              } else if (customOn) {
+                box.disabled = false;
+                box.checked = box.dataset.direct === "1";
               } else {
                 var fromMember = member !== null && member.checked && box.dataset.member === "1";
                 box.disabled = fromMember;
@@ -156,6 +171,26 @@
                 return;
               }
               if (member.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+                if (custom !== null) {
+                  custom.checked = false;
+                }
+              }
+              sync();
+            });
+          }
+          if (custom !== null) {
+            custom.addEventListener("change", function () {
+              if (custom.checked && owner !== null && owner.disabled && owner.checked) {
+                custom.checked = false;
+                return;
+              }
+              if (custom.checked) {
                 if (owner !== null && !owner.disabled) {
                   owner.checked = false;
                 }

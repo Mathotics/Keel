@@ -214,6 +214,7 @@ def save_global_grant(
     *,
     requested_owner: bool,
     requested_admin: bool,
+    requested_custom: bool,
     submitted_direct: frozenset[Permission],
 ) -> GlobalGrant:
     require(actor, Permission.MANAGE_GLOBAL_RBAC)
@@ -226,6 +227,7 @@ def save_global_grant(
     roles = resolve_global_roles(
         requested_owner=requested_owner,
         requested_admin=requested_admin,
+        requested_custom=requested_custom,
         actor_is_owner=actor.is_owner,
         target_is_owner=target_is_owner,
         other_owners=others,
@@ -395,6 +397,7 @@ _CATALOG_ROLES: tuple[RoleCode, ...] = (
     RoleCode.OWNER,
     RoleCode.ADMIN,
     RoleCode.MEMBER,
+    RoleCode.CUSTOM,
     RoleCode.VIEWER,
     RoleCode.CONTRIBUTOR,
     RoleCode.PROJECT_OWNER,

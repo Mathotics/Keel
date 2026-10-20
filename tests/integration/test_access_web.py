@@ -94,6 +94,13 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     )
     assert ada_member is not None
     assert "checked" in ada_member.group(0)
+    ada_custom = re.search(
+        r'<input type="checkbox" name="custom".*?/>',
+        ada_panel,
+        re.DOTALL,
+    )
+    assert ada_custom is not None
+    assert "checked" not in ada_custom.group(0)
     for code in (
         "view_projects",
         "may_create_issues",
@@ -142,6 +149,33 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
         json={"admin": True, "owner": False, "direct_permissions": []},
     )
     assert made_admin.status_code == 403
+
+
+def test_custom_stores_only_the_grants_for_that_person(client: TestClient) -> None:
+    ada = _ada(client)
+    saved = client.put(
+        f"/api/v1/access/global/{ada['id']}",
+        json={
+            "owner": False,
+            "admin": False,
+            "custom": True,
+            "direct_permissions": ["view_projects"],
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert body["roles"] == ["custom"]
+    assert body["direct_permissions"] == ["view_projects"]
+    _sign_in(client, "ada", ADA_PASSWORD)
+    assert client.get("/admin/access").status_code == 403
+    assert (
+        client.post(
+            "/web/projects",
+            data={"key": "NOPE", "name": "Nope"},
+            follow_redirects=False,
+        ).status_code
+        == 403
+    )
 
 
 def test_an_admin_cannot_remove_the_last_owner(client: TestClient) -> None:
