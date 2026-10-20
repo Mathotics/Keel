@@ -19,6 +19,7 @@ A household tracker now has people who should not all administer the server or a
 - Keep an Admin who can run the server without automatically entering a project.
 - Keep project work on Project Owner, Contributor, and Viewer.
 - Give every other person the global role Member, which can see projects and holds the global create and edit permissions for issues and schedules, plus the global permission to create comments.
+- Offer an Editor global role for day-to-day work: create, edit, and delete issues, schedules, and sprints, and create and delete comments, while creating and deleting projects and users stay with Admin.
 - Offer a Custom global role with no permissions of its own, so that person's global access is only the permissions granted to them.
 - Refuse a grant that omits a permission it depends on.
 - On the current server, record the day-one grants named in the catalog.
@@ -28,7 +29,7 @@ A household tracker now has people who should not all administer the server or a
 
 ### In-Scope
 
-* Global roles Owner, Admin, Member, and Custom, and project roles Project Owner, Contributor, and Viewer.
+* Global roles Owner, Admin, Editor, Member, and Custom, and project roles Project Owner, Contributor, and Viewer.
 * Direct permission grants in addition to a role.
 * Dependency closure when a grant is saved.
 * The global RBAC page at `/admin/access`, and `GET`/`PUT /api/v1/access/global`.
@@ -56,6 +57,7 @@ A household tracker now has people who should not all administer the server or a
 * **Must** allow more than one Owner. **Must** allow only an Owner to grant or revoke Owner. **Must Not** allow the last Owner to be removed, including by deleting that user.
 * **Must** give Admin every global permission and no project permission.
 * **Must** give every person a global role. Member is the default and holds View projects, the global create and edit permissions for issues and schedules, and the global Create comments permission. Granting Owner or Admin replaces Member. Removing the last of those assigns Member again.
+* **Must** offer Editor as a global role that holds View projects and the global create, edit, and delete permissions for issues, schedules, and sprints, plus Create comments and Delete comments. Editor does not include creating or deleting projects or users. Selecting Editor replaces Member and Custom. Selecting Owner or Admin replaces Editor. Clearing Editor assigns Member again. Work inside a project still needs the matching project permission.
 * **Must** offer Custom as a global role with no permissions of its own. A person who is Custom has only the direct grants saved for them. Selecting Custom replaces Member. Selecting Owner or Admin replaces Custom. Clearing Custom assigns Member again.
 * **Must** require both a global permission and the matching project permission to create, edit, or delete issues, schedules, or sprints, and to create or delete comments. The global permission is necessary and is not sufficient to do that action in every project. One global Delete comments permission covers deleting one's own comments and deleting anyone's comments. Starting or completing a sprint, and updating an issue's status, assignee, or sprint placement, have no global gate.
 * **Must** assign Member when a person is created.
@@ -86,7 +88,7 @@ The permission list, role bundles, dependencies, and day-one usernames are the c
 
 The same FastAPI app, SQLite database, Alembic migration, and Jinja pages. Pure allow-or-deny rules live in `src/keel/domain/access.py`. `src/keel/services/access.py` loads roles and direct grants and is the only writer. HTML routes and `/api/v1` call it before a global read or change. `resolve_current_user` still only answers who is signed in.
 
-Stored shape: `permissions`, `permission_dependencies`, `roles`, `role_permissions`, `user_roles`, and `user_permissions`. A global row leaves `project_id` empty. Owner is the role with `bypass` and has no rows in `role_permissions`. Custom also has no rows in `role_permissions`, and that person's access is the direct grants saved for them. Member's rows are View projects, the global create and edit permissions for issues and schedules, and Create comments. Startup seeds the catalog and guarantees an Owner. The upgrade also writes the day-one project roles. Creating a user assigns Member. Creating a project assigns Project Owner to the creator. A project create, edit, or delete of issues, schedules, or sprints, and creating or deleting comments, is kept only when the matching global permission is held. Project routes do not call that rule until KEEL-105.
+Stored shape: `permissions`, `permission_dependencies`, `roles`, `role_permissions`, `user_roles`, and `user_permissions`. A global row leaves `project_id` empty. Owner is the role with `bypass` and has no rows in `role_permissions`. Custom also has no rows in `role_permissions`, and that person's access is the direct grants saved for them. Editor's rows are View projects, the global create, edit, and delete permissions for issues, schedules, and sprints, and Create comments and Delete comments. Member's rows are View projects, the global create and edit permissions for issues and schedules, and Create comments. Startup seeds the catalog and guarantees an Owner. The upgrade also writes the day-one project roles. Creating a user assigns Member. Creating a project assigns Project Owner to the creator. A project create, edit, or delete of issues, schedules, or sprints, and creating or deleting comments, is kept only when the matching global permission is held. Project routes do not call that rule until KEEL-105.
 
 A missing global permission becomes `access.denied`. HTML renders `forbidden.html` inside the normal shell. The API returns 403 and the domain error body. A person who is not signed in still goes to `/login`, or receives 401 from the API.
 

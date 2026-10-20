@@ -40,6 +40,13 @@ def test_the_catalog_names_role_bundles_and_dependencies() -> None:
     assert "Delete comments" not in by_role["Member"]
     assert "Create sprints" not in by_role["Member"]
     assert by_role["Owner"] == "Bypasses every global and project permission"
+    assert by_role["Editor"] == (
+        "View projects, Create issues, Edit issues, Delete issues, "
+        "Create comments, Delete comments, Create schedules, Edit schedules, "
+        "Delete schedules, Create sprints, Edit sprints, Delete sprints"
+    )
+    assert "Create projects" not in by_role["Editor"]
+    assert "Create users" not in by_role["Editor"]
     assert by_role["Custom"] == "None"
     assert "Delete own comments" in by_role["Contributor"]
     assert "Delete any comment" not in by_role["Contributor"]
@@ -196,6 +203,7 @@ def test_only_an_owner_can_change_owner_membership() -> None:
         resolve_global_roles(
             requested_owner=True,
             requested_admin=False,
+            requested_editor=False,
             requested_custom=False,
             actor_is_owner=False,
             target_is_owner=False,
@@ -208,6 +216,7 @@ def test_the_last_owner_cannot_be_removed() -> None:
         resolve_global_roles(
             requested_owner=False,
             requested_admin=True,
+            requested_editor=False,
             requested_custom=False,
             actor_is_owner=True,
             target_is_owner=True,
@@ -219,6 +228,7 @@ def test_clearing_owner_and_admin_stores_member() -> None:
     roles = resolve_global_roles(
         requested_owner=False,
         requested_admin=False,
+        requested_editor=False,
         requested_custom=False,
         actor_is_owner=True,
         target_is_owner=False,
@@ -231,6 +241,7 @@ def test_owner_and_admin_can_be_held_together() -> None:
     roles = resolve_global_roles(
         requested_owner=True,
         requested_admin=True,
+        requested_editor=False,
         requested_custom=False,
         actor_is_owner=True,
         target_is_owner=True,
@@ -244,6 +255,7 @@ def test_custom_holds_only_the_grants_for_that_person() -> None:
     roles = resolve_global_roles(
         requested_owner=False,
         requested_admin=False,
+        requested_editor=False,
         requested_custom=True,
         actor_is_owner=True,
         target_is_owner=False,
@@ -253,6 +265,7 @@ def test_custom_holds_only_the_grants_for_that_person() -> None:
     replaced = resolve_global_roles(
         requested_owner=True,
         requested_admin=False,
+        requested_editor=False,
         requested_custom=True,
         actor_is_owner=True,
         target_is_owner=False,
@@ -273,3 +286,44 @@ def test_custom_holds_only_the_grants_for_that_person() -> None:
     assert Permission.CREATE_ISSUES in project
     assert Permission.EDIT_ISSUES not in project
     assert Permission.VIEW_ISSUES in project
+
+
+def test_editor_can_do_the_day_to_day_work_without_user_or_project_admin() -> None:
+    assert ROLE_PERMISSIONS[RoleCode.MEMBER] <= ROLE_PERMISSIONS[RoleCode.EDITOR]
+    roles = resolve_global_roles(
+        requested_owner=False,
+        requested_admin=False,
+        requested_editor=True,
+        requested_custom=True,
+        actor_is_owner=True,
+        target_is_owner=False,
+        other_owners=1,
+    )
+    assert roles == frozenset({RoleCode.EDITOR})
+    _owner, held = effective_global(frozenset({RoleCode.EDITOR}), frozenset())
+    assert Permission.MAY_DELETE_ISSUES in held
+    assert Permission.MAY_DELETE_SPRINTS in held
+    assert Permission.MAY_DELETE_COMMENTS in held
+    assert Permission.CREATE_PROJECTS not in held
+    assert Permission.DELETE_PROJECTS not in held
+    assert Permission.CREATE_USERS not in held
+    assert Permission.DELETE_USERS not in held
+    as_owner = effective_project(
+        frozenset({RoleCode.EDITOR}),
+        frozenset({RoleCode.PROJECT_OWNER}),
+        frozenset(),
+    )[1]
+    assert Permission.DELETE_ISSUES in as_owner
+    assert Permission.DELETE_SCHEDULES in as_owner
+    assert Permission.DELETE_SPRINTS in as_owner
+    assert Permission.DELETE_ANY_COMMENTS in as_owner
+    as_contributor = effective_project(
+        frozenset({RoleCode.EDITOR}),
+        frozenset({RoleCode.CONTRIBUTOR}),
+        frozenset(),
+    )[1]
+    assert Permission.CREATE_ISSUES in as_contributor
+    assert Permission.COMMENT_ISSUES in as_contributor
+    assert Permission.DELETE_OWN_COMMENTS in as_contributor
+    assert Permission.DELETE_ISSUES not in as_contributor
+    assert Permission.CREATE_SPRINTS not in as_contributor

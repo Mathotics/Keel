@@ -17,6 +17,7 @@ class Scope(StrEnum):
 class RoleCode(StrEnum):
     OWNER = "owner"
     ADMIN = "admin"
+    EDITOR = "editor"
     MEMBER = "member"
     CUSTOM = "custom"
     PROJECT_OWNER = "project_owner"
@@ -216,6 +217,7 @@ _VIEWS: frozenset[Permission] = frozenset(
 ROLE_SCOPE: dict[RoleCode, Scope] = {
     RoleCode.OWNER: Scope.GLOBAL,
     RoleCode.ADMIN: Scope.GLOBAL,
+    RoleCode.EDITOR: Scope.GLOBAL,
     RoleCode.MEMBER: Scope.GLOBAL,
     RoleCode.CUSTOM: Scope.GLOBAL,
     RoleCode.PROJECT_OWNER: Scope.PROJECT,
@@ -243,6 +245,22 @@ NECESSARY_GLOBAL: dict[Permission, Permission] = {
 ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
     RoleCode.OWNER: frozenset(),
     RoleCode.ADMIN: frozenset(GLOBAL_PERMISSIONS),
+    RoleCode.EDITOR: frozenset(
+        {
+            Permission.VIEW_PROJECTS,
+            Permission.MAY_CREATE_ISSUES,
+            Permission.MAY_EDIT_ISSUES,
+            Permission.MAY_DELETE_ISSUES,
+            Permission.MAY_CREATE_COMMENTS,
+            Permission.MAY_DELETE_COMMENTS,
+            Permission.MAY_CREATE_SCHEDULES,
+            Permission.MAY_EDIT_SCHEDULES,
+            Permission.MAY_DELETE_SCHEDULES,
+            Permission.MAY_CREATE_SPRINTS,
+            Permission.MAY_EDIT_SPRINTS,
+            Permission.MAY_DELETE_SPRINTS,
+        }
+    ),
     RoleCode.MEMBER: frozenset(
         {
             Permission.VIEW_PROJECTS,
@@ -272,6 +290,7 @@ ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
 ROLE_LABELS: dict[RoleCode, str] = {
     RoleCode.OWNER: "Owner",
     RoleCode.ADMIN: "Admin",
+    RoleCode.EDITOR: "Editor",
     RoleCode.MEMBER: "Member",
     RoleCode.CUSTOM: "Custom",
     RoleCode.PROJECT_OWNER: "Project Owner",
@@ -351,6 +370,7 @@ def resolve_global_roles(
     *,
     requested_owner: bool,
     requested_admin: bool,
+    requested_editor: bool,
     requested_custom: bool,
     actor_is_owner: bool,
     target_is_owner: bool,
@@ -358,9 +378,10 @@ def resolve_global_roles(
 ) -> frozenset[RoleCode]:
     """The global roles to store after a save.
 
-    Member is the default. Custom replaces Member and holds no permissions
-    of its own. Owner and Admin replace both. Only an Owner may change
-    Owner membership, and the last Owner stays.
+    Member is the default. Editor replaces Member and holds the day-to-day
+    work permissions. Custom replaces Member and holds no permissions of its
+    own. Owner and Admin replace Editor, Custom, and Member. Only an Owner
+    may change Owner membership, and the last Owner stays.
     """
     if requested_owner != target_is_owner and not actor_is_owner:
         raise OwnerChangeDeniedError("Only an Owner can grant or revoke Owner.")
@@ -371,6 +392,8 @@ def resolve_global_roles(
         roles.add(RoleCode.OWNER)
     if requested_admin:
         roles.add(RoleCode.ADMIN)
+    if not roles and requested_editor:
+        roles.add(RoleCode.EDITOR)
     if not roles:
         roles.add(RoleCode.CUSTOM if requested_custom else RoleCode.MEMBER)
     return frozenset(roles)

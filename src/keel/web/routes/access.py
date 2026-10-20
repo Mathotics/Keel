@@ -62,6 +62,9 @@ def access_page(
             member_permission_codes=[
                 permission.value for permission in ROLE_PERMISSIONS[RoleCode.MEMBER]
             ],
+            editor_permission_codes=[
+                permission.value for permission in ROLE_PERMISSIONS[RoleCode.EDITOR]
+            ],
             can_manage=chrome.access.allows(Permission.MANAGE_GLOBAL_RBAC.value),
             actor_is_owner=chrome.access.is_owner,
             error=error,
@@ -77,6 +80,7 @@ def save_access(
     user_id: int,
     owner: Annotated[str, Form()] = "",
     admin: Annotated[str, Form()] = "",
+    editor: Annotated[str, Form()] = "",
     custom: Annotated[str, Form()] = "",
     permission: Annotated[list[str] | None, Form()] = None,
     permissions_locked: Annotated[str, Form()] = "",
@@ -99,6 +103,7 @@ def save_access(
             user_id,
             requested_owner=owner == "1",
             requested_admin=admin == "1",
+            requested_editor=editor == "1",
             requested_custom=custom == "1",
             submitted_direct=frozenset(submitted),
         )

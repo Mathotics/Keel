@@ -55,6 +55,7 @@ def update_global_grant(
         user_id,
         requested_owner=payload.owner,
         requested_admin=payload.admin,
+        requested_editor=payload.editor,
         requested_custom=payload.custom,
         submitted_direct=frozenset(submitted),
     )

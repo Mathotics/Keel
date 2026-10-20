@@ -101,6 +101,13 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     )
     assert ada_custom is not None
     assert "checked" not in ada_custom.group(0)
+    ada_editor = re.search(
+        r'<input type="checkbox" name="editor".*?/>',
+        ada_panel,
+        re.DOTALL,
+    )
+    assert ada_editor is not None
+    assert "checked" not in ada_editor.group(0)
     for code in (
         "view_projects",
         "may_create_issues",
@@ -176,6 +183,41 @@ def test_custom_stores_only_the_grants_for_that_person(client: TestClient) -> No
         ).status_code
         == 403
     )
+
+
+def test_an_editor_cannot_create_users_or_projects(client: TestClient) -> None:
+    ada = _ada(client)
+    saved = client.put(
+        f"/api/v1/access/global/{ada['id']}",
+        json={
+            "owner": False,
+            "admin": False,
+            "editor": True,
+            "custom": False,
+            "direct_permissions": [],
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert body["roles"] == ["editor"]
+    assert body["direct_permissions"] == []
+    _sign_in(client, "ada", ADA_PASSWORD)
+    assert client.get("/admin/access").status_code == 403
+    assert client.get("/users").status_code == 403
+    refused_user = client.post(
+        "/api/v1/users",
+        json={
+            "display_name": "Bea",
+            "username": "bea",
+            "password": "bea-password-1",
+        },
+    )
+    assert refused_user.status_code == 403
+    refused_project = client.post(
+        "/api/v1/projects",
+        json={"key": "NOPE", "name": "Nope"},
+    )
+    assert refused_project.status_code == 403
 
 
 def test_an_admin_cannot_remove_the_last_owner(client: TestClient) -> None:

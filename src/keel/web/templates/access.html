@@ -30,6 +30,13 @@
             </p>
             <p>
               <label>
+                <input type="checkbox" name="editor" value="1"
+                  {% if 'editor' in grant.role_codes %}checked{% endif %}/>
+                Editor
+              </label>
+            </p>
+            <p>
+              <label>
                 <input type="checkbox" data-role="member"
                   {% if 'member' in grant.role_codes %}checked{% endif %}/>
                 Member
@@ -54,14 +61,16 @@
             <legend>Global permissions</legend>
             {% for code, label, requires, requires_codes in permission_choices %}
             {% set from_member = 'member' in grant.role_codes and code in member_permission_codes %}
+            {% set from_editor = 'editor' in grant.role_codes and code in editor_permission_codes %}
             <p>
               <label>
                 <input type="checkbox" name="permission" value="{{ code }}"
                   data-direct="{{ '1' if code in grant.direct_codes else '0' }}"
                   data-requires="{{ requires_codes }}"
                   data-member="{{ '1' if code in member_permission_codes else '0' }}"
-                  {% if role_includes_all or from_member or code in grant.direct_codes %}checked{% endif %}
-                  {% if role_includes_all or from_member %}disabled{% endif %}/>
+                  data-editor="{{ '1' if code in editor_permission_codes else '0' }}"
+                  {% if role_includes_all or from_member or from_editor or code in grant.direct_codes %}checked{% endif %}
+                  {% if role_includes_all or from_member or from_editor %}disabled{% endif %}/>
                 {{ label }}
                 {% if requires %}
                 <span class="keel-requires">Requires {{ requires }}</span>
@@ -79,7 +88,7 @@
       {% endfor %}
       <div class="keel-panel">
         <h2>Roles and permissions</h2>
-        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. Custom includes none, so that person's access is only the permissions granted to them. A global create, edit, delete, or comment permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
+        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. Editor includes the day-to-day permissions for issues, schedules, sprints, and comments. Custom includes none, so that person's access is only the permissions granted to them. A global create, edit, delete, or comment permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
         <div class="keel-table-scroll">
           <table class="keel-table keel-access-catalog">
             <thead>
@@ -122,16 +131,21 @@
         document.querySelectorAll("form[action^='/web/access/']").forEach(function (form) {
           var owner = form.querySelector("input[name='owner']:not([type='hidden'])");
           var admin = form.querySelector("input[name='admin']");
+          var editor = form.querySelector("input[name='editor']");
           var member = form.querySelector("input[data-role='member']");
           var custom = form.querySelector("input[name='custom']");
           function sync() {
             var locked = (owner !== null && owner.checked) || (admin !== null && admin.checked);
-            var customOn = !locked && custom !== null && custom.checked;
-            if (custom !== null && locked) {
+            var editorOn = !locked && editor !== null && editor.checked;
+            var customOn = !locked && !editorOn && custom !== null && custom.checked;
+            if (editor !== null && locked) {
+              editor.checked = false;
+            }
+            if (custom !== null && (locked || editorOn)) {
               custom.checked = false;
             }
             if (member !== null) {
-              member.checked = !locked && !customOn;
+              member.checked = !locked && !editorOn && !customOn;
             }
             var marker = form.querySelector("input[name='permissions_locked']");
             if (locked && marker === null) {
@@ -153,8 +167,10 @@
                 box.checked = box.dataset.direct === "1";
               } else {
                 var fromMember = member !== null && member.checked && box.dataset.member === "1";
-                box.disabled = fromMember;
-                box.checked = fromMember || box.dataset.direct === "1";
+                var fromEditor = editorOn && box.dataset.editor === "1";
+                var fromRole = fromMember || fromEditor;
+                box.disabled = fromRole;
+                box.checked = fromRole || box.dataset.direct === "1";
               }
             });
           }
@@ -163,6 +179,26 @@
           }
           if (admin !== null) {
             admin.addEventListener("change", sync);
+          }
+          if (editor !== null) {
+            editor.addEventListener("change", function () {
+              if (editor.checked && owner !== null && owner.disabled && owner.checked) {
+                editor.checked = false;
+                return;
+              }
+              if (editor.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+                if (custom !== null) {
+                  custom.checked = false;
+                }
+              }
+              sync();
+            });
           }
           if (member !== null) {
             member.addEventListener("change", function () {
@@ -176,6 +212,9 @@
                 }
                 if (admin !== null) {
                   admin.checked = false;
+                }
+                if (editor !== null) {
+                  editor.checked = false;
                 }
                 if (custom !== null) {
                   custom.checked = false;
@@ -196,6 +235,9 @@
                 }
                 if (admin !== null) {
                   admin.checked = false;
+                }
+                if (editor !== null) {
+                  editor.checked = false;
                 }
               }
               sync();
