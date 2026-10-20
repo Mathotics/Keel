@@ -179,3 +179,17 @@ class InvalidSeriesError(DomainError):
 
 class SeriesStoppedError(DomainError):
     code = "series.stopped"
+
+
+class PermissionDeniedError(DomainError):
+    code = "access.denied"
+    status_code = 403
+
+
+class LastOwnerError(DomainError):
+    code = "access.last_owner"
+
+
+class OwnerChangeDeniedError(DomainError):
+    code = "access.owner_change"
+    status_code = 403

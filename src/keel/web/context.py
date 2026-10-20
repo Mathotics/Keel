@@ -9,11 +9,13 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
+from keel.domain.access import Permission
 from keel.domain.duration import format_minutes
 from keel.domain.enums import INITIAL_PRIORITY, label
 from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
+from keel.services.access import Access, load_access
 from keel.services.auto_sprint import get_session
 from keel.services.identity import (
     SESSION_COOKIE,
@@ -91,6 +93,7 @@ class Chrome:
 
     users: Sequence[User]
     current_user: User | None
+    access: Access
 
 
 def _current_user(request: Request, session: Session) -> User | None:
@@ -114,9 +117,11 @@ def get_chrome(
     request: Request,
     session: Annotated[Session, Depends(get_request_session)],
 ) -> Chrome:
+    current = _current_user(request, session)
     return Chrome(
         users=user_service.list_users(session),
-        current_user=_current_user(request, session),
+        current_user=current,
+        access=load_access(session, current.id if current is not None else None),
     )
 
 
@@ -129,12 +134,15 @@ def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, An
     key = getattr(project, "key", None)
     project_key = key if isinstance(key, str) else None
     nav_items = links_for(parse_order(request.cookies.get(NAV_COOKIE)), project_key)
+    if not chrome.access.allows(Permission.VIEW_USERS.value):
+        nav_items = [item for item in nav_items if item.key != "users"]
     context: dict[str, Any] = {
         "request": request,
         "version": package_version(),
         "copyright_notice": copyright_notice(),
         "users": chrome.users,
         "current_user": chrome.current_user,
+        "access": chrome.access,
         "nav_items": nav_items,
         "nav_keys": ",".join(item.key for item in nav_items),
         **extra,

@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from keel.domain.cadence import MAX_SPRINT_AHEAD
 from keel.domain.enums import sprint_cadences_in_menu_order, statuses_in_workflow_order
+from keel.services import access as access_service
 from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -23,13 +24,17 @@ def project_list(
     session: SessionDep,
     error: str | None = None,
 ) -> HTMLResponse:
+    projects = access_service.visible_project_ids(
+        chrome.access,
+        list(project_service.list_projects(session)),
+    )
     return get_templates().TemplateResponse(
         request,
         "projects.html",
         page_context(
             request,
             chrome,
-            projects=project_service.list_projects(session),
+            projects=projects,
             error=error,
         ),
     )

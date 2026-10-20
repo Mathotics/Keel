@@ -6,6 +6,7 @@
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
+      {% if access.allows('create_users') %}
       <div class="keel-panel">
         <h2>Add someone</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/users">
@@ -30,6 +31,7 @@
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Add</button></p>
         </form>
       </div>
+      {% endif %}
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
@@ -39,15 +41,28 @@
           {% for user in users %}
           <tr>
             <td>
+              {% if access.allows('rename_users') %}
               <form class="keel-form keel-form--inline" method="post" action="/web/users/{{ user.id }}/rename">
                 <label class="keel-visually-hidden" for="rename-{{ user.id }}">Rename {{ user.display_name }}</label>
                 <input id="rename-{{ user.id }}" name="display_name" type="text" maxlength="100" value="{{ user.display_name }}" required/>
                 <button type="submit">Rename</button>
               </form>
+              {% else %}
+              {{ user.display_name }}
+              {% endif %}
             </td>
             <td>{{ user.username }}</td>
             <td>
-              {% if not current_user or user.id != current_user.id %}
+              {% if access.allows('reset_user_passwords') and current_user and user.id != current_user.id %}
+              <form class="keel-form keel-form--inline" method="post" action="/web/users/{{ user.id }}/password">
+                <label class="keel-visually-hidden" for="reset-{{ user.id }}">New password for {{ user.display_name }}</label>
+                <input id="reset-{{ user.id }}" name="password" type="password" required minlength="12" maxlength="128" autocomplete="new-password" placeholder="New password"/>
+                <label class="keel-visually-hidden" for="reset-confirm-{{ user.id }}">Confirm password for {{ user.display_name }}</label>
+                <input id="reset-confirm-{{ user.id }}" name="confirm" type="password" required minlength="12" maxlength="128" autocomplete="new-password" placeholder="Confirm"/>
+                <button type="submit">Reset password</button>
+              </form>
+              {% endif %}
+              {% if access.allows('delete_users') and (not current_user or user.id != current_user.id) %}
               <form class="keel-form keel-form--inline keel-form--danger" method="post" action="/web/users/{{ user.id }}/delete">
                 <button type="submit">Delete</button>
               </form>

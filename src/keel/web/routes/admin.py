@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
+from keel.domain.access import Permission
 from keel.services.request_log import (
     LOG_PATH,
     RequestLogQuery,
@@ -11,6 +12,7 @@ from keel.services.request_log import (
 )
 from keel.settings import KeelSettings
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.forbid import require_page
 
 router = APIRouter()
 
@@ -29,6 +31,9 @@ def request_log_page(
     path: str | None = None,
     page: str | None = None,
 ) -> HTMLResponse:
+    denied = require_page(request, chrome, Permission.VIEW_LOG_TRACKER.value)
+    if denied is not None:
+        return denied
     query = parse_query(
         person=person,
         start=start,

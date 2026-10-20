@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from keel.web.routes import (
+    access,
     account,
     admin,
     backlog,
@@ -19,6 +20,7 @@ from keel.web.routes import (
 router = APIRouter()
 router.include_router(account.router)
 router.include_router(admin.router)
+router.include_router(access.router)
 router.include_router(pages.router)
 router.include_router(search.router)
 router.include_router(projects.router)

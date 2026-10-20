@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Access{% endblock %}
+{% block main %}
+      <h1>Access</h1>
+      <p class="keel-note">Global roles and extra permissions. Member is the ordinary account. Admin includes every global permission. Owner bypasses every check. A direct permission also includes whatever it depends on.</p>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% for grant in grants %}
+      <div class="keel-panel">
+        <h2>{{ grant.display_name }}</h2>
+        <p class="keel-note">{{ grant.username }}</p>
+        {% if can_manage %}
+        <form class="keel-form keel-form--stacked" method="post" action="/web/access/{{ grant.user_id }}">
+          <div class="keel-fields">
+            <p>
+              <label>
+                <input type="checkbox" name="owner" value="1"
+                  {% if 'owner' in grant.role_codes %}checked{% endif %}
+                  {% if not actor_is_owner %}disabled{% endif %}/>
+                Owner
+              </label>
+            </p>
+            <p>
+              <label>
+                <input type="checkbox" name="admin" value="1"
+                  {% if 'admin' in grant.role_codes %}checked{% endif %}/>
+                Admin
+              </label>
+            </p>
+          </div>
+          {% if not actor_is_owner and 'owner' in grant.role_codes %}
+          <input type="hidden" name="owner" value="1"/>
+          {% endif %}
+          <fieldset>
+            <legend>Extra global permissions</legend>
+            {% for code, label in permission_choices %}
+            <p>
+              <label>
+                <input type="checkbox" name="permission" value="{{ code }}"
+                  {% if code in grant.direct_codes %}checked{% endif %}/>
+                {{ label }}
+              </label>
+            </p>
+            {% endfor %}
+          </fieldset>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
+        </form>
+        {% else %}
+        <p>{{ grant.role_names }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+{% endblock %}

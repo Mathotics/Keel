@@ -104,8 +104,10 @@
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
         </form>
       </div>
+      {% if access.allows('delete_projects') %}
       <form class="keel-form keel-form--danger" method="post" action="/web/projects/{{ project.id }}/delete"
             onsubmit="return confirm('Delete {{ project.key }} and every issue, sprint, comment, and dependency link in it? This cannot be undone.');">
         <button type="submit">Delete project</button>
       </form>
+      {% endif %}
 {% endblock %}
