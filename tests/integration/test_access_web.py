@@ -68,6 +68,21 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
     )
     assert len(permission_inputs) == 12
     assert all("checked" in box and "disabled" in box for box in permission_inputs)
+    owner_member = re.search(
+        r'<input type="checkbox" data-role="member".*?/>',
+        owner_panel,
+        re.DOTALL,
+    )
+    assert owner_member is not None
+    assert "checked" not in owner_member.group(0)
+    ada_panel = page.text.split("<h2>Ada</h2>", 1)[1].split("<h2>", 1)[0]
+    ada_member = re.search(
+        r'<input type="checkbox" data-role="member".*?/>',
+        ada_panel,
+        re.DOTALL,
+    )
+    assert ada_member is not None
+    assert "checked" in ada_member.group(0)
     saved = client.put(
         f"/api/v1/access/global/{ada['id']}",
         json={"owner": False, "admin": False, "direct_permissions": ["create_users"]},

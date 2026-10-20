@@ -28,6 +28,13 @@
                 Admin
               </label>
             </p>
+            <p>
+              <label>
+                <input type="checkbox" data-role="member"
+                  {% if 'member' in grant.role_codes %}checked{% endif %}/>
+                Member
+              </label>
+            </p>
           </div>
           {% if not actor_is_owner and 'owner' in grant.role_codes %}
           <input type="hidden" name="owner" value="1"/>
@@ -62,8 +69,12 @@
         document.querySelectorAll("form[action^='/web/access/']").forEach(function (form) {
           var owner = form.querySelector("input[name='owner']:not([type='hidden'])");
           var admin = form.querySelector("input[name='admin']");
+          var member = form.querySelector("input[data-role='member']");
           function sync() {
             var locked = (owner !== null && owner.checked) || (admin !== null && admin.checked);
+            if (member !== null) {
+              member.checked = !locked;
+            }
             var marker = form.querySelector("input[name='permissions_locked']");
             if (locked && marker === null) {
               marker = document.createElement("input");
@@ -90,6 +101,23 @@
           }
           if (admin !== null) {
             admin.addEventListener("change", sync);
+          }
+          if (member !== null) {
+            member.addEventListener("change", function () {
+              if (member.checked && owner !== null && owner.disabled && owner.checked) {
+                member.checked = false;
+                return;
+              }
+              if (member.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+              }
+              sync();
+            });
           }
         });
       </script>
