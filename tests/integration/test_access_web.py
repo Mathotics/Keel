@@ -80,6 +80,12 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
         Permission.VIEW_USERS.value,
     }
     _sign_in(client, "ada", ADA_PASSWORD)
+    home = client.get("/").text
+    nav = home.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
+    admin = home.split('class="keel-admin"', 1)[1].split("</details>", 1)[0]
+    assert 'href="/users"' not in nav
+    assert 'href="/users"' in admin
+    assert 'href="/admin/log"' not in admin
     assert client.get("/users").status_code == 200
     assert client.get("/admin/log").status_code == 403
     made_admin = client.put(

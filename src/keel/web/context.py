@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
-from keel.domain.access import Permission
 from keel.domain.duration import format_minutes
 from keel.domain.enums import INITIAL_PRIORITY, label
 from keel.domain.schedule import format_clock
@@ -134,8 +133,6 @@ def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, An
     key = getattr(project, "key", None)
     project_key = key if isinstance(key, str) else None
     nav_items = links_for(parse_order(request.cookies.get(NAV_COOKIE)), project_key)
-    if not chrome.access.allows(Permission.VIEW_USERS.value):
-        nav_items = [item for item in nav_items if item.key != "users"]
     context: dict[str, Any] = {
         "request": request,
         "version": package_version(),

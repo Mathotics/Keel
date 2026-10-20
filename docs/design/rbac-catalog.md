@@ -31,7 +31,7 @@ Several Project Owners are allowed. A Project Owner cannot remove the last Proje
 * **View Log Tracker.** Requires Display Admin menu.
 * **View global RBAC page.** Requires Display Admin menu.
 * **Manage global RBAC.** Requires View global RBAC page. An Admin cannot change Owner membership.
-* **View users.** The Users management page in the top bar. It does not require the Admin menu. The people directory used for assignees stays available to every signed-in person.
+* **View users.** The Users link under the Admin menu. It does not require Display Admin menu. When it is the only Admin item that person can open, the Admin menu still appears. The people directory used for assignees stays available to every signed-in person.
 * **Create users.** Requires View users. A new person is Member.
 * **Delete users.** Requires View users. A person still cannot delete their own user. Deleting an Owner follows the Owner rules above.
 * **Rename users.** Requires View users.

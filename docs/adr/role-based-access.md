@@ -59,8 +59,8 @@ A household tracker now has people who should not all administer the server or a
 * **Must** give the creator of a project the Project Owner role on that project.
 * **Must** compute access as the union of role permissions and direct grants. **Must Not** store a deny.
 * **Must** on save, add missing dependencies and remove grants whose dependency was removed. A stored permission whose dependency is absent does not count at check time.
-* **Must** keep the Users management page on the top bar, shown only with View users. The people directory `GET /api/v1/users` stays available to every signed-in person so assignee lists and the phone app can read display names.
-* **Must** show the Admin menu only with Display Admin menu. Log tracker and Access live under that menu.
+* **Must** keep the Users management page under the Admin menu, shown only with View users. The people directory `GET /api/v1/users` stays available to every signed-in person so assignee lists and the phone app can read display names.
+* **Must** show the Admin menu with Display Admin menu, and also when View users is the only item that person can open. Users, Log tracker, and Access live under that menu.
 * **Must** hide a global nav link or button the person cannot use. **Must** answer a typed global page with the forbidden page, and the matching API call with 403. **Must Not** send that person to `/login`.
 * **Must** let every signed-in person open their profile, change their own password, manage their own API tokens, arrange home and nav, sign out, and open Help and License.
 * **Must** keep the rule that a person cannot delete their own user.
