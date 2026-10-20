@@ -47,6 +47,7 @@ import {
   chooseServer,
   discardIssue,
   dropProject,
+  dropQueueItem,
   emptyStore,
   forgetProject,
   enableProject,
@@ -2943,6 +2944,26 @@ export default function App() {
             setIssueId(id);
             setPhase("issue");
           }}
+          onRemove={(row) => {
+            Alert.alert("Remove this change?", "It will not be sent to the server.", [
+              { text: "Keep it", style: "cancel" },
+              {
+                text: "Remove",
+                style: "destructive",
+                onPress: () => {
+                  if (!account) {
+                    return;
+                  }
+                  const dropped = dropQueueItem(library, row.id);
+                  if (dropped.error) {
+                    Alert.alert("Could not remove this change", dropped.error);
+                    return;
+                  }
+                  persistLibrary(account.userId, dropped.store);
+                },
+              },
+            ]);
+          }}
         />
       ) : null}
       </View>
@@ -5431,7 +5452,7 @@ function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
   );
 }
 
-function OfflineQueue({ rows, onOpen }) {
+function OfflineQueue({ rows, onOpen, onRemove }) {
   if (!rows.length) {
     return (
       <View style={styles.work}>
@@ -5443,22 +5464,36 @@ function OfflineQueue({ rows, onOpen }) {
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
       <Text style={styles.message}>These changes are still on this phone.</Text>
       {rows.map((row) => (
-        <Pressable key={row.id} accessibilityRole="button" onPress={() => onOpen(row.issueId)} style={styles.issue}>
-          <Text style={styles.issueKey}>{row.action}</Text>
-          <Text style={styles.issueTitle}>{row.issue}</Text>
-          {row.project ? <Text style={styles.issueStatus}>{row.project}</Text> : null}
-          {row.detail ? <Text style={styles.queueDetail}>{row.detail}</Text> : null}
-          {row.held ? <Text style={styles.pending}>Waiting on a conflict.</Text> : null}
-          {row.error ? <Text style={styles.pending}>{row.error}</Text> : null}
-        </Pressable>
+        <View key={row.id} style={styles.issue}>
+          <Pressable accessibilityRole="button" onPress={() => onOpen(row.issueId)}>
+            <Text style={styles.issueKey}>{row.action}</Text>
+            <Text style={styles.issueTitle}>{row.issue}</Text>
+            {row.project ? <Text style={styles.issueStatus}>{row.project}</Text> : null}
+            {row.detail ? <Text style={styles.queueDetail}>{row.detail}</Text> : null}
+            {row.held ? <Text style={styles.pending}>Waiting on a conflict.</Text> : null}
+            {row.error ? <Text style={styles.pending}>{row.error}</Text> : null}
+          </Pressable>
+          <View style={styles.toolbarActions}>
+            <TextButton
+              accessibilityLabel={`Remove ${row.action} for ${row.issue}`}
+              label="Remove"
+              onPress={() => onRemove(row)}
+            />
+          </View>
+        </View>
       ))}
     </ScrollView>
   );
 }
 
-function TextButton({ label, onPress, disabled }) {
+function TextButton({ label, onPress, disabled, accessibilityLabel }) {
   return (
-    <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
+    <Pressable
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+    >
       <Text style={styles.textButton}>{label}</Text>
     </Pressable>
   );
