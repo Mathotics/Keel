@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}Access{% endblock %}
+{% block main %}
+      <h1>Access</h1>
+      <p class="keel-note">Global roles and permissions for each person. The tables below show which role includes which permissions, and which permissions require another. Creating, editing, or deleting issues, schedules, or sprints, and creating or deleting comments, also needs the matching project permission.</p>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% for grant in grants %}
+      <div class="keel-panel">
+        <h2>{{ grant.display_name }}</h2>
+        <p class="keel-note">{{ grant.username }}</p>
+        {% if can_manage %}
+        <form class="keel-form keel-form--stacked" method="post" action="/web/access/{{ grant.user_id }}">
+          <div class="keel-fields">
+            <p>
+              <label>
+                <input type="checkbox" name="owner" value="1"
+                  {% if 'owner' in grant.role_codes %}checked{% endif %}
+                  {% if not actor_is_owner %}disabled{% endif %}/>
+                Owner
+              </label>
+            </p>
+            <p>
+              <label>
+                <input type="checkbox" name="admin" value="1"
+                  {% if 'admin' in grant.role_codes %}checked{% endif %}/>
+                Admin
+              </label>
+            </p>
+            <p>
+              <label>
+                <input type="checkbox" name="editor" value="1"
+                  {% if 'editor' in grant.role_codes %}checked{% endif %}/>
+                Editor
+              </label>
+            </p>
+            <p>
+              <label>
+                <input type="checkbox" data-role="member"
+                  {% if 'member' in grant.role_codes %}checked{% endif %}/>
+                Member
+              </label>
+            </p>
+            <p>
+              <label>
+                <input type="checkbox" name="custom" value="1"
+                  {% if 'custom' in grant.role_codes %}checked{% endif %}/>
+                Custom
+              </label>
+            </p>
+            <p>
+              <label>
+                <input type="checkbox" name="no_access" value="1"
+                  {% if 'no_access' in grant.role_codes %}checked{% endif %}/>
+                No Access
+              </label>
+            </p>
+          </div>
+          {% if not actor_is_owner and 'owner' in grant.role_codes %}
+          <input type="hidden" name="owner" value="1"/>
+          {% endif %}
+          {% set role_includes_all = 'owner' in grant.role_codes or 'admin' in grant.role_codes %}
+          {% if role_includes_all %}
+          <input type="hidden" name="permissions_locked" value="1"/>
+          {% endif %}
+          <fieldset>
+            <legend>Global permissions</legend>
+            {% for code, label, requires, requires_codes in permission_choices %}
+            {% set from_member = 'member' in grant.role_codes and code in member_permission_codes %}
+            {% set from_editor = 'editor' in grant.role_codes and code in editor_permission_codes %}
+            {% set no_access = 'no_access' in grant.role_codes %}
+            <p>
+              <label>
+                <input type="checkbox" name="permission" value="{{ code }}"
+                  data-direct="{{ '1' if code in grant.direct_codes else '0' }}"
+                  data-requires="{{ requires_codes }}"
+                  data-member="{{ '1' if code in member_permission_codes else '0' }}"
+                  data-editor="{{ '1' if code in editor_permission_codes else '0' }}"
+                  {% if not no_access and (role_includes_all or from_member or from_editor or code in grant.direct_codes) %}checked{% endif %}
+                  {% if no_access or role_includes_all or from_member or from_editor %}disabled{% endif %}/>
+                {{ label }}
+                {% if requires %}
+                <span class="keel-requires">Requires {{ requires }}</span>
+                {% endif %}
+              </label>
+            </p>
+            {% endfor %}
+          </fieldset>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
+        </form>
+        {% else %}
+        <p>{{ grant.role_names }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div class="keel-panel">
+        <h2>Roles and permissions</h2>
+        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. Editor includes the day-to-day permissions for issues, schedules, sprints, and comments. Custom includes none, so that person's access is only the permissions granted to them. No Access includes none and clears the permissions already granted to that person. A global create, edit, delete, or comment permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
+        <div class="keel-table-scroll">
+          <table class="keel-table keel-access-catalog">
+            <thead>
+              <tr><th>Role</th><th>Where</th><th>Includes</th></tr>
+            </thead>
+            <tbody>
+              {% for role in catalog_roles %}
+              <tr>
+                <th scope="row">{{ role.label }}</th>
+                <td>{{ role.scope }}</td>
+                <td>{{ role.permissions }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="keel-panel">
+        <h2>Permission dependencies</h2>
+        <p class="keel-note">Granting a permission also grants what it requires. Removing a required permission removes every permission that depends on it.</p>
+        <div class="keel-table-scroll">
+          <table class="keel-table keel-access-catalog">
+            <thead>
+              <tr><th>Permission</th><th>Where</th><th>Requires</th></tr>
+            </thead>
+            <tbody>
+              {% for permission in catalog_permissions %}
+              <tr>
+                <th scope="row">{{ permission.label }}</th>
+                <td>{{ permission.scope }}</td>
+                <td>{{ permission.requires }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if can_manage %}
+      <script>
+        document.querySelectorAll("form[action^='/web/access/']").forEach(function (form) {
+          var owner = form.querySelector("input[name='owner']:not([type='hidden'])");
+          var admin = form.querySelector("input[name='admin']");
+          var editor = form.querySelector("input[name='editor']");
+          var member = form.querySelector("input[data-role='member']");
+          var custom = form.querySelector("input[name='custom']");
+          var noAccess = form.querySelector("input[name='no_access']");
+          function sync() {
+            var locked = (owner !== null && owner.checked) || (admin !== null && admin.checked);
+            var noAccessOn = !locked && noAccess !== null && noAccess.checked;
+            var editorOn = !locked && !noAccessOn && editor !== null && editor.checked;
+            var customOn = !locked && !noAccessOn && !editorOn && custom !== null && custom.checked;
+            if (noAccess !== null && locked) {
+              noAccess.checked = false;
+            }
+            if (editor !== null && (locked || noAccessOn)) {
+              editor.checked = false;
+            }
+            if (custom !== null && (locked || noAccessOn || editorOn)) {
+              custom.checked = false;
+            }
+            if (member !== null) {
+              member.checked = !locked && !noAccessOn && !editorOn && !customOn;
+            }
+            var marker = form.querySelector("input[name='permissions_locked']");
+            if (locked && marker === null) {
+              marker = document.createElement("input");
+              marker.type = "hidden";
+              marker.name = "permissions_locked";
+              marker.value = "1";
+              form.appendChild(marker);
+            }
+            if (!locked && marker !== null) {
+              marker.remove();
+            }
+            form.querySelectorAll("input[name='permission']").forEach(function (box) {
+              if (locked) {
+                box.checked = true;
+                box.disabled = true;
+              } else if (noAccessOn) {
+                box.checked = false;
+                box.disabled = true;
+              } else if (customOn) {
+                box.disabled = false;
+                box.checked = box.dataset.direct === "1";
+              } else {
+                var fromMember = member !== null && member.checked && box.dataset.member === "1";
+                var fromEditor = editorOn && box.dataset.editor === "1";
+                var fromRole = fromMember || fromEditor;
+                box.disabled = fromRole;
+                box.checked = fromRole || box.dataset.direct === "1";
+              }
+            });
+          }
+          if (owner !== null) {
+            owner.addEventListener("change", sync);
+          }
+          if (admin !== null) {
+            admin.addEventListener("change", sync);
+          }
+          if (editor !== null) {
+            editor.addEventListener("change", function () {
+              if (editor.checked && owner !== null && owner.disabled && owner.checked) {
+                editor.checked = false;
+                return;
+              }
+              if (editor.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+                if (custom !== null) {
+                  custom.checked = false;
+                }
+                if (noAccess !== null) {
+                  noAccess.checked = false;
+                }
+              }
+              sync();
+            });
+          }
+          if (member !== null) {
+            member.addEventListener("change", function () {
+              if (member.checked && owner !== null && owner.disabled && owner.checked) {
+                member.checked = false;
+                return;
+              }
+              if (member.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+                if (editor !== null) {
+                  editor.checked = false;
+                }
+                if (custom !== null) {
+                  custom.checked = false;
+                }
+                if (noAccess !== null) {
+                  noAccess.checked = false;
+                }
+              }
+              sync();
+            });
+          }
+          if (custom !== null) {
+            custom.addEventListener("change", function () {
+              if (custom.checked && owner !== null && owner.disabled && owner.checked) {
+                custom.checked = false;
+                return;
+              }
+              if (custom.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+                if (editor !== null) {
+                  editor.checked = false;
+                }
+                if (noAccess !== null) {
+                  noAccess.checked = false;
+                }
+              }
+              sync();
+            });
+          }
+          if (noAccess !== null) {
+            noAccess.addEventListener("change", function () {
+              if (noAccess.checked && owner !== null && owner.disabled && owner.checked) {
+                noAccess.checked = false;
+                return;
+              }
+              if (noAccess.checked) {
+                if (owner !== null && !owner.disabled) {
+                  owner.checked = false;
+                }
+                if (admin !== null) {
+                  admin.checked = false;
+                }
+                if (editor !== null) {
+                  editor.checked = false;
+                }
+                if (custom !== null) {
+                  custom.checked = false;
+                }
+              }
+              sync();
+            });
+          }
+          var boxes = form.querySelectorAll("input[name='permission']");
+          var byCode = {};
+          boxes.forEach(function (box) {
+            byCode[box.value] = box;
+          });
+          function requiredCodes(box) {
+            return (box.dataset.requires || "").split(" ").filter(Boolean);
+          }
+          function checkRequired(box) {
+            requiredCodes(box).forEach(function (code) {
+              var needed = byCode[code];
+              if (needed && !needed.checked) {
+                needed.checked = true;
+                checkRequired(needed);
+              }
+            });
+          }
+          function uncheckDependents(code) {
+            boxes.forEach(function (box) {
+              if (box.checked && requiredCodes(box).indexOf(code) !== -1) {
+                box.checked = false;
+                uncheckDependents(box.value);
+              }
+            });
+          }
+          boxes.forEach(function (box) {
+            box.addEventListener("change", function () {
+              if (box.disabled) {
+                return;
+              }
+              if (box.checked) {
+                checkRequired(box);
+              } else {
+                uncheckDependents(box.value);
+              }
+            });
+          });
+        });
+      </script>
+      {% endif %}
+{% endblock %}

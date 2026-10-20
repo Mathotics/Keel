@@ -104,12 +104,11 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
         < nav.index('href="/create"')
         < nav.index('href="/board"')
         < nav.index('href="/calendar"')
-        < nav.index('href="/users"')
     )
     assert 'href="/projects"' in nav
     assert 'href="/create"' in nav
     assert 'href="/board"' in nav
-    assert 'href="/users"' in nav
+    assert 'href="/users"' not in nav
     assert "keel-nav__fallback" in nav
     assert 'action="/web/nav/move"' in nav
     assert "Board" in nav
@@ -155,8 +154,11 @@ def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> N
         < right.index("keel-account")
     )
     admin_block = _details_containing(right, ">Admin<")
+    assert 'href="/users"' in admin_block
+    assert ">Users<" in admin_block
     assert 'href="/admin/log"' in admin_block
     assert ">Log tracker<" in admin_block
+    assert admin_block.index('href="/users"') < admin_block.index('href="/admin/log"')
 
     css = client.get("/assets/brand.css").text
     menu = _rule(css, ".keel-help__menu")
@@ -195,10 +197,10 @@ def test_picker_switches_on_change_but_keeps_a_button_without_js(
 
 
 def test_section_links_follow_the_nav_cookie(client: TestClient) -> None:
-    client.cookies.set("keel_nav", "users.create.projects")
+    client.cookies.set("keel_nav", "calendar.create.projects")
     nav = client.get("/projects").text.split("<nav", 1)[1].split("</nav>", 1)[0]
     assert (
-        nav.index('href="/users"')
+        nav.index('href="/calendar"')
         < nav.index('href="/create"')
         < nav.index('href="/projects"')
     )
@@ -212,7 +214,7 @@ def test_moving_a_section_link_sets_the_cookie_and_returns(
         data={
             "item": "create",
             "direction": "up",
-            "visible": "projects,create,users",
+            "visible": "projects,create,calendar",
             "next": "/projects",
         },
         follow_redirects=False,
@@ -231,7 +233,7 @@ def test_reordering_visible_links_leaves_hidden_project_slots(
     client.post("/api/v1/projects", json={"key": "KEEL", "name": "Keel"})
     client.post(
         "/web/nav",
-        data={"order": "users,projects,create", "next": "/projects"},
+        data={"order": "schedules,projects,create", "next": "/projects"},
         follow_redirects=False,
     )
     nav = (
@@ -242,7 +244,9 @@ def test_reordering_visible_links_leaves_hidden_project_slots(
             1,
         )[0]
     )
-    assert nav.index('href="/users"') < nav.index('href="/projects/KEEL/board"')
+    assert nav.index('href="/projects/KEEL/schedules"') < nav.index(
+        'href="/projects/KEEL/board"'
+    )
     assert nav.index('href="/projects/KEEL/board"') < nav.index('href="/create')
     assert nav.index('href="/projects/KEEL/sprints"') < nav.index('href="/create')
 

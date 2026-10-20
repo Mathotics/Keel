@@ -16,6 +16,7 @@ from keel.api.errors import register_error_handlers
 from keel.db.engine import create_db_engine, create_session_factory
 from keel.paths import asset_path, assets_dir
 from keel.services import auto_sprint
+from keel.services.access import ensure_global_roles
 from keel.services.users import ensure_default_user
 from keel.settings import KeelSettings, get_settings
 from keel.version import package_version
@@ -61,6 +62,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
                 default_user,
                 seed_sign_in=settings.seed_sign_in,
             )
+            ensure_global_roles(session)
             auto_sprint.advance_all(session)
             session.commit()
 

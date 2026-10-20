@@ -5,6 +5,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from keel.domain.access import Permission, RoleCode
 from keel.domain.cadence import MAX_SPRINT_AHEAD, MIN_SPRINT_AHEAD
 from keel.domain.duration import parse_duration
 from keel.domain.enums import (
@@ -29,6 +30,7 @@ from keel.domain.errors import (
 from keel.domain.hierarchy import child_type_of
 from keel.domain.labels import parse_label_names
 from keel.domain.schedule import parse_clock
+from keel.services import access as access_service
 from keel.services import auto_sprint
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
@@ -41,6 +43,7 @@ from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import Chrome, ChromeDep, SessionDep
+from keel.web.forbid import require_page
 from keel.web.home_layout import (
     HOME_COOKIE,
     HOME_COOKIE_MAX_AGE,
@@ -267,14 +270,19 @@ def move_nav_item(
     return _remember_nav(_back(return_to or "/"), merged)
 
 
-@router.post("/users")
+@router.post("/users", response_model=None)
 def create_user(
+    request: Request,
+    chrome: ChromeDep,
     session: SessionDep,
     display_name: Annotated[str, Form()],
     password: Annotated[str, Form()] = "",
     confirm: Annotated[str, Form()] = "",
     username: Annotated[str, Form()] = "",
-) -> RedirectResponse:
+) -> HTMLResponse | RedirectResponse:
+    denied = require_page(request, chrome, Permission.CREATE_USERS.value)
+    if denied is not None:
+        return denied
     try:
         user_service.create_user(
             session,
@@ -290,12 +298,17 @@ def create_user(
     return _back("/users")
 
 
-@router.post("/users/{user_id}/rename")
+@router.post("/users/{user_id}/rename", response_model=None)
 def rename_user(
+    request: Request,
+    chrome: ChromeDep,
     session: SessionDep,
     user_id: int,
     display_name: Annotated[str, Form()],
-) -> RedirectResponse:
+) -> HTMLResponse | RedirectResponse:
+    denied = require_page(request, chrome, Permission.RENAME_USERS.value)
+    if denied is not None:
+        return denied
     try:
         user_service.rename_user(session, user_id, display_name)
     except DomainError as exc:
@@ -304,18 +317,49 @@ def rename_user(
     return _back("/users")
 
 
-@router.post("/users/{user_id}/delete")
+@router.post("/users/{user_id}/password", response_model=None)
+def reset_password(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    user_id: int,
+    password: Annotated[str, Form()] = "",
+    confirm: Annotated[str, Form()] = "",
+) -> HTMLResponse | RedirectResponse:
+    denied = require_page(request, chrome, Permission.RESET_USER_PASSWORDS.value)
+    if denied is not None:
+        return denied
+    try:
+        access_service.reset_user_password(
+            session,
+            chrome.access,
+            user_id,
+            password,
+            confirm,
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back("/users", exc.message)
+    return _back("/users")
+
+
+@router.post("/users/{user_id}/delete", response_model=None)
 def delete_user(
+    request: Request,
     session: SessionDep,
     chrome: ChromeDep,
     user_id: int,
-) -> RedirectResponse:
+) -> HTMLResponse | RedirectResponse:
+    denied = require_page(request, chrome, Permission.DELETE_USERS.value)
+    if denied is not None:
+        return denied
     if chrome.current_user is not None and chrome.current_user.id == user_id:
         refused = CannotDeleteSelfError(
             "Sign in as someone else before deleting this account.",
         )
         return _back("/users", refused.message)
     try:
+        access_service.assert_may_delete_user(session, chrome.access, user_id)
         user_service.delete_user(session, user_id)
     except DomainError as exc:
         session.rollback()
@@ -323,15 +367,27 @@ def delete_user(
     return _back("/users")
 
 
-@router.post("/projects")
+@router.post("/projects", response_model=None)
 def create_project(
+    request: Request,
+    chrome: ChromeDep,
     session: SessionDep,
     key: Annotated[str, Form()],
     name: Annotated[str, Form()],
     description: Annotated[str, Form()] = "",
-) -> RedirectResponse:
+) -> HTMLResponse | RedirectResponse:
+    denied = require_page(request, chrome, Permission.CREATE_PROJECTS.value)
+    if denied is not None:
+        return denied
     try:
         project = project_service.create_project(session, key, name, description)
+        if chrome.current_user is not None:
+            access_service.set_project_role(
+                session,
+                chrome.current_user.id,
+                project.id,
+                RoleCode.PROJECT_OWNER,
+            )
     except DomainError as exc:
         session.rollback()
         return _back("/projects", exc.message)
@@ -366,8 +422,16 @@ def update_project(
     return _back(f"/projects/{project.key}", notice=notice)
 
 
-@router.post("/projects/{project_id}/delete")
-def delete_project(session: SessionDep, project_id: int) -> RedirectResponse:
+@router.post("/projects/{project_id}/delete", response_model=None)
+def delete_project(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    project_id: int,
+) -> HTMLResponse | RedirectResponse:
+    denied = require_page(request, chrome, Permission.DELETE_PROJECTS.value)
+    if denied is not None:
+        return denied
     project_service.delete_project(session, project_id)
     return _back("/projects")
 

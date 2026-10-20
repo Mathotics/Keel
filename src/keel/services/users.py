@@ -2,10 +2,10 @@ import getpass
 from collections.abc import Sequence
 from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Comment, Issue, User
+from keel.db.models import Comment, Issue, User, UserPermission, UserRole
 from keel.db.models.user import utc_now
 from keel.domain.errors import (
     DuplicateUserNameError,
@@ -102,6 +102,9 @@ def create_user(
     )
     session.add(user)
     session.flush()
+    from keel.services.access import grant_default_global_role
+
+    grant_default_global_role(session, user)
     return user
 
 
@@ -195,6 +198,8 @@ def set_password(session: Session, user: User, password: str) -> User:
 def delete_user(session: Session, user_id: int) -> None:
     user = get_user(session, user_id)
     _reject_while_referenced(session, user)
+    session.execute(delete(UserRole).where(UserRole.user_id == user.id))
+    session.execute(delete(UserPermission).where(UserPermission.user_id == user.id))
     session.delete(user)
     session.flush()
 

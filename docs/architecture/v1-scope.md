@@ -32,7 +32,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 | Deferred item | Reasoning |
 | --- | --- |
-| **Roles, permission matrices, and SSO** | Signed-in people are still trusted equals. Login is username and password plus personal API tokens ([Password login](../adr/password-login.md)). Per-user restrictions and external identity providers stay deferred. |
+| **SSO** | Login is username and password plus personal API tokens ([Password login](../adr/password-login.md)). External identity providers stay deferred. Global roles are in [Role-based access](../adr/role-based-access.md). Project route checks follow in KEEL-105. |
 | **Configurable / per-project workflows** | A fixed shared workflow is proportional to a personal tool ([ADR 004](../adr/ADR-004.md)). Custom statuses, transitions, and swimlanes other than sprint are deferred. |
 | **Components, releases/versions** | Extra classification beyond issue type, parent, and labels is not needed for 1–3 users yet. Labels are in v1 ([ADR 031](../adr/ADR-031.md)). |
 | **Attachments** | File handling adds storage and lifecycle concerns beyond v1's core. |
@@ -45,7 +45,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 032](../adr/ADR-032.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/ADR-007.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/ADR-008.md) through [ADR 032](../adr/ADR-032.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md). Global roles and permissions are recorded in [Role-based access](../adr/role-based-access.md).
 
 ## Related documents
 

@@ -1,3 +1,13 @@
+from keel.db.models.access import (
+    PermissionDependency,
+    PermissionRow,
+    ProjectEveryonePermission,
+    ProjectEveryoneRole,
+    Role,
+    RolePermission,
+    UserPermission,
+    UserRole,
+)
 from keel.db.models.api_token import ApiToken
 from keel.db.models.auth_session import AuthSession
 from keel.db.models.board import Board
@@ -14,6 +24,14 @@ from keel.db.models.user import User
 
 __all__ = [
     "ApiToken",
+    "PermissionDependency",
+    "PermissionRow",
+    "ProjectEveryonePermission",
+    "ProjectEveryoneRole",
+    "Role",
+    "RolePermission",
+    "UserPermission",
+    "UserRole",
     "AuthSession",
     "Board",
     "Comment",

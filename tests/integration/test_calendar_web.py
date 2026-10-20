@@ -187,11 +187,8 @@ def test_calendar_follows_the_project_in_the_bar(client: TestClient) -> None:
     client.post("/api/v1/projects", json={"key": "KEEL", "name": "Keel"})
     home = client.get("/").text
     nav = home.split('<nav class="keel-topbar__nav"', 1)[1].split("</nav>", 1)[0]
-    assert (
-        nav.index('href="/board"')
-        < nav.index('href="/calendar"')
-        < nav.index('href="/users"')
-    )
+    assert nav.index('href="/board"') < nav.index('href="/calendar"')
+    assert 'href="/users"' not in nav
     assert ">Calendar<" in nav
     project = client.get("/projects/KEEL").text
     project_nav = project.split('<nav class="keel-topbar__nav"', 1)[1].split(

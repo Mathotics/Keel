@@ -48,12 +48,22 @@
         <button class="keel-topbar__control keel-find__fallback" type="submit">Find</button>
       </form>
       <div class="keel-topbar__right">
+        {% if access.allows('display_admin_menu') or access.allows('view_users') %}
         <details class="keel-admin">
           <summary class="keel-topbar__control">Admin</summary>
           <div class="keel-admin__menu">
+            {% if access.allows('view_users') %}
+            <a class="keel-topbar__control" href="/users">Users</a>
+            {% endif %}
+            {% if access.allows('view_log_tracker') %}
             <a class="keel-topbar__control" href="/admin/log">Log tracker</a>
+            {% endif %}
+            {% if access.allows('view_global_rbac') %}
+            <a class="keel-topbar__control" href="/admin/access">Access</a>
+            {% endif %}
           </div>
         </details>
+        {% endif %}
         <details class="keel-help">
           <summary class="keel-topbar__control">Help</summary>
           <div class="keel-help__menu">

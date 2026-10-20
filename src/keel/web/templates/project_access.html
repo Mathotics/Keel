@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ project.key }} access{% endblock %}
+{% block main %}
+      <h1>{{ project.key }} access</h1>
+      <p class="keel-note">Roles and permissions for this project. Everyone applies to each signed-in person without adding them one by one. A person's own role and grants are added to that. No Access still holds nothing. Creating, editing, or deleting issues, schedules, or sprints, and creating or deleting comments, also needs that person's global permission.</p>
+      <p class="keel-actions">
+        <a class="keel-action" href="/projects/{{ project.key }}">{{ project.key }}</a>
+      </p>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <div class="keel-panel">
+        <h2>Everyone</h2>
+        {% if can_manage %}
+        <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/access/everyone"
+              data-viewer="{{ role_bundles.viewer }}"
+              data-contributor="{{ role_bundles.contributor }}"
+              data-project-owner="{{ role_bundles.project_owner }}">
+          {% include "_project_access_fields.html" %}
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
+        </form>
+        {% else %}
+        <p>{{ everyone_role if everyone_role else "None" }}</p>
+        {% endif %}
+      </div>
+
+      {% for person in people %}
+      <div class="keel-panel">
+        <h2>{{ person.display_name }}</h2>
+        <p class="keel-note">{{ person.username }}</p>
+        {% if can_manage %}
+        <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/access/{{ person.user_id }}"
+              data-viewer="{{ role_bundles.viewer }}"
+              data-contributor="{{ role_bundles.contributor }}"
+              data-project-owner="{{ role_bundles.project_owner }}">
+          {% with grant_role=person.role, grant_direct=person.direct_codes %}
+          {% include "_project_access_fields.html" %}
+          {% endwith %}
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save</button></p>
+        </form>
+        {% else %}
+        <p>{{ person.role if person.role else "None" }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+
+      <div class="keel-panel">
+        <h2>Roles and permissions</h2>
+        <p class="keel-note">A role includes the permissions in its row. Everyone and a direct grant use the same permissions.</p>
+        <div class="keel-table-scroll">
+          <table class="keel-table keel-access-catalog">
+            <thead>
+              <tr><th>Role</th><th>Includes</th></tr>
+            </thead>
+            <tbody>
+              {% for role in catalog_roles %}
+              <tr>
+                <th scope="row">{{ role.label }}</th>
+                <td>{{ role.permissions }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% if can_manage %}
+      <script>
+        document.querySelectorAll("form[action*='/access']").forEach(function (form) {
+          var boxes = form.querySelectorAll("input[name='permission']");
+          var byCode = {};
+          boxes.forEach(function (box) {
+            byCode[box.value] = box;
+          });
+          function selectedRole() {
+            var picked = form.querySelector("input[name='role']:checked");
+            return picked ? picked.value : "";
+          }
+          function includedCodes() {
+            var role = selectedRole();
+            var raw = "";
+            if (role === "viewer") {
+              raw = form.dataset.viewer || "";
+            } else if (role === "contributor") {
+              raw = form.dataset.contributor || "";
+            } else if (role === "project_owner") {
+              raw = form.dataset.projectOwner || "";
+            }
+            return raw.split(" ").filter(Boolean);
+          }
+          function sync() {
+            var included = includedCodes();
+            boxes.forEach(function (box) {
+              var fromRole = included.indexOf(box.value) !== -1;
+              if (fromRole) {
+                box.checked = true;
+                box.disabled = true;
+              } else {
+                box.disabled = false;
+                box.checked = box.dataset.direct === "1";
+              }
+            });
+          }
+          form.querySelectorAll("input[name='role']").forEach(function (role) {
+            role.addEventListener("change", sync);
+          });
+          function requiredCodes(box) {
+            return (box.dataset.requires || "").split(" ").filter(Boolean);
+          }
+          function checkRequired(box) {
+            requiredCodes(box).forEach(function (code) {
+              var needed = byCode[code];
+              if (needed && !needed.checked) {
+                needed.checked = true;
+                checkRequired(needed);
+              }
+            });
+          }
+          function uncheckDependents(code) {
+            boxes.forEach(function (box) {
+              if (box.checked && requiredCodes(box).indexOf(code) !== -1) {
+                box.checked = false;
+                uncheckDependents(box.value);
+              }
+            });
+          }
+          boxes.forEach(function (box) {
+            box.addEventListener("change", function () {
+              if (box.disabled) {
+                return;
+              }
+              if (box.checked) {
+                checkRequired(box);
+              } else {
+                uncheckDependents(box.value);
+              }
+            });
+          });
+        });
+      </script>
+      {% endif %}
+{% endblock %}

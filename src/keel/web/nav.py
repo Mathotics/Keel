@@ -12,7 +12,6 @@ DEFAULT_ORDER: tuple[str, ...] = (
     "backlog",
     "sprints",
     "schedules",
-    "users",
 )
 PROJECT_ITEMS = frozenset({"backlog", "sprints", "schedules"})
 KNOWN = frozenset(DEFAULT_ORDER)
@@ -24,7 +23,6 @@ LABELS = {
     "backlog": "Backlog",
     "sprints": "Sprints",
     "schedules": "Schedules",
-    "users": "Users",
 }
 
 
@@ -133,4 +131,4 @@ def _href(key: str, project_key: str | None) -> str:
         return f"/projects/{project_key}/sprints"
     if key == "schedules":
         return f"/projects/{project_key}/schedules"
-    return "/users"
+    raise ValueError(key)

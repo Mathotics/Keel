@@ -5,6 +5,7 @@
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
+      {% if access.allows('create_projects') %}
       <div class="keel-panel">
         <h2>New project</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/projects">
@@ -21,6 +22,7 @@
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Create project</button></p>
         </form>
       </div>
+      {% endif %}
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
