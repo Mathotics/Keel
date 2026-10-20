@@ -75,7 +75,13 @@ Write-Host "Android version code: $versionCode"
 
 Push-Location $Mobile
 try {
-    npx expo prebuild --platform android --clean --no-install
+    # A bare `npx expo` with no local install downloads the newest Expo, which is not this app's SDK.
+    if (-not (Test-Path -LiteralPath "node_modules\expo\package.json")) {
+        Write-Host "Installing mobile dependencies..."
+        npm ci
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    & node ".\node_modules\expo\bin\cli" prebuild --platform android --clean --no-install
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     & .\android\gradlew.bat -p android assembleRelease --no-daemon
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
