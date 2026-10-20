@@ -30,6 +30,8 @@ class Permission(StrEnum):
     MAY_CREATE_ISSUES = "may_create_issues"
     MAY_EDIT_ISSUES = "may_edit_issues"
     MAY_DELETE_ISSUES = "may_delete_issues"
+    MAY_CREATE_COMMENTS = "may_create_comments"
+    MAY_DELETE_COMMENTS = "may_delete_comments"
     MAY_CREATE_SCHEDULES = "may_create_schedules"
     MAY_EDIT_SCHEDULES = "may_edit_schedules"
     MAY_DELETE_SCHEDULES = "may_delete_schedules"
@@ -79,6 +81,8 @@ DEPENDENCIES: dict[Permission, frozenset[Permission]] = {
     Permission.MAY_CREATE_ISSUES: frozenset({Permission.VIEW_PROJECTS}),
     Permission.MAY_EDIT_ISSUES: frozenset({Permission.VIEW_PROJECTS}),
     Permission.MAY_DELETE_ISSUES: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_CREATE_COMMENTS: frozenset({Permission.VIEW_PROJECTS}),
+    Permission.MAY_DELETE_COMMENTS: frozenset({Permission.VIEW_PROJECTS}),
     Permission.MAY_CREATE_SCHEDULES: frozenset({Permission.VIEW_PROJECTS}),
     Permission.MAY_EDIT_SCHEDULES: frozenset({Permission.VIEW_PROJECTS}),
     Permission.MAY_DELETE_SCHEDULES: frozenset({Permission.VIEW_PROJECTS}),
@@ -123,6 +127,8 @@ LABELS: dict[Permission, str] = {
     Permission.MAY_CREATE_ISSUES: "Create issues",
     Permission.MAY_EDIT_ISSUES: "Edit issues",
     Permission.MAY_DELETE_ISSUES: "Delete issues",
+    Permission.MAY_CREATE_COMMENTS: "Create comments",
+    Permission.MAY_DELETE_COMMENTS: "Delete comments",
     Permission.MAY_CREATE_SCHEDULES: "Create schedules",
     Permission.MAY_EDIT_SCHEDULES: "Edit schedules",
     Permission.MAY_DELETE_SCHEDULES: "Delete schedules",
@@ -172,6 +178,8 @@ GLOBAL_PERMISSIONS: tuple[Permission, ...] = (
     Permission.MAY_CREATE_ISSUES,
     Permission.MAY_EDIT_ISSUES,
     Permission.MAY_DELETE_ISSUES,
+    Permission.MAY_CREATE_COMMENTS,
+    Permission.MAY_DELETE_COMMENTS,
     Permission.MAY_CREATE_SCHEDULES,
     Permission.MAY_EDIT_SCHEDULES,
     Permission.MAY_DELETE_SCHEDULES,
@@ -219,6 +227,9 @@ NECESSARY_GLOBAL: dict[Permission, Permission] = {
     Permission.CREATE_ISSUES: Permission.MAY_CREATE_ISSUES,
     Permission.EDIT_ISSUES: Permission.MAY_EDIT_ISSUES,
     Permission.DELETE_ISSUES: Permission.MAY_DELETE_ISSUES,
+    Permission.COMMENT_ISSUES: Permission.MAY_CREATE_COMMENTS,
+    Permission.DELETE_OWN_COMMENTS: Permission.MAY_DELETE_COMMENTS,
+    Permission.DELETE_ANY_COMMENTS: Permission.MAY_DELETE_COMMENTS,
     Permission.CREATE_SCHEDULES: Permission.MAY_CREATE_SCHEDULES,
     Permission.EDIT_SCHEDULES: Permission.MAY_EDIT_SCHEDULES,
     Permission.DELETE_SCHEDULES: Permission.MAY_DELETE_SCHEDULES,
@@ -235,6 +246,7 @@ ROLE_PERMISSIONS: dict[RoleCode, frozenset[Permission]] = {
             Permission.VIEW_PROJECTS,
             Permission.MAY_CREATE_ISSUES,
             Permission.MAY_EDIT_ISSUES,
+            Permission.MAY_CREATE_COMMENTS,
             Permission.MAY_CREATE_SCHEDULES,
             Permission.MAY_EDIT_SCHEDULES,
         }
@@ -394,8 +406,9 @@ def effective_project(
 ) -> tuple[bool, frozenset[Permission]]:
     """Owner bypasses the project.
 
-    Other global roles do not add project permissions. A create, edit, or
-    delete of issues, schedules, or sprints still needs its global permission.
+    Other global roles do not add project permissions. Creating, editing, or
+    deleting issues, schedules, or sprints, and creating or deleting comments,
+    still needs the matching global permission.
     """
     if RoleCode.OWNER in global_roles:
         return True, frozenset(PROJECT_PERMISSIONS)

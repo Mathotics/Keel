@@ -8,7 +8,7 @@ A direct grant uses the same permissions as a role. Saving a grant adds anything
 
 * **Owner.** Unrestricted on the whole server and inside every project. More than one Owner is allowed. Only an Owner can grant or revoke Owner. The last Owner cannot be removed. An Owner is not also stored as Member.
 * **Admin.** Every global permission. No project permission. An Admin can see project names and keys, and can create or delete projects. Opening a project still requires a project role or a direct project grant. An Admin is not also stored as Member.
-* **Member.** View projects, and the global create and edit permissions for issues and schedules. Not delete, and not sprints. Work in a project still needs that project's role. This is the default global role.
+* **Member.** View projects, the global create and edit permissions for issues and schedules, and the global Create comments permission. Not delete, not sprints, and not Delete comments. Work in a project still needs that project's role. This is the default global role.
 
 Every person has a global role. A person may hold Owner and Admin together. A person is Member only when they hold neither. The global page shows Member in that case. Selecting Owner or Admin clears Member. Clearing both assigns Member again.
 
@@ -17,7 +17,7 @@ Every person has a global role. A person may hold Owner and Admin together. A pe
 One project role per person per project, plus any direct grants.
 
 * **Viewer.** View issues, backlog, board, calendar, sprints, and schedules.
-* **Contributor.** Viewer, plus create issues, edit issues, update issues, comment, delete own comments, and manage dependencies. Delete own comments applies only to comments that person wrote.
+* **Contributor.** Viewer, plus create issues, edit issues, update issues, comment, delete own comments, and manage dependencies. Delete own comments applies only to comments that person wrote. Commenting also needs the global Create comments permission. Deleting a comment also needs the global Delete comments permission. Member holds the first and not the second, so a Member who is a Contributor can comment and cannot delete comments.
 * **Project Owner.** Every project permission.
 
 Several Project Owners are allowed. A Project Owner cannot remove the last Project Owner of that project. A global Owner can.
@@ -39,6 +39,8 @@ Several Project Owners are allowed. A Project Owner cannot remove the last Proje
 * **Create issues.** Requires View projects. Necessary before creating an issue in a project. It does not create issues in every project.
 * **Edit issues.** Requires View projects. Necessary before editing issue fields in a project. It does not edit issues in every project. Updating status, assignee, or sprint placement is a separate project permission and has no global gate.
 * **Delete issues.** Requires View projects. Necessary before deleting an issue in a project. It does not delete issues in every project.
+* **Create comments.** Requires View projects. Necessary before commenting in a project. It does not allow comments in every project.
+* **Delete comments.** Requires View projects. Necessary before deleting one's own comments or anyone's comments in a project. It does not delete comments in every project.
 * **Create schedules.** Requires View projects. Necessary before creating a schedule in a project. It does not create schedules in every project.
 * **Edit schedules.** Requires View projects. Necessary before editing a schedule in a project, including pause and resume. It does not edit schedules in every project.
 * **Delete schedules.** Requires View projects. Necessary before deleting a schedule in a project. It does not delete schedules in every project.
@@ -46,7 +48,7 @@ Several Project Owners are allowed. A Project Owner cannot remove the last Proje
 * **Edit sprints.** Requires View projects. Necessary before editing a sprint in a project. It does not edit sprints in every project.
 * **Delete sprints.** Requires View projects. Necessary before deleting a sprint in a project. It does not delete sprints in every project. Starting or completing a sprint has no global gate.
 
-Admin holds every global permission. Member holds View projects, Create issues, Edit issues, Create schedules, and Edit schedules. Owner bypasses them.
+Admin holds every global permission. Member holds View projects, Create issues, Edit issues, Create comments, Create schedules, and Edit schedules. Owner bypasses them.
 
 ## Project permissions
 
@@ -65,9 +67,9 @@ Issue work:
 * **Edit issues in a project.** Requires View issues, and the global Edit issues permission. Title, description, type, priority, dates, estimates, labels, and parent or child links.
 * **Update issues.** Requires View issues. Status, assignee, and which existing sprint the issue is on. No global gate.
 * **Delete issues in a project.** Requires View issues, and the global Delete issues permission.
-* **Comment on issues.** Requires View issues.
-* **Delete own comments.** Requires Comment on issues.
-* **Delete any comment.** Requires Delete own comments. Includes comments written by other people.
+* **Comment on issues.** Requires View issues, and the global Create comments permission. The global permission is necessary and is not sufficient on its own.
+* **Delete own comments.** Requires Comment on issues, and the global Delete comments permission. Applies only to comments that person wrote.
+* **Delete any comment.** Requires Delete own comments, and the global Delete comments permission. Includes comments written by other people.
 * **Manage dependencies.** Requires View issues.
 
 Sprints:

@@ -2,7 +2,7 @@
 {% block title %}Access{% endblock %}
 {% block main %}
       <h1>Access</h1>
-      <p class="keel-note">Global roles and permissions for each person. The tables below show which role includes which permissions, and which permissions require another. Creating, editing, or deleting issues, schedules, or sprints also needs the matching project permission.</p>
+      <p class="keel-note">Global roles and permissions for each person. The tables below show which role includes which permissions, and which permissions require another. Creating, editing, or deleting issues, schedules, or sprints, and creating or deleting comments, also needs the matching project permission.</p>
       {% if error %}
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
@@ -72,7 +72,7 @@
       {% endfor %}
       <div class="keel-panel">
         <h2>Roles and permissions</h2>
-        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. A global create, edit, or delete permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
+        <p class="keel-note">A role includes the permissions in its row. Owner bypasses every check instead of holding a list. A global create, edit, delete, or comment permission is required for that action and does not grant it in every project. A direct grant uses the same permissions.</p>
         <div class="keel-table-scroll">
           <table class="keel-table keel-access-catalog">
             <thead>

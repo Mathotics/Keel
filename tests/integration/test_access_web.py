@@ -98,6 +98,7 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
         "view_projects",
         "may_create_issues",
         "may_edit_issues",
+        "may_create_comments",
         "may_create_schedules",
         "may_edit_schedules",
     ):
@@ -110,7 +111,7 @@ def test_owner_manages_global_roles_and_direct_grants(client: TestClient) -> Non
         assert "checked" in included.group(0)
         assert "disabled" in included.group(0)
     extra = re.search(
-        r'<input type="checkbox" name="permission" value="may_delete_issues".*?/>',
+        r'<input type="checkbox" name="permission" value="may_delete_comments".*?/>',
         ada_panel,
         re.DOTALL,
     )

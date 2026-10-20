@@ -33,9 +33,11 @@ def test_the_catalog_names_role_bundles_and_dependencies() -> None:
     by_role = {row.label: row.permissions for row in roles}
     assert "View users" in by_role["Admin"]
     assert by_role["Member"] == (
-        "View projects, Create issues, Edit issues, Create schedules, Edit schedules"
+        "View projects, Create issues, Edit issues, Create comments, "
+        "Create schedules, Edit schedules"
     )
     assert "Delete issues" not in by_role["Member"]
+    assert "Delete comments" not in by_role["Member"]
     assert "Create sprints" not in by_role["Member"]
     assert by_role["Owner"] == "Bypasses every global and project permission"
     assert "Delete own comments" in by_role["Contributor"]
@@ -86,11 +88,13 @@ def test_member_can_see_projects_and_create_and_edit_issues_and_schedules() -> N
             Permission.VIEW_PROJECTS,
             Permission.MAY_CREATE_ISSUES,
             Permission.MAY_EDIT_ISSUES,
+            Permission.MAY_CREATE_COMMENTS,
             Permission.MAY_CREATE_SCHEDULES,
             Permission.MAY_EDIT_SCHEDULES,
         }
     )
     assert Permission.MAY_DELETE_ISSUES not in held
+    assert Permission.MAY_DELETE_COMMENTS not in held
     assert Permission.MAY_CREATE_SPRINTS not in held
 
 
@@ -127,7 +131,8 @@ def test_contributor_cannot_delete_issues_or_other_peoples_comments() -> None:
         frozenset(),
     )
     assert Permission.CREATE_ISSUES in held
-    assert Permission.DELETE_OWN_COMMENTS in held
+    assert Permission.COMMENT_ISSUES in held
+    assert Permission.DELETE_OWN_COMMENTS not in held
     assert Permission.DELETE_ISSUES not in held
     assert Permission.DELETE_ANY_COMMENTS not in held
     assert Permission.CREATE_SPRINTS not in held
@@ -142,6 +147,9 @@ def test_a_project_write_also_needs_its_global_permission() -> None:
     assert Permission.CREATE_ISSUES in held
     assert Permission.EDIT_SCHEDULES in held
     assert Permission.VIEW_ISSUES in held
+    assert Permission.COMMENT_ISSUES in held
+    assert Permission.DELETE_OWN_COMMENTS not in held
+    assert Permission.DELETE_ANY_COMMENTS not in held
     assert Permission.DELETE_ISSUES not in held
     assert Permission.CREATE_SPRINTS not in held
     assert Permission.UPDATE_ISSUES in held
@@ -151,6 +159,13 @@ def test_a_project_write_also_needs_its_global_permission() -> None:
         frozenset({Permission.MAY_DELETE_ISSUES}),
     )[1]
     assert Permission.DELETE_ISSUES in with_delete
+    with_comment_delete = effective_project(
+        frozenset({RoleCode.MEMBER}),
+        frozenset({RoleCode.PROJECT_OWNER}),
+        frozenset({Permission.MAY_DELETE_COMMENTS}),
+    )[1]
+    assert Permission.DELETE_OWN_COMMENTS in with_comment_delete
+    assert Permission.DELETE_ANY_COMMENTS in with_comment_delete
     as_admin = effective_project(
         frozenset({RoleCode.ADMIN}),
         frozenset({RoleCode.PROJECT_OWNER}),
