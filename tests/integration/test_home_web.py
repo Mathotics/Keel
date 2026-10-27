@@ -129,12 +129,13 @@ def test_home_lists_due_and_starting_before_assigned(client: TestClient) -> None
 
     page = client.get("/")
     headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
-    assert headings[:3] == [
+    assert headings[:4] == [
+        "Now",
         "Due or overdue",
         "Starting or started",
         "Assigned to me",
     ]
-    assert headings[3] == "Blocked"
+    assert headings[4] == "Blocked"
 
 
 def _look_ahead(day: date) -> tuple[str, str] | None:
@@ -182,7 +183,8 @@ def test_home_lists_look_ahead_due_after_due_or_overdue(client: TestClient) -> N
 
     page = client.get("/")
     headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
-    assert headings[:3] == [
+    assert headings[:4] == [
+        "Now",
         "Due or overdue",
         heading,
         "Assigned to me",
@@ -224,6 +226,57 @@ def test_the_inbox_cookie_closes_the_look_ahead_panel(client: TestClient) -> Non
     assert " open" not in look_ahead
     assert f"<h2>{heading}</h2>" in page.text
     assert "Soon" in page.text
+
+
+def test_home_lists_now_for_started_due_and_in_progress(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Moving",
+            "assignee_id": tester["id"],
+            "status": "in_progress",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Late",
+            "assignee_id": tester["id"],
+            "due_at": "2020-01-01T09:00:00",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Begun",
+            "assignee_id": tester["id"],
+            "start_at": "2020-01-01T08:00:00",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Later",
+            "assignee_id": tester["id"],
+            "due_at": "2099-01-01T09:00:00",
+        },
+    )
+
+    page = client.get("/")
+    now = page.text.split("<h2>Now</h2>", 1)[1].split("<h2>", 1)[0]
+    assert now.index("Late") < now.index("Begun") < now.index("Moving")
+    assert "Later" not in now
+    assert ">Due<" in now
+    assert 'data-keel-inbox-panel="now"' in page.text
 
 
 def test_home_lists_starting_or_started(client: TestClient) -> None:
@@ -522,7 +575,7 @@ def test_moving_a_home_panel_up_changes_the_stack(client: TestClient) -> None:
     )
     page = client.get("/")
     headings = re.findall(r"<h2>([^<]+)</h2>", page.text)
-    assert headings[:2] == ["Due or overdue", "Assigned to me"]
+    assert headings[:3] == ["Now", "Due or overdue", "Assigned to me"]
     moved = client.post(
         "/web/home/move",
         data={
@@ -535,7 +588,8 @@ def test_moving_a_home_panel_up_changes_the_stack(client: TestClient) -> None:
     )
     assert moved.status_code == 303
     again = client.get("/")
-    assert re.findall(r"<h2>([^<]+)</h2>", again.text)[:2] == [
+    assert re.findall(r"<h2>([^<]+)</h2>", again.text)[:3] == [
+        "Now",
         "Assigned to me",
         "Due or overdue",
     ]

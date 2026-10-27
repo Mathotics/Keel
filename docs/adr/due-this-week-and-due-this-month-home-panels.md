@@ -4,6 +4,8 @@
 * **Date:** 2026-10-02
 
 > **Amendment.** KEEL-51: **Due this week** is the next seven days after local today, not the rest of the ISO week through Sunday. A due date inside that window was landing on **Due this month** whenever it fell after Sunday. **Due this month** is whatever remains of the calendar month after those seven days.
+>
+> **Amendment.** [Now on the home inbox](now-home-panel.md) renders before Due or overdue. Due this week and Due this month stay immediately after Due or overdue.
 
 ## Background
 

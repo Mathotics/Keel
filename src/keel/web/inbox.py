@@ -6,6 +6,7 @@ INBOX_COOKIE = "keel_inbox"
 INBOX_COOKIE_MAX_AGE = 400 * 24 * 60 * 60
 
 SECTIONS: tuple[str, ...] = (
+    "now",
     "due",
     "week",
     "month",

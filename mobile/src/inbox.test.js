@@ -59,6 +59,7 @@ test("empty sections stay hidden and the same issue can sit in more than one", (
   });
   const titles = view.sections.map((section) => section.title);
   assert.deepEqual(titles, [
+    "Now",
     "Due or overdue",
     "Due this week",
     "Due this month",
@@ -69,6 +70,25 @@ test("empty sections stay hidden and the same issue can sit in more than one", (
   assert.equal(view.sections[0].rows[0].blockers, 2);
   assert.equal(view.sections.every((section) => section.needsConnection), false);
   assert.equal(view.empty, "");
+});
+
+test("now lists started, due, and in progress once each", () => {
+  const view = inboxView({
+    library: library(),
+    userId: 4,
+    today: TODAY,
+    remote: [
+      issue({ id: 1, key: "KEEL-1", number: 1, due_at: "2026-10-10T09:00:00" }),
+      issue({ id: 2, key: "KEEL-2", number: 2, due_at: "2026-10-14T18:00:00", status: "in_progress" }),
+      issue({ id: 3, key: "KEEL-3", number: 3, start_at: "2026-10-12T09:00:00", due_at: "2026-10-20T09:00:00" }),
+      issue({ id: 4, key: "KEEL-4", number: 4, status: "in_progress" }),
+      issue({ id: 5, key: "KEEL-5", number: 5, due_at: "2026-10-20T09:00:00" }),
+      issue({ id: 6, key: "KEEL-6", number: 6, status: "done", due_at: "2026-10-01T09:00:00", completedOn: "2026-10-14T15:00:00" }),
+    ],
+  });
+  const now = view.sections.find((section) => section.key === "now");
+  assert.deepEqual(now.rows.map((row) => row.key), ["KEEL-1", "KEEL-2", "KEEL-3", "KEEL-4"]);
+  assert.equal(now.rows.filter((row) => row.key === "KEEL-2").length, 1);
 });
 
 test("done work stays in the active sprint and completed today, not in assigned", () => {

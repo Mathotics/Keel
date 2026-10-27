@@ -26,7 +26,7 @@ function view() {
 test("a missing arrangement is the default stack with nothing removed", () => {
   const layout = parseLayout(null);
   assert.equal(layout.hidden.length, 0);
-  assert.equal(layout.order[0], "due");
+  assert.equal(layout.order[0], "now");
   assert.equal(layout.order[layout.order.length - 1], "completed");
   const arranged = arrangeInbox(view(), layout);
   assert.deepEqual(arranged.sections.map((section) => section.key), ["due", "assigned", "blocked"]);
@@ -52,12 +52,14 @@ test("up and down swap rendered panels and leave an empty panel in its slot", ()
   const layout = blankLayout();
   const visible = ["due", "assigned"];
   const moved = moveSection(layout, visible, "assigned", "up");
-  assert.equal(moved.order[0], "assigned");
-  assert.equal(moved.order[1], "week");
-  assert.equal(moved.order[4], "due");
+  assert.equal(moved.order[0], "now");
+  assert.equal(moved.order[1], "assigned");
+  assert.equal(moved.order[2], "week");
+  assert.equal(moved.order[5], "due");
   const stuck = moveSection(moved, ["assigned", "due"], "assigned", "up");
-  assert.equal(stuck.order[0], "assigned");
-  assert.equal(stuck.order[1], "week");
+  assert.equal(stuck.order[0], "now");
+  assert.equal(stuck.order[1], "assigned");
+  assert.equal(stuck.order[5], "due");
   const arranged = arrangeInbox(view(), moved);
   assert.deepEqual(arranged.sections.map((section) => section.key), ["assigned", "due", "blocked"]);
 });
@@ -84,5 +86,5 @@ test("a saved arrangement drops unknown keys and keeps a new panel", () => {
   assert.equal(layout.order[0], "blocked");
   assert.equal(layout.order.includes("assigned"), true);
   assert.equal(layout.order.includes("week"), false);
-  assert.equal(parseLayout("{").order[0], "due");
+  assert.equal(parseLayout("{").order[0], "now");
 });

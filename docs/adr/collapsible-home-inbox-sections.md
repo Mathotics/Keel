@@ -5,6 +5,8 @@
 * **Updated:** 2026-10-07 — folding issue-page panels is a separate record.
 
 > **Amendment.** [Customizable home panels](customizable-home-panels.md) lets this browser remove and reorder those sections. Collapse is unchanged. The out-of-scope line below that forbids reordering or removing sections is superseded by that record.
+>
+> **Amendment.** [Now on the home inbox](now-home-panel.md) adds a **Now** section. It collapses with the same cookie.
 
 ## Background
 
