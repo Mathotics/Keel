@@ -3,6 +3,7 @@ const { statusLabel } = require("./work");
 const CLOSED = new Set(["done", "cancelled"]);
 const STATUS_ORDER = ["todo", "in_progress", "in_review", "blocked", "done", "cancelled"];
 const SECTIONS = [
+  ["now", "Now", true],
   ["due", "Due or overdue", true],
   ["week", "Due this week", true],
   ["month", "Due this month", true],
@@ -70,6 +71,28 @@ function byKey(left, right) {
 function byDate(field) {
   return (left, right) => {
     const compared = (left[field] || "").localeCompare(right[field] || "");
+    return compared || byKey(left, right);
+  };
+}
+
+function nowRank(issue, today) {
+  if (issue.dueOn && issue.dueOn <= today) {
+    return [0, issue.dueOn];
+  }
+  if (issue.startOn && issue.startOn <= today) {
+    return [1, issue.startOn];
+  }
+  return [2, ""];
+}
+
+function byNow(today) {
+  return (left, right) => {
+    const leftRank = nowRank(left, today);
+    const rightRank = nowRank(right, today);
+    if (leftRank[0] !== rightRank[0]) {
+      return leftRank[0] - rightRank[0];
+    }
+    const compared = leftRank[1].localeCompare(rightRank[1]);
     return compared || byKey(left, right);
   };
 }
@@ -151,6 +174,11 @@ function inboxView({ library, userId, today, remote, offsetMinutes = 0 }) {
   const endOfMonth = monthEnd(today);
   const unfinished = issues.filter((issue) => !CLOSED.has(issue.status));
   const grouped = {
+    now: unfinished.filter((issue) => (
+      issue.status === "in_progress"
+      || (issue.dueOn && issue.dueOn <= today)
+      || (issue.startOn && issue.startOn <= today)
+    )).sort(byNow(today)),
     due: unfinished.filter((issue) => issue.dueOn && issue.dueOn <= today).sort(byDate("dueOn")),
     week: unfinished.filter((issue) => issue.dueOn && today < issue.dueOn && issue.dueOn <= weekEnd).sort(byDate("dueOn")),
     month: unfinished.filter((issue) => issue.dueOn && weekEnd < issue.dueOn && issue.dueOn <= endOfMonth).sort(byDate("dueOn")),

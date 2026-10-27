@@ -36,6 +36,7 @@ class HomeRow:
 
 @dataclass(frozen=True)
 class HomeInbox:
+    now: tuple[HomeRow, ...] = ()
     assigned: tuple[HomeRow, ...] = ()
     due: tuple[HomeRow, ...] = ()
     due_week: tuple[HomeRow, ...] = ()
@@ -49,7 +50,8 @@ class HomeInbox:
     @property
     def empty(self) -> bool:
         return not (
-            self.assigned
+            self.now
+            or self.assigned
             or self.due
             or self.due_week
             or self.due_month
@@ -103,6 +105,10 @@ def personal_inbox(
         [item.issue for item, _sprint in packed],
     )
     return HomeInbox(
+        now=_sorted_now(
+            [item for item in unfinished if _in_now(item, day)],
+            day,
+        ),
         assigned=_sorted_by_key(unfinished),
         due=_sorted_by_due(
             [
@@ -170,6 +176,16 @@ def personal_inbox(
     )
 
 
+def _in_now(item: HomeRow, day: date) -> bool:
+    """Started, due or overdue, or status In Progress. Unfinished only."""
+    issue = item.issue
+    if issue.status is IssueStatus.IN_PROGRESS:
+        return True
+    if issue.due_at is not None and _calendar_day(issue.due_at) <= day:
+        return True
+    return issue.start_at is not None and _calendar_day(issue.start_at) <= day
+
+
 def _calendar_day(value: datetime) -> date:
     if value.tzinfo is not None:
         return value.astimezone(UTC).date()
@@ -204,6 +220,21 @@ def _as_naive_utc(value: datetime) -> datetime:
 
 def _sorted_by_key(items: Sequence[HomeRow]) -> tuple[HomeRow, ...]:
     return tuple(sorted(items, key=lambda item: (item.project.key, item.issue.number)))
+
+
+def _sorted_now(items: Sequence[HomeRow], day: date) -> tuple[HomeRow, ...]:
+    """Due or overdue, then started, then In Progress with no date reached."""
+
+    def key(item: HomeRow) -> tuple[object, ...]:
+        due = item.issue.due_at
+        start = item.issue.start_at
+        if due is not None and _calendar_day(due) <= day:
+            return (0, _as_naive_utc(due), item.project.key, item.issue.number)
+        if start is not None and _calendar_day(start) <= day:
+            return (1, _as_naive_utc(start), item.project.key, item.issue.number)
+        return (2, datetime.max, item.project.key, item.issue.number)
+
+    return tuple(sorted(items, key=key))
 
 
 def _sorted_by_due(items: Sequence[HomeRow]) -> tuple[HomeRow, ...]:
