@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
 from sqlalchemy.orm import Session
@@ -409,6 +409,53 @@ def test_label_filters_narrow_the_list(session: Session, project: Project) -> No
 
     assert [i.id for i in by_name] == [tagged]
     assert [i.id for i in unlabeled] == [bare]
+
+
+def test_start_and_due_ranges_keep_issues_on_those_days(
+    session: Session,
+    project: Project,
+) -> None:
+    on_day = make(
+        session,
+        project,
+        title="On the day",
+        start_at=datetime(2026, 10, 10, 23, 30),
+        due_at=datetime(2026, 10, 20, 0, 0),
+    )
+    next_morning = make(
+        session,
+        project,
+        title="Next morning",
+        start_at=datetime(2026, 10, 11, 0, 0),
+        due_at=datetime(2026, 10, 21, 8, 0),
+    )
+    make(session, project, title="Undated")
+
+    by_start = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(start_from=date(2026, 10, 10), start_to=date(2026, 10, 10)),
+    )
+    by_due = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(due_from=date(2026, 10, 21)),
+    )
+    both = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(start_from=date(2026, 10, 10), due_to=date(2026, 10, 20)),
+    )
+    open_ended = issue_service.list_issues(
+        session,
+        project.id,
+        IssueFilters(start_to=date(2026, 10, 10)),
+    )
+
+    assert [issue.id for issue in by_start] == [on_day]
+    assert [issue.id for issue in by_due] == [next_morning]
+    assert [issue.id for issue in both] == [on_day]
+    assert [issue.id for issue in open_ended] == [on_day]
 
 
 def test_counts_cover_every_status(session: Session, project: Project) -> None:

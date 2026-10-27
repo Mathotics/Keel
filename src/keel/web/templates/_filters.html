@@ -7,6 +7,21 @@
           </details>
         </div>
       {% endmacro %}
+      {% macro dates(title, from_name, to_name, from_value, to_value) %}
+        <div class="keel-filters__field keel-filters__dates">
+          <span class="keel-filters__name">{{ title }}</span>
+          <div class="keel-filters__range">
+            <label>
+              <span>From</span>
+              <input type="date" name="{{ from_name }}" value="{{ from_value }}" aria-label="{{ title }} from"/>
+            </label>
+            <label>
+              <span>To</span>
+              <input type="date" name="{{ to_name }}" value="{{ to_value }}" aria-label="{{ title }} to"/>
+            </label>
+          </div>
+        </div>
+      {% endmacro %}
       {% macro chips(items, param) %}
         {% if items %}
         <span class="keel-filters__chips">
@@ -114,8 +129,12 @@
             {% endwith %}
             {{ chips(bar.label_chips, 'label') }}
           </div>
-          <div class="keel-filters__field keel-filters__reset">
-            <a class="keel-button keel-filters__reset" href="{{ reset_href }}">Reset all</a>
+          <div class="keel-filters__schedule">
+            {{ dates('Start', 'start_from', 'start_to', bar.start_from, bar.start_to) }}
+            {{ dates('Due', 'due_from', 'due_to', bar.due_from, bar.due_to) }}
+            <div class="keel-filters__field keel-filters__reset">
+              <a class="keel-button keel-filters__reset" href="{{ reset_href }}">Reset all</a>
+            </div>
           </div>
         </div>
         <div class="keel-filters__bar">

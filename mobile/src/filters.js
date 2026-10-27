@@ -30,6 +30,10 @@ function blankFilter() {
     assignees: [],
     reporters: [],
     labels: [],
+    startFrom: "",
+    startTo: "",
+    dueFrom: "",
+    dueTo: "",
   };
 }
 
@@ -83,6 +87,49 @@ function matchesIssue(raw, filter, options = {}) {
     if (!projects.includes(String(id))) {
       return false;
     }
+  }
+  if (!inRange(raw.start_at, filter.startFrom, filter.startTo)) {
+    return false;
+  }
+  if (!inRange(raw.due_at, filter.dueFrom, filter.dueTo)) {
+    return false;
+  }
+  return true;
+}
+
+function bound(value) {
+  const text = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+}
+
+function dayOf(value) {
+  if (!value) {
+    return "";
+  }
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+}
+
+function inRange(value, from, to) {
+  let start = bound(from);
+  let end = bound(to);
+  if (!start && !end) {
+    return true;
+  }
+  if (start && end && start > end) {
+    const earlier = end;
+    end = start;
+    start = earlier;
+  }
+  const day = dayOf(value);
+  if (!day) {
+    return false;
+  }
+  if (start && day < start) {
+    return false;
+  }
+  if (end && day > end) {
+    return false;
   }
   return true;
 }

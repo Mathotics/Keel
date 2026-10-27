@@ -67,7 +67,7 @@
       summarize(menu);
       return;
     }
-    if (event.target.name === "by") {
+    if (event.target.name === "by" || event.target.type === "date") {
       dirty = true;
       commit();
     }

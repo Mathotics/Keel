@@ -1733,6 +1733,47 @@ body {
   line-height: 1.2;
 }
 
+.keel-filters__schedule {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.7rem 1.25rem;
+  width: 100%;
+  font-size: 0.875rem;
+  line-height: normal;
+}
+
+.keel-filters__dates {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 100%;
+}
+
+.keel-filters__range {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+}
+
+.keel-filters__range label {
+  display: flex;
+  flex-flow: row nowrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 450;
+  white-space: nowrap;
+}
+
+.keel-filters__range input[type="date"] {
+  flex: 0 0 auto;
+  width: 10.5rem;
+  min-width: 10.5rem;
+  max-width: 100%;
+}
+
 .keel-filters .keel-lookup {
   display: block;
   width: 100%;

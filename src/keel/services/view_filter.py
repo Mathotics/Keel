@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import date
 from enum import Enum
 from urllib.parse import urlencode
 
@@ -49,6 +50,10 @@ class ViewFilter:
     assignee_draft: str
     reporter_draft: str
     project_draft: str
+    start_from: str
+    start_to: str
+    due_from: str
+    due_to: str
     fields: tuple[tuple[str, str], ...]
     query: str
     error: str | None
@@ -79,6 +84,10 @@ def load(
     assignee_add: str | None = None,
     reporter_add: str | None = None,
     project_add: str | None = None,
+    start_from: str | None = None,
+    start_to: str | None = None,
+    due_from: str | None = None,
+    due_to: str | None = None,
     include_projects: bool = False,
     extra: Sequence[tuple[str, str]] = (),
 ) -> ViewFilter:
@@ -123,7 +132,26 @@ def load(
         project_error = None
         project_draft = ""
 
-    error = label_error or assignee_error or reporter_error or project_error
+    start_on, start_until, start_shown_from, start_shown_to, start_error = (
+        _calendar_range(
+            start_from,
+            start_to,
+            "Start",
+        )
+    )
+    due_on, due_until, due_shown_from, due_shown_to, due_error = _calendar_range(
+        due_from,
+        due_to,
+        "Due",
+    )
+    error = (
+        label_error
+        or assignee_error
+        or reporter_error
+        or project_error
+        or start_error
+        or due_error
+    )
 
     pairs: list[tuple[str, str]] = []
     if types_applied:
@@ -145,6 +173,14 @@ def load(
         *project_chips,
     ):
         pairs.append((chip.param, chip.value))
+    if start_shown_from:
+        pairs.append(("start_from", start_shown_from))
+    if start_shown_to:
+        pairs.append(("start_to", start_shown_to))
+    if due_shown_from:
+        pairs.append(("due_from", due_shown_from))
+    if due_shown_to:
+        pairs.append(("due_to", due_shown_to))
 
     def href(drop: tuple[str, str]) -> str:
         return _href(base, pairs, extra, drop)
@@ -182,6 +218,10 @@ def load(
         assignee_draft=assignee_draft,
         reporter_draft=reporter_draft,
         project_draft=project_draft,
+        start_from=start_shown_from,
+        start_to=start_shown_to,
+        due_from=due_shown_from,
+        due_to=due_shown_to,
         fields=tuple(pairs),
         query=urlencode(pairs),
         error=error,
@@ -203,8 +243,40 @@ def load(
             reporter_ids=tuple(reporter_ids),
             reporter_none=reporter_none,
             project_ids=tuple(project_ids),
+            start_from=start_on,
+            start_to=start_until,
+            due_from=due_on,
+            due_to=due_until,
         ),
     )
+
+
+def _calendar_range(
+    raw_from: str | None,
+    raw_to: str | None,
+    field: str,
+) -> tuple[date | None, date | None, str, str, str | None]:
+    """Read two days. A reversed pair is kept from the earlier day through the later."""
+    start, bad_start = _calendar_day(raw_from)
+    end, bad_end = _calendar_day(raw_to)
+    if start is not None and end is not None and start > end:
+        start, end = end, start
+    return (
+        start,
+        end,
+        start.isoformat() if start else "",
+        end.isoformat() if end else "",
+        f"{field} date could not be read." if bad_start or bad_end else None,
+    )
+
+
+def _calendar_day(raw: str | None) -> tuple[date | None, bool]:
+    if raw is None or not raw.strip():
+        return None, False
+    try:
+        return date.fromisoformat(raw.strip()), False
+    except ValueError:
+        return None, True
 
 
 def _failed(failed: str, item: str, draft: str | None) -> str:
