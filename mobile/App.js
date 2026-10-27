@@ -4323,6 +4323,40 @@ function FilterBar({ filter, choices, showProject, onChange }) {
             disabled={false}
           />
         ))}
+      </View>
+      <Text style={styles.label}>Start from</Text>
+      <TextInput
+        style={styles.input}
+        value={filter.startFrom || ""}
+        onChangeText={(startFrom) => onChange({ ...filter, startFrom })}
+        placeholder="YYYY-MM-DD"
+        autoCapitalize="none"
+      />
+      <Text style={styles.label}>Start to</Text>
+      <TextInput
+        style={styles.input}
+        value={filter.startTo || ""}
+        onChangeText={(startTo) => onChange({ ...filter, startTo })}
+        placeholder="YYYY-MM-DD"
+        autoCapitalize="none"
+      />
+      <Text style={styles.label}>Due from</Text>
+      <TextInput
+        style={styles.input}
+        value={filter.dueFrom || ""}
+        onChangeText={(dueFrom) => onChange({ ...filter, dueFrom })}
+        placeholder="YYYY-MM-DD"
+        autoCapitalize="none"
+      />
+      <Text style={styles.label}>Due to</Text>
+      <TextInput
+        style={styles.input}
+        value={filter.dueTo || ""}
+        onChangeText={(dueTo) => onChange({ ...filter, dueTo })}
+        placeholder="YYYY-MM-DD"
+        autoCapitalize="none"
+      />
+      <View style={styles.toolbarActions}>
         <TextButton
           label="Reset all"
           onPress={() => {

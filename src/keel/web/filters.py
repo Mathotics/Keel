@@ -41,6 +41,10 @@ class FilterRequest:
     assignee_add: str | None
     reporter_add: str | None
     project_add: str | None
+    start_from: str | None
+    start_to: str | None
+    due_from: str | None
+    due_to: str | None
 
 
 def filter_request(
@@ -57,6 +61,10 @@ def filter_request(
     assignee_add: str | None = None,
     reporter_add: str | None = None,
     project_add: str | None = None,
+    start_from: str | None = None,
+    start_to: str | None = None,
+    due_from: str | None = None,
+    due_to: str | None = None,
 ) -> FilterRequest:
     return FilterRequest(
         submitted=filters == "1",
@@ -72,6 +80,10 @@ def filter_request(
         assignee_add=assignee_add,
         reporter_add=reporter_add,
         project_add=project_add,
+        start_from=start_from,
+        start_to=start_to,
+        due_from=due_from,
+        due_to=due_to,
     )
 
 
@@ -114,6 +126,10 @@ def read_bar(
         assignee_add=raw.assignee_add,
         reporter_add=raw.reporter_add,
         project_add=raw.project_add,
+        start_from=raw.start_from,
+        start_to=raw.start_to,
+        due_from=raw.due_from,
+        due_to=raw.due_to,
         include_projects=include_projects,
         extra=extra,
     )

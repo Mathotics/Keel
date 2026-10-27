@@ -142,3 +142,72 @@ def test_the_calendar_uses_the_same_bar(client: TestClient) -> None:
     assert 'keel-filters__reset" href="/calendar?month=2026-10"' in narrowed.text
     assert 'data-keel-lookup="projects"' not in project_page.text
     assert "Dated story" in project_page.text
+
+
+def test_start_and_due_ranges_filter_the_board_and_calendar(client: TestClient) -> None:
+    project = _project(client)
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Starts in range",
+            "start_at": "2026-10-10T23:30:00",
+            "due_at": "2026-10-20T17:00:00",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "Starts later",
+            "start_at": "2026-11-02T09:00:00",
+        },
+    )
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={
+            "type": "story",
+            "title": "No start",
+            "due_at": "2026-10-12T09:00:00",
+        },
+    )
+
+    page = client.get(
+        "/projects/KEEL/board",
+        params={"start_from": "2026-10-10", "start_to": "2026-10-10"},
+    )
+    opened = client.get("/projects/KEEL/board")
+    due = client.get("/projects/KEEL/board", params={"due_from": "2026-10-20"})
+    swapped = client.get(
+        "/projects/KEEL/board",
+        params={"start_from": "2026-10-12", "start_to": "2026-10-01"},
+    )
+    bad = client.get("/projects/KEEL/board", params={"start_from": "soon"})
+    calendar = client.get(
+        "/projects/KEEL/calendar",
+        params={"month": "2026-10", "due_from": "2026-10-20", "due_to": "2026-10-20"},
+    )
+
+    assert "Starts in range" in page.text
+    assert "Starts later" not in page.text
+    assert "No start" not in page.text
+    assert 'name="start_from" value="2026-10-10"' in page.text
+    assert 'aria-label="Start from"' in page.text
+    assert 'name="start_to" value="2026-10-10"' in page.text
+    assert "No start" in opened.text
+    assert "Starts later" in opened.text
+    assert "Starts in range" in due.text
+    assert "No start" not in due.text
+    assert "Starts later" not in due.text
+    assert "Starts in range" in swapped.text
+    assert 'name="start_from" value="2026-10-01"' in swapped.text
+    assert 'name="start_to" value="2026-10-12"' in swapped.text
+    assert "Start date could not be read." in bad.text
+    assert "Starts later" in bad.text
+    assert 'keel-filters__reset" href="/projects/KEEL/board"' in page.text
+    assert "Starts in range" in calendar.text
+    assert "No start" not in calendar.text
+    assert 'name="due_from" value="2026-10-20"' in calendar.text
+    assert (
+        "month=2026-09&amp;due_from=2026-10-20&amp;due_to=2026-10-20" in calendar.text
+    )

@@ -64,6 +64,27 @@ test("every chosen filter must match, and one filter accepts any of its values",
   );
 });
 
+test("start and due ranges keep issues on those days", () => {
+  const dated = issue({
+    start_at: "2026-10-10T23:30:00",
+    due_at: "2026-10-20T17:00:00",
+  });
+  const later = issue({ start_at: "2026-11-02T09:00:00", due_at: null });
+  const undated = issue({ start_at: null, due_at: null });
+  const start = { ...blankFilter(), startFrom: "2026-10-10", startTo: "2026-10-10" };
+  assert.equal(matchesIssue(dated, start), true);
+  assert.equal(matchesIssue(later, start), false);
+  assert.equal(matchesIssue(undated, start), false);
+  assert.equal(matchesIssue(dated, { ...blankFilter(), dueFrom: "2026-10-20" }), true);
+  assert.equal(matchesIssue(later, { ...blankFilter(), dueFrom: "2026-10-20" }), false);
+  assert.equal(
+    matchesIssue(dated, { ...blankFilter(), startFrom: "2026-10-12", startTo: "2026-10-01" }),
+    true,
+  );
+  assert.equal(matchesIssue(dated, { ...blankFilter(), startFrom: "2026-10" }), true);
+  assert.equal(matchesIssue(undated, blankFilter()), true);
+});
+
 test("clearing every type shows nothing", () => {
   assert.equal(matchesIssue(issue(), { ...blankFilter(), types: [] }), false);
   const next = toggleChoice(blankFilter(), "types", "story");

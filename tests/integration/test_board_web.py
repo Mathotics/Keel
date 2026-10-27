@@ -378,7 +378,12 @@ def test_the_board_filter_applies_when_the_menu_closes(
     master = client.get("/board")
     text = master.text
     assert text.index(">Sprint<") < text.index(">Project<") < text.index(">Label<")
-    assert text.index(">Label<") < text.index(">Reset all<")
+    assert (
+        text.index(">Label<")
+        < text.index(">Start<")
+        < text.index(">Due<")
+        < text.index(">Reset all<")
+    )
     assert 'class="keel-button keel-filters__reset" href="/board"' in text
 
     kept = client.get("/projects/KEEL/board", params={"by": "status", "type": "epic"})

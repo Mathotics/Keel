@@ -1,7 +1,9 @@
 # Common filtering
 
 * **Status:** Accepted
-* **Date:** 2026-10-04
+* **Date:** 2026-10-27
+
+> **Amendment.** Start and Due are date ranges on the same bar, after Label and before Reset all. A range with neither end set does not restrict that field. Filling either end keeps issues whose start or due falls on those days, inclusive, and leaves out issues with no such date. A reversed range is read from the earlier day through the later day. Reset all clears both ranges.
 
 ## Background
 
@@ -41,11 +43,11 @@ The board and the calendar answer "which issues?" with different controls, and t
 
 ## Technical Requirements
 
-* **Must** show the same filters on the board and the calendar: type, status, priority, sprint, label, assignee, created by, and, on the master board and master calendar only, project.
-* **Must** treat a blank filter as no restriction. The view still updates. On first open, status, priority, sprint, label, assignee, created by, and project are blank.
+* **Must** show the same filters on the board and the calendar: type, status, priority, sprint, label, assignee, created by, start, due, and, on the master board and master calendar only, project.
+* **Must** treat a blank filter as no restriction. The view still updates. On first open, status, priority, sprint, label, assignee, created by, project, start, and due are blank.
 * **Must** start the type filter with Epic, Story, and Subtask all checked, on the board and the calendar. Unchecking a type removes those issues. Checking it again brings them back. Unchecking all three shows none of them.
 * **Must** keep an issue when it matches every filter that has a choice. Inside one filter, any chosen value is enough. Two labels show issues that have either label. A label and an assignee together show issues that have that label and are one of the chosen people.
-* **Must** leave the view as it is while a box is checked or unchecked, a chip is added, or a chip is removed. **Must** update the view when the open list closes or the pointer leaves that list. When JavaScript has not run, an Apply control submits the form, and a chip's remove link still drops that one chip. With JavaScript, Apply is hidden.
+* **Must** leave the view as it is while a box is checked or unchecked, a chip is added, or a chip is removed. **Must** update the view when the open list closes or the pointer leaves that list, and when a start or due date changes. When JavaScript has not run, an Apply control submits the form, and a chip's remove link still drops that one chip. With JavaScript, Apply is hidden.
 * **Must** keep all six board columns. A status that was not chosen stays as an empty column.
 * **Must** list Epic, Story, and Subtask in the type dropdown; the six workflow statuses in the status dropdown; and P1 through P5 in the priority dropdown.
 * **Must** list Unscheduled, active sprints, and planned sprints in the sprint dropdown. A project board lists that project's sprints. The master board lists those sprints with the project key.
@@ -55,7 +57,8 @@ The board and the calendar answer "which issues?" with different controls, and t
 * **May** summarize a closed dropdown with the chosen names, and show the field name when nothing is chosen.
 * **Must Not** require every filter to be filled before the view updates.
 * **Must Not** reload the board or the calendar on each checkbox change.
-* **Must** place Project immediately after Sprint, and Label last. Assignee and Created by sit between Project and Label. A project page still omits Project. Reset all follows Label. It clears every filter and leaves the calendar date and Separate by sprint as they are.
+* **Must** place Project immediately after Sprint. Assignee and Created by sit between Project and Label. Start and Due ranges follow Label, and Reset all follows Due. A project page still omits Project. Reset all clears every filter, including both ranges, and leaves the calendar date and Separate by sprint as they are.
+* **Must** treat a Start or Due range with neither end set as no restriction. Either end keeps issues on those days, inclusive, and leaves out issues with no such date. A date that cannot be read is refused, and that bound is not applied.
 * **Must Not** hide a board column because its status was not chosen.
 * **Must Not** offer a completed sprint in the sprint dropdown.
 * **Must Not** change Separate by sprint into a filter.

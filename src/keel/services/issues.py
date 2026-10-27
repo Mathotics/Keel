@@ -1,9 +1,9 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
-from sqlalchemy import Select, exists, false, func, or_, select
+from sqlalchemy import Select, and_, exists, false, func, or_, select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, IssueLabel, Label, Project, Sprint
@@ -60,6 +60,10 @@ class IssueFilters:
     reporter_ids: tuple[int, ...] = ()
     reporter_none: bool = False
     project_ids: tuple[int, ...] = ()
+    start_from: date | None = None
+    start_to: date | None = None
+    due_from: date | None = None
+    due_to: date | None = None
 
 
 def issue_key(issue: Issue, project: Project) -> str:
@@ -526,6 +530,16 @@ def _apply_filters(query: Select[Any], filters: IssueFilters) -> Select[Any]:
         query = query.where(_has_label(filters.label))
     if filters.project_ids:
         query = query.where(Issue.project_id.in_(tuple(filters.project_ids)))
+    start_window = _on_calendar_days(
+        Issue.start_at,
+        filters.start_from,
+        filters.start_to,
+    )
+    if start_window is not None:
+        query = query.where(start_window)
+    due_window = _on_calendar_days(Issue.due_at, filters.due_from, filters.due_to)
+    if due_window is not None:
+        query = query.where(due_window)
     if filters.hide_closed_in_completed_sprints:
         query = query.where(
             ~exists(
@@ -537,6 +551,18 @@ def _apply_filters(query: Select[Any], filters: IssueFilters) -> Select[Any]:
             ),
         )
     return query
+
+
+def _on_calendar_days(column: Any, start: date | None, end: date | None) -> Any:
+    """Inclusive calendar days. Either bound also drops rows with no timestamp."""
+    if start is None and end is None:
+        return None
+    clauses: list[Any] = [column.is_not(None)]
+    if start is not None:
+        clauses.append(column >= datetime.combine(start, time.min))
+    if end is not None:
+        clauses.append(column < datetime.combine(end + timedelta(days=1), time.min))
+    return and_(*clauses)
 
 
 def _load_subtree(session: Session, root_id: int) -> Sequence[Issue]:
