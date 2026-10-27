@@ -11,6 +11,7 @@ HOME_COOKIE_MAX_AGE = 400 * 24 * 60 * 60
 
 # key, heading, extra column (due, sprint, occurrence, completed, or none)
 PANELS: tuple[tuple[str, str, str | None], ...] = (
+    ("now", "Now", "due"),
     ("due", "Due or overdue", "due"),
     ("week", "Due this week", "due"),
     ("month", "Due this month", "due"),
@@ -112,6 +113,7 @@ def apply_posted_order(layout: HomeLayout, visible: Sequence[str]) -> HomeLayout
 
 def section_rows(inbox: HomeInbox, key: str) -> tuple[HomeRow, ...]:
     rows = {
+        "now": inbox.now,
         "due": inbox.due,
         "week": inbox.due_week,
         "month": inbox.due_month,

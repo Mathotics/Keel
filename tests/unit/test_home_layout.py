@@ -44,13 +44,15 @@ def test_move_swaps_neighbours_and_keeps_empty_slots() -> None:
         "assigned",
         "up",
     )
-    assert moved.order[0] == "assigned"
-    assert moved.order[1] == "week"
-    assert moved.order[4] == "due"
+    assert moved.order[0] == "now"
+    assert moved.order[1] == "assigned"
+    assert moved.order[2] == "week"
+    assert moved.order[5] == "due"
 
 
 def test_posted_order_replaces_only_the_panels_on_the_page() -> None:
     posted = apply_posted_order(default_layout(), ["assigned", "due"])
-    assert posted.order[0] == "assigned"
-    assert posted.order[4] == "due"
+    assert posted.order[0] == "now"
+    assert posted.order[1] == "assigned"
+    assert posted.order[5] == "due"
     assert apply_posted_order(default_layout(), ["nope"]) == default_layout()

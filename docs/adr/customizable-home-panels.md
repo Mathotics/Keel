@@ -3,6 +3,8 @@
 * **Status:** Accepted
 * **Date:** 2026-10-01
 
+> **Amendment.** [Now on the home inbox](now-home-panel.md) adds **Now** at the front of the default stack. Remove, Add, and reorder apply to it. The out-of-scope line that forbids a new panel type is the scope of this customization work, not a ban on later panels.
+
 ## Background
 
 `/` is the acting user's personal inbox ([ADR 022](personal-work-inbox.md)). Nine sections can appear, in a fixed order: due or overdue, due this week, due this month, starting or started, assigned, blocked, active sprint, waiting this cycle, and completed today. Empty sections are omitted. Non-empty ones can be folded, and that choice lives in a `keel_inbox` cookie on this browser, not on the user row ([Collapsible home inbox sections](collapsible-home-inbox-sections.md)). The top bar is reordered the same way ([ADR 001](persistent-top-menu-bar.md)).
