@@ -89,7 +89,7 @@ Then open `http://127.0.0.1:8000/login`. A fresh database signs in as username `
 
 ## Production
 
-Production is the owner's Raspberry Pi. After bootstrap, every push to `main` that passes CI updates that machine with no further steps ([ADR 026](docs/adr/ADR-026.md)).
+Production is the owner's Raspberry Pi. After bootstrap, every push to `main` that passes CI updates that machine with no further steps ([ADR 026](docs/adr/ADR-026.md)). Other environments use the container image described under [Docker](#docker).
 
 The app runs as a user systemd unit (`keel serve` from `/mnt/library/Keel/.venv`). It binds all interfaces on port 8000 so clients on the local VPN can reach it. SQLite and the env file live under `/mnt/library/keel-data/`, outside the git checkout.
 
@@ -122,6 +122,45 @@ Later updates are [`scripts/deploy-prod.sh`](scripts/deploy-prod.sh), invoked by
 
 A Backup workflow on the same Pi runner copies the live database onto `/mnt/library_backup` ([Scheduled database backups](docs/adr/scheduled-database-backups.md)). Daily `keel.db` runs at 08:00 UTC, weekly `keel-weekly.db` on Sunday at 08:05 UTC, and monthly `keel-monthly.db` on the 1st at 08:10 UTC. Each file is replaced on the next run of that cadence. The schedule starts once the workflow is on `main`. Restore one of those files with `keel db restore --yes` and its path.
 
+## Docker
+
+Any machine with Docker builds and runs Keel from this repository ([Docker container](docs/adr/docker-container.md)). The Raspberry Pi stays on the systemd deploy above. From the repository root:
+
+```powershell
+docker compose up -d --build
+```
+
+Compose builds the image, stores SQLite in a named volume, applies migrations, and serves on port 8000. Open `http://127.0.0.1:8000/login`. A new volume signs in as username `keel` and password `keel`. Change that password from the profile page before anyone else can reach the port. Pass `--build` again after the source, the Dockerfile, or the entrypoint changes.
+
+The image sets:
+
+| Variable | Container value |
+| --- | --- |
+| `KEEL_HOST` | `0.0.0.0` |
+| `KEEL_PORT` | `8000` |
+| `KEEL_RELOAD` | `false` |
+| `KEEL_DATABASE_URL` | `sqlite+pysqlite:////data/keel.db` |
+
+`/data` is the volume. Keep the database file on that volume so replacing the container keeps it. The image leaves `KEEL_SEED_SIGN_IN` at its default, so a new volume gets the built-in account. Set `KEEL_SEED_SIGN_IN=false` and `KEEL_DEFAULT_USER` when a fresh volume should skip that account, then set a password before signing in:
+
+```powershell
+docker compose exec keel keel users set-password "The Display Name" --password "at least 12 characters"
+```
+
+The container runs `keel db upgrade` and then `keel serve`. Other CLI commands run as given:
+
+```powershell
+docker compose exec keel keel db backup /data/keel-backup.db
+docker compose cp keel:/data/keel-backup.db .\keel-backup.db
+docker compose cp .\keel-backup.db keel:/data/incoming.db
+docker compose exec keel keel db restore --yes /data/incoming.db
+docker compose restart keel
+```
+
+Backup and restore follow the same rules as outside Docker, including while serve is running. Restart after a restore so the process is not holding the old file.
+
+The process user is `keel`. Compose's named volume is created for that user. A host directory bind-mounted on `/data` has to be writable by that user. One container writes a given database file; SQLite on a shared volume is one writer.
+
 ## Lint and test
 
 ```powershell
@@ -151,7 +190,7 @@ What Keel is and why is described in the [architecture package](docs/architectur
 | --- | --- |
 | Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [implementation plan](docs/design/implementation-plan.md) |
-| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 025 the implementation, [026](docs/adr/ADR-026.md) production deploy |
+| Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 025 the implementation, [026](docs/adr/ADR-026.md) production deploy, [Docker container](docs/adr/docker-container.md) for other environments |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The [implementation plan](docs/design/implementation-plan.md) is the build order. All six v1 phases are in place.

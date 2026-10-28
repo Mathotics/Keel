@@ -1,0 +1,26 @@
+name: Image
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the container image
+        run: docker build -t keel:ci .
+      - name: Serve and check /health
+        run: |
+          docker run -d --name keel -p 8000:8000 keel:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8000/health; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs keel
+          exit 1
