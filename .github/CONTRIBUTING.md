@@ -1,14 +1,14 @@
 # Contributing to Keel
 
-Keel is proprietary and closed to the public. Only the copyright holder and the collaborators he has invited may contribute; see [LICENSE](../LICENSE). If you are not one of them, do not open a pull request.
+Keel is proprietary. [LICENSE](../LICENSE) requires prior written permission from the copyright holder before you copy or modify it, so code comes from the copyright holder and the collaborators he has invited. Anyone running Keel can still report a problem or propose a change.
 
-This guide is the checklist for a change from ticket to production. [README](../README.md) covers what Keel is and how to run it.
+This guide is the checklist for a change from ticket to production, and it is the long form of the Contributing section in the [README](../README.md).
 
 ## Where work comes from
 
-Keel tracks its own work. Every change starts from an item in the **KEEL** project of the running Keel instance, not from a GitHub issue. GitHub issues are not used.
+Planned work lives in the **KEEL** project of the running Keel instance. A branch, its commits, and its pull request all name the same key, so file the item first when the work does not have one yet.
 
-If the work does not have an item yet, file one first so the branch, the commits, and the pull request can all name the same key.
+GitHub issues are the inbox rather than the plan. The [bug report and feature request forms](https://github.com/Mathotics/Keel/issues/new/choose) let someone running Keel describe a problem without access to the tracker. Turn such an issue into a KEEL item before starting on it, and close the GitHub issue once that item ships.
 
 ## Set up a checkout
 
