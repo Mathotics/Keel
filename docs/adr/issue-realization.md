@@ -3,13 +3,13 @@
 * **Status:** Accepted
 * **Date:** 2026-09-12
 
-> **Amendment.** [ADR 020](ADR-020.md) splits progress: descendants in *Done* count as done; descendants in *Cancelled* are counted separately; cancelled remaining is omitted from the parent remaining total.
+> **Amendment.** [ADR 020](cancelled-status.md) splits progress: descendants in *Done* count as done; descendants in *Cancelled* are counted separately; cancelled remaining is omitted from the parent remaining total.
 
 ## Background
 
-[ADR 003](ADR-003.md) established the Issue as one entity carrying a type of Epic, Story, or Subtask, with the hierarchy expressed through a parent relationship. It deliberately stopped at the conceptual level, and closed by naming a risk: "without clear parent rules, invalid hierarchies (for example a Subtask directly under an Epic, or an Epic with a parent) could be created; the hierarchy constraints must be stated and honored."
+[ADR 003](unified-issue-model.md) established the Issue as one entity carrying a type of Epic, Story, or Subtask, with the hierarchy expressed through a parent relationship. It deliberately stopped at the conceptual level, and closed by naming a risk: "without clear parent rules, invalid hierarchies (for example a Subtask directly under an Epic, or an Epic with a parent) could be created; the hierarchy constraints must be stated and honored."
 
-The [domain model](../architecture/domain-model.md) likewise gives an issue an estimated time and a time remaining without saying what unit those are in, and [capabilities](../architecture/capabilities.md) requires viewing effort "aggregated from child issues" without defining what happens when a parent has both its own estimate and children with estimates. [ADR 003](ADR-003.md) mentions progress rollup without defining progress. Nothing anywhere describes deletion.
+The [domain model](../architecture/domain-model.md) likewise gives an issue an estimated time and a time remaining without saying what unit those are in, and [capabilities](../architecture/capabilities.md) requires viewing effort "aggregated from child issues" without defining what happens when a parent has both its own estimate and children with estimates. [ADR 003](unified-issue-model.md) mentions progress rollup without defining progress. Nothing anywhere describes deletion.
 
 ## Problem Statement
 
@@ -17,7 +17,7 @@ Four gaps must be closed before issues can be implemented. Which parent/child co
 
 ## Objective(s)
 
-- State the hierarchy constraints precisely enough to enforce, closing the risk named in [ADR 003](ADR-003.md).
+- State the hierarchy constraints precisely enough to enforce, closing the risk named in [ADR 003](unified-issue-model.md).
 - Give every issue a short, readable, stable identifier suitable for URLs and for quoting.
 - Define a single effort unit and a rollup rule that hides nothing.
 - Define progress concretely enough to render.
@@ -36,7 +36,7 @@ Four gaps must be closed before issues can be implemented. Which parent/child co
 
 ### Out-of-Scope
 
-- Additional issue types, excluded by [ADR 003](ADR-003.md).
+- Additional issue types, excluded by [ADR 003](unified-issue-model.md).
 - Moving an issue between projects, which would break the immutability of its key.
 - Reusing the numbers of deleted issues.
 - Soft deletion, archiving, and an undo mechanism.
@@ -87,19 +87,19 @@ Four gaps must be closed before issues can be implemented. Which parent/child co
 
 ## Consequences
 
-* **Good:** The hierarchy risk from [ADR 003](ADR-003.md) is closed with rules narrow enough to implement as a single validation function and test exhaustively. Readable keys make issues quotable in commit messages and conversation. Showing own and rolled-up effort side by side means no number is silently replaced. Refusing destructive deletes protects work in a tool with no undo; [ADR 025](ADR-025.md) records field changes but does not restore them.
+* **Good:** The hierarchy risk from [ADR 003](unified-issue-model.md) is closed with rules narrow enough to implement as a single validation function and test exhaustively. Readable keys make issues quotable in commit messages and conversation. Showing own and rolled-up effort side by side means no number is silently replaced. Refusing destructive deletes protects work in a tool with no undo; [ADR 025](ADR-025.md) records field changes but does not restore them.
 * **Bad:** Optional parents at every level mean orphaned Stories and Subtasks are legal, so views must handle unparented issues everywhere rather than assuming a tree.
 * **Bad:** Per-project sequences require a counter on the project and a serialized increment, which is a small write contention point on a database that already serializes writes.
 * **Bad:** Refusing to delete an issue with children makes clearing out a large Epic tedious, since it must be emptied from the leaves upward.
 * **Risk:** Shorthand duration parsing is a small language, and lenient parsing could accept `1h30` or `1.5h` inconsistently. Mitigated by defining the accepted forms narrowly and rejecting anything else with a validation error.
 * **Risk:** Count-based progress treats a five-minute Subtask and a three-day Subtask as equal, so a progress bar can overstate how much work is done. Accepted deliberately as the simplest rule that is never wrong about counts; effort totals sit alongside it for the fuller picture.
-* **Risk:** Cascading a project delete removes dependency links whose other end lives in another project, per [ADR 014](ADR-014.md), so a surviving issue can silently lose a blocker. Mitigated by naming cross-project links in the confirmation.
+* **Risk:** Cascading a project delete removes dependency links whose other end lives in another project, per [ADR 014](cross-project-dependencies.md), so a surviving issue can silently lose a blocker. Mitigated by naming cross-project links in the confirmation.
 
 ## System Design
 
 ### Technical Stack and Architecture
 
-Hierarchy validation, duration parsing and formatting, and rollup arithmetic live in `keel.domain` as pure functions with no database access, per [ADR 008](ADR-008.md), which makes them directly unit-testable against the repository's coverage gate. `keel.services.issues` composes them: it loads the issue and any proposed parent, calls the validator, and raises a coded domain error on refusal.
+Hierarchy validation, duration parsing and formatting, and rollup arithmetic live in `keel.domain` as pure functions with no database access, per [ADR 008](layered-module-structure.md), which makes them directly unit-testable against the repository's coverage gate. `keel.services.issues` composes them: it loads the issue and any proposed parent, calls the validator, and raises a coded domain error on refusal.
 
 Issue numbering uses a counter column on the project, incremented within the same transaction that inserts the issue. Rollup is computed with a recursive query over the parent relationship rather than by loading a subtree into memory.
 
@@ -158,9 +158,9 @@ flowchart TD
 * [Domain model](../architecture/domain-model.md)
 * [Capabilities](../architecture/capabilities.md)
 * [Glossary](../architecture/glossary.md)
-* [ADR 003: Unified issue model with a typed hierarchy](ADR-003.md)
-* [ADR 008: Layered module structure](ADR-008.md)
-* [ADR 013: Planning realization](ADR-013.md)
-* [ADR 014: Cross-project dependencies and cycle detection](ADR-014.md)
-* [ADR 020: Cancelled status](ADR-020.md)
+* [ADR 003: Unified issue model with a typed hierarchy](unified-issue-model.md)
+* [ADR 008: Layered module structure](layered-module-structure.md)
+* [ADR 013: Planning realization](planning-realization.md)
+* [ADR 014: Cross-project dependencies and cycle detection](cross-project-dependencies.md)
+* [ADR 020: Cancelled status](cancelled-status.md)
 * [ADR 025: Lightweight per-issue field history](ADR-025.md)

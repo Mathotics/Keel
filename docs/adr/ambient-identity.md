@@ -54,7 +54,7 @@ Requiring every write to name its actor explicitly would push the burden onto ev
 * **Must** accept either a user identifier or a display name in the header and cookie.
 * **Must** seed one user on a database with no users, named from `KEEL_DEFAULT_USER` when set and otherwise from the operating system username, so the picker is never empty.
 * **Must** default an issue's reporter and a comment's author to the resolved acting user when the caller does not specify one.
-* **Must** render a user picker in the shared top bar from [ADR 001](ADR-001.md) that sets the cookie and returns to the current page.
+* **Must** render a user picker in the shared top bar from [ADR 001](persistent-top-menu-bar.md) that sets the cookie and returns to the current page.
 * **Must** state in user-facing documentation that identity is declared rather than verified.
 * **May** let a caller override reporter or assignee explicitly on a write.
 * **Must Not** treat the resolved user as an authorization decision or gate any operation on it.
@@ -77,7 +77,7 @@ A single dependency in `keel.web.context` resolves the acting user and is shared
 
 Seeding runs during application startup against the already-migrated database, inserting a default user only when the users table is empty.
 
-The picker is a small form in `base.html` posting to a `/web/user` route, which sets the `keel_user` cookie and redirects back to the referring page, so it works without JavaScript like everything else in [ADR 009](ADR-009.md).
+The picker is a small form in `base.html` posting to a `/web/user` route, which sets the `keel_user` cookie and redirects back to the referring page, so it works without JavaScript like everything else in [ADR 009](server-rendered-jinja2.md).
 
 ### UML Diagrams
 
@@ -114,6 +114,6 @@ flowchart LR
 * [Context](../architecture/context.md)
 * [Domain model](../architecture/domain-model.md)
 * [v1 scope](../architecture/v1-scope.md)
-* [ADR 001: Persistent top menu bar](ADR-001.md)
-* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](ADR-009.md)
-* [ADR 010: One versioned JSON API with coded domain errors](ADR-010.md)
+* [ADR 001: Persistent top menu bar](persistent-top-menu-bar.md)
+* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](server-rendered-jinja2.md)
+* [ADR 010: One versioned JSON API with coded domain errors](versioned-json-api.md)

@@ -5,7 +5,7 @@
 
 ## Background
 
-Keel’s board, backlog, and project table are the only ways to reach an issue besides typing a URL. Once an epic has children, those lists stop being a lookup. [v1 scope](../architecture/v1-scope.md) deferred “advanced search and saved filters” because basic per-project navigation was enough to ship; it did not forbid a single find field. The top bar already holds section links and the acting-user picker ([ADR 001](ADR-001.md), [ADR 011](ADR-011.md)). Every page must keep working without JavaScript ([ADR 009](ADR-009.md)).
+Keel’s board, backlog, and project table are the only ways to reach an issue besides typing a URL. Once an epic has children, those lists stop being a lookup. [v1 scope](../architecture/v1-scope.md) deferred “advanced search and saved filters” because basic per-project navigation was enough to ship; it did not forbid a single find field. The top bar already holds section links and the acting-user picker ([ADR 001](persistent-top-menu-bar.md), [ADR 011](ambient-identity.md)). Every page must keep working without JavaScript ([ADR 009](server-rendered-jinja2.md)).
 
 ## Problem Statement
 
@@ -34,7 +34,7 @@ The owner cannot jump to `TEST-2` or find work by title (or by text in a descrip
 - Matching attachments (none exist) or activity history.
 - A per-user profile page.
 - Reordering the find field with the section links.
-- Changing home-icon or picker placement ([ADR 001](ADR-001.md)).
+- Changing home-icon or picker placement ([ADR 001](persistent-top-menu-bar.md)).
 
 ### Deliverables
 
@@ -124,8 +124,8 @@ flowchart TD
 
 ## Supporting Documentation
 
-* [ADR 001: Persistent top menu bar](ADR-001.md)
-* [ADR 009: Server-rendered pages with vanilla JavaScript](ADR-009.md)
-* [ADR 011: Ambient identity without authentication](ADR-011.md)
+* [ADR 001: Persistent top menu bar](persistent-top-menu-bar.md)
+* [ADR 009: Server-rendered pages with vanilla JavaScript](server-rendered-jinja2.md)
+* [ADR 011: Ambient identity without authentication](ambient-identity.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [UI design](../design/ui.md)

@@ -1,6 +1,6 @@
 # Data model
 
-The physical schema behind the conceptual [domain model](../architecture/domain-model.md). Storage decisions are recorded in [ADR 007](../adr/ADR-007.md); the rules the constraints enforce come from [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), [ADR 014](../adr/ADR-014.md), and [ADR 030](../adr/ADR-030.md).
+The physical schema behind the conceptual [domain model](../architecture/domain-model.md). Storage decisions are recorded in [ADR 007](../adr/sqlite-sqlalchemy-alembic.md); the rules the constraints enforce come from [ADR 012](../adr/issue-realization.md), [ADR 013](../adr/planning-realization.md), [ADR 014](../adr/cross-project-dependencies.md), and [ADR 030](../adr/ADR-030.md).
 
 All tables live in one SQLite file. Every connection sets `PRAGMA foreign_keys=ON`, without which SQLite silently ignores foreign keys.
 
@@ -31,9 +31,9 @@ erDiagram
 
 * Primary keys are `INTEGER PRIMARY KEY`, SQLite's rowid alias.
 * Timestamps are stored in UTC. `created_at` and `updated_at` are timestamps; sprint `starts_on` and `ends_on` are dates.
-* Enumerated values are stored as lowercase strings guarded by `CHECK` constraints, not as foreign keys. Board columns are generated from the code enumeration and are not stored ([ADR 013](../adr/ADR-013.md)).
+* Enumerated values are stored as lowercase strings guarded by `CHECK` constraints, not as foreign keys. Board columns are generated from the code enumeration and are not stored ([ADR 013](../adr/planning-realization.md)).
 * Text columns that represent "no value entered" use `NOT NULL DEFAULT ''` rather than allowing null, so queries need no null handling.
-* Deletion behaviour is enforced in services so users receive coded errors; the `ON DELETE` clauses below are a backstop, not the primary mechanism ([ADR 012](../adr/ADR-012.md)).
+* Deletion behaviour is enforced in services so users receive coded errors; the `ON DELETE` clauses below are a backstop, not the primary mechanism ([ADR 012](../adr/issue-realization.md)).
 
 ## Tables
 
@@ -97,7 +97,7 @@ The secret is returned once, at creation. Later reads show `token_prefix` only. 
 | `auto_sprint_notice` | TEXT | not null, default `''` |
 | `created_at` | TIMESTAMP | not null |
 
-`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/ADR-012.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/ADR-019.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
+`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/issue-realization.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
 
 ### boards
 
@@ -107,7 +107,7 @@ The secret is returned once, at creation. Later reads show `token_prefix` only. 
 | `project_id` | INTEGER | not null, unique, references `projects(id)` `ON DELETE CASCADE` |
 | `name` | TEXT | not null |
 
-One row per project, created with the project. The unique constraint enforces the one-board rule of [ADR 013](../adr/ADR-013.md) while leaving room for the multiple boards [ADR 005](../adr/ADR-005.md) permits later. Board columns are not stored.
+One row per project, created with the project. The unique constraint enforces the one-board rule of [ADR 013](../adr/planning-realization.md) while leaving room for the multiple boards [ADR 005](../adr/boards-sprints-and-backlog.md) permits later. Board columns are not stored.
 
 ### sprints
 
@@ -126,7 +126,7 @@ One row per project, created with the project. The unique constraint enforces th
 Indexes and constraints:
 
 * `ix_sprints_project_id` on (`project_id`)
-* `uq_sprints_one_active` — a partial unique index on (`project_id`) `WHERE state = 'active'`, enforcing the single active sprint per project from [ADR 013](../adr/ADR-013.md)
+* `uq_sprints_one_active` — a partial unique index on (`project_id`) `WHERE state = 'active'`, enforcing the single active sprint per project from [ADR 013](../adr/planning-realization.md)
 
 ### issues
 
@@ -198,7 +198,7 @@ Indexes and constraints:
 | `created_at` | TIMESTAMP | not null |
 | `updated_at` | TIMESTAMP | not null |
 
-`series_skips` records deleted occurrence dates so calendar mode does not recreate that cycle ([ADR 021](../adr/ADR-021.md)).
+`series_skips` records deleted occurrence dates so calendar mode does not recreate that cycle ([ADR 021](../adr/repeating-work-scheduling-manager.md)).
 
 ### series_labels
 
@@ -225,7 +225,7 @@ Indexes and constraints:
 * `ck_dependencies_not_self` — `CHECK` (`source_id` is not `target_id`)
 * `ix_dependencies_target_kind` on (`target_id`, `kind`) for blocker counts
 
-There is no project column: links may cross projects ([ADR 014](../adr/ADR-014.md)), and cascade reaches a row through either endpoint. Cycle prevention is not expressible as a constraint and is enforced before insert.
+There is no project column: links may cross projects ([ADR 014](../adr/cross-project-dependencies.md)), and cascade reaches a row through either endpoint. Cycle prevention is not expressible as a constraint and is enforced before insert.
 
 ### comments
 
@@ -293,9 +293,9 @@ Index: `ix_issue_labels_label_id` on (`label_id`). Deleting an issue drops its l
 
 Three things the [domain model](../architecture/domain-model.md) describes have no table, by design.
 
-**Board columns.** Generated by iterating the status enumeration in ordinal order ([ADR 013](../adr/ADR-013.md)).
+**Board columns.** Generated by iterating the status enumeration in ordinal order ([ADR 013](../adr/planning-realization.md)).
 
-**The backlog.** A project's issues where `sprint_id IS NULL` and `status` is not `done` or `cancelled`, ordered by `created_at` ascending. This is the amended definition from [ADR 013](../adr/ADR-013.md), which supersedes the rank-based definition in [ADR 005](../adr/ADR-005.md).
+**The backlog.** A project's issues where `sprint_id IS NULL` and `status` is not `done` or `cancelled`, ordered by `created_at` ascending. This is the amended definition from [ADR 013](../adr/planning-realization.md), which supersedes the rank-based definition in [ADR 005](../adr/boards-sprints-and-backlog.md).
 
 **Effort and progress rollup.** Computed per request with a recursive query walking `parent_id` down from the issue, summing `estimate_minutes` over the subtree, summing `remaining_minutes` excluding cancelled descendants, counting descendants whose status is `done`, and counting descendants whose status is `cancelled` separately. Nothing is cached or denormalized.
 
@@ -311,7 +311,7 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 
 ## Migrations
 
-Alembic revisions live in `migrations/`. They were written by hand and reviewed against the models, because autogenerate does not reliably detect `CHECK` constraint changes, and SQLite column alterations use Alembic's batch operations. Migrations are applied only by `keel db upgrade`; `keel serve` verifies the revision and refuses to start when the database is behind ([ADR 007](../adr/ADR-007.md)).
+Alembic revisions live in `migrations/`. They were written by hand and reviewed against the models, because autogenerate does not reliably detect `CHECK` constraint changes, and SQLite column alterations use Alembic's batch operations. Migrations are applied only by `keel db upgrade`; `keel serve` verifies the revision and refuses to start when the database is behind ([ADR 007](../adr/sqlite-sqlalchemy-alembic.md)).
 
 | Revision | Adds |
 | --- | --- |
@@ -342,14 +342,14 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 
 ## Related documents
 
-* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](../adr/ADR-007.md)
-* [ADR 012: Issue realization](../adr/ADR-012.md)
-* [ADR 013: Planning realization](../adr/ADR-013.md)
-* [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
-* [ADR 019: Auto-sprint cadence](../adr/ADR-019.md)
+* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](../adr/sqlite-sqlalchemy-alembic.md)
+* [ADR 012: Issue realization](../adr/issue-realization.md)
+* [ADR 013: Planning realization](../adr/planning-realization.md)
+* [ADR 014: Cross-project dependencies and cycle detection](../adr/cross-project-dependencies.md)
+* [ADR 019: Auto-sprint cadence](../adr/auto-sprint-cadence.md)
 * [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)
-* [ADR 020: Cancelled status](../adr/ADR-020.md)
-* [ADR 021: Repeating work via Scheduling Manager](../adr/ADR-021.md)
+* [ADR 020: Cancelled status](../adr/cancelled-status.md)
+* [ADR 021: Repeating work via Scheduling Manager](../adr/repeating-work-scheduling-manager.md)
 * [ADR 025: Lightweight per-issue field history](../adr/ADR-025.md)
 * [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [ADR 031: Issue labels](../adr/ADR-031.md)

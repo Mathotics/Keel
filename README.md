@@ -328,6 +328,8 @@ That runs pre-commit (including isort and mypy) and the full pytest suite with 9
 
 `poe` with no arguments lists the other tasks: `lint`, `format`, `mypy`, `test`, and the rest.
 
+[CONTRIBUTING](.github/CONTRIBUTING.md) is the long form of those steps, covering how work is tracked, how branches and commits are named, and what a merge to `main` sets off. To report a bug or propose a change instead, open a [GitHub issue](https://github.com/Mathotics/Keel/issues/new/choose).
+
 ## Documentation
 
 How Keel is shaped is written down under `docs/`. Start with the architecture package, then the design package and the decision records.
@@ -337,6 +339,7 @@ How Keel is shaped is written down under `docs/`. Start with the architecture pa
 | Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [roles](docs/design/rbac-catalog.md) |
 | Decisions | [ADRs](docs/adr/), including [production deploy](docs/adr/ADR-026.md) and [password login](docs/adr/password-login.md) |
+| Process | [Contributing](.github/CONTRIBUTING.md) — ticket to deploy, for the owner and invited collaborators |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The in-app license page is at `/license`.

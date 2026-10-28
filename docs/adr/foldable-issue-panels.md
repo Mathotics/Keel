@@ -86,4 +86,4 @@ stateDiagram-v2
 * [API reference](../design/api.md)
 * [Use cases](../architecture/use-cases.md)
 * [Collapsible home inbox sections](collapsible-home-inbox-sections.md)
-* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](ADR-009.md)
+* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](server-rendered-jinja2.md)

@@ -1,13 +1,13 @@
 # ADR 006: Ticket dependencies as directed typed links with cycle prevention
 
-* **Status:** Accepted, extended by [ADR 014](ADR-014.md)
+* **Status:** Accepted, extended by [ADR 014](cross-project-dependencies.md)
 * **Date:** 2026-08-31
 
-> **Extension.** [ADR 014](ADR-014.md) resolves the cross-project scoping question this ADR left open — links may cross projects, so cycle detection runs over the global blocking graph — and specifies how unresolved blocking surfaces outside the issue detail page.
+> **Extension.** [ADR 014](cross-project-dependencies.md) resolves the cross-project scoping question this ADR left open — links may cross projects, so cycle detection runs over the global blocking graph — and specifies how unresolved blocking surfaces outside the issue detail page.
 
 ## Background
 
-Keel tracks relationships between issues: one Story may need to finish before another can start, and two issues may simply be related without any ordering. With the unified issue established ([ADR 003](ADR-003.md)), Keel needs a way to record these connections. The Epic → Story → Subtask hierarchy from [ADR 003](ADR-003.md) already expresses containment; dependencies are a *different* kind of relationship — about ordering and association, not parentage — and must be modeled separately.
+Keel tracks relationships between issues: one Story may need to finish before another can start, and two issues may simply be related without any ordering. With the unified issue established ([ADR 003](unified-issue-model.md)), Keel needs a way to record these connections. The Epic → Story → Subtask hierarchy from [ADR 003](unified-issue-model.md) already expresses containment; dependencies are a *different* kind of relationship — about ordering and association, not parentage — and must be modeled separately.
 
 ## Problem Statement
 
@@ -47,7 +47,7 @@ Keel needs to represent connections between issues that carry meaning and, in so
 * **Must** reject a *blocks* link whose creation would form a cycle in the blocking graph.
 * **Must** let a user see an issue's incoming and outgoing dependencies.
 * **May** treat *relates-to* as symmetric for display purposes.
-* **Must Not** conflate dependencies with the parent/child hierarchy from [ADR 003](ADR-003.md).
+* **Must Not** conflate dependencies with the parent/child hierarchy from [ADR 003](unified-issue-model.md).
 * **Must Not** add further dependency kinds in v1.
 
 ## Consequences
@@ -60,7 +60,7 @@ Keel needs to represent connections between issues that carry meaning and, in so
 
 ### Technical Stack and Architecture
 
-A conceptual decision defining the **Dependency** relationship over the unified **Issue** ([ADR 003](ADR-003.md)). It states the kinds of link and the acyclicity constraint for blocking links, without prescribing how the graph is stored or how cycles are detected.
+A conceptual decision defining the **Dependency** relationship over the unified **Issue** ([ADR 003](unified-issue-model.md)). It states the kinds of link and the acyclicity constraint for blocking links, without prescribing how the graph is stored or how cycles are detected.
 
 ### UML Diagrams
 
@@ -87,5 +87,5 @@ flowchart LR
 * [Use cases](../architecture/use-cases.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [Glossary](../architecture/glossary.md)
-* [ADR 003: Unified issue model with a typed hierarchy](ADR-003.md)
+* [ADR 003: Unified issue model with a typed hierarchy](unified-issue-model.md)
 * [Package version (single source of truth)](../version.md)

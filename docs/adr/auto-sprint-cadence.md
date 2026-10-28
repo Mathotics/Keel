@@ -5,7 +5,7 @@
 
 ## Background
 
-Keel already has per-project sprints with a manual lifecycle: create as *planned*, start (*planned* to *active*), complete (*active* to *completed*). At most one sprint is active. Completing carries unfinished issues into the earliest remaining planned sprint, or back to the backlog if none is planned ([ADR 013](ADR-013.md), [ADR 005](ADR-005.md)). Dates are optional. The project page already has a settings panel for name and description; the sprints page lists sprints by state and can show a notice after a complete.
+Keel already has per-project sprints with a manual lifecycle: create as *planned*, start (*planned* to *active*), complete (*active* to *completed*). At most one sprint is active. Completing carries unfinished issues into the earliest remaining planned sprint, or back to the backlog if none is planned ([ADR 013](planning-realization.md), [ADR 005](boards-sprints-and-backlog.md)). Dates are optional. The project page already has a settings panel for name and description; the sprints page lists sprints by state and can show a notice after a complete.
 
 Keel is meant to run continuously on a server. Rollover is still date-driven, and the process may be down across a boundary.
 
@@ -86,7 +86,7 @@ Sprint open and close are only manual. A project that works in a regular rhythm 
 
 ### Technical Stack and Architecture
 
-This is a behavior change on existing surfaces, not a new product area. Cadence lives with project settings on `project.html`. Status, next close date, and rollover notices live on `sprints.html`. Start and Complete remain on `sprint_detail.html`. Lifecycle rules stay those of `keel.services.sprints` and [ADR 013](ADR-013.md). `keel.services.auto_sprint` prepares the next window, carries unfinished work, and starts it. While the app is running, each database-backed request and a background poll advance overdue projects using the server’s local calendar date, so a missed day is caught up once rather than replayed.
+This is a behavior change on existing surfaces, not a new product area. Cadence lives with project settings on `project.html`. Status, next close date, and rollover notices live on `sprints.html`. Start and Complete remain on `sprint_detail.html`. Lifecycle rules stay those of `keel.services.sprints` and [ADR 013](planning-realization.md). `keel.services.auto_sprint` prepares the next window, carries unfinished work, and starts it. While the app is running, each database-backed request and a background poll advance overdue projects using the server’s local calendar date, so a missed day is caught up once rather than replayed.
 
 ### UML Diagrams
 
@@ -133,8 +133,8 @@ stateDiagram-v2
 
 ## Supporting Documentation
 
-* [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
-* [ADR 013: Planning realization — sprint lifecycle](ADR-013.md)
+* [ADR 005: Boards, sprints, and backlog as views over one issue pool](boards-sprints-and-backlog.md)
+* [ADR 013: Planning realization — sprint lifecycle](planning-realization.md)
 * [Auto-sprint lookahead](auto-sprint-lookahead.md)
 * [UI design](../design/ui.md)
 * [v1 scope](../architecture/v1-scope.md)

@@ -28,7 +28,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Backlog
 
-* **Review the backlog.** A user views all of a project's unscheduled, unfinished work as one list in the order it was created. There is no manual ordering — see [ADR 013](../adr/ADR-013.md), which amends [ADR 005](../adr/ADR-005.md).
+* **Review the backlog.** A user views all of a project's unscheduled, unfinished work as one list in the order it was created. There is no manual ordering — see [ADR 013](../adr/planning-realization.md), which amends [ADR 005](../adr/boards-sprints-and-backlog.md).
 * **Refine an item.** A user opens a backlog item to edit its description, estimate, assignee, or parent.
 
 ## Sprints
@@ -36,7 +36,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Plan a sprint.** A user creates a time-boxed sprint and pulls backlog items into it. Sprint menus list the active sprint and planned sprints, and leave completed sprints out of that list ([Sprint assignment choices](../adr/sprint-assignment-choices.md)).
 * **Start a sprint.** A user starts the sprint; its issues become the active committed work. Only one sprint per project may be active at a time.
 * **Complete a sprint.** A user completes the sprint; unfinished issues move into the next planned sprint, or return to the backlog if there is none.
-* **Run sprints on a cadence.** A user turns on auto-sprint for a project (weekly, every two weeks, monthly, or every N days) and may keep the next N sprints planned in advance. Keel keeps one sprint active, completing the current window after its last day and starting the next planned sprint — or creating one when none is planned ([ADR 019](../adr/ADR-019.md), [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
+* **Run sprints on a cadence.** A user turns on auto-sprint for a project (weekly, every two weeks, monthly, or every N days) and may keep the next N sprints planned in advance. Keel keeps one sprint active, completing the current window after its last day and starting the next planned sprint — or creating one when none is planned ([ADR 019](../adr/auto-sprint-cadence.md), [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 
 ## Repeating work
 
@@ -57,13 +57,13 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Ticket dependencies
 
-* **Link issues.** A user records that one issue *blocks* another, or that two issues merely *relate*. The two issues may be in different projects — see [ADR 014](../adr/ADR-014.md).
+* **Link issues.** A user records that one issue *blocks* another, or that two issues merely *relate*. The two issues may be in different projects — see [ADR 014](../adr/cross-project-dependencies.md).
 * **See what is blocked.** A user views an issue and sees what it is waiting on and what is waiting on it, and spots unresolved blockers at a glance from a marker on board cards and backlog rows.
 * **Avoid contradictions.** When a user tries to create a *blocks* link that would form a cycle, the system refuses it.
 
 ## Comments
 
-* **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/ADR-017.md)).
+* **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
 
 ## Issue page
 

@@ -1,13 +1,13 @@
 # ADR 004: Shared fixed workflow with a small status set
 
-* **Status:** Accepted, extended by [ADR 013](ADR-013.md)
+* **Status:** Accepted, extended by [ADR 013](planning-realization.md)
 * **Date:** 2026-08-31
 
-> **Extension.** [ADR 013](ADR-013.md) fixes the labels this ADR deliberately left open — *To Do*, *In Progress*, *In Review*, *Blocked*, *Done* — and records that the set is realized as an enumeration in code rather than as stored records. [ADR 020](ADR-020.md) adds *Cancelled*.
+> **Extension.** [ADR 013](planning-realization.md) fixes the labels this ADR deliberately left open — *To Do*, *In Progress*, *In Review*, *Blocked*, *Done* — and records that the set is realized as an enumeration in code rather than as stored records. [ADR 020](cancelled-status.md) adds *Cancelled*.
 
 ## Background
 
-Every issue in Keel moves through states as work progresses, and the Kanban board's columns are drawn from those states ([ADR 005](ADR-005.md)). Full issue trackers let each project define its own statuses and transitions. Keel is a personal tool for one owner plus up to two collaborators, so the machinery a large team needs to negotiate a shared workflow is out of proportion here.
+Every issue in Keel moves through states as work progresses, and the Kanban board's columns are drawn from those states ([ADR 005](boards-sprints-and-backlog.md)). Full issue trackers let each project define its own statuses and transitions. Keel is a personal tool for one owner plus up to two collaborators, so the machinery a large team needs to negotiate a shared workflow is out of proportion here.
 
 ## Problem Statement
 
@@ -25,7 +25,7 @@ Keel needs an agreed set of statuses that issues move through and that a board c
 
 - A single, small, ordered set of statuses (for example *To Do*, *In Progress*, *Done*) shared by all projects.
 - Each issue is classified by exactly one status at a time.
-- Board columns are surfaced from this shared status set ([ADR 005](ADR-005.md)).
+- Board columns are surfaced from this shared status set ([ADR 005](boards-sprints-and-backlog.md)).
 
 ### Out-of-Scope
 
@@ -58,7 +58,7 @@ Keel needs an agreed set of statuses that issues move through and that a board c
 
 ### Technical Stack and Architecture
 
-A conceptual decision about the **Status** entity and its relationship to issues and boards. It deliberately keeps configuration out of v1 and does not specify how statuses are stored or how transitions are enforced. It underpins [ADR 005](ADR-005.md), where board columns are surfaced from these statuses.
+A conceptual decision about the **Status** entity and its relationship to issues and boards. It deliberately keeps configuration out of v1 and does not specify how statuses are stored or how transitions are enforced. It underpins [ADR 005](boards-sprints-and-backlog.md), where board columns are surfaced from these statuses.
 
 ### UML Diagrams
 
@@ -83,6 +83,6 @@ erDiagram
 * [Capabilities](../architecture/capabilities.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [Glossary](../architecture/glossary.md)
-* [ADR 003: Unified issue model with a typed hierarchy](ADR-003.md)
-* [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
+* [ADR 003: Unified issue model with a typed hierarchy](unified-issue-model.md)
+* [ADR 005: Boards, sprints, and backlog as views over one issue pool](boards-sprints-and-backlog.md)
 * [Package version (single source of truth)](../version.md)
