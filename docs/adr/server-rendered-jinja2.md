@@ -5,9 +5,9 @@
 
 ## Background
 
-Keel's HTML is currently assembled from Python f-strings in `src/keel/web/layout.py`, which renders the shared chrome — the sticky top bar of [ADR 001](ADR-001.md) and the version footer of [ADR 002](ADR-002.md) — around a block of markup passed in by each route. That works for the two pages that exist.
+Keel's HTML is currently assembled from Python f-strings in `src/keel/web/layout.py`, which renders the shared chrome — the sticky top bar of [ADR 001](persistent-top-menu-bar.md) and the version footer of [ADR 002](persistent-version-footer.md) — around a block of markup passed in by each route. That works for the two pages that exist.
 
-The v1 [capabilities](../architecture/capabilities.md) add a project list, issue creation and detail pages, a backlog, sprint pages, a user list, and a Kanban board. [ADR 005](ADR-005.md) makes moving a card between columns the primary way an issue's status changes, and [use cases](../architecture/use-cases.md) describes it as "moves a card from one column to the next." Dragging is inherently a client-side interaction.
+The v1 [capabilities](../architecture/capabilities.md) add a project list, issue creation and detail pages, a backlog, sprint pages, a user list, and a Kanban board. [ADR 005](boards-sprints-and-backlog.md) makes moving a card between columns the primary way an issue's status changes, and [use cases](../architecture/use-cases.md) describes it as "moves a card from one column to the next." Dragging is inherently a client-side interaction.
 
 ## Problem Statement
 
@@ -38,7 +38,7 @@ Keel also runs locally and may run offline, so any client-side asset loaded from
 - A JavaScript build step, bundler, transpiler, package manager, or `node_modules` directory.
 - Loading any asset from a content delivery network.
 - Client-side routing or a single-page application shell.
-- A JavaScript test runner; see [ADR 010](ADR-010.md) and the [implementation plan](../design/implementation-plan.md) for how the enhanced paths are verified.
+- A JavaScript test runner; see [ADR 010](versioned-json-api.md) and the [implementation plan](../design/implementation-plan.md) for how the enhanced paths are verified.
 
 ### Deliverables
 
@@ -50,7 +50,7 @@ Keel also runs locally and may run offline, so any client-side asset loaded from
 ## Technical Requirements
 
 * **Must** render all pages on the server with Jinja2, with autoescaping enabled.
-* **Must** define the chrome from [ADR 001](ADR-001.md) and [ADR 002](ADR-002.md) once in `base.html`, with pages extending it rather than repeating it.
+* **Must** define the chrome from [ADR 001](persistent-top-menu-bar.md) and [ADR 002](persistent-version-footer.md) once in `base.html`, with pages extending it rather than repeating it.
 * **Must** implement drag-and-drop with the browser's native HTML Drag and Drop API in hand-written JavaScript, with no third-party front-end dependency.
 * **Must** serve all JavaScript from the existing `/assets` static mount, never from a remote origin.
 * **Must** provide a working non-JavaScript path for every enhanced action, so a card's status can be changed by a plain form submission.
@@ -129,8 +129,8 @@ flowchart TD
 * [Brand colors](../brand-colors.md)
 * [Capabilities](../architecture/capabilities.md)
 * [Use cases](../architecture/use-cases.md)
-* [ADR 001: Persistent top menu bar](ADR-001.md)
-* [ADR 002: Persistent version footer](ADR-002.md)
-* [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
-* [ADR 010: One versioned JSON API with coded domain errors](ADR-010.md)
+* [ADR 001: Persistent top menu bar](persistent-top-menu-bar.md)
+* [ADR 002: Persistent version footer](persistent-version-footer.md)
+* [ADR 005: Boards, sprints, and backlog as views over one issue pool](boards-sprints-and-backlog.md)
+* [ADR 010: One versioned JSON API with coded domain errors](versioned-json-api.md)
 * [Package version (single source of truth)](../version.md)

@@ -5,7 +5,7 @@
 
 ## Background
 
-A completed sprint keeps its closed issues as the record of what it held ([ADR 013](ADR-013.md)). The Kanban stacks a row of columns per sprint. [ADR 032](ADR-032.md) already omitted Done and Cancelled issues in a completed sprint from the master board at `/board`, and left the same hide rule off the project board until a later change. An empty completed sprint was already not a lane. A completed sprint that still held closed cards was.
+A completed sprint keeps its closed issues as the record of what it held ([ADR 013](planning-realization.md)). The Kanban stacks a row of columns per sprint. [ADR 032](ADR-032.md) already omitted Done and Cancelled issues in a completed sprint from the master board at `/board`, and left the same hide rule off the project board until a later change. An empty completed sprint was already not a lane. A completed sprint that still held closed cards was.
 
 ## Problem Statement
 
@@ -77,6 +77,6 @@ flowchart TD
 
 ## Supporting Documentation
 
-* [ADR 013: Planning realization](ADR-013.md)
+* [ADR 013: Planning realization](planning-realization.md)
 * [ADR 032: Master board across all projects](ADR-032.md)
 * [UI design](../design/ui.md)

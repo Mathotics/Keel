@@ -5,7 +5,7 @@
 
 ## Background
 
-Keel uses one shared, fixed workflow. [ADR 013](ADR-013.md) set five statuses — *To Do*, *In Progress*, *In Review*, *Blocked*, *Done* — and made *Done* the single terminal status for backlog membership, sprint carry-over, blocker resolution, and parent progress. [ADR 004](ADR-004.md) still forbids per-project workflows and enforced transition rules. Anyone who can edit an issue can set Status from the issue page, the create form, or by moving a board card.
+Keel uses one shared, fixed workflow. [ADR 013](planning-realization.md) set five statuses — *To Do*, *In Progress*, *In Review*, *Blocked*, *Done* — and made *Done* the single terminal status for backlog membership, sprint carry-over, blocker resolution, and parent progress. [ADR 004](shared-fixed-workflow.md) still forbids per-project workflows and enforced transition rules. Anyone who can edit an issue can set Status from the issue page, the create form, or by moving a board card.
 
 There is no way to close work that will not be done without recording it as Done.
 
@@ -32,7 +32,7 @@ Abandoned work and finished work share one closed status. That inflates Done on 
 
 ### Out-of-Scope
 
-- Per-project workflows, custom statuses, or a separate resolution field ([ADR 004](ADR-004.md)).
+- Per-project workflows, custom statuses, or a separate resolution field ([ADR 004](shared-fixed-workflow.md)).
 - Enforced transition rules (Cancelled stays reversible).
 - A required reason or comment when cancelling.
 - Automatically changing children when a parent is cancelled.
@@ -42,7 +42,7 @@ Abandoned work and finished work share one closed status. That inflates Done on 
 ### Deliverables
 
 - This record.
-- Amendments to the five-status / single-terminal wording in [ADR 013](ADR-013.md), progress wording in [ADR 012](ADR-012.md), unresolved-blocker wording in [ADR 014](ADR-014.md), and the Status glossary entry.
+- Amendments to the five-status / single-terminal wording in [ADR 013](planning-realization.md), progress wording in [ADR 012](issue-realization.md), unresolved-blocker wording in [ADR 014](cross-project-dependencies.md), and the Status glossary entry.
 
 ## Technical Requirements
 
@@ -135,8 +135,8 @@ flowchart TD
 
 ## Supporting Documentation
 
-* [ADR 004: Shared fixed workflow](ADR-004.md)
-* [ADR 012: Issue identity, effort, rollup, deletion](ADR-012.md)
-* [ADR 013: Planning realization](ADR-013.md)
-* [ADR 014: Cross-project dependencies](ADR-014.md)
+* [ADR 004: Shared fixed workflow](shared-fixed-workflow.md)
+* [ADR 012: Issue identity, effort, rollup, deletion](issue-realization.md)
+* [ADR 013: Planning realization](planning-realization.md)
+* [ADR 014: Cross-project dependencies](cross-project-dependencies.md)
 * [Glossary](../architecture/glossary.md)

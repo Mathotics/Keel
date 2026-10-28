@@ -17,9 +17,9 @@
 
 ## Background
 
-Keel's shared chrome already treats `/` as home: the far-left icon in [ADR 001](ADR-001.md) links there, and [UI design](../design/ui.md) keeps `/` as an entry point separate from `/projects`. Until this record, `/` was a temporary redirect to the project list so browsers would not cache a placeholder. The UI design already said that redirect lasts only until `/` has something worth showing, and that with more than one project the project list is a directory, not a starting point.
+Keel's shared chrome already treats `/` as home: the far-left icon in [ADR 001](persistent-top-menu-bar.md) links there, and [UI design](../design/ui.md) keeps `/` as an entry point separate from `/projects`. Until this record, `/` was a temporary redirect to the project list so browsers would not cache a placeholder. The UI design already said that redirect lasts only until `/` has something worth showing, and that with more than one project the project list is a directory, not a starting point.
 
-The acting user is always known in the browser via the picker ([ADR 011](ADR-011.md)). Issues already carry assignee, due date, workflow status, dependency blockers, sprint membership, and series occurrence dates ([ADR 012](ADR-012.md), [ADR 013](ADR-013.md), [ADR 014](ADR-014.md), [ADR 021](ADR-021.md)).
+The acting user is always known in the browser via the picker ([ADR 011](ambient-identity.md)). Issues already carry assignee, due date, workflow status, dependency blockers, sprint membership, and series occurrence dates ([ADR 012](issue-realization.md), [ADR 013](planning-realization.md), [ADR 014](cross-project-dependencies.md), [ADR 021](repeating-work-scheduling-manager.md)).
 
 ## Problem Statement
 
@@ -81,7 +81,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 * **Must** re-render `/` after a status change so membership updates; **Must** show a refused change with the usual page error, not a JSON body.
 * **Must** mix issues from every project in each section, with the project key visible on the row.
 * **Must** keep the existing top bar, footer, home icon, Find, and picker; Find on `/` **Must Not** scope to a project.
-* **Must** work without JavaScript; on a phone-narrow viewport **Must** use the existing swipeable table treatment ([ADR 018](ADR-018.md)).
+* **Must** work without JavaScript; on a phone-narrow viewport **Must** use the existing swipeable table treatment ([ADR 018](phone-layout.md)).
 * **Must Not** add a reorderable Home nav item, filters, or pagination on this page.
 * **Must Not** create, edit, or delete projects, series recipes, or issue fields other than status from `/`.
 
@@ -100,7 +100,7 @@ Opening Keel lands on a list of projects. That is the wrong first question once 
 
 ### Technical Stack and Architecture
 
-This feature only changes what `/` shows inside the existing Jinja2 chrome ([ADR 009](ADR-009.md)). Entry points: the home icon, typing `/`, and the picker returning to the current path. It reads the acting user, issues, sprints, dependency blocker counts, and series occurrence dates already used by the board, backlog, issue page, and schedules. Status changes reuse `/web/issues/{id}/status`. Query shape, caching, and any JSON inbox API are leftovers for `/blueprint` if that work is requested; they are not required to describe the page.
+This feature only changes what `/` shows inside the existing Jinja2 chrome ([ADR 009](server-rendered-jinja2.md)). Entry points: the home icon, typing `/`, and the picker returning to the current path. It reads the acting user, issues, sprints, dependency blocker counts, and series occurrence dates already used by the board, backlog, issue page, and schedules. Status changes reuse `/web/issues/{id}/status`. Query shape, caching, and any JSON inbox API are leftovers for `/blueprint` if that work is requested; they are not required to describe the page.
 
 ### UML Diagrams
 
@@ -145,12 +145,12 @@ flowchart TD
 
 * [UI design](../design/ui.md)
 * [Use cases](../architecture/use-cases.md)
-* [ADR 001: Persistent top menu bar](ADR-001.md)
-* [ADR 011: Ambient identity without authentication](ADR-011.md)
-* [ADR 013: Planning realization](ADR-013.md)
-* [ADR 014: Cross-project dependencies and cycle detection](ADR-014.md)
-* [ADR 018: Phone layout of the existing site](ADR-018.md)
-* [ADR 021: Repeating work via Scheduling Manager](ADR-021.md)
+* [ADR 001: Persistent top menu bar](persistent-top-menu-bar.md)
+* [ADR 011: Ambient identity without authentication](ambient-identity.md)
+* [ADR 013: Planning realization](planning-realization.md)
+* [ADR 014: Cross-project dependencies and cycle detection](cross-project-dependencies.md)
+* [ADR 018: Phone layout of the existing site](phone-layout.md)
+* [ADR 021: Repeating work via Scheduling Manager](repeating-work-scheduling-manager.md)
 * [Collapsible home inbox sections](collapsible-home-inbox-sections.md)
 * [Completed today on the home inbox](completed-today-home-panel.md)
 * [Due this week and due this month as separate home panels](due-this-week-and-due-this-month-home-panels.md)

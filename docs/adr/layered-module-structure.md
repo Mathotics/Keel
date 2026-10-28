@@ -7,7 +7,7 @@
 
 Keel's existing source tree is eight modules: an app factory, a CLI, settings, path helpers, a version reader, one HTML layout helper, and two route modules. That is proportional to a home page and a health check. The v1 [capabilities](../architecture/capabilities.md) add project management, a typed issue hierarchy, a Kanban board, sprints, dependencies, comments, and effort rollup, each with rules that must hold no matter which entry point invoked them.
 
-Those rules are not incidental. [ADR 003](ADR-003.md) warns that "invalid hierarchies could be created; the hierarchy constraints must be stated and honored," and [ADR 006](ADR-006.md) warns that "cycle detection must consider the whole blocking graph." Both are correctness properties that must not depend on whether a request arrived from the browser, the JSON API, or the CLI.
+Those rules are not incidental. [ADR 003](unified-issue-model.md) warns that "invalid hierarchies could be created; the hierarchy constraints must be stated and honored," and [ADR 006](ticket-dependencies.md) warns that "cycle detection must consider the whole blocking graph." Both are correctness properties that must not depend on whether a request arrived from the browser, the JSON API, or the CLI.
 
 ## Problem Statement
 
@@ -128,7 +128,7 @@ sequenceDiagram
 * [Data model](../design/data-model.md)
 * [API reference](../design/api.md)
 * [Capabilities](../architecture/capabilities.md)
-* [ADR 003: Unified issue model with a typed hierarchy](ADR-003.md)
-* [ADR 006: Ticket dependencies as directed typed links](ADR-006.md)
-* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](ADR-007.md)
-* [ADR 010: One versioned JSON API with coded domain errors](ADR-010.md)
+* [ADR 003: Unified issue model with a typed hierarchy](unified-issue-model.md)
+* [ADR 006: Ticket dependencies as directed typed links](ticket-dependencies.md)
+* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](sqlite-sqlalchemy-alembic.md)
+* [ADR 010: One versioned JSON API with coded domain errors](versioned-json-api.md)

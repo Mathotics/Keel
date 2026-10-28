@@ -1,9 +1,9 @@
 # ADR 003: Unified issue model with a typed hierarchy
 
-* **Status:** Accepted, extended by [ADR 012](ADR-012.md)
+* **Status:** Accepted, extended by [ADR 012](issue-realization.md)
 * **Date:** 2026-08-31
 
-> **Extension.** [ADR 012](ADR-012.md) states the hierarchy constraints this ADR flagged as a risk, and settles issue identifiers, effort units, rollup semantics, and deletion behaviour.
+> **Extension.** [ADR 012](issue-realization.md) states the hierarchy constraints this ADR flagged as a risk, and settles issue identifiers, effort units, rollup semantics, and deletion behaviour.
 
 ## Background
 
@@ -57,7 +57,7 @@ Epics, Stories, and Subtasks need one clear representation. If each is modeled a
 
 ### Technical Stack and Architecture
 
-This is a **conceptual domain decision**, not an implementation one. It defines the shape of the central entity that later features — boards ([ADR 005](ADR-005.md)), sprints, dependencies ([ADR 006](ADR-006.md)), comments, and time estimates — all build on. It does not choose a storage technology or dictate module layout; those belong to the component/blueprint stage.
+This is a **conceptual domain decision**, not an implementation one. It defines the shape of the central entity that later features — boards ([ADR 005](boards-sprints-and-backlog.md)), sprints, dependencies ([ADR 006](ticket-dependencies.md)), comments, and time estimates — all build on. It does not choose a storage technology or dictate module layout; those belong to the component/blueprint stage.
 
 ### UML Diagrams
 
@@ -85,7 +85,7 @@ flowchart TD
 * [Capabilities](../architecture/capabilities.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [Glossary](../architecture/glossary.md)
-* [ADR 004: Shared fixed workflow](ADR-004.md)
-* [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
-* [ADR 006: Ticket dependencies as directed typed links](ADR-006.md)
+* [ADR 004: Shared fixed workflow](shared-fixed-workflow.md)
+* [ADR 005: Boards, sprints, and backlog as views over one issue pool](boards-sprints-and-backlog.md)
+* [ADR 006: Ticket dependencies as directed typed links](ticket-dependencies.md)
 * [Package version (single source of truth)](../version.md)

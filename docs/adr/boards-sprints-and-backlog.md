@@ -1,13 +1,13 @@
 # ADR 005: Boards, sprints, and backlog as views over one issue pool
 
-* **Status:** Accepted, amended by [ADR 013](ADR-013.md)
+* **Status:** Accepted, amended by [ADR 013](planning-realization.md)
 * **Date:** 2026-08-31
 
-> **Amendment.** [ADR 013](ADR-013.md) supersedes this ADR's backlog rules. The backlog carries no manual rank and is ordered by creation date, and membership is defined as having no sprint assigned and not being done, rather than not being scheduled in an *active* sprint. [ADR 013](ADR-013.md) also fixes the sprint lifecycle details this ADR left open. Everything else here stands.
+> **Amendment.** [ADR 013](planning-realization.md) supersedes this ADR's backlog rules. The backlog carries no manual rank and is ordered by creation date, and membership is defined as having no sprint assigned and not being done, rather than not being scheduled in an *active* sprint. [ADR 013](planning-realization.md) also fixes the sprint lifecycle details this ADR left open. Everything else here stands.
 
 ## Background
 
-Keel presents a project's work three ways: on a **Kanban board**, inside a **sprint**, and in the **backlog**. In many trackers these feel like separate places that "hold" issues. But an issue on the board, an issue committed to a sprint, and an issue waiting in the backlog are the *same* issue seen through different lenses. With the unified issue from [ADR 003](ADR-003.md) and the shared statuses from [ADR 004](ADR-004.md) established, Keel must decide how boards, sprints, and the backlog relate to issues.
+Keel presents a project's work three ways: on a **Kanban board**, inside a **sprint**, and in the **backlog**. In many trackers these feel like separate places that "hold" issues. But an issue on the board, an issue committed to a sprint, and an issue waiting in the backlog are the *same* issue seen through different lenses. With the unified issue from [ADR 003](unified-issue-model.md) and the shared statuses from [ADR 004](shared-fixed-workflow.md) established, Keel must decide how boards, sprints, and the backlog relate to issues.
 
 ## Problem Statement
 
@@ -24,7 +24,7 @@ If a board, a sprint, and the backlog each own their own copy or list of issues,
 
 ### In-Scope
 
-- **Board** as a per-project view; its columns surface the shared statuses ([ADR 004](ADR-004.md)) and its cards are the project's issues.
+- **Board** as a per-project view; its columns surface the shared statuses ([ADR 004](shared-fixed-workflow.md)) and its cards are the project's issues.
 - **Sprint** as a time-boxed grouping; an issue's membership in a sprint is an attribute of that issue.
 - **Backlog** as the ordered set of a project's issues **not** scheduled in an active sprint, sorted by each issue's backlog rank.
 - Sprint lifecycle *planned → active → completed*, where completing a sprint returns unfinished issues to the backlog view.
@@ -60,7 +60,7 @@ If a board, a sprint, and the backlog each own their own copy or list of issues,
 
 ### Technical Stack and Architecture
 
-A conceptual decision about how **Board**, **Sprint**, and the **backlog** relate to the unified **Issue** ([ADR 003](ADR-003.md)) and shared **Status** ([ADR 004](ADR-004.md)). Boards and sprints are entities; the backlog is a derived view. No storage, ordering, or query mechanism is specified here.
+A conceptual decision about how **Board**, **Sprint**, and the **backlog** relate to the unified **Issue** ([ADR 003](unified-issue-model.md)) and shared **Status** ([ADR 004](shared-fixed-workflow.md)). Boards and sprints are entities; the backlog is a derived view. No storage, ordering, or query mechanism is specified here.
 
 ### UML Diagrams
 
@@ -105,6 +105,6 @@ stateDiagram-v2
 * [Use cases](../architecture/use-cases.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [Glossary](../architecture/glossary.md)
-* [ADR 003: Unified issue model with a typed hierarchy](ADR-003.md)
-* [ADR 004: Shared fixed workflow](ADR-004.md)
+* [ADR 003: Unified issue model with a typed hierarchy](unified-issue-model.md)
+* [ADR 004: Shared fixed workflow](shared-fixed-workflow.md)
 * [Package version (single source of truth)](../version.md)

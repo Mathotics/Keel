@@ -7,7 +7,7 @@
 
 ## Background
 
-Keel v1 is a personal issue tracker used in the browser: projects, issues, board, backlog, sprints, find, users, and the rest of the recorded surface. Pages share the sticky top bar of [ADR 001](ADR-001.md) and the footer of [ADR 002](ADR-002.md), and they already declare a mobile viewport in `base.html`. There is no phone layout: the bar, board columns, and tables are sized for a desktop window. [ADR 009](ADR-009.md) keeps every action working without JavaScript, with board drag as an enhancement over a Move form.
+Keel v1 is a personal issue tracker used in the browser: projects, issues, board, backlog, sprints, find, users, and the rest of the recorded surface. Pages share the sticky top bar of [ADR 001](persistent-top-menu-bar.md) and the footer of [ADR 002](persistent-version-footer.md), and they already declare a mobile viewport in `base.html`. There is no phone layout: the bar, board columns, and tables are sized for a desktop window. [ADR 009](server-rendered-jinja2.md) keeps every action working without JavaScript, with board drag as an enhancement over a Move form.
 
 The owner needs to use this same site on a phone, reached by URL like any other website.
 
@@ -31,7 +31,7 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 - Board columns that keep a readable card width and are reached by swiping sideways, including when the board is separated by sprint.
 - Status changes on the board via the existing Move control; dragging a card with a finger only if the browser supports it.
 - Existing tables (project list, backlog, users, children, search results, and similar) that keep their columns and swipe sideways for the rest.
-- On a phone, the version footer at the end of the page rather than pinned over the content (amends [ADR 002](ADR-002.md) for narrow viewports only).
+- On a phone, the version footer at the end of the page rather than pinned over the content (amends [ADR 002](persistent-version-footer.md) for narrow viewports only).
 - Wide (desktop) viewports left looking and behaving as they do today.
 
 ### Out-of-Scope
@@ -48,7 +48,7 @@ On a narrow screen the current layout is not usable: the bar and a viewport-pinn
 
 - This ADR.
 - An amendment in [UI design](../design/ui.md) describing the narrow-viewport chrome, board, tables, and footer.
-- A short note in [ADR 002](ADR-002.md) that the footer is not pinned on phone-narrow viewports.
+- A short note in [ADR 002](persistent-version-footer.md) that the footer is not pinned on phone-narrow viewports.
 
 ## Technical Requirements
 
@@ -126,8 +126,8 @@ stateDiagram-v2
 ## Supporting Documentation
 
 * [Phone menu](phone-menu.md)
-* [ADR 001: Persistent top menu bar](ADR-001.md)
-* [ADR 002: Persistent version footer](ADR-002.md)
-* [ADR 009: Server-rendered pages with vanilla JavaScript](ADR-009.md)
+* [ADR 001: Persistent top menu bar](persistent-top-menu-bar.md)
+* [ADR 002: Persistent version footer](persistent-version-footer.md)
+* [ADR 009: Server-rendered pages with vanilla JavaScript](server-rendered-jinja2.md)
 * [UI design](../design/ui.md)
 * [v1 scope](../architecture/v1-scope.md)

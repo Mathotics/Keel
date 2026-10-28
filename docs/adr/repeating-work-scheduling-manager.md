@@ -9,7 +9,7 @@
 
 ## Background
 
-Keel is a personal, Jira-flavored issue tracker for one owner plus up to two collaborators. Work is Epic / Story / Subtask ([ADR 003](ADR-003.md)), shown on a shared board, backlog, and sprints ([ADR 013](ADR-013.md)). *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](ADR-020.md)). Projects may opt into **auto-sprint** so a single dated window opens and closes on a cadence ([ADR 019](ADR-019.md)); they may also keep the next N windows planned in advance ([Auto-sprint lookahead](auto-sprint-lookahead.md)).
+Keel is a personal, Jira-flavored issue tracker for one owner plus up to two collaborators. Work is Epic / Story / Subtask ([ADR 003](unified-issue-model.md)), shown on a shared board, backlog, and sprints ([ADR 013](planning-realization.md)). *Done* and *Cancelled* are closed; only *Done* is completed ([ADR 020](cancelled-status.md)). Projects may opt into **auto-sprint** so a single dated window opens and closes on a cadence ([ADR 019](auto-sprint-cadence.md)); they may also keep the next N windows planned in advance ([Auto-sprint lookahead](auto-sprint-lookahead.md)).
 
 That model fits one-off product work. It does not fit chores and other jobs that come back on a cadence, which is part of what Keel is for. Users still want those jobs in the **same** project and board as product work (custom boards are a far-future non-goal). Copies must be allowed to differ: “Pay bills” this month may need a different description and comments than last month.
 
@@ -41,7 +41,7 @@ Keel has no way to express repeating work. If the same issue were reset to To Do
 
 - A new Chore (or other) issue type.
 - Custom boards.
-- Changing Auto-sprint ([ADR 019](ADR-019.md) already shipped) or Cancelled ([ADR 020](ADR-020.md) already shipped).
+- Changing Auto-sprint ([ADR 019](auto-sprint-cadence.md) already shipped) or Cancelled ([ADR 020](cancelled-status.md) already shipped).
 - Email, push, or other reminders; extra overdue chrome beyond the existing due date.
 - “Delete entire series” mass-deletion of all spawned issues.
 - Rotating assignees, reminder windows, or spawning a tree of children from one tick.
@@ -94,7 +94,7 @@ Keel has no way to express repeating work. If the same issue were reset to To Do
 
 ### Technical Stack and Architecture
 
-The feature adds a project **Schedules** page beside board, backlog, and sprints. Spawned work is ordinary issues. Auto-sprint remains on project settings and the sprints page ([ADR 019](ADR-019.md)). Status rules stay those of [ADR 020](ADR-020.md). `keel.services.series` owns recipes, Outlook-scoped edits, skip dates, and spawn. Catch-up runs in the same request session and background poll as auto-sprint so a rollover can receive copies.
+The feature adds a project **Schedules** page beside board, backlog, and sprints. Spawned work is ordinary issues. Auto-sprint remains on project settings and the sprints page ([ADR 019](auto-sprint-cadence.md)). Status rules stay those of [ADR 020](cancelled-status.md). `keel.services.series` owns recipes, Outlook-scoped edits, skip dates, and spawn. Catch-up runs in the same request session and background poll as auto-sprint so a rollover can receive copies.
 
 ### UML Diagrams
 
@@ -133,10 +133,10 @@ flowchart TD
 
 ## Supporting Documentation
 
-* [ADR 003: Unified issue model with a typed hierarchy](ADR-003.md)
-* [ADR 013: Planning realization — statuses, board and backlog composition, sprint lifecycle](ADR-013.md)
-* [ADR 019: Auto-sprint cadence](ADR-019.md)
-* [ADR 020: Cancelled status](ADR-020.md)
+* [ADR 003: Unified issue model with a typed hierarchy](unified-issue-model.md)
+* [ADR 013: Planning realization — statuses, board and backlog composition, sprint lifecycle](planning-realization.md)
+* [ADR 019: Auto-sprint cadence](auto-sprint-cadence.md)
+* [ADR 020: Cancelled status](cancelled-status.md)
 * [ADR 024: Issue-page repeating recipe in an overlay](ADR-024.md)
 * [ADR 028: Delete a schedule without deleting spawned issues](ADR-028.md)
 * [UI design](../design/ui.md)
