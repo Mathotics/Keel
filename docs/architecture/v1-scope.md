@@ -18,8 +18,9 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Projects** — a first-class container; issues, boards, sprints, and backlog are scoped to a project. Multiple projects are supported from the start.
 * **Shared fixed workflow** — a single small status set shared across projects ([ADR 004](../adr/shared-fixed-workflow.md)).
 * **Users** — people for assignee and reporter, each with a username and password ([Password login](../adr/password-login.md)).
-* **Comments** — notes on issues; descriptions and comments render as Markdown on the issue page ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
-* **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)).
+* **Comments** — notes on issues; descriptions, definitions of done, and comments render as Markdown on the issue page ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
+* **Definition of done** — a second free-text body on every issue, beneath Description, for the criteria that make it *Done*. Optional and unenforced ([Issue definition of done](../adr/issue-definition-of-done.md)).
+* **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
 * **Priority** — a required five-level rank on every issue so urgency is visible on cards and lists ([ADR 030](../adr/ADR-030.md)).
 * **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/find-from-the-top-bar.md)).

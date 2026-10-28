@@ -49,6 +49,7 @@ class IssueDraft:
     type: IssueType = IssueType.STORY
     title: str = ""
     description: str = ""
+    definition_of_done: str = ""
     status: IssueStatus = IssueStatus.TODO
     priority: IssuePriority = INITIAL_PRIORITY
     parent_label: str = ""

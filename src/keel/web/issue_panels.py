@@ -7,6 +7,7 @@ ISSUE_PANELS_COOKIE_MAX_AGE = 400 * 24 * 60 * 60
 
 PANELS: tuple[str, ...] = (
     "description",
+    "definition_of_done",
     "children",
     "dependencies",
     "history",

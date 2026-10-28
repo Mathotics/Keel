@@ -3033,6 +3033,7 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   const [type, setType] = useState("story");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [definitionOfDone, setDefinitionOfDone] = useState("");
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("p4");
   const [assigneeId, setAssigneeId] = useState("");
@@ -3157,6 +3158,7 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
       projectId: project.id,
       type,
       description,
+      definitionOfDone,
       status,
       priority,
       assigneeId: assigneeId ? Number(assigneeId) : null,
@@ -3205,6 +3207,12 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
       <Dropdown label="Type" value={type} options={TYPE_OPTIONS} onChange={setType} />
       <Field label="Title" value={title} onChange={setTitle} />
       <Field label="Description" value={description} onChange={setDescription} multiline />
+      <Field
+        label="Definition of Done"
+        value={definitionOfDone}
+        onChange={setDefinitionOfDone}
+        multiline
+      />
       <Dropdown label="Status" value={status} options={STATUS_OPTIONS} onChange={setStatus} />
       <Dropdown label="Priority" value={priority} options={PRIORITY_OPTIONS} onChange={setPriority} />
       <LookupField
@@ -3251,6 +3259,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
   const [type, setType] = useState(issue.type || "story");
   const [title, setTitle] = useState(issue.title || "");
   const [description, setDescription] = useState(issue.description || "");
+  const [definitionOfDone, setDefinitionOfDone] = useState(issue.definition_of_done || "");
   const [status, setStatus] = useState(issue.status || "todo");
   const [priority, setPriority] = useState(issue.priority || "p4");
   const [assigneeId, setAssigneeId] = useState(issue.assignee_id ? String(issue.assignee_id) : "");
@@ -3359,6 +3368,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       projectId: issue.project_id,
       type,
       description,
+      definitionOfDone,
       status,
       priority,
       assigneeId: assigneeId ? Number(assigneeId) : null,
@@ -3406,6 +3416,12 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       ))}
       <Field label="Title" value={title} onChange={setTitle} />
       <Field label="Description" value={description} onChange={setDescription} multiline />
+      <Field
+        label="Definition of Done"
+        value={definitionOfDone}
+        onChange={setDefinitionOfDone}
+        multiline
+      />
       <Text style={styles.label}>Status</Text>
       {STATUS_OPTIONS.map((item) => (
         <Choice key={item.id} selected={status === item.id} title={item.title} onPress={() => setStatus(item.id)} />
@@ -5036,6 +5052,8 @@ function IssueDetail({
           ) : null}
           <Text style={styles.sectionHeading}>Description</Text>
           <Markdown blocks={page.description} />
+          <Text style={styles.sectionHeading}>Definition of Done</Text>
+          <Markdown blocks={page.definitionOfDone} empty="No definition of done." />
           <Text style={styles.sectionHeading}>Parent</Text>
           {page.parent ? (
             <LinkedRow item={page.parent} onPress={() => setStack((current) => [...current, page.parent.id])} />
@@ -5230,9 +5248,9 @@ function LinkGroup({ title, items, onOpen, onRemove }) {
   );
 }
 
-function Markdown({ blocks }) {
+function Markdown({ blocks, empty = "No description." }) {
   if (!blocks.length) {
-    return <Text style={styles.message}>No description.</Text>;
+    return <Text style={styles.message}>{empty}</Text>;
   }
   return blocks.map((block, index) => {
     if (block.type === "code") {

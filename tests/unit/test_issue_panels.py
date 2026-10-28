@@ -13,6 +13,11 @@ def test_unknown_keys_are_dropped_and_order_is_canonical() -> None:
     assert encode_collapsed(parsed) == "description.history.comments"
 
 
+def test_definition_of_done_sits_right_after_description() -> None:
+    parsed = parse_collapsed("children.definition_of_done.description")
+    assert encode_collapsed(parsed) == "description.definition_of_done.children"
+
+
 def test_toggling_a_panel_adds_or_removes_it() -> None:
     assert encode_toggle((), "comments") == "comments"
     assert encode_toggle(("comments", "history"), "comments") == "history"

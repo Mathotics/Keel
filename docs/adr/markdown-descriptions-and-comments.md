@@ -1,7 +1,9 @@
 # ADR 017: Render issue descriptions and comments as Markdown
 
 * **Status:** Accepted
-* **Date:** 2026-09-02
+* **Date:** 2026-10-28
+
+> **Amendment.** [Issue definition of done](issue-definition-of-done.md) adds a second plain-text body to the issue, `definition_of_done`, and renders it through this same filter and sanitizer. Everywhere this record says "description", read "description and definition of done".
 
 ## Background
 

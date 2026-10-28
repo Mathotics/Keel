@@ -47,6 +47,13 @@ _PATH_LIMIT = 2048
 WRITE_METHODS = frozenset({"POST", "PATCH", "PUT", "DELETE"})
 LOG_PATH = "/admin/log"
 _PERSON_RE = re.compile(r"[1-9][0-9]*")
+# Markdown bodies are too long to quote in a log note.
+_OPAQUE_TEXT_FIELDS = frozenset(
+    {
+        history_service.FIELD_DESCRIPTION,
+        history_service.FIELD_DEFINITION_OF_DONE,
+    },
+)
 
 
 @dataclass
@@ -462,8 +469,8 @@ def _token_note(token: ApiToken, verb: str) -> str | None:
 
 def _history_line(session: Session, event_row: IssueHistory) -> str:
     key = history_service.parent_label(session, event_row.issue_id)
-    if event_row.field == history_service.FIELD_DESCRIPTION:
-        return f"{key} description changed"
+    if event_row.field in _OPAQUE_TEXT_FIELDS:
+        return f"{key} {event_row.field} changed"
     line = f"{key} {event_row.field} {event_row.from_value} → {event_row.to_value}"
     if len(line) > 300:
         return line[:299] + "…"

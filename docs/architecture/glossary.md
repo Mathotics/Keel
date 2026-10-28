@@ -9,7 +9,8 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Board column** — a lane on a board that surfaces the issues currently in one status.
 * **Collaborator** — one of up to two trusted people who share a project with the owner; in v1, equal in ability to the owner.
 * **Comment** — a note attached to an issue, capturing discussion and context over time.
-* **Issue history** — an append-only trail on an issue of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, or labels, from what to what ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)).
+* **Definition of done** — a free-text Markdown field on an issue, Description's twin, naming what has to be true before that issue may move to *Done*. Optional; nothing validates or enforces it ([Issue definition of done](../adr/issue-definition-of-done.md)).
+* **Issue history** — an append-only trail on an issue of who changed status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, or labels, from what to what ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
 * **Label** — a reusable free-form tag on an issue; the catalog is shared across projects ([ADR 031](../adr/ADR-031.md)).
 * **Dependency** — a directed, typed link between two issues; either *blocks* or *relates-to*.
 * **Epic** — the top level of the issue hierarchy; groups related Stories.

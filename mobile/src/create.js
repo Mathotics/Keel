@@ -140,6 +140,7 @@ function prepareCreate(input) {
       title,
       type,
       description: String(input.description || ""),
+      definition_of_done: String(input.definitionOfDone || ""),
       status: input.status || "todo",
       priority: input.priority || "p4",
       assignee_id: input.assigneeId || null,
@@ -161,6 +162,7 @@ function prepareUpdate(input) {
     projectId: input.projectId,
     type: input.type,
     description: input.description,
+    definitionOfDone: input.definitionOfDone,
     status: input.status,
     priority: input.priority,
     assigneeId: input.assigneeId,
@@ -198,6 +200,9 @@ function prepareUpdate(input) {
   }
   if ((draft.description || "") !== (issue.description || "")) {
     changes.description = draft.description;
+  }
+  if ((draft.definition_of_done || "") !== (issue.definition_of_done || "")) {
+    changes.definition_of_done = draft.definition_of_done;
   }
   if (draft.status !== issue.status) {
     changes.status = draft.status;

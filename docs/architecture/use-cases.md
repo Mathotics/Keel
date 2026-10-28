@@ -22,6 +22,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 * **Group work under an Epic.** A user creates an Epic to represent a large body of work, files Stories from that Epic, and sees its child Stories and rolled-up progress.
 * **Write a Story.** A user creates a Story (optionally under an Epic), gives it a description, assigns it to a person, sets a priority and a time estimate, and moves it through statuses.
+* **Say what Done means.** A user writes an issue's definition of done in its own panel beneath Description, so the next reader knows which criteria to check before moving it to *Done*. Nothing enforces it ([Issue definition of done](../adr/issue-definition-of-done.md)).
 * **File an issue quickly.** A user opens Create from the menu, picks a project and type, types a title, and lands on the new issue to fill in the rest.
 * **Find work by name.** A user types an issue key, a title, or other text in the menu and jumps to that item, or sees a short list of matches, without scanning the board.
 * **Break a Story into Subtasks.** A user creates Subtasks from the Story's page; Subtask progress and time estimates roll up to the parent Story.
@@ -29,7 +30,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 ## Backlog
 
 * **Review the backlog.** A user views all of a project's unscheduled, unfinished work as one list in the order it was created. There is no manual ordering — see [ADR 013](../adr/planning-realization.md), which amends [ADR 005](../adr/boards-sprints-and-backlog.md).
-* **Refine an item.** A user opens a backlog item to edit its description, estimate, assignee, or parent.
+* **Refine an item.** A user opens a backlog item to edit its description, definition of done, estimate, assignee, or parent.
 
 ## Sprints
 
@@ -63,15 +64,15 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Comments
 
-* **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions and comments may use Markdown; the issue page renders it ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
+* **Discuss an issue.** A user adds comments to an issue to capture notes, decisions, and context over time, and reads the existing thread. Descriptions, definitions of done, and comments may use Markdown; the issue page renders it ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
 
 ## Issue page
 
-* **Fold a panel.** A user minimizes Description, Children, Dependencies, History, or Comments. The heading stays, list panels keep their counts, and this browser remembers the closed set across issues ([Foldable issue panels](../adr/foldable-issue-panels.md)).
+* **Fold a panel.** A user minimizes Description, Definition of Done, Children, Dependencies, History, or Comments. The heading stays, list panels keep their counts, and this browser remembers the closed set across issues ([Foldable issue panels](../adr/foldable-issue-panels.md)).
 
 ## Issue history
 
-* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, and description changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md)).
+* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, and definition of done changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
 
 ## Time estimates
 
