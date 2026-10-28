@@ -152,6 +152,7 @@ What Keel is and why is described in the [architecture package](docs/architectur
 | Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [implementation plan](docs/design/implementation-plan.md) |
 | Decisions | [ADRs](docs/adr/) — 001 and 002 cover the web chrome, 003 to 006 the domain, 007 to 025 the implementation, [026](docs/adr/ADR-026.md) production deploy |
+| Process | [Contributing](.github/CONTRIBUTING.md) — ticket to deploy, for the owner and invited collaborators |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The [implementation plan](docs/design/implementation-plan.md) is the build order. All six v1 phases are in place.

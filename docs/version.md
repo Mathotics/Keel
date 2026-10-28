@@ -6,4 +6,4 @@ Runtime and UI code must read it from installed package metadata (`importlib.met
 
 After you bump `pyproject.toml`, reinstall the editable package (`pip install -e ".[dev]"`) so metadata matches.
 
-See [ADR 002](adr/ADR-002.md).
+See [ADR 002](adr/persistent-version-footer.md).
