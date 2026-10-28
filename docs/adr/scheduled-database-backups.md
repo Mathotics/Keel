@@ -5,7 +5,7 @@
 
 ## Background
 
-Production Keel is one SQLite file at `/mnt/library/keel-data/keel.db` on the Raspberry Pi ([ADR 026](ADR-026.md)). `keel db backup` already copies that file, including while `keel serve` is running, and `--yes` overwrites a named destination ([ADR 015](ADR-015.md)). Deploy takes one pre-deploy copy under `/mnt/library/keel-data/` and leaves it there. Nothing copies the database on a clock, and those pre-deploy files are not a daily archive.
+Production Keel is one SQLite file at `/mnt/library/keel-data/keel.db` on the Raspberry Pi ([ADR 026](ADR-026.md)). `keel db backup` already copies that file, including while `keel serve` is running, and `--yes` overwrites a named destination ([ADR 015](database-backup-and-restore.md)). Deploy takes one pre-deploy copy under `/mnt/library/keel-data/` and leaves it there. Nothing copies the database on a clock, and those pre-deploy files are not a daily archive.
 
 ## Problem Statement
 

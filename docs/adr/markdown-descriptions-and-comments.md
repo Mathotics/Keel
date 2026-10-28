@@ -5,11 +5,11 @@
 
 ## Background
 
-Issue descriptions and comments are stored as plain text and shown as-is. That is enough to capture a sentence, and it is a bottleneck for notes: lists, links, and emphasis have to be faked in wrapping paragraphs. [ADR 009](ADR-009.md) already forbids loading assets from a content delivery network, so any rendering must run in process. The JSON API and the create form still exchange the stored source; only HTML pages need a rendered view.
+Issue descriptions and comments are stored as plain text and shown as-is. That is enough to capture a sentence, and it is a bottleneck for notes: lists, links, and emphasis have to be faked in wrapping paragraphs. [ADR 009](server-rendered-jinja2.md) already forbids loading assets from a content delivery network, so any rendering must run in process. The JSON API and the create form still exchange the stored source; only HTML pages need a rendered view.
 
 ## Problem Statement
 
-The owner writes notes in descriptions and comments, but the issue page cannot show structure — a list, a link, or a code span — without leaving the text raw. Client-side Markdown from a CDN would contradict [ADR 009](ADR-009.md). Raw HTML in those fields would be an injection hazard even on a trusted local tool.
+The owner writes notes in descriptions and comments, but the issue page cannot show structure — a list, a link, or a code span — without leaving the text raw. Client-side Markdown from a CDN would contradict [ADR 009](server-rendered-jinja2.md). Raw HTML in those fields would be an injection hazard even on a trusted local tool.
 
 ## Objective(s)
 
@@ -85,5 +85,5 @@ flowchart LR
 
 ## Supporting Documentation
 
-* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](ADR-009.md)
+* [ADR 009: Server-rendered Jinja2 pages with vanilla JavaScript](server-rendered-jinja2.md)
 * [UI design](../design/ui.md)

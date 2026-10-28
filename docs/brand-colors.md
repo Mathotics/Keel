@@ -17,4 +17,4 @@ Type identity hues, recorded by [ADR 027](adr/ADR-027.md). The top bar and foote
 | `--keel-type-story` | `#0F7A73` | Story. Teal, distinct from brand blue. |
 | `--keel-type-subtask` | `#B86A00` | Subtask. Amber. |
 
-See [ADR 001](adr/ADR-001.md) and [ADR 002](adr/ADR-002.md). Version numbers are not listed here; see [Package version](version.md).
+See [ADR 001](adr/persistent-top-menu-bar.md) and [ADR 002](adr/persistent-version-footer.md). Version numbers are not listed here; see [Package version](version.md).

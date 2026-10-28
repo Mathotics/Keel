@@ -3,7 +3,7 @@
 * **Status:** Accepted, amended 2026-09-15
 * **Date:** 2026-09-15
 
-> **Amended 2026-08-31.** The original record forbade any menu destination or label besides the home icon. That was a note about how little existed at the time, not a lasting property of the bar, and later decisions contradict it: [ADR 011](ADR-011.md) places the user picker in the bar, and the [UI design](../design/ui.md) places project section links there. The bar is the application's shared shell and may carry navigation. What it must keep is the home icon at the far left and the recorded palette.
+> **Amended 2026-08-31.** The original record forbade any menu destination or label besides the home icon. That was a note about how little existed at the time, not a lasting property of the bar, and later decisions contradict it: [ADR 011](ambient-identity.md) places the user picker in the bar, and the [UI design](../design/ui.md) places project section links there. The bar is the application's shared shell and may carry navigation. What it must keep is the home icon at the far left and the recorded palette.
 
 > **Amended 2026-09-15.** [ADR 027](ADR-027.md) records type identity hues (Epic brand blue, Story teal, Subtask amber) beside the logo palette. The top bar and footer still use only logo blues. The Must Not against a second unrelated palette does not forbid those recorded type tokens.
 
@@ -104,6 +104,6 @@ stateDiagram-v2
 ## Supporting Documentation
 
 * [Package version (single source of truth)](../version.md)
-* [ADR 002: Persistent version footer](ADR-002.md)
+* [ADR 002: Persistent version footer](persistent-version-footer.md)
 * [Brand colors from logos.png](../brand-colors.md)
 * [ADR 027: Parent key on Kanban cards and type colors](ADR-027.md)

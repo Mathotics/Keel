@@ -37,7 +37,7 @@ Done when a fresh database is created by `keel db upgrade`, `keel serve` starts,
 
 **Status: done.**
 
-* Project model, service, schemas, JSON routes, list and detail pages, with the key validated and the board row created alongside. The list sits at `/projects` beside `/users`. `/` later became the personal inbox rather than a redirect ([ADR 022](../adr/ADR-022.md)).
+* Project model, service, schemas, JSON routes, list and detail pages, with the key validated and the board row created alongside. The list sits at `/projects` beside `/users`. `/` later became the personal inbox rather than a redirect ([ADR 022](../adr/personal-work-inbox.md)).
 * Issue model with per-project numbering drawn from the project counter inside the insert transaction.
 * Hierarchy rules in `keel/domain/hierarchy.py` — type-specific parents, same-project parenthood, ancestor cycle prevention — enforced in the issue service.
 * The status enumeration, with issues created in the first status.
@@ -106,7 +106,7 @@ Done when comments can be added and read, effort round-trips through the shortha
 | Services | Unit tests against an in-memory SQLite database per test |
 | Routes | Integration tests through httpx against the application |
 | End to end | System tests against a live server |
-| Board JavaScript | Not executed by the suite; its endpoints and fallback routes are covered automatically and dragging is checked by hand ([ADR 009](../adr/ADR-009.md)) |
+| Board JavaScript | Not executed by the suite; its endpoints and fallback routes are covered automatically and dragging is checked by hand ([ADR 009](../adr/server-rendered-jinja2.md)) |
 
 ## Related documents
 
@@ -114,7 +114,7 @@ Done when comments can be added and read, effort round-trips through the shortha
 * [Data model](data-model.md)
 * [API reference](api.md)
 * [UI design](ui.md)
-* [ADR 018: Phone layout of the existing site](../adr/ADR-018.md)
+* [ADR 018: Phone layout of the existing site](../adr/phone-layout.md)
 * [Capabilities](../architecture/capabilities.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [Docker container](../adr/docker-container.md)

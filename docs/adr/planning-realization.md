@@ -7,23 +7,23 @@
 
 > **Amendment.** Separate by sprint is on by default. The HTML board still accepts `by=sprint`, and `by=status` restores one shared row of columns.
 
-> **Amendment.** [ADR 020](ADR-020.md) adds *Cancelled* as a sixth status. *Done* and *Cancelled* are both closed (backlog membership and sprint carry-over). Only *Done* is completed (blocker resolution and descendants-done progress).
+> **Amendment.** [ADR 020](cancelled-status.md) adds *Cancelled* as a sixth status. *Done* and *Cancelled* are both closed (backlog membership and sprint carry-over). Only *Done* is completed (blocker resolution and descendants-done progress).
 
 ## Background
 
-[ADR 004](ADR-004.md) decided that the workflow is one small, ordered, fixed status set shared by every project, and explicitly placed "the exact status names and count" out of scope: "the decision is that the set is small, shared, and fixed, not the specific labels." Those labels must now be chosen.
+[ADR 004](shared-fixed-workflow.md) decided that the workflow is one small, ordered, fixed status set shared by every project, and explicitly placed "the exact status names and count" out of scope: "the decision is that the set is small, shared, and fixed, not the specific labels." Those labels must now be chosen.
 
-[ADR 005](ADR-005.md) decided that boards, sprints, and the backlog are views over one issue pool, defined the backlog as "the ordered set of a project's issues not scheduled in an active sprint, sorted by each issue's backlog rank," and left the sprint lifecycle at *planned to active to completed* with unfinished issues returning to the backlog. It did not say what counts as unfinished, whether two sprints can be active at once, or which issue types belong on a board.
+[ADR 005](boards-sprints-and-backlog.md) decided that boards, sprints, and the backlog are views over one issue pool, defined the backlog as "the ordered set of a project's issues not scheduled in an active sprint, sorted by each issue's backlog rank," and left the sprint lifecycle at *planned to active to completed* with unfinished issues returning to the backlog. It did not say what counts as unfinished, whether two sprints can be active at once, or which issue types belong on a board.
 
-During blueprinting the owner determined that hand-ordering the backlog serves no workflow they use, which contradicts the ranking requirement in [ADR 005](ADR-005.md).
+During blueprinting the owner determined that hand-ordering the backlog serves no workflow they use, which contradicts the ranking requirement in [ADR 005](boards-sprints-and-backlog.md).
 
 ## Problem Statement
 
 Four things block implementation of the planning surfaces. The status labels are undecided, and so is whether `Status` becomes a seeded table or an enumeration in code — the [domain model](../architecture/domain-model.md) names it as an entity conceptually, but it is not user-configurable, so a table may earn nothing.
 
-Backlog rank is required by [ADR 005](ADR-005.md) but unwanted, so the backlog needs a different ordering and that ADR needs amending rather than quietly ignoring.
+Backlog rank is required by [ADR 005](boards-sprints-and-backlog.md) but unwanted, so the backlog needs a different ordering and that ADR needs amending rather than quietly ignoring.
 
-The backlog definition in [ADR 005](ADR-005.md) is also awkward on inspection: reading it literally, an issue pulled into a *planned* sprint still appears in the backlog, because the sprint is not yet active, and a finished issue in a completed sprint reappears there once the sprint ends.
+The backlog definition in [ADR 005](boards-sprints-and-backlog.md) is also awkward on inspection: reading it literally, an issue pulled into a *planned* sprint still appears in the backlog, because the sprint is not yet active, and a finished issue in a completed sprint reappears there once the sprint ends.
 
 Finally, the sprint lifecycle is underspecified in ways that change behaviour: with no limit on active sprints, "not scheduled in an active sprint" becomes ambiguous, and "unfinished issues return to the backlog" gives no definition of unfinished.
 
@@ -40,15 +40,15 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 
 - A six-status workflow realized as an enumeration in code.
 - Board composition, including type, assignee, and sprint filters, and separation by sprint on by default.
-- Backlog composition and ordering, amending [ADR 005](ADR-005.md).
+- Backlog composition and ordering, amending [ADR 005](boards-sprints-and-backlog.md).
 - Single-active-sprint enforcement and carry-over on completion.
 - One board created automatically per project.
 
 ### Out-of-Scope
 
-- Per-project or configurable workflows, excluded by [ADR 004](ADR-004.md).
-- Enforced transition rules between statuses, also excluded by [ADR 004](ADR-004.md).
-- Multiple boards per project, permitted but not required by [ADR 005](ADR-005.md).
+- Per-project or configurable workflows, excluded by [ADR 004](shared-fixed-workflow.md).
+- Enforced transition rules between statuses, also excluded by [ADR 004](shared-fixed-workflow.md).
+- Multiple boards per project, permitted but not required by [ADR 005](boards-sprints-and-backlog.md).
 - Work-in-progress limits, and swimlanes other than sprint.
 - Burndown, velocity, and reporting, deferred by [v1 scope](../architecture/v1-scope.md).
 - Overlapping or nested sprints.
@@ -58,7 +58,7 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 - Status and sprint-state enumerations in `keel.domain`.
 - Board and backlog projections in `keel.services`.
 - Sprint lifecycle transitions with their invariants.
-- Amendments to [ADR 005](ADR-005.md) and to the architecture documents that repeat the ranking requirement.
+- Amendments to [ADR 005](boards-sprints-and-backlog.md) and to the architecture documents that repeat the ranking requirement.
 
 ## Technical Requirements
 
@@ -66,11 +66,11 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 
 * **Must** define exactly six ordered statuses: *To Do*, *In Progress*, *In Review*, *Blocked*, *Done*, *Cancelled*.
 * **Must** treat *Done* and *Cancelled* as closed statuses, used to decide backlog membership and sprint carry-over.
-* **Must** treat only *Done* as completed, used to decide blocker resolution and descendants-done progress, per [ADR 020](ADR-020.md).
+* **Must** treat only *Done* as completed, used to decide blocker resolution and descendants-done progress, per [ADR 020](cancelled-status.md).
 * **Must** realize the status set as an enumeration in code with a fixed ordinal, stored as a string on the issue, with no status table and no foreign key.
 * **Must** generate board columns from the enumeration in ordinal order, so board columns are derived rather than stored.
-* **Must** treat *Blocked* as set only by a person, never applied automatically, since [ADR 006](ADR-006.md) excludes dependency-triggered status changes.
-* **May** rename a label later without making the workflow per-project, per [ADR 004](ADR-004.md).
+* **Must** treat *Blocked* as set only by a person, never applied automatically, since [ADR 006](ticket-dependencies.md) excludes dependency-triggered status changes.
+* **May** rename a label later without making the workflow per-project, per [ADR 004](shared-fixed-workflow.md).
 * **Must Not** enforce which status may follow which.
 
 ### Board
@@ -82,7 +82,7 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 * **Must** provide a filter that restricts the board to a chosen sprint, including unscheduled, applied at query time.
 * **Must** stack a row of columns per sprint, including unscheduled, by default, as a grouping of the same cards that `by=status` turns off.
 * **Must** change an issue's status when its card is moved to another column.
-* **Must** show a marker on a card whose blockers are unresolved, as required by [ADR 014](ADR-014.md).
+* **Must** show a marker on a card whose blockers are unresolved, as required by [ADR 014](cross-project-dependencies.md).
 
 ### Backlog
 
@@ -105,9 +105,9 @@ Finally, the sprint lifecycle is underspecified in ways that change behaviour: w
 
 * **Good:** No workflow setup and no board setup; a project is usable the moment it is created. An enumeration means no join to render a board and no seeding step, and an invalid status is impossible. Dropping rank removes a whole interaction — the backlog needs no drag-and-drop, only the board does. Automatic carry-over means completing a sprint never strands work.
 * **Good:** Redefining the backlog as "no sprint assigned" makes sprint planning behave as expected: pulling an issue into a planned sprint removes it from the backlog immediately, rather than only once the sprint starts.
-* **Bad:** This amends an accepted ADR. [ADR 005](ADR-005.md) requires ordering by backlog rank and defines membership by active-sprint scheduling; both are superseded here, and several architecture documents repeat the ranking requirement and must be corrected.
+* **Bad:** This amends an accepted ADR. [ADR 005](boards-sprints-and-backlog.md) requires ordering by backlog rank and defines membership by active-sprint scheduling; both are superseded here, and several architecture documents repeat the ranking requirement and must be corrected.
 * **Bad:** Creation-order backlogs cannot express priority at all, so the top of the list carries no meaning and long backlogs offer no way to surface what matters.
-* **Bad:** Including *Blocked* as a status while [ADR 006](ADR-006.md) forbids automatic transitions means an issue can be genuinely blocked by a dependency and not be in the *Blocked* status, so two signals coexist. The card marker from [ADR 014](ADR-014.md) is the automatic one.
+* **Bad:** Including *Blocked* as a status while [ADR 006](ticket-dependencies.md) forbids automatic transitions means an issue can be genuinely blocked by a dependency and not be in the *Blocked* status, so two signals coexist. The card marker from [ADR 014](cross-project-dependencies.md) is the automatic one.
 * **Risk:** Enforcing one active sprint per project relies on a partial unique index; the same rule is also checked in services so the user gets a coded error rather than a constraint failure.
 * **Risk:** Carrying work into the next planned sprint can silently overfill it. Mitigated by reporting how many issues were moved and where they went on completion.
 * **Risk:** Realizing `Status` as an enumeration diverges from the entity in the [domain model](../architecture/domain-model.md), so a future move to configurable workflows must introduce a table and migrate every issue's string. Accepted because the string values become the natural migration key.
@@ -190,9 +190,9 @@ flowchart TD
 * [Use cases](../architecture/use-cases.md)
 * [Capabilities](../architecture/capabilities.md)
 * [v1 scope](../architecture/v1-scope.md)
-* [ADR 004: Shared fixed workflow with a small status set](ADR-004.md)
-* [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
-* [ADR 006: Ticket dependencies as directed typed links](ADR-006.md)
-* [ADR 012: Issue realization](ADR-012.md)
-* [ADR 014: Cross-project dependencies and cycle detection](ADR-014.md)
-* [ADR 020: Cancelled status](ADR-020.md)
+* [ADR 004: Shared fixed workflow with a small status set](shared-fixed-workflow.md)
+* [ADR 005: Boards, sprints, and backlog as views over one issue pool](boards-sprints-and-backlog.md)
+* [ADR 006: Ticket dependencies as directed typed links](ticket-dependencies.md)
+* [ADR 012: Issue realization](issue-realization.md)
+* [ADR 014: Cross-project dependencies and cycle detection](cross-project-dependencies.md)
+* [ADR 020: Cancelled status](cancelled-status.md)

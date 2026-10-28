@@ -5,7 +5,7 @@
 
 ## Background
 
-An issue can be placed in a sprint from Create, from the sprint control on the issue page, from the backlog, and by a `PATCH` of `sprint_id` ([ADR 013](ADR-013.md)). Sprints move *planned → active → completed*. The board's sprint filter already omits completed sprints ([Completed sprints off the board](completed-sprints-off-the-board.md)). The assignment controls did not: Create and the issue page listed every sprint, and the backlog listed only planned sprints, so the active sprint was missing there.
+An issue can be placed in a sprint from Create, from the sprint control on the issue page, from the backlog, and by a `PATCH` of `sprint_id` ([ADR 013](planning-realization.md)). Sprints move *planned → active → completed*. The board's sprint filter already omits completed sprints ([Completed sprints off the board](completed-sprints-off-the-board.md)). The assignment controls did not: Create and the issue page listed every sprint, and the backlog listed only planned sprints, so the active sprint was missing there.
 
 ## Problem Statement
 
@@ -75,7 +75,7 @@ flowchart TD
 
 ## Supporting Documentation
 
-* [ADR 013: Planning realization](ADR-013.md)
+* [ADR 013: Planning realization](planning-realization.md)
 * [Completed sprints off the board](completed-sprints-off-the-board.md)
 * [UI design](../design/ui.md)
 * [API design](../design/api.md)

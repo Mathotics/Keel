@@ -18,7 +18,7 @@ In v1 all signed-in users are trusted equals in a shared local/small-group conte
 Intentionally minimal. Keel talks only to:
 
 * The **local web browser** the owner and collaborators use.
-* The **local machine's durable storage**, where all projects, issues, sprints, boards, comments, and dependencies live. How that storage is realized was left open here and is decided in [ADR 007](../adr/ADR-007.md).
+* The **local machine's durable storage**, where all projects, issues, sprints, boards, comments, and dependencies live. How that storage is realized was left open here and is decided in [ADR 007](../adr/sqlite-sqlalchemy-alembic.md).
 
 There are no external identity providers, email/notification services, webhooks, or cloud services in v1.
 
@@ -51,7 +51,7 @@ Everything inside `Keel system` ships and runs as one local application. The dur
 Keel is an existing repository, and these committed constraints are respected rather than revisited here:
 
 * Python-based FastAPI application served via Uvicorn, with a `keel` CLI and a `keel serve` command.
-* Server-rendered HTML pages share a sticky top menu bar ([ADR 001](../adr/ADR-001.md)) and a sticky version footer ([ADR 002](../adr/ADR-002.md)), using the recorded [brand colors](../brand-colors.md).
+* Server-rendered HTML pages share a sticky top menu bar ([ADR 001](../adr/persistent-top-menu-bar.md)) and a sticky version footer ([ADR 002](../adr/persistent-version-footer.md)), using the recorded [brand colors](../brand-colors.md).
 * The product version has a single source of truth in `pyproject.toml`; see [Package version](../version.md). No version literal appears in these documents.
 * The owner's production host is a Raspberry Pi running `keel serve` under systemd ([ADR 026](../adr/ADR-026.md)). Other machines run that same process from the container image ([Docker container](../adr/docker-container.md)).
 

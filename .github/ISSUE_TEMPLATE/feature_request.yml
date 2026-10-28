@@ -1,0 +1,51 @@
+name: Feature Request
+description: Propose a change to Keel.
+title: "Feature: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem first, then the change you want. Keel is a self-hosted tracker for one owner and up to two collaborators (web, Android app, JSON API, and CLI).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or missing today, and who runs into it?
+      placeholder: Scheduling a repeating chore requires editing each occurrence by hand.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: What should Keel do differently? Mention the page, command, or API route if you know it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other approaches you considered, including living with the current behavior.
+    validations:
+      required: false
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where should this show up?
+      description: Pick every surface this change needs.
+      multiple: true
+      options:
+        - Web
+        - Android app
+        - JSON API
+        - CLI
+        - Not sure
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Related issue keys, screenshots, or constraints (for example, it must keep working offline).
+    validations:
+      required: false

@@ -7,7 +7,7 @@
 
 ## Background
 
-Keel stores all work in one SQLite file under the OS user data directory, or wherever `KEEL_DATABASE_URL` points. [ADR 007](ADR-007.md) chose that file so it could be copied, and listed backup, export, and import tooling as out of scope. `keel db` already applies migrations (`upgrade`) and generates revisions. The live path is documented in the README; there is no command that copies or restores the file. Losing the user data directory, or experimenting against real issues, currently has no supported recovery path.
+Keel stores all work in one SQLite file under the OS user data directory, or wherever `KEEL_DATABASE_URL` points. [ADR 007](sqlite-sqlalchemy-alembic.md) chose that file so it could be copied, and listed backup, export, and import tooling as out of scope. `keel db` already applies migrations (`upgrade`) and generates revisions. The live path is documented in the README; there is no command that copies or restores the file. Losing the user data directory, or experimenting against real issues, currently has no supported recovery path.
 
 ## Problem Statement
 
@@ -41,7 +41,7 @@ The owner's issues, sprints, and comments live in a single file that is easy to 
 ### Deliverables
 
 - CLI subcommands `backup` and `restore` under `keel db`.
-- This ADR, accepted, amending [ADR 007](ADR-007.md) so backup and restore are no longer out of scope there.
+- This ADR, accepted, amending [ADR 007](sqlite-sqlalchemy-alembic.md) so backup and restore are no longer out of scope there.
 - README Database section updated for the two commands.
 
 ## Technical Requirements
@@ -117,5 +117,5 @@ flowchart TD
 
 ## Supporting Documentation
 
-* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](ADR-007.md)
+* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](sqlite-sqlalchemy-alembic.md)
 * [README](../../README.md)

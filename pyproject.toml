@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "keel"
 version = "0.1.0"
-description = "Personal issue tracker for one owner and up to two collaborators"
+description = "Self-hosted issue tracker for multiple owners and collaborators"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }

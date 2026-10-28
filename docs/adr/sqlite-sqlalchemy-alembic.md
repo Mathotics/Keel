@@ -11,7 +11,7 @@ Keel is a self-hosted personal tool for one owner plus up to two collaborators, 
 
 ## Problem Statement
 
-Keel's entities are more relational than a personal tool usually implies. The [domain model](../architecture/domain-model.md) contains a self-referencing Epic to Story to Subtask hierarchy, a directed dependency graph requiring whole-graph cycle detection ([ADR 006](ADR-006.md)), and views that are derived rather than stored ([ADR 005](ADR-005.md)) — the backlog is computed by query. Effort rollup aggregates across a subtree. Choosing storage badly means hand-writing indexing, ordering, and referential integrity in application code.
+Keel's entities are more relational than a personal tool usually implies. The [domain model](../architecture/domain-model.md) contains a self-referencing Epic to Story to Subtask hierarchy, a directed dependency graph requiring whole-graph cycle detection ([ADR 006](ticket-dependencies.md)), and views that are derived rather than stored ([ADR 005](boards-sprints-and-backlog.md)) — the backlog is computed by query. Effort rollup aggregates across a subtree. Choosing storage badly means hand-writing indexing, ordering, and referential integrity in application code.
 
 Separately, the deferred feature queue in [v1 scope](../architecture/v1-scope.md) — authentication, labels, attachments, activity history — guarantees the schema will change after real data exists. Without versioned migrations, every schema change destroys the user's work.
 
@@ -38,14 +38,14 @@ Separately, the deferred feature queue in [v1 scope](../architecture/v1-scope.md
 - Any client-server database such as PostgreSQL or MySQL.
 - Asynchronous database access; sessions are synchronous and endpoints are defined with `def` so FastAPI runs them in its threadpool.
 - Multi-tenancy, sharding, replication, or connection pooling beyond SQLite defaults.
-- JSON and other export/import formats. File backup and restore are decided in [ADR 015](ADR-015.md).
+- JSON and other export/import formats. File backup and restore are decided in [ADR 015](database-backup-and-restore.md).
 - The concrete table definitions, which belong to the [data model](../design/data-model.md).
 
 ### Deliverables
 
 - A `keel.db` package holding engine construction, session dependency, declarative base, and ORM models.
 - An Alembic environment with a migration per [implementation phase](../design/implementation-plan.md), together reaching the full v1 schema.
-- `keel db upgrade` and `keel db revision` CLI subcommands. Backup and restore of the file are added in [ADR 015](ADR-015.md).
+- `keel db upgrade` and `keel db revision` CLI subcommands. Backup and restore of the file are added in [ADR 015](database-backup-and-restore.md).
 - A startup check that refuses to serve when the schema is not at the head revision.
 - The [data model](../design/data-model.md) documenting the physical schema.
 
@@ -68,7 +68,7 @@ Separately, the deferred feature queue in [v1 scope](../architecture/v1-scope.md
 
 * **Good:** Relational queries, ordering, and aggregation come from the database; a single file is trivially backed up by copying; the file lives in a stable location independent of the working directory; migrations mean schema changes never cost data; strict typing is preserved end to end.
 * **Good:** Explicit migration application means a schema upgrade is never a silent side effect of starting the server, which matters when the file holds real work.
-* **Bad:** Three new runtime dependencies (SQLAlchemy, Alembic, and `platformdirs`), alongside Jinja2 from [ADR 009](ADR-009.md). Every model change now requires generating a revision, which is friction during rapid iteration.
+* **Bad:** Three new runtime dependencies (SQLAlchemy, Alembic, and `platformdirs`), alongside Jinja2 from [ADR 009](server-rendered-jinja2.md). Every model change now requires generating a revision, which is friction during rapid iteration.
 * **Bad:** The default data location is not visible in the project folder, so users must be told where it is; a `keel db path` command is not in scope, so the location is documented in the README instead.
 * **Risk:** SQLite serializes writes, so concurrent writes from two collaborators can raise "database is locked." Mitigated by a busy timeout and short transactions; at one to three users, contention is unlikely.
 * **Risk:** Alembic autogenerate does not detect every change, notably `CHECK` constraint edits and some SQLite `ALTER` limitations. Mitigated by reviewing every generated revision by hand and using batch operations for SQLite alterations.
@@ -146,8 +146,8 @@ flowchart LR
 * [Domain model](../architecture/domain-model.md)
 * [v1 scope](../architecture/v1-scope.md)
 * [Capabilities](../architecture/capabilities.md)
-* [ADR 005: Boards, sprints, and backlog as views over one issue pool](ADR-005.md)
-* [ADR 006: Ticket dependencies as directed typed links](ADR-006.md)
-* [ADR 008: Layered module structure](ADR-008.md)
-* [ADR 015: Database backup and restore via the CLI](ADR-015.md)
+* [ADR 005: Boards, sprints, and backlog as views over one issue pool](boards-sprints-and-backlog.md)
+* [ADR 006: Ticket dependencies as directed typed links](ticket-dependencies.md)
+* [ADR 008: Layered module structure](layered-module-structure.md)
+* [ADR 015: Database backup and restore via the CLI](database-backup-and-restore.md)
 * [Package version (single source of truth)](../version.md)

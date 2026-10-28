@@ -1,6 +1,6 @@
 # Module layout
 
-How `src/keel/` is organized and what each layer may depend on. The decision is recorded in [ADR 008](../adr/ADR-008.md).
+How `src/keel/` is organized and what each layer may depend on. The decision is recorded in [ADR 008](../adr/layered-module-structure.md).
 
 ## The rule
 
@@ -124,7 +124,7 @@ Alembic lives in `migrations/` at the repository root, outside the package. Java
 
 ## Layer responsibilities
 
-**`keel.domain`** holds rules as pure functions over plain values. Nothing here knows a database or a request exists, so every rule in [ADR 012](../adr/ADR-012.md), [ADR 013](../adr/ADR-013.md), and [ADR 014](../adr/ADR-014.md) is unit-testable directly. `errors.py` defines the exception carrying a code, a message, and a context mapping, which both transport layers translate.
+**`keel.domain`** holds rules as pure functions over plain values. Nothing here knows a database or a request exists, so every rule in [ADR 012](../adr/issue-realization.md), [ADR 013](../adr/planning-realization.md), and [ADR 014](../adr/cross-project-dependencies.md) is unit-testable directly. `errors.py` defines the exception carrying a code, a message, and a context mapping, which both transport layers translate.
 
 **`keel.db`** holds the declarative base, engine and session machinery, and one model module per table. Models may reference `keel.domain` enumerations; they contain no business logic.
 
@@ -159,7 +159,7 @@ flowchart TD
 
 ## What the layout absorbed
 
-`keel/web/layout.py` was retired; the chrome it emitted moved into `base.html` ([ADR 009](../adr/ADR-009.md)). `keel/web/nav.py` holds the top-bar section order: a browser cookie, not a column on the user. `keel/web/inbox.py` holds which home sections are collapsed, the same way.
+`keel/web/layout.py` was retired; the chrome it emitted moved into `base.html` ([ADR 009](../adr/server-rendered-jinja2.md)). `keel/web/nav.py` holds the top-bar section order: a browser cookie, not a column on the user. `keel/web/inbox.py` holds which home sections are collapsed, the same way.
 
 `keel/paths.py` gained `templates_dir()`, following its existing repository-root-then-package fallback, and `data_dir()` resolving the user-data directory through `platformdirs`.
 
@@ -173,12 +173,12 @@ flowchart TD
 
 ## Tests
 
-The suites in `tests/` keep their current shape and markers. Unit tests cover `keel.domain` directly and services against a temporary SQLite database per test. The full suite holds the 90% coverage gate. Integration tests drive routes through httpx. System tests run against a live server. The board's JavaScript is not executed by the test suite; its endpoints and its non-JavaScript fallback routes are covered instead, and dragging is verified by hand ([ADR 009](../adr/ADR-009.md)).
+The suites in `tests/` keep their current shape and markers. Unit tests cover `keel.domain` directly and services against a temporary SQLite database per test. The full suite holds the 90% coverage gate. Integration tests drive routes through httpx. System tests run against a live server. The board's JavaScript is not executed by the test suite; its endpoints and its non-JavaScript fallback routes are covered instead, and dragging is verified by hand ([ADR 009](../adr/server-rendered-jinja2.md)).
 
 ## Related documents
 
-* [ADR 008: Layered module structure](../adr/ADR-008.md)
-* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](../adr/ADR-007.md)
+* [ADR 008: Layered module structure](../adr/layered-module-structure.md)
+* [ADR 007: Persistence via SQLite, SQLAlchemy, and Alembic](../adr/sqlite-sqlalchemy-alembic.md)
 * [Data model](data-model.md)
 * [API reference](api.md)
 * [UI design](ui.md)

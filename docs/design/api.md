@@ -1,13 +1,13 @@
 # API reference
 
-The JSON API served under `/api/v1`, used by the browser's scripts, the `keel` CLI, and any external caller alike ([ADR 010](../adr/ADR-010.md)). Entities and their attributes are defined in the [data model](data-model.md).
+The JSON API served under `/api/v1`, used by the browser's scripts, the `keel` CLI, and any external caller alike ([ADR 010](../adr/versioned-json-api.md)). Entities and their attributes are defined in the [data model](data-model.md).
 
 Collections are nested under their parent; single resources are flat, so a client holding only an issue identifier can act on it.
 
 ## Conventions
 
 * All request and response bodies are JSON. Timestamps are ISO 8601 in UTC.
-* Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/ADR-012.md) is a user-interface concern, not a wire format.
+* Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/issue-realization.md) is a user-interface concern, not a wire format.
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is the signed-in person ([Password login](../adr/password-login.md)). Browsers send the `keel_session` cookie. Scripts send `Authorization: Bearer`. A bearer header that does not match a live token does not fall through to the cookie. `X-Keel-User` is ignored. The acting user defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
 * Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; priorities `p1`, `p2`, `p3`, `p4`, `p5`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `start_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
@@ -41,7 +41,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 | `PATCH` | `/api/v1/projects/{project_id}` | Rename, redescribe, or set sprint cadence and sprints in advance; `key` is immutable |
 | `DELETE` | `/api/v1/projects/{project_id}` | Delete, cascading its contents |
 
-A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/ADR-019.md)). `sprint_ahead` is how many upcoming sprints to keep planned (0–12, default 0); 0 creates the next window only at rollover ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
+A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints to keep planned (0–12, default 0); 0 creates the next window only at rollover ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 
 ## Issues
 
@@ -112,7 +112,7 @@ Response body, with the fields the interface needs added:
 }
 ```
 
-`rollup` covers the issue and all its descendants ([ADR 012](../adr/ADR-012.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/ADR-020.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)).
+`rollup` covers the issue and all its descendants ([ADR 012](../adr/issue-realization.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/cancelled-status.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)).
 
 ## Projections
 
@@ -122,7 +122,7 @@ Response body, with the fields the interface needs added:
 | `GET` | `/api/v1/projects/{project_id}/backlog` | Unscheduled, unfinished issues, oldest first |
 | `GET` | `/api/v1/projects/{project_id}/completion-times` | When each Done issue was completed: `[{issue_id, completed_at}]` |
 
-The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint, and a `label` parameter (`unlabeled` or a label name) to filter by label. The JSON body always includes `lanes` grouping the same cards by sprint, including Unscheduled. Done and Cancelled issues in a completed sprint are omitted, and that sprint is not a lane unless it still has other cards ([Completed sprints off the board](../adr/completed-sprints-off-the-board.md)). All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/ADR-014.md)). The HTML board stacks a row of columns per lane by default (`by=sprint`); `by=status` restores one shared row of columns.
+The board accepts a repeated `type` parameter to filter card types, an `assignee` parameter (`unassigned` or a user id) to filter by assignee, a `sprint` parameter (`unscheduled` or a sprint id) to filter by sprint, and a `label` parameter (`unlabeled` or a label name) to filter by label. The JSON body always includes `lanes` grouping the same cards by sprint, including Unscheduled. Done and Cancelled issues in a completed sprint are omitted, and that sprint is not a lane unless it still has other cards ([Completed sprints off the board](../adr/completed-sprints-off-the-board.md)). All include `unresolved_blockers` per issue so markers render without a second request ([ADR 014](../adr/cross-project-dependencies.md)). The HTML board stacks a row of columns per lane by default (`by=sprint`); `by=status` restores one shared row of columns.
 
 ## Sprints
 
@@ -146,7 +146,7 @@ Completion returns what moved:
 }
 ```
 
-`carried_to_sprint_id` is null when no planned sprint remained, meaning the issues returned to the backlog ([ADR 013](../adr/ADR-013.md)).
+`carried_to_sprint_id` is null when no planned sprint remained, meaning the issues returned to the backlog ([ADR 013](../adr/planning-realization.md)).
 
 ## Series
 
@@ -160,7 +160,7 @@ Completion returns what moved:
 | `POST` | `/api/v1/series/{series_id}/resume` | Resume spawning |
 | `DELETE` | `/api/v1/series/{series_id}` | Delete the recipe; existing issues stay |
 
-Issues spawned from a series include `series_id` and `occurrence_on`. Each series may store start as days **before** the occurrence plus minutes-of-day, and due as days **after** plus minutes-of-day. Omit either pair, or send null, and copies leave that timestamp unset; a null on update clears it. `sprint_basis` may be `due_on`, `start_on`, or `created_on`, and `priority` is the same `p1`–`p5` rank copied onto each new copy ([ADR 021](../adr/ADR-021.md), [ADR 029](../adr/ADR-029.md), [Series recipe priority](../adr/series-recipe-priority.md)). `labels` is a list of names, the same catalog as issues. Create and `PATCH` replace the set; an omitted `PATCH` leaves it alone, and `[]` clears it. Omitting `labels` on create copies them from `seed_issue_id` when that field is set. New copies inherit the recipe set. Saving the recipe does not retag copies that already exist ([Series recipe labels](../adr/series-recipe-labels.md)). After the series is deleted those become `null` and the issue keeps `former_series_title` and `former_series_cadence` ([ADR 028](../adr/ADR-028.md)).
+Issues spawned from a series include `series_id` and `occurrence_on`. Each series may store start as days **before** the occurrence plus minutes-of-day, and due as days **after** plus minutes-of-day. Omit either pair, or send null, and copies leave that timestamp unset; a null on update clears it. `sprint_basis` may be `due_on`, `start_on`, or `created_on`, and `priority` is the same `p1`–`p5` rank copied onto each new copy ([ADR 021](../adr/repeating-work-scheduling-manager.md), [ADR 029](../adr/ADR-029.md), [Series recipe priority](../adr/series-recipe-priority.md)). `labels` is a list of names, the same catalog as issues. Create and `PATCH` replace the set; an omitted `PATCH` leaves it alone, and `[]` clears it. Omitting `labels` on create copies them from `seed_issue_id` when that field is set. New copies inherit the recipe set. Saving the recipe does not retag copies that already exist ([Series recipe labels](../adr/series-recipe-labels.md)). After the series is deleted those become `null` and the issue keeps `former_series_title` and `former_series_cadence` ([ADR 028](../adr/ADR-028.md)).
 
 ## Dependencies
 
@@ -182,7 +182,7 @@ Source and target may belong to different projects; each entry carries its issue
 
 ## Errors
 
-Missing resources return 404 and request-shape failures return FastAPI's standard 422. Domain rule violations return 409 with a coded body ([ADR 010](../adr/ADR-010.md)):
+Missing resources return 404 and request-shape failures return FastAPI's standard 422. Domain rule violations return 409 with a coded body ([ADR 010](../adr/versioned-json-api.md)):
 
 ```json
 {
@@ -234,7 +234,7 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 
 ## Form routes
 
-Non-JavaScript fallbacks post to `/web` routes that redirect rather than returning JSON, since a browser form cannot consume a JSON response ([ADR 009](../adr/ADR-009.md)). They accept form encoding, call the same services, and redirect to the originating page; on a domain error they redirect to that page with the message in an `error` query parameter, so a refresh never resubmits.
+Non-JavaScript fallbacks post to `/web` routes that redirect rather than returning JSON, since a browser form cannot consume a JSON response ([ADR 009](../adr/server-rendered-jinja2.md)). They accept form encoding, call the same services, and redirect to the originating page; on a domain error they redirect to that page with the message in an `error` query parameter, so a refresh never resubmits.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
@@ -281,10 +281,10 @@ Ordinary creation and editing forms post to the resource's own web route and are
 
 ## Related documents
 
-* [ADR 010: One versioned JSON API with coded domain errors](../adr/ADR-010.md)
-* [ADR 011: Ambient identity without authentication](../adr/ADR-011.md)
-* [ADR 012: Issue realization](../adr/ADR-012.md)
-* [ADR 014: Cross-project dependencies and cycle detection](../adr/ADR-014.md)
+* [ADR 010: One versioned JSON API with coded domain errors](../adr/versioned-json-api.md)
+* [ADR 011: Ambient identity without authentication](../adr/ambient-identity.md)
+* [ADR 012: Issue realization](../adr/issue-realization.md)
+* [ADR 014: Cross-project dependencies and cycle detection](../adr/cross-project-dependencies.md)
 * [Data model](data-model.md)
 * [UI design](ui.md)
 * [Module layout](module-layout.md)
