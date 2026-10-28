@@ -1,0 +1,20 @@
+# Run Keel somewhere other than the Raspberry Pi production host.
+# Build and start from the repository root: docker compose up -d --build
+services:
+  keel:
+    build: .
+    image: keel:local
+    ports:
+      - "8000:8000"
+    environment:
+      KEEL_HOST: 0.0.0.0
+      KEEL_PORT: "8000"
+      KEEL_RELOAD: "false"
+      KEEL_LOG_LEVEL: info
+      KEEL_DATABASE_URL: sqlite+pysqlite:////data/keel.db
+    volumes:
+      - keel-data:/data
+    restart: unless-stopped
+
+volumes:
+  keel-data:

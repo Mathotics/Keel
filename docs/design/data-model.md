@@ -311,7 +311,7 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 
 ## Migrations
 
-Alembic revisions live in `migrations/`. They were written by hand and reviewed against the models, because autogenerate does not reliably detect `CHECK` constraint changes, and SQLite column alterations use Alembic's batch operations. Migrations are applied only by `keel db upgrade`; `keel serve` verifies the revision and refuses to start when the database is behind ([ADR 007](../adr/sqlite-sqlalchemy-alembic.md)).
+Alembic revisions live in `migrations/`. They were written by hand and reviewed against the models, because autogenerate does not reliably detect `CHECK` constraint changes, and SQLite column alterations use Alembic's batch operations. Migrations are applied only by `keel db upgrade`; `keel serve` verifies the revision and refuses to start when the database is behind ([ADR 007](../adr/sqlite-sqlalchemy-alembic.md)). The container entrypoint runs that same upgrade before serve ([Docker container](../adr/docker-container.md)).
 
 | Revision | Adds |
 | --- | --- |

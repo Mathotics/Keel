@@ -45,7 +45,7 @@ Each of these is deliberately out of scope for v1 and can be revisited later.
 
 ## Resolved since
 
-The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/sqlite-sqlalchemy-alembic.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/layered-module-structure.md) through [ADR 032](../adr/ADR-032.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md). Global roles and permissions are recorded in [Role-based access](../adr/role-based-access.md).
+The persistence technology choice was deferred here as "a low-level detail below the system level." It is now settled in [ADR 007](../adr/sqlite-sqlalchemy-alembic.md), with the resulting schema in the [data model](../design/data-model.md). The remaining implementation-level decisions are recorded in [ADR 008](../adr/layered-module-structure.md) through [ADR 032](../adr/ADR-032.md). Hosting and automated deploy onto the owner's Raspberry Pi are recorded in [ADR 026](../adr/ADR-026.md). Other environments run the same app from the container image recorded in [Docker container](../adr/docker-container.md). Global roles and permissions are recorded in [Role-based access](../adr/role-based-access.md).
 
 ## Related documents
 

@@ -53,6 +53,7 @@ Keel is an existing repository, and these committed constraints are respected ra
 * Python-based FastAPI application served via Uvicorn, with a `keel` CLI and a `keel serve` command.
 * Server-rendered HTML pages share a sticky top menu bar ([ADR 001](../adr/persistent-top-menu-bar.md)) and a sticky version footer ([ADR 002](../adr/persistent-version-footer.md)), using the recorded [brand colors](../brand-colors.md).
 * The product version has a single source of truth in `pyproject.toml`; see [Package version](../version.md). No version literal appears in these documents.
+* The owner's production host is a Raspberry Pi running `keel serve` under systemd ([ADR 026](../adr/ADR-026.md)). Other machines run that same process from the container image ([Docker container](../adr/docker-container.md)).
 
 ## Related documents
 
