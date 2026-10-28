@@ -1,0 +1,70 @@
+name: Bug Report
+description: Report something Keel does that it should not, or fails to do.
+title: "Bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe one bug. Include enough detail that someone else can reproduce it on a self-hosted Keel instance (web, Android app, JSON API, or CLI).
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect instead?
+      placeholder: Opening a sprint board shows an empty column after moving an issue.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Number the steps. Include the project key, issue key, and the page or command you used.
+      placeholder: |
+        1. Open /projects/KEEL/board
+        2. Drag KEEL-1 into In Progress
+        3. Refresh the page
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did this happen?
+      options:
+        - Web
+        - Android app
+        - JSON API
+        - CLI
+        - Deploy or CI
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Keel version
+      description: The version in the page footer, or the output of `keel --version`.
+      placeholder: from the footer or keel --version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, browser or device, and Python version when it matters.
+      placeholder: Windows 10, Firefox 140, Python 3.12
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or response
+      description: Paste server logs, CLI output, or the API status and body. Leave out tokens, passwords, and database files.
+      render: shell
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Anything else
+      description: Screenshots, related issue keys, or whether this only happens after a database upgrade.
+    validations:
+      required: false
