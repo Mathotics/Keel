@@ -51,7 +51,7 @@ A first-class container that scopes a body of work. Multiple projects coexist.
 
 ### Issue
 The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtask; the parent relationship forms the Epic → Story → Subtask hierarchy. Modeled as one entity per [ADR 003](../adr/unified-issue-model.md).
-* Title; description.
+* Title; description; definition of done — the criteria that have to be true before the issue may move to *Done*, optional and unvalidated ([Issue definition of done](../adr/issue-definition-of-done.md)).
 * Type — one of *Epic*, *Story*, *Subtask*.
 * Priority — one of *P1 — Blocker*, *P2 — Critical*, *P3 — Major*, *P4 — Minor*, *P5 — Trivial*; every issue has one, defaulting to *P4 — Minor* ([ADR 030](../adr/ADR-030.md)).
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/issue-realization.md)).

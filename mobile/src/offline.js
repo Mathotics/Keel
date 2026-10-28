@@ -227,6 +227,7 @@ function queueRecreate(store, issueId) {
       type: raw.type,
       title: raw.title,
       description: raw.description || "",
+      definition_of_done: raw.definition_of_done || "",
       status: raw.status,
       priority: raw.priority,
       assignee_id: raw.assignee_id,
@@ -474,6 +475,7 @@ function queueCreate(store, draft) {
     title,
     type: draft.type || "story",
     description: draft.description || "",
+    definition_of_done: draft.definition_of_done || "",
     status: draft.status || "todo",
     priority: draft.priority || "p4",
     parent_id: draft.parent_id || null,
@@ -519,6 +521,7 @@ function queueCreate(store, draft) {
       type: raw.type,
       title: raw.title,
       description: raw.description,
+      definition_of_done: raw.definition_of_done,
       status: raw.status,
       priority: raw.priority,
       parent_id: raw.parent_id,
@@ -804,6 +807,7 @@ const QUEUE_FIELD = {
   type: "Type",
   title: "Title",
   description: "Description",
+  definition_of_done: "Definition of Done",
   status: "Status",
   priority: "Priority",
   assignee_id: "Assignee",
@@ -815,6 +819,9 @@ const QUEUE_FIELD = {
   due_at: "Due",
   labels: "Labels",
 };
+
+// Long text left blank is noise in the queue summary.
+const QUEUE_BLANK_HIDDEN = new Set(["description", "definition_of_done"]);
 
 function queueIssueName(store, issueId) {
   const issue = findIssue(store, issueId);
@@ -890,7 +897,7 @@ function queueDetail(store, item) {
   }
   const body = item.body || {};
   return Object.keys(body)
-    .filter((key) => key !== "description" || body.description)
+    .filter((key) => !QUEUE_BLANK_HIDDEN.has(key) || body[key])
     .map((key) => `${QUEUE_FIELD[key] || key}: ${queueValue(store, key, body[key])}`)
     .join("\n");
 }

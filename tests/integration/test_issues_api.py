@@ -49,6 +49,33 @@ def test_a_created_issue_carries_its_key(client: TestClient, project_id: int) ->
     assert issue["priority"] == "p4"
 
 
+def test_definition_of_done_defaults_to_blank_and_round_trips(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(client, project_id)
+    assert issue["definition_of_done"] == ""
+
+    updated = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"definition_of_done": "  Reviewed and deployed.  "},
+    ).json()
+    assert updated["definition_of_done"] == "Reviewed and deployed."
+    assert updated["description"] == ""
+
+    seeded = create_issue(
+        client,
+        project_id,
+        title="Seeded",
+        definition_of_done="Merged to main.",
+    )
+    assert seeded["definition_of_done"] == "Merged to main."
+
+    history = client.get(f"/api/v1/issues/{issue['id']}/history").json()
+    assert [row["field"] for row in history] == ["definition of done"]
+    assert history[0]["to_value"] == "Reviewed and deployed."
+
+
 def test_the_reporter_defaults_to_the_acting_user(
     client: TestClient,
     project_id: int,

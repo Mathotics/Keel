@@ -57,9 +57,10 @@ flowchart LR
 * Assign an issue to a user and set its reporter.
 * Set and change an issue's status within the shared workflow (see [ADR 004](../adr/shared-fixed-workflow.md)).
 * Set and change an issue's priority on the five-level scale (see [ADR 030](../adr/ADR-030.md)).
-* Add and read comments on an issue. Issue descriptions and comment bodies render as Markdown on the issue page ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
+* Add and read comments on an issue. Issue descriptions, definitions of done, and comment bodies render as Markdown on the issue page ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
+* Write an issue's definition of done — the criteria for calling it *Done* — in its own panel beneath Description ([Issue definition of done](../adr/issue-definition-of-done.md)).
 * Add and remove labels on an issue, and filter the board and issue list by one label ([ADR 031](../adr/ADR-031.md)).
-* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
 
 ## Planning
 

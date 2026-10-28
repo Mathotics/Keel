@@ -89,6 +89,28 @@ def test_issues_start_in_the_first_status(session: Session, project: Project) ->
     assert issue.priority is INITIAL_PRIORITY is IssuePriority.P4
 
 
+def test_definition_of_done_is_blank_until_set_and_is_trimmed(
+    session: Session,
+    project: Project,
+) -> None:
+    fresh = issue_service.get_issue(session, make(session, project))
+    assert fresh.definition_of_done == ""
+
+    seeded = issue_service.get_issue(
+        session,
+        make(session, project, title="Seeded", definition_of_done="  Merged.\n"),
+    )
+    assert seeded.definition_of_done == "Merged."
+
+    updated = issue_service.update_issue(
+        session,
+        fresh.id,
+        definition_of_done="  Reviewed.  ",
+    )
+    assert updated.definition_of_done == "Reviewed."
+    assert updated.description == ""
+
+
 def test_priority_can_be_set_and_filtered(session: Session, project: Project) -> None:
     blocker = make(session, project, title="Blocker", priority=IssuePriority.P1)
     make(session, project, title="Ordinary")

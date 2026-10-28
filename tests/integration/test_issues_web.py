@@ -54,6 +54,7 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="title"' not in missing.text
     assert "Epic" in page.text
     assert 'name="description"' in page.text
+    assert 'name="definition_of_done"' in page.text
     assert 'name="status"' in page.text
     assert ">Cancelled<" in page.text
     assert 'name="priority"' in page.text
@@ -138,6 +139,7 @@ def test_create_can_set_the_other_fields_at_birth(
             "type": "story",
             "title": "Full",
             "description": "Body text",
+            "definition_of_done": "Reviewed and deployed",
             "status": "in_progress",
             "priority": "p1",
             "parent_id": str(parent_id),
@@ -155,6 +157,7 @@ def test_create_can_set_the_other_fields_at_birth(
     html = page.text
     assert "Full" in html
     assert "Body text" in html
+    assert "Reviewed and deployed" in html
     assert "In Progress" in html
     assert "P1 — Blocker" in html
     assert 'value="2026-11-02T08:15"' in html
@@ -442,7 +445,14 @@ def test_issue_panels_fold_and_stay_folded(
     html = page.text
     assert "/assets/js/issue-panels.js" in html
     assert html.count('class="keel-fold__count"') == 4
-    for key in ("description", "children", "dependencies", "history", "comments"):
+    for key in (
+        "description",
+        "definition_of_done",
+        "children",
+        "dependencies",
+        "history",
+        "comments",
+    ):
         tag = _panel_tag(html, key)
         assert " open" in tag
         summary = html[html.index(tag) : html.index("</summary>", html.index(tag))]
@@ -791,6 +801,36 @@ def test_type_and_description_can_be_changed_from_the_issue_page(
     assert "<strong>longer</strong>" in page.text
     assert "Edit description" in page.text
     assert ">Add a description<" not in page.text
+
+
+def test_definition_of_done_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    page = client.get("/issues/KEEL-1")
+    assert ">Definition of Done<" in page.text
+    assert ">Add a definition of done<" in page.text
+    description_at = page.text.index('data-keel-issue-panel="description"')
+    done_at = page.text.index('data-keel-issue-panel="definition_of_done"')
+    children_at = page.text.index('data-keel-issue-panel="children"')
+    assert description_at < done_at < children_at
+
+    saved = client.post(
+        f"/web/issues/{issue_id}/definition-of-done",
+        data={"definition_of_done": "- A **passing** build."},
+        follow_redirects=False,
+    )
+    assert saved.headers["location"] == "/issues/KEEL-1"
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["definition_of_done"] == "- A **passing** build."
+
+    page = client.get("/issues/KEEL-1")
+    assert "<strong>passing</strong>" in page.text
+    assert "Edit definition of done" in page.text
+    assert ">Add a definition of done<" not in page.text
 
 
 def test_parent_can_be_changed_from_the_issue_page(

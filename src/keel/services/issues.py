@@ -145,6 +145,7 @@ def create_issue(
     type: IssueType,
     title: str,
     description: str = "",
+    definition_of_done: str = "",
     status: IssueStatus = INITIAL_STATUS,
     priority: IssuePriority = INITIAL_PRIORITY,
     parent_id: int | None = None,
@@ -172,6 +173,7 @@ def create_issue(
         type=type,
         title=_clean_title(title),
         description=description.strip(),
+        definition_of_done=definition_of_done.strip(),
         status=status,
         priority=priority,
         reporter_id=reporter_id,
@@ -206,6 +208,7 @@ def update_issue(
     type: IssueType | None = None,
     title: str | None = None,
     description: str | None = None,
+    definition_of_done: str | None = None,
     status: IssueStatus | None = None,
     priority: IssuePriority | None = None,
     parent_id: int | None | object = UNSET,
@@ -261,6 +264,18 @@ def update_issue(
                 actor_name=who,
             )
             issue.description = cleaned_description
+    if definition_of_done is not None:
+        cleaned_done = definition_of_done.strip()
+        if cleaned_done != issue.definition_of_done:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_DEFINITION_OF_DONE,
+                from_value=history_service.text_label(issue.definition_of_done),
+                to_value=history_service.text_label(cleaned_done),
+                actor_name=who,
+            )
+            issue.definition_of_done = cleaned_done
     if status is not None and status is not issue.status:
         history_service.record(
             session,

@@ -445,6 +445,7 @@ def create_issue_from_page(
     type: Annotated[IssueType, Form()] = IssueType.STORY,
     title: Annotated[str, Form()] = "",
     description: Annotated[str, Form()] = "",
+    definition_of_done: Annotated[str, Form()] = "",
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
     priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
     parent_id: Annotated[str, Form()] = "",
@@ -476,6 +477,7 @@ def create_issue_from_page(
                 type=type,
                 title=title,
                 description=description,
+                definition_of_done=definition_of_done,
                 status=status,
                 priority=priority,
                 parent_label=_parent_label(
@@ -500,6 +502,7 @@ def create_issue_from_page(
             type=type,
             title=title,
             description=description,
+            definition_of_done=definition_of_done,
             status=status,
             priority=priority,
             parent_id=_posted_issue(
@@ -533,6 +536,7 @@ def create_issue(
     type: Annotated[IssueType, Form()],
     title: Annotated[str, Form()],
     description: Annotated[str, Form()] = "",
+    definition_of_done: Annotated[str, Form()] = "",
     status: Annotated[IssueStatus, Form()] = IssueStatus.TODO,
     priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
     parent_id: Annotated[str, Form()] = "",
@@ -555,6 +559,7 @@ def create_issue(
             type=type,
             title=title,
             description=description,
+            definition_of_done=definition_of_done,
             status=status,
             priority=priority,
             parent_id=_posted_issue(
@@ -661,6 +666,27 @@ def update_issue_description(
             session,
             issue_id,
             description=description,
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/definition-of-done")
+def update_issue_definition_of_done(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    definition_of_done: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            definition_of_done=definition_of_done,
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

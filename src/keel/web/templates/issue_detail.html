@@ -294,6 +294,22 @@
       </details>
       {% endcall %}
 
+      {% call issue_panel('definition_of_done', 'Definition of Done') %}
+      {% if issue.definition_of_done %}
+      <div class="keel-markdown">{{ issue.definition_of_done | markdown }}</div>
+      {% endif %}
+      <details class="keel-markdown-edit"{% if not issue.definition_of_done %} open{% endif %}>
+        <summary>{% if issue.definition_of_done %}Edit definition of done{% else %}Add a definition of done{% endif %}</summary>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done" data-keel-autosubmit>
+          <p>
+            <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
+            <textarea id="issue-definition-of-done" class="keel-description" name="definition_of_done" rows="6">{{ issue.definition_of_done }}</textarea>
+          </p>
+          <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
+        </form>
+      </details>
+      {% endcall %}
+
       {% call issue_panel('children', 'Children', children|length) %}
       <div class="keel-table-scroll">
       <table class="keel-table">

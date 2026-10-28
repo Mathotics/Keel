@@ -105,6 +105,15 @@ def test_description_and_comment_matches_open_the_issue(session: Session) -> Non
     assert all(hit.snippet is not None for hit in outcome.issues)
 
 
+def test_a_definition_of_done_match_opens_the_issue(session: Session) -> None:
+    owner = project(session)
+    story(session, owner, title="Quiet", definition_of_done="the widget spins")
+    outcome = find_service.find(session, "widget")
+    assert isinstance(outcome, FindResults)
+    assert [hit.key for hit in outcome.issues] == ["KEEL-1"]
+    assert outcome.issues[0].snippet == "the widget spins"
+
+
 def test_done_issues_and_completed_sprints_are_included(session: Session) -> None:
     owner = project(session)
     story(session, owner, title="Shipped widget", status=IssueStatus.DONE)

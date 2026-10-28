@@ -223,6 +223,7 @@ function issuePage({
     seriesId: issue.series_id || null,
     formerSeries: issue.former_series_title || "",
     descriptionText: issue.description || "",
+    definitionOfDoneText: issue.definition_of_done || "",
     type: issue.type,
     priority: issue.priority,
     parentId: issue.parent_id || null,
@@ -253,6 +254,7 @@ function issuePage({
           }
         : null,
     description: parseMarkdown(issue.description),
+    definitionOfDone: parseMarkdown(issue.definition_of_done),
     sprintName: sprint ? sprint.name : null,
     parent: parent ? { id: parent.id, key: parent.key, title: parent.title } : null,
     children: (children || []).map((child) => ({

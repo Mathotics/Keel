@@ -1,7 +1,9 @@
 # Foldable issue panels
 
 * **Status:** Accepted
-* **Date:** 2026-10-07
+* **Date:** 2026-10-28
+
+> **Amendment.** [Issue definition of done](issue-definition-of-done.md) adds a sixth panel, **Definition of Done**, between Description and Children. The known-key list below becomes `description`, `definition_of_done`, `children`, `dependencies`, `history`, `comments`, in that order. Like Description, the new panel holds one body and carries no count. Every other rule here applies to it unchanged.
 
 ## Background
 

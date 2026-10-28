@@ -45,6 +45,7 @@ test("assembles a read-only issue page", () => {
       estimate_minutes: 60,
       remaining_minutes: null,
       description: "Sand the **bow**.",
+      definition_of_done: "- Two **even** coats.",
       rollup: {
         estimate_minutes: 120,
         remaining_minutes: 60,
@@ -95,6 +96,15 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.sprintName, "This week");
   assert.equal(page.comments[0].author, "Jacob Hootman");
   assert.equal(page.comments[0].blocks[0].inlines[1].bold, true);
+  assert.equal(page.definitionOfDoneText, "- Two **even** coats.");
+  assert.equal(page.definitionOfDone[0].type, "list");
+  assert.equal(page.definitionOfDone[0].items[0][1].bold, true);
+});
+
+test("an issue with no definition of done renders nothing for it", () => {
+  const page = issuePage({ issue: { id: 1, key: "KEEL-1", title: "Paint" }, users: [] });
+  assert.equal(page.definitionOfDoneText, "");
+  assert.deepEqual(page.definitionOfDone, []);
 });
 
 test("a link points the right way and a key finds a saved issue", () => {

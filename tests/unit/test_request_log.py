@@ -251,6 +251,12 @@ def test_capture_describes_records_without_secrets(session: Session) -> None:
     assert "secret body" not in (described or "")
 
     token = begin_capture()
+    issue_service.update_issue(session, issue.id, definition_of_done="secret bar")
+    done_note = finish_capture(token)
+    assert done_note == "KEEL-1 definition of done changed"
+    assert "secret bar" not in (done_note or "")
+
+    token = begin_capture()
     issue_service.update_issue(session, issue.id, title="x" * 400)
     long_note = finish_capture(token)
     assert long_note is not None

@@ -152,6 +152,19 @@ test("a title change is the only field sent", () => {
   assert.deepEqual(prepared.changes, { title: "Boat" });
 });
 
+test("a definition of done rides along on create and edit", () => {
+  const prepared = prepareCreate({
+    title: "Paint",
+    projectId: 3,
+    definitionOfDone: "Two even coats.",
+  });
+  assert.equal(prepared.draft.definition_of_done, "Two even coats.");
+
+  const edited = prepareUpdate(updateInput({ definitionOfDone: "Two even coats." }));
+  assert.equal(edited.error, null);
+  assert.deepEqual(edited.changes, { definition_of_done: "Two even coats." });
+});
+
 test("existing children block a type the server would refuse", () => {
   const prepared = prepareUpdate(updateInput({ type: "subtask", childTypes: ["story"] }));
   assert.match(prepared.error, /Existing story children/);

@@ -138,6 +138,7 @@ Indexes and constraints:
 | `type` | TEXT | not null, `CHECK` in (`epic`, `story`, `subtask`) |
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
+| `definition_of_done` | TEXT | not null, default `''` |
 | `status` | TEXT | not null, default `'todo'`, `CHECK` in (`todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`) |
 | `priority` | TEXT | not null, default `'p4'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `parent_id` | INTEGER | nullable, references `issues(id)` `ON DELETE RESTRICT` |
@@ -246,7 +247,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `priority`, `labels`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -339,6 +340,9 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0022` | usernames, passwords, sessions, and API tokens |
 | `0023` | email, first name, last name, and date of birth on `users` |
 | `0024` | `request_logs` |
+| `0025` | roles, permissions, and per-project grants |
+| `0026` | `project_everyone_roles` |
+| `0027` | `issues.definition_of_done` and `definition of done` on `issue_history.field` |
 
 ## Related documents
 

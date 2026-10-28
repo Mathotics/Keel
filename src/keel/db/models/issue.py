@@ -78,6 +78,11 @@ class Issue(Base):
     type: Mapped[IssueType] = mapped_column(_enum_column(IssueType, "ck_issues_type"))
     title: Mapped[str] = mapped_column(String(300))
     description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    definition_of_done: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        server_default="",
+    )
     status: Mapped[IssueStatus] = mapped_column(
         _enum_column(IssueStatus, "ck_issues_status"),
         default=INITIAL_STATUS,

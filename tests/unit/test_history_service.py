@@ -188,6 +188,36 @@ def test_cleared_description_says_none(
     assert events[0].to_value == "none"
 
 
+def test_definition_of_done_is_recorded_like_a_description(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(
+        session,
+        issue_id,
+        definition_of_done="- [ ] Tests pass",
+        actor_name="Ada",
+    )
+    issue_service.update_issue(
+        session,
+        issue_id,
+        definition_of_done="- [ ] Tests pass",
+        actor_name="Ada",
+    )
+    issue_service.update_issue(
+        session,
+        issue_id,
+        definition_of_done="",
+        actor_name="Ada",
+    )
+    events = history_service.list_history(session, issue_id)
+    assert [(event.field, event.from_value, event.to_value) for event in events] == [
+        ("definition of done", "none", "- [ ] Tests pass"),
+        ("definition of done", "- [ ] Tests pass", "none"),
+    ]
+
+
 def test_several_fields_append_several_lines(
     session: Session,
     project: Project,
