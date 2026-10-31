@@ -13,7 +13,7 @@ from keel.services import projects as project_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.filters import FilterRequest, filter_request
-from keel.web.routes.pages import _calendar_page
+from keel.web.routes.pages import _calendar_page, _gantt_page
 
 router = APIRouter(prefix="/projects")
 
@@ -118,4 +118,33 @@ def project_calendar_page(
         day_num=day_num,
         when=when,
         base=f"/projects/{project.key}/calendar",
+    )
+
+
+@router.get("/{key}/gantt", response_class=HTMLResponse)
+def project_gantt_page(
+    key: str,
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    raw: Annotated[FilterRequest, Depends(filter_request)],
+    month: str | None = None,
+    year: int | None = None,
+    month_num: int | None = None,
+    view: str | None = None,
+) -> HTMLResponse:
+    """Month or quarter of one project's issues."""
+    project = project_service.get_project_by_key(session, key)
+    return _gantt_page(
+        request,
+        chrome,
+        session,
+        raw,
+        project=project,
+        assignee_id=None,
+        month=month,
+        year=year,
+        month_num=month_num,
+        view=view,
+        base=f"/projects/{project.key}/gantt",
     )

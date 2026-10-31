@@ -58,6 +58,7 @@ def test_the_catalog_names_role_bundles_and_dependencies() -> None:
     assert by_permission["Create issues in a project"] == "View issues"
     assert by_permission["Manage global RBAC"] == "View global RBAC page"
     assert by_permission["View projects"] == "None"
+    assert by_permission["View gantt"] == "View issues"
     assert by_permission["Delete any comment"] == "Delete own comments"
 
 

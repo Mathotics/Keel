@@ -1,7 +1,9 @@
 # Role-based access
 
 * **Status:** Accepted
-* **Date:** 2026-10-20
+* **Date:** 2026-10-31
+
+> **Amendment.** View gantt is a project permission beside View calendar, and the same project roles hold it. Route checks for the gantt pages wait with the other project routes (KEEL-105).
 
 ## Background
 
@@ -41,7 +43,7 @@ A household tracker now has people who should not all administer the server or a
 
 ### Out-of-Scope
 
-* Project route checks for issues, board, calendar, backlog, sprints, schedules, and project settings. Those are KEEL-105. Until then a signed-in person can still open a project URL. The project list is already filtered. The project access page is in place and checks its own permission.
+* Project route checks for issues, board, calendar, gantt, backlog, sprints, schedules, and project settings. Those are KEEL-105. Until then a signed-in person can still open a project URL. The project list is already filtered. The project access page is in place and checks its own permission.
 * Single sign-on, a second factor, and email password reset.
 * A deny flag.
 * Putting server CLI backup, restore, `keel users set-password`, or `keel users create-token` behind a web permission.

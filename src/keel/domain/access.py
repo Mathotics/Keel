@@ -54,6 +54,7 @@ class Permission(StrEnum):
     VIEW_BACKLOG = "view_backlog"
     VIEW_BOARD = "view_board"
     VIEW_CALENDAR = "view_calendar"
+    VIEW_GANTT = "view_gantt"
     VIEW_SPRINTS = "view_sprints"
     VIEW_SCHEDULES = "view_schedules"
     CREATE_ISSUES = "create_issues"
@@ -102,6 +103,7 @@ DEPENDENCIES: dict[Permission, frozenset[Permission]] = {
     Permission.VIEW_BACKLOG: frozenset({Permission.VIEW_ISSUES}),
     Permission.VIEW_BOARD: frozenset({Permission.VIEW_ISSUES}),
     Permission.VIEW_CALENDAR: frozenset({Permission.VIEW_ISSUES}),
+    Permission.VIEW_GANTT: frozenset({Permission.VIEW_ISSUES}),
     Permission.CREATE_ISSUES: frozenset({Permission.VIEW_ISSUES}),
     Permission.EDIT_ISSUES: frozenset({Permission.VIEW_ISSUES}),
     Permission.UPDATE_ISSUES: frozenset({Permission.VIEW_ISSUES}),
@@ -151,6 +153,7 @@ LABELS: dict[Permission, str] = {
     Permission.VIEW_BACKLOG: "View backlog",
     Permission.VIEW_BOARD: "View board",
     Permission.VIEW_CALENDAR: "View calendar",
+    Permission.VIEW_GANTT: "View gantt",
     Permission.VIEW_SPRINTS: "View sprints",
     Permission.VIEW_SCHEDULES: "View schedules",
     Permission.CREATE_ISSUES: "Create issues in a project",
@@ -210,6 +213,7 @@ _VIEWS: frozenset[Permission] = frozenset(
         Permission.VIEW_BACKLOG,
         Permission.VIEW_BOARD,
         Permission.VIEW_CALENDAR,
+        Permission.VIEW_GANTT,
         Permission.VIEW_SPRINTS,
         Permission.VIEW_SCHEDULES,
     }
