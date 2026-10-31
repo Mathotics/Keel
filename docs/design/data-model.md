@@ -45,7 +45,7 @@ erDiagram
 | `username` | TEXT | not null, unique on `lower(username)` |
 | `display_name` | TEXT | not null, unique |
 | `password_hash` | TEXT | nullable until a password is set |
-| `email` | TEXT | not null, default `''` |
+| `email` | TEXT | not null, default `''`, unique on `lower(email)` when not blank |
 | `first_name` | TEXT | not null, default `''` |
 | `last_name` | TEXT | not null, default `''` |
 | `date_of_birth` | DATE | nullable |
@@ -81,6 +81,19 @@ The browser cookie stores the random token. The row stores its SHA-256 hash. Ses
 | `revoked_at` | TIMESTAMP | nullable |
 
 The secret is returned once, at creation. Later reads show `token_prefix` only. A revoked token no longer authenticates.
+
+### password_reset_tokens
+
+| Column | Type | Constraints |
+| --- | --- | --- |
+| `id` | INTEGER | primary key |
+| `user_id` | INTEGER | not null, references `users(id)` `ON DELETE CASCADE` |
+| `token_hash` | TEXT | not null, unique |
+| `created_at` | TIMESTAMP | not null |
+| `expires_at` | TIMESTAMP | not null |
+| `used_at` | TIMESTAMP | nullable |
+
+The email holds the random token. The row stores its SHA-256 hash. A newer unused request for the same person deletes the previous unused row. The link lasts one hour. Behavior is in [Email password reset](../adr/email-password-reset.md).
 
 ### projects
 
@@ -343,6 +356,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0025` | roles, permissions, and per-project grants |
 | `0026` | `project_everyone_roles` |
 | `0027` | `issues.definition_of_done` and `definition of done` on `issue_history.field` |
+| `0028` | unique non-blank emails, and `password_reset_tokens` |
 
 ## Related documents
 

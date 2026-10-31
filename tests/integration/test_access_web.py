@@ -18,6 +18,7 @@ def _ada(client: TestClient) -> dict[str, object]:
             "display_name": "Ada",
             "username": "ada",
             "password": ADA_PASSWORD,
+            "email": "ada@example.com",
         },
     )
     assert created.status_code == 201, created.text
@@ -217,6 +218,7 @@ def test_an_editor_cannot_create_users_or_projects(client: TestClient) -> None:
             "display_name": "Bea",
             "username": "bea",
             "password": "bea-password-1",
+            "email": "bea@example.com",
         },
     )
     assert refused_user.status_code == 403

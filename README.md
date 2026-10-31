@@ -79,6 +79,12 @@ Settings come from the environment and from a `.env` file in the directory where
 | `KEEL_DATABASE_URL` | SQLite in the OS user data directory | Where Keel stores its data |
 | `KEEL_DEFAULT_USER` | unset | On an empty database, the display name of the first person. That person has no password until you set one |
 | `KEEL_SEED_SIGN_IN` | `true` | When `KEEL_DEFAULT_USER` is unset, create username `keel` with password `keel`. Set `false` to use the operating-system username instead, with no password |
+| `KEEL_SMTP_HOST` | unset | SMTP server for password reset and username lookup. Unset means those pages still show their notice and no message is sent |
+| `KEEL_SMTP_PORT` | `587` | SMTP port |
+| `KEEL_SMTP_USERNAME` | unset | SMTP login, when the server requires one |
+| `KEEL_SMTP_PASSWORD` | unset | SMTP password |
+| `KEEL_SMTP_FROM` | unset | From address. Required, with the host, before a message is handed off |
+| `KEEL_SMTP_STARTTLS` | `true` | Start TLS before login |
 
 `KEEL_DEFAULT_USER` wins over `KEEL_SEED_SIGN_IN`. A database that already has people is left as it is.
 
@@ -88,7 +94,7 @@ After `keel serve` is running, the inbox is `http://127.0.0.1:8000/`. These page
 
 | Page | What it is |
 | --- | --- |
-| `/login` | Sign in |
+| `/login` | Sign in. Forgot password and forgot username start here |
 | `/` | Your inbox |
 | `/projects` | Project directory, including the create form |
 | `/create` | File an issue |
@@ -96,7 +102,7 @@ After `keel serve` is running, the inbox is `http://127.0.0.1:8000/`. These page
 | `/calendar` | Your dated work |
 | `/search` | Matches from the find field in the menu |
 | `/users` | Add people |
-| `/profile` | Name, username, optional email and date of birth, password, and API tokens |
+| `/profile` | Name, username, email, optional date of birth, password, and API tokens |
 | `/projects/KEEL` | One project. Replace `KEEL` with that project's key |
 | `/projects/KEEL/board` | That project's board |
 | `/projects/KEEL/backlog` | That project's backlog |

@@ -95,7 +95,11 @@ def test_the_month_lists_assigned_dated_work_and_links_the_issue(
     tester = _tester(client)
     grace = client.post(
         "/api/v1/users",
-        json={"display_name": "Grace", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Grace",
+            "password": TEST_PASSWORD,
+            "email": "grace@example.com",
+        },
     ).json()
     client.post(
         f"/api/v1/projects/{project['id']}/issues",

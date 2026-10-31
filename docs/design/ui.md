@@ -30,8 +30,11 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | --- | --- | --- |
 | `/` | `home.html` | Personal inbox for the signed-in user: due or overdue, due this week, due this month, starting or started, assigned, blocked, active sprint, series copies waiting this cycle, and completed today |
 | `/calendar` | `calendar.html` | Master month, week, or day of the signed-in user's dated issues, across projects, including Done and Cancelled unless the status filter removes them. The month is a day grid. Week and day are broken into hours, and a bar runs from the start time through the due time. Bars show the issue key and title, colored by type as on the board, plus a status mark set apart from that text. Start to due bars on week and day wrap the title. Completed and Created on, on those views, are a tick at the exact minute with a one-line chip under it. The month bar stays on one line and keeps the status visible. A View by menu beside Month, Week, and Day chooses Start to due (the default), Completed, or Created on. Month, Week, and Day; Previous, Next, Today, and date dropdowns. The shared filter bar narrows which of those issues appear ([Common filtering](../adr/common-filtering.md)) |
-| `/login` | `login.html` | Username and password. Public, along with `/health` and `/assets` |
-| `/profile` | `profile.html` | The signed-in person's name, optional email and date of birth, password, and API tokens |
+| `/login` | `login.html` | Username and password, plus links to forgot password and forgot username. Public, along with `/health` and `/assets` |
+| `/forgot-password` | `forgot_password.html` | Public username form. One notice whether or not a link was sent |
+| `/forgot-username` | `forgot_username.html` | Public email form. One notice whether or not the username was sent |
+| `/reset-password` | `reset_password.html` | Public choose-password form, or one invalid-link page |
+| `/profile` | `profile.html` | The signed-in person's name, required email and optional date of birth, password, and API tokens |
 | `/projects/{key}/calendar` | `calendar.html` | That project's issues, whoever they are assigned to; same month, week, day, and View by controls, and the same filter bar without the project filter |
 | `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
 | `/projects` | `projects.html` | Project list with a create form |

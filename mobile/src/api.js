@@ -49,6 +49,39 @@ async function request(url, options) {
   }
 }
 
+async function postPublic(origin, path, payload) {
+  let response;
+  try {
+    response = await request(`${origin}${path}`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    const error = new Error(FAILED);
+    error.status = 0;
+    throw error;
+  }
+  const body = await readBody(response);
+  if (!response.ok) {
+    const error = new Error(detailMessage(body, FAILED));
+    error.status = response.status;
+    throw error;
+  }
+  return body;
+}
+
+async function requestPasswordReset(origin, username) {
+  return postPublic(origin, "/api/v1/password-resets", { username });
+}
+
+async function requestUsername(origin, email) {
+  return postPublic(origin, "/api/v1/username-lookups", { email });
+}
+
 async function login(origin, username, password, label) {
   let response;
   try {
@@ -340,6 +373,8 @@ module.exports = {
   loadWork,
   login,
   read,
+  requestPasswordReset,
+  requestUsername,
   renameLabel,
   revokeToken,
   send,

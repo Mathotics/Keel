@@ -42,7 +42,7 @@ A household tracker now has people who should not all administer the server or a
 ### Out-of-Scope
 
 * Project route checks for issues, board, calendar, backlog, sprints, schedules, and project settings. Those are KEEL-105. Until then a signed-in person can still open a project URL. The project list is already filtered. The project access page is in place and checks its own permission.
-* Single sign-on, a second factor, and email password reset.
+* Single sign-on and a second factor. Email password reset is [Email password reset](email-password-reset.md).
 * A deny flag.
 * Putting server CLI backup, restore, `keel users set-password`, or `keel users create-token` behind a web permission.
 * A feature flag that turns enforcement off.

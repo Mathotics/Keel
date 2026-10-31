@@ -52,7 +52,11 @@ def test_labels_match_any_and_combine_with_assignee(client: TestClient) -> None:
     project = _project(client)
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": "tester-password"},
+        json={
+            "display_name": "Ada",
+            "password": "tester-password",
+            "email": "ada@example.com",
+        },
     ).json()
     client.post(
         f"/api/v1/projects/{project['id']}/issues",
@@ -91,7 +95,11 @@ def test_created_by_matches_the_reporter(client: TestClient) -> None:
     )
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": "tester-password"},
+        json={
+            "display_name": "Ada",
+            "password": "tester-password",
+            "email": "ada@example.com",
+        },
     ).json()
 
     filed = client.get("/projects/KEEL/board", params={"reporter": "Tester"})

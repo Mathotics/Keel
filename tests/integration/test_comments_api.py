@@ -40,7 +40,11 @@ def test_comments_are_created_and_listed_oldest_first(client: TestClient) -> Non
 def test_a_comment_is_authored_by_the_acting_user(client: TestClient) -> None:
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     issue = _issue(client, _project(client))
 
@@ -70,7 +74,11 @@ def test_a_blank_comment_is_refused(client: TestClient) -> None:
 def test_a_comment_author_cannot_be_deleted(client: TestClient) -> None:
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     issue = _issue(client, _project(client))
     client.post(

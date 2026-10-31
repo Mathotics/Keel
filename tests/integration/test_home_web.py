@@ -339,7 +339,11 @@ def test_switching_the_picker_changes_whose_inbox_is_shown(
     tester = _tester(client)
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     client.post(
         f"/api/v1/projects/{project['id']}/issues",

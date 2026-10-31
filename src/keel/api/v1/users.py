@@ -36,6 +36,7 @@ def create_user(
         payload.username,
         payload.password,
         require_password=True,
+        email=payload.email,
     )
     return UserRead.model_validate(user)
 

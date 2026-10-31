@@ -10,6 +10,7 @@ from keel.db.models.user import utc_now
 from keel.domain.errors import (
     DuplicateUserNameError,
     DuplicateUsernameError,
+    EmailInUseError,
     InvalidDateOfBirthError,
     InvalidEmailError,
     InvalidPasswordError,
@@ -68,6 +69,15 @@ def find_by_username(session: Session, username: str) -> User | None:
     ).first()
 
 
+def find_by_email(session: Session, email: str) -> User | None:
+    folded = email.strip().casefold()
+    if not folded:
+        return None
+    return session.scalars(
+        select(User).where(func.lower(User.email) == folded),
+    ).first()
+
+
 def any_password_set(session: Session) -> bool:
     found = session.scalars(
         select(User.id).where(User.password_hash.is_not(None)).limit(1),
@@ -83,11 +93,16 @@ def create_user(
     *,
     confirm: str | None = None,
     require_password: bool = False,
+    email: str | None = None,
 ) -> User:
     name = _clean_name(display_name)
     login = _clean_username(name if username is None else username)
     _reject_duplicate(session, name)
     _reject_duplicate_username(session, login)
+    cleaned_email = ""
+    if email is not None:
+        cleaned_email = _clean_email(email, required=True)
+        _reject_duplicate_email(session, cleaned_email)
     password_hash = _password_for_create(
         password,
         confirm,
@@ -98,6 +113,7 @@ def create_user(
         display_name=name,
         username=login,
         password_hash=password_hash,
+        email=cleaned_email,
         updated_at=utc_now(),
     )
     session.add(user)
@@ -130,15 +146,21 @@ def update_identity(
     last_name: str | None | UnsetType = UNSET,
     date_of_birth: date | None | UnsetType = UNSET,
 ) -> User:
-    """Rename the sign-in identity and, when supplied, the optional details.
+    """Rename the sign-in identity and, when supplied, the contact details.
 
-    A contact field left as ``UNSET`` stays as stored. ``None`` or a blank
-    string clears a text field. ``None`` clears the date of birth.
+    A contact field left as ``UNSET`` stays as stored, except email: a profile
+    that still has none must receive one on this save. ``None`` or a blank
+    string clears a name. ``None`` clears the date of birth. Email cannot be
+    cleared.
     """
     user = get_user(session, user_id)
     name = _clean_name(display_name)
     login = _clean_username(username)
-    cleaned_email = email if isinstance(email, UnsetType) else _clean_email(email)
+    cleaned_birth = (
+        date_of_birth
+        if isinstance(date_of_birth, UnsetType)
+        else _clean_date_of_birth(date_of_birth)
+    )
     cleaned_first = (
         first_name
         if isinstance(first_name, UnsetType)
@@ -149,11 +171,13 @@ def update_identity(
         if isinstance(last_name, UnsetType)
         else _clean_optional_name(last_name, label="last name")
     )
-    cleaned_birth = (
-        date_of_birth
-        if isinstance(date_of_birth, UnsetType)
-        else _clean_date_of_birth(date_of_birth)
-    )
+    cleaned_email: str | UnsetType
+    if isinstance(email, UnsetType):
+        if not user.email.strip():
+            raise InvalidEmailError("Enter an email address.")
+        cleaned_email = UNSET
+    else:
+        cleaned_email = _clean_email(email, required=True)
     if name != user.display_name:
         _reject_duplicate(session, name)
         user.display_name = name
@@ -161,6 +185,7 @@ def update_identity(
         _reject_duplicate_username(session, login, except_id=user.id)
         user.username = login
     if not isinstance(cleaned_email, UnsetType):
+        _reject_duplicate_email(session, cleaned_email, except_id=user.id)
         user.email = cleaned_email
     if not isinstance(cleaned_first, UnsetType):
         user.first_name = cleaned_first
@@ -308,11 +333,14 @@ def _clean_optional_name(value: str | None, *, label: str) -> str:
     return name
 
 
-def _clean_email(value: str | None) -> str:
+def _clean_email(value: str | None, *, required: bool = False) -> str:
     if value is None:
-        return ""
-    email = value.strip()
+        email = ""
+    else:
+        email = value.strip()
     if not email:
+        if required:
+            raise InvalidEmailError("Enter an email address.")
         return ""
     if len(email) > MAX_EMAIL_LENGTH:
         raise InvalidEmailError(
@@ -358,6 +386,17 @@ def _clean_username(username: str) -> str:
     if any(ord(character) < 32 for character in name):
         raise InvalidUsernameError("A username cannot contain control characters.")
     return name
+
+
+def _reject_duplicate_email(
+    session: Session,
+    email: str,
+    *,
+    except_id: int | None = None,
+) -> None:
+    taken = find_by_email(session, email)
+    if taken is not None and taken.id != except_id:
+        raise EmailInUseError("That email address is already used.")
 
 
 def _reject_duplicate_username(

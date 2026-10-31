@@ -9,6 +9,7 @@ class UserCreate(BaseModel):
     display_name: str = Field(min_length=1, max_length=100)
     username: str | None = Field(default=None, max_length=100)
     password: str = Field(min_length=1, max_length=128)
+    email: str = Field(min_length=1, max_length=254)
 
 
 class UserUpdate(BaseModel):
@@ -41,7 +42,9 @@ class ProfileUpdate(BaseModel):
     """``display_name`` and ``username`` are required.
 
     The contact fields follow partial update: leave one out and it stays,
-    send null or a blank string to clear it.
+    send null or a blank string to clear a name. Email is required once the
+    profile is saved, and null or a blank string does not clear it. A profile
+    that still has no email must send one.
     """
 
     model_config = ConfigDict(extra="forbid")

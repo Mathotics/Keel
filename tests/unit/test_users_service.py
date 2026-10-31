@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from keel.domain.errors import (
     DuplicateUserNameError,
+    EmailInUseError,
     InvalidDateOfBirthError,
     InvalidEmailError,
     InvalidPasswordError,
@@ -157,20 +158,28 @@ def test_update_identity_sets_and_clears_optional_fields(session: Session) -> No
     assert kept.email == "Ada@Example.com"
     assert kept.date_of_birth is not None
 
-    cleared = user_service.update_identity(
+    with pytest.raises(InvalidEmailError) as cleared:
+        user_service.update_identity(
+            session,
+            user.id,
+            display_name="Augusta",
+            username="ada",
+            email=None,
+        )
+    assert cleared.value.message == "Enter an email address."
+    names_cleared = user_service.update_identity(
         session,
         user.id,
         display_name="Augusta",
         username="ada",
-        email=None,
         first_name="   ",
         last_name=None,
         date_of_birth=None,
     )
-    assert cleared.email == ""
-    assert cleared.first_name == ""
-    assert cleared.last_name == ""
-    assert cleared.date_of_birth is None
+    assert names_cleared.email == "Ada@Example.com"
+    assert names_cleared.first_name == ""
+    assert names_cleared.last_name == ""
+    assert names_cleared.date_of_birth is None
 
 
 def test_update_identity_rejects_a_bad_email(session: Session) -> None:
@@ -222,6 +231,14 @@ def test_update_identity_rejects_an_overlong_first_name(session: Session) -> Non
             username="Ada",
             last_name="Ada\nLovelace",
         )
+
+
+def test_an_email_belongs_to_one_profile(session: Session) -> None:
+    user_service.create_user(session, "Ada", email="Ada@Example.com")
+    with pytest.raises(EmailInUseError) as excinfo:
+        user_service.create_user(session, "Grace", email="ada@example.com")
+    assert excinfo.value.code == "user.email_taken"
+    assert excinfo.value.message == "That email address is already used."
 
 
 def test_ensure_default_user_ignores_a_blank_setting(
