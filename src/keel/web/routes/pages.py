@@ -229,7 +229,7 @@ def gantt_page(
     month_num: int | None = None,
     view: str | None = None,
 ) -> HTMLResponse:
-    """Month or quarter of issues assigned to the acting user."""
+    """Month, quarter, or year of issues assigned to the acting user."""
     return _gantt_page(
         request,
         chrome,
@@ -310,12 +310,12 @@ def _gantt_page(
 
 
 def _gantt_kept(request: Request) -> tuple[tuple[str, str], ...]:
-    """Month, quarter, and the dropdowns. Other date params belong to the calendar."""
+    """Keep the gantt scale and dropdowns. Other date params belong to the calendar."""
     kept: list[tuple[str, str]] = []
     for key, value in date_pairs(request):
         if key not in {"view", "month", "year", "month_num"}:
             continue
-        if key == "view" and value != "quarter":
+        if key == "view" and value not in {"quarter", "year"}:
             continue
         kept.append((key, value))
     return tuple(kept)

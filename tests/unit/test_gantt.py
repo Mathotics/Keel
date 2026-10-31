@@ -159,6 +159,7 @@ def test_a_bar_runs_from_start_through_due_and_clips_to_the_month(
     assert chart.next_href == "/gantt?month=2026-11"
     assert chart.today_href == "/gantt"
     assert chart.quarter_href == "/gantt?view=quarter&month=2026-10"
+    assert chart.year_href == "/gantt?view=year&month=2026-01"
     assert "September only" not in [row.title for row in chart.rows]
     assert "Undated" not in [row.title for row in chart.rows]
 
@@ -396,8 +397,87 @@ def test_a_quarter_uses_one_column_per_week(session: Session) -> None:
     )
     assert early.month_href == "/gantt?month=2026-01"
     assert early.label == "January–March 2026"
+    assert early.year_href == "/gantt?view=year&month=2026-01"
     assert early.empty is True
     assert early.links == ()
+
+
+def test_a_year_uses_one_column_per_month(session: Session) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    ada = user_service.create_user(session, "Ada")
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "October",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 10, 3, 9, 0),
+        due_at=datetime(2026, 10, 6, 17, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Into next year",
+        assignee_id=ada.id,
+        start_at=datetime(2026, 11, 20, 9, 0),
+        due_at=datetime(2027, 2, 4, 17, 0),
+    )
+    issue_service.create_issue(
+        session,
+        project.id,
+        IssueType.STORY,
+        "Last December",
+        assignee_id=ada.id,
+        start_at=datetime(2025, 12, 20, 9, 0),
+        due_at=datetime(2026, 1, 3, 17, 0),
+    )
+
+    chart = gantt_service.open_gantt(
+        session,
+        ada.id,
+        view="year",
+        month="2026-10",
+        year=None,
+        month_num=None,
+        today=TODAY,
+    )
+    assert chart.view == "year"
+    assert chart.label == "2026"
+    assert chart.month_number == 1
+    assert len(chart.columns) == 12
+    assert chart.columns[0].mark == "Jan"
+    assert chart.columns[0].hint == "January 2026"
+    assert chart.today_column == 10
+    assert chart.columns[9].is_today is True
+    october = _row(chart, "KEEL-1")
+    assert (october.column, october.length) == (10, 1)
+    assert october.point is False
+    spanning = _row(chart, "KEEL-2")
+    assert (spanning.column, spanning.length) == (11, 2)
+    assert spanning.continues_after is True
+    carried = _row(chart, "KEEL-3")
+    assert (carried.column, carried.length) == (1, 1)
+    assert carried.continues_before is True
+    assert chart.prev_href == "/gantt?view=year&month=2025-01"
+    assert chart.next_href == "/gantt?view=year&month=2027-01"
+    assert chart.today_href == "/gantt?view=year"
+    assert chart.month_href == "/gantt?month=2026-10"
+    assert chart.quarter_href == "/gantt?view=quarter&month=2026-10"
+    other = gantt_service.open_gantt(
+        session,
+        ada.id,
+        view="year",
+        month="2024-06",
+        year=None,
+        month_num=None,
+        today=TODAY,
+    )
+    assert other.label == "2024"
+    assert other.month_href == "/gantt?month=2024-01"
+    assert other.quarter_href == "/gantt?view=quarter&month=2024-01"
+    assert other.empty is True
+    assert other.empty_note == "Nothing dated falls in this year."
 
 
 def test_a_link_is_drawn_only_when_both_issues_are_rows(session: Session) -> None:

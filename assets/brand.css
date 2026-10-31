@@ -2488,6 +2488,10 @@ select.keel-type-select[data-type] {
   --keel-gantt-col: 3.4rem;
 }
 
+.keel-gantt--year {
+  --keel-gantt-col: 4rem;
+}
+
 .keel-gantt__head,
 .keel-gantt__row {
   display: grid;

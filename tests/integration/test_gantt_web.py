@@ -26,6 +26,7 @@ def test_an_empty_month_still_shows_the_days(client: TestClient) -> None:
     assert 'href="/gantt?month=2026-09"' in page.text
     assert 'href="/gantt?month=2026-11"' in page.text
     assert 'href="/gantt?view=quarter&amp;month=2026-10"' in page.text
+    assert 'href="/gantt?view=year&amp;month=2026-01"' in page.text
     assert 'href="/gantt"' in page.text
     assert 'name="month_num"' in page.text
     assert 'name="year"' in page.text
@@ -65,6 +66,11 @@ def test_an_invalid_month_falls_back_to_the_current_month(client: TestClient) ->
     quarter = client.get("/gantt?view=quarter&month=nope")
     first = ((today.month - 1) // 3) * 3
     assert f"<h2>{names[first]}–{names[first + 2]} {today.year}</h2>" in quarter.text
+    year = client.get("/gantt?view=year&month=nope")
+    assert f"<h2>{today.year}</h2>" in year.text
+    assert year.text.count('class="keel-gantt__col') == 12
+    assert 'name="view" value="year"' in year.text
+    assert 'aria-current="page">Year</a>' in year.text
 
 
 def test_the_month_lists_assigned_dated_work_and_links_the_issue(

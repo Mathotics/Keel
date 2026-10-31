@@ -3,7 +3,7 @@
 * **Status:** Accepted
 * **Date:** 2026-10-31
 
-> **Amendment.** The same bar is on `/gantt` and `/projects/{key}/gantt`. It narrows the rows. Month, Quarter, Previous, Next, Today, and the month and year dropdowns stay. Reset all leaves that window. A project gantt hides the project filter.
+> **Amendment.** The same bar is on `/gantt` and `/projects/{key}/gantt`. It narrows the rows. Month, Quarter, Year, Previous, Next, Today, and the month and year dropdowns stay. Reset all leaves that window. A project gantt hides the project filter.
 >
 > **Amendment.** Start and Due are date ranges on the same bar, after Label and before Reset all. A range with neither end set does not restrict that field. Filling either end keeps issues whose start or due falls on those days, inclusive, and leaves out issues with no such date. A reversed range is read from the earlier day through the later day. Reset all clears both ranges.
 
@@ -56,7 +56,7 @@ The board and the calendar answer "which issues?" with different controls, and t
 * **Must** turn a picked label, person, or project into a removable chip and clear the box so another can be added. Label still offers Unlabeled. Assignee still offers Unassigned. Created by offers the same people plus None for an issue with no reporter.
 * **Must** hide the project filter on a project board, a project calendar, and a project gantt. That page is already one project.
 * **Must** leave month, week, day, Previous, Next, Today, and the date dropdowns on the calendar. Filters only narrow which issues appear on those dates.
-* **Must** leave Month, Quarter, Previous, Next, Today, and the month and year dropdowns on the gantt. Filters only narrow which issues appear in that window. Reset all leaves the window as it is.
+* **Must** leave Month, Quarter, Year, Previous, Next, Today, and the month and year dropdowns on the gantt. Filters only narrow which issues appear in that window. Reset all leaves the window as it is.
 * **May** summarize a closed dropdown with the chosen names, and show the field name when nothing is chosen.
 * **Must Not** require every filter to be filled before the view updates.
 * **Must Not** reload the board, the calendar, or the gantt on each checkbox change.

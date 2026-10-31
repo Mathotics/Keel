@@ -14,7 +14,7 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * **Label** — a reusable free-form tag on an issue; the catalog is shared across projects ([ADR 031](../adr/ADR-031.md)).
 * **Dependency** — a directed, typed link between two issues; either *blocks* or *relates-to*.
 * **Epic** — the top level of the issue hierarchy; groups related Stories.
-* **Gantt** — a timeline of dated issues, one row each, with a bar from the start day through the due day. `/gantt` is the signed-in user's issues across projects. `/projects/{key}/gantt` is that project's issues. A child sits under its parent when the parent is on the page. A blocks link between two rows is an arrow, and a relates-to link is a dashed line ([Gantt chart](../adr/gantt-chart.md)).
+* **Gantt** — a timeline of dated issues, one row each, with a bar from the start day through the due day. `/gantt` is the signed-in user's issues across projects. `/projects/{key}/gantt` is that project's issues. Month is days, quarter is weeks, and year is months. A child sits under its parent when the parent is on the page. A blocks link between two rows is an arrow, and a relates-to link is a dashed line ([Gantt chart](../adr/gantt-chart.md)).
 * **Estimated time** — the effort a user expects an issue to take.
 * **Issue** — the single work entity; typed as an Epic, a Story, or a Subtask.
 * **Issue key** — a project's key with the issue's per-project number, such as `KEEL-12`; how an issue is named in the interface and in conversation ([ADR 012](../adr/issue-realization.md)).

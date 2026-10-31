@@ -57,7 +57,7 @@ _DOW = ("M", "T", "W", "T", "F", "S", "S")
 
 @dataclass(frozen=True)
 class GanttColumn:
-    """One day on a month, or one week on a quarter."""
+    """One day, one week, or one month, depending on the scale."""
 
     mark: str
     dow: str
@@ -95,7 +95,7 @@ class GanttLink:
 
 @dataclass(frozen=True)
 class GanttChart:
-    """The month page or the quarter page."""
+    """The month page, the quarter page, or the year page."""
 
     label: str
     view: str
@@ -108,6 +108,7 @@ class GanttChart:
     today_href: str
     month_href: str
     quarter_href: str
+    year_href: str
     columns: tuple[GanttColumn, ...]
     rows: tuple[GanttRow, ...]
     links: tuple[GanttLink, ...]
@@ -137,9 +138,9 @@ class _Placed:
 
 
 def parse_view(raw: str | None) -> str:
-    """`quarter` selects the quarter. Anything else is the month."""
-    if raw == "quarter":
-        return "quarter"
+    """`quarter` or `year` selects that scale. Anything else is the month."""
+    if raw in {"quarter", "year"}:
+        return raw
     return "month"
 
 
@@ -156,11 +157,13 @@ def open_gantt(
     base: str = "/gantt",
     filters: IssueFilters | None = None,
 ) -> GanttChart:
-    """Month or quarter for one person, one project, or a signed-out chart."""
+    """Month, quarter, or year for one person, one project, or a signed-out chart."""
     scale = parse_view(view)
     anchor = chosen_month(month, year=year, month_num=month_num, today=today)
     if scale == "quarter":
         anchor = _quarter_start(anchor)
+    elif scale == "year":
+        anchor = date(anchor.year, 1, 1)
     window_start, window_end = _bounds(anchor, scale)
     if project_id is None and assignee_id is None:
         placed: list[_Placed] = []
@@ -190,6 +193,8 @@ def open_gantt(
 
 
 def _bounds(anchor: date, scale: str) -> tuple[date, date]:
+    if scale == "year":
+        return date(anchor.year, 1, 1), date(anchor.year, 12, 31)
     if scale == "quarter":
         start = _quarter_start(anchor)
         return start, _quarter_end(start)
@@ -198,6 +203,8 @@ def _bounds(anchor: date, scale: str) -> tuple[date, date]:
 
 
 def _column_starts(scale: str, start: date, end: date) -> tuple[date, ...]:
+    if scale == "year":
+        return tuple(date(start.year, month, 1) for month in range(1, 13))
     if scale == "quarter":
         return _week_starts(start, end)
     cursor = start
@@ -517,6 +524,7 @@ def _describe(
         )
         for item in placed
     )
+    year_href = _year_href(base, anchor)
     if scale == "quarter":
         label = (
             f"{_MONTHS[window_start.month - 1]}–"
@@ -527,9 +535,22 @@ def _describe(
         prev_href = _quarter_href(base, previous)
         next_href = _quarter_href(base, following)
         today_href = f"{base}?view=quarter"
-        month_href = _month_href(base, _month_from_quarter(window_start, today))
+        month_href = _month_href(base, _month_in_span(window_start, window_end, today))
         quarter_href = _quarter_href(base, window_start)
         note = "Nothing dated falls in this quarter."
+    elif scale == "year":
+        label = str(anchor.year)
+        previous = _shift_month(anchor, -12)
+        following = _shift_month(anchor, 12)
+        prev_href = _year_href(base, previous)
+        next_href = _year_href(base, following)
+        today_href = f"{base}?view=year"
+        month_href = _month_href(base, _month_in_span(window_start, window_end, today))
+        quarter_href = _quarter_href(
+            base,
+            _day_in_span(window_start, window_end, today),
+        )
+        note = "Nothing dated falls in this year."
     else:
         label = f"{_MONTHS[anchor.month - 1]} {anchor.year}"
         prev_href = _month_href(base, _shift_month(anchor, -1))
@@ -550,6 +571,7 @@ def _describe(
         today_href=today_href,
         month_href=month_href,
         quarter_href=quarter_href,
+        year_href=year_href,
         columns=columns,
         rows=rows,
         links=tuple(links),
@@ -561,6 +583,13 @@ def _describe(
 
 
 def _column(scale: str, start: date, is_today: bool) -> GanttColumn:
+    if scale == "year":
+        return GanttColumn(
+            mark=_SHORT[start.month - 1],
+            dow="",
+            hint=f"{_MONTHS[start.month - 1]} {start.year}",
+            is_today=is_today,
+        )
     if scale == "quarter":
         return GanttColumn(
             mark=f"{_SHORT[start.month - 1]} {start.day}",
@@ -579,11 +608,16 @@ def _column(scale: str, start: date, is_today: bool) -> GanttColumn:
     )
 
 
-def _month_from_quarter(quarter_start: date, today: date) -> date:
-    end = _quarter_end(quarter_start)
-    if quarter_start <= today <= end:
+def _month_in_span(start: date, end: date, today: date) -> date:
+    if start <= today <= end:
         return date(today.year, today.month, 1)
-    return quarter_start
+    return start
+
+
+def _day_in_span(start: date, end: date, today: date) -> date:
+    if start <= today <= end:
+        return today
+    return start
 
 
 def _quarter_start(day: date) -> date:
@@ -619,3 +653,7 @@ def _month_href(base: str, day: date) -> str:
 def _quarter_href(base: str, day: date) -> str:
     start = _quarter_start(day)
     return f"{base}?view=quarter&month={start.strftime('%Y-%m')}"
+
+
+def _year_href(base: str, day: date) -> str:
+    return f"{base}?view=year&month={day.year:04d}-01"

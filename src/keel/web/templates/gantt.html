@@ -12,6 +12,7 @@
       <nav class="keel-tabs" aria-label="Gantt scale">
         <a class="keel-tabs__tab" href="{{ carry(gantt.month_href, bar.query) }}"{% if gantt.view == "month" %} aria-current="page"{% endif %}>Month</a>
         <a class="keel-tabs__tab" href="{{ carry(gantt.quarter_href, bar.query) }}"{% if gantt.view == "quarter" %} aria-current="page"{% endif %}>Quarter</a>
+        <a class="keel-tabs__tab" href="{{ carry(gantt.year_href, bar.query) }}"{% if gantt.view == "year" %} aria-current="page"{% endif %}>Year</a>
       </nav>
       <nav class="keel-cal__nav" aria-label="When">
         <a href="{{ carry(gantt.prev_href, bar.query) }}">Previous</a>
@@ -19,8 +20,8 @@
         <h2>{{ gantt.label }}</h2>
         {% endif %}
         <form class="keel-cal__jump" method="get" action="{{ gantt.base }}" data-keel-autosubmit>
-          {% if gantt.view == "quarter" %}
-          <input type="hidden" name="view" value="quarter">
+          {% if gantt.view != "month" %}
+          <input type="hidden" name="view" value="{{ gantt.view }}">
           {% endif %}
           <label class="keel-visually-hidden" for="gantt-month">Month</label>
           <select id="gantt-month" name="month_num">

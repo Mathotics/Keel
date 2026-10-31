@@ -15,7 +15,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Gantt
 
-* **Compare how long work runs.** A user opens Gantt and sees one row per dated issue assigned to them, across projects, including Done and Cancelled. Inside a project, Gantt shows that project's dated issues, whoever they are assigned to. A bar runs from the start day through the due day. Month is one column per day. Quarter is one column per week. A child sits under its parent when that parent is also on the page. When both issues of a dependency are on the page, a solid arrow shows that one blocks the other and a dashed line shows that they relate. Month, Quarter, Previous, Next, and the date dropdowns stay on the same chart. Choosing a row or a bar opens the issue ([Gantt chart](../adr/gantt-chart.md)).
+* **Compare how long work runs.** A user opens Gantt and sees one row per dated issue assigned to them, across projects, including Done and Cancelled. Inside a project, Gantt shows that project's dated issues, whoever they are assigned to. A bar runs from the start day through the due day. Month is one column per day. Quarter is one column per week. Year is one column per month. A child sits under its parent when that parent is also on the page. When both issues of a dependency are on the page, a solid arrow shows that one blocks the other and a dashed line shows that they relate. Month, Quarter, Previous, Next, and the date dropdowns stay on the same chart. Choosing a row or a bar opens the issue ([Gantt chart](../adr/gantt-chart.md)).
 
 ## Projects
 

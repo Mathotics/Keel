@@ -133,7 +133,7 @@ def project_gantt_page(
     month_num: int | None = None,
     view: str | None = None,
 ) -> HTMLResponse:
-    """Month or quarter of one project's issues."""
+    """Month, quarter, or year of one project's issues."""
     project = project_service.get_project_by_key(session, key)
     return _gantt_page(
         request,
