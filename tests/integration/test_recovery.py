@@ -123,7 +123,8 @@ def test_reset_signs_this_browser_in_and_ends_other_sessions(
     assert saved.headers["location"] == "/"
     assert anonymous_client.get("/").status_code == 200
 
-    anonymous_client.cookies.set(SESSION_COOKIE, old_cookie)
+    anonymous_client.cookies.delete(SESSION_COOKIE)
+    anonymous_client.cookies.set(SESSION_COOKIE, old_cookie, domain="testserver")
     assert anonymous_client.get("/", follow_redirects=False).status_code == 303
 
     still = anonymous_client.get(
