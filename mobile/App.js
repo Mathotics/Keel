@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  BackHandler,
   Modal,
   PanResponder,
   Platform,
@@ -73,6 +74,7 @@ import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel,
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
 import { formatMinutes, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
+import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
 const LOCK_KEY = "keel.lockSetting";
@@ -122,6 +124,27 @@ export default function App() {
   const listPhase = useRef("home");
   const queueFrom = useRef("home");
   const issueBackRef = useRef(null);
+  const requestBackRef = useRef(() => false);
+  const canSwipeBackRef = useRef(false);
+  const drawerOpenRef = useRef(false);
+  const lastBackAt = useRef(0);
+  const historyRef = useRef([]);
+  const phaseTrack = useRef("booting");
+  const restoringRef = useRef(false);
+  const pageBack = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+        canSwipeBackRef.current && !drawerOpenRef.current && claimsPageBack(gesture),
+      onPanResponderRelease: (_event, gesture) => {
+        if (!canSwipeBackRef.current || drawerOpenRef.current || !releasesPageBack(gesture)) {
+          return;
+        }
+        requestBackRef.current();
+      },
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+    }),
+  ).current;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [online, setOnline] = useState(false);
   const [forceOffline, setForceOffline] = useState(false);
@@ -187,6 +210,19 @@ export default function App() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
+  useEffect(() => {
+    if (!account) {
+      return undefined;
+    }
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (drawerOpenRef.current) {
+        return false;
+      }
+      return requestBackRef.current();
+    });
+    return () => subscription.remove();
+  }, [account]);
 
   useEffect(() => {
     lockRef.current = lockSetting;
@@ -2021,11 +2057,10 @@ export default function App() {
 
   function shellBack() {
     if (phase === "issue") {
-      if (issueBackRef.current) {
-        issueBackRef.current();
-      } else {
-        setPhase(listPhase.current);
+      if (issueBackRef.current && issueBackRef.current()) {
+        return;
       }
+      setPhase(listPhase.current);
       return;
     }
     if (phase === "create" || phase === "settings" || phase === "account" || phase === "license") {
@@ -2058,6 +2093,47 @@ export default function App() {
       setRecipeMode("create");
       setPhase("schedules");
     }
+  }
+
+  function requestBack() {
+    if (drawerOpen) {
+      return false;
+    }
+    const now = Date.now();
+    if (now - lastBackAt.current < 350) {
+      return true;
+    }
+    if (phase === "issue" && issueBackRef.current && issueBackRef.current()) {
+      lastBackAt.current = now;
+      return true;
+    }
+    const previous = historyRef.current[historyRef.current.length - 1];
+    if (!previous) {
+      if (MENU_PHASES.includes(phase)) {
+        return false;
+      }
+      lastBackAt.current = now;
+      restoringRef.current = true;
+      shellBack();
+      return true;
+    }
+    lastBackAt.current = now;
+    restoringRef.current = true;
+    historyRef.current.pop();
+    setMessage("");
+    if (TAB_PHASES.includes(previous) || previous === "sprint") {
+      listPhase.current = previous;
+    }
+    if (phase === "schedule" && previous === "issue" && recipeIssue) {
+      setIssueId(recipeIssue.id);
+    }
+    if (phase === "schedule" && previous === "schedules") {
+      setRecipe(blankRecipe());
+      setRecipeMode("create");
+      setRecipeIssue(null);
+    }
+    setPhase(previous);
+    return true;
   }
 
   function openCreate() {
@@ -2131,8 +2207,16 @@ export default function App() {
     }
   }
 
+  const tracked = notePhase(historyRef.current, phaseTrack.current, phase, restoringRef.current);
+  historyRef.current = tracked.history;
+  phaseTrack.current = tracked.previous;
+  restoringRef.current = tracked.restoring;
+  requestBackRef.current = requestBack;
+  canSwipeBackRef.current = signedIn && (!MENU_PHASES.includes(phase) || historyRef.current.length > 0);
+  drawerOpenRef.current = drawerOpen;
+
   return (
-    <View style={signedIn ? styles.shell : styles.screen}>
+    <View style={signedIn ? styles.shell : styles.screen} {...(signedIn ? pageBack.panHandlers : {})}>
       <StatusBar style={signedIn ? "light" : "dark"} />
       {signedIn ? (
         <AppBar
@@ -2142,7 +2226,7 @@ export default function App() {
             setDrawerOpen(false);
             openAccount();
           }}
-          onBack={shellBack}
+          onBack={requestBack}
           onMenu={() => setDrawerOpen(true)}
           onConnection={toggleForceOffline}
           online={connectionMode(online, forceOffline)}
@@ -2922,7 +3006,6 @@ export default function App() {
         <IssueDetail
           account={account}
           issueId={issueId}
-          onBack={() => setPhase(listPhase.current)}
           onRegisterBack={(action) => {
             issueBackRef.current = action;
           }}
@@ -5117,7 +5200,6 @@ function IssueDetail({
   holdOffline,
   issueId,
   library,
-  onBack,
   onRegisterBack,
   onUnauthorized,
   onRemember,
@@ -5227,13 +5309,13 @@ function IssueDetail({
     if (editing) {
       setEditing(false);
       setError("");
-      return;
+      return true;
     }
     if (stack.length <= 1) {
-      onBack();
-      return;
+      return false;
     }
     setStack((current) => current.slice(0, -1));
+    return true;
   }
 
   useEffect(() => {
@@ -5823,10 +5905,9 @@ function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
   closeRef.current = onClose;
   const swipeLeft = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-        gesture.dx <= -24 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onMoveShouldSetPanResponderCapture: (_event, gesture) => claimsMenuDismiss(gesture),
       onPanResponderRelease: (_event, gesture) => {
-        if (gesture.dx <= -48 || gesture.vx <= -0.4) {
+        if (releasesMenuDismiss(gesture)) {
           closeRef.current();
         }
       },

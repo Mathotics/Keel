@@ -1,4 +1,7 @@
 # Onboard a local Keel development environment (venv + dependencies).
+param(
+    [switch]$EmptyDatabase
+)
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent $PSScriptRoot
@@ -122,6 +125,22 @@ if (-not (Test-Path ".env") -and (Test-Path ".env.example")) {
     Copy-Item ".env.example" ".env"
     Write-Host "Created .env from .env.example"
 }
+
+$KeelExe = $null
+if (Test-Path ".venv\Scripts\keel.exe") {
+    $KeelExe = (Resolve-Path ".venv\Scripts\keel.exe").Path
+} elseif (Test-Path ".venv/bin/keel") {
+    $KeelExe = (Resolve-Path ".venv/bin/keel").Path
+} else {
+    Write-Host "error: keel was not installed into the virtual environment" -ForegroundColor Red
+    exit 1
+}
+if ($EmptyDatabase) {
+    & $KeelExe db prepare-worktree --empty-database
+} else {
+    & $KeelExe db prepare-worktree
+}
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""
 Write-Host "Onboarding complete."

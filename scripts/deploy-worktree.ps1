@@ -1,7 +1,7 @@
 # Create a git worktree for a new branch, onboard it, and optionally run an agent.
 # Usage:
 #   .\scripts\deploy-worktree.ps1 <branch>
-#       [--skip-main-check] [--stash-switch]
+#       [--skip-main-check] [--stash-switch] [--empty-database]
 #       [--agent-command <cmd>] [--commit-when-done <msg>] [--push-when-done]
 $ErrorActionPreference = "Stop"
 
@@ -15,6 +15,7 @@ Required:
 Options:
   --skip-main-check         Skip verifying the main checkout is on the default branch
   --stash-switch            If not on the default branch: stash, checkout default, then restore after
+  --empty-database          Give the new worktree an empty database instead of a shared copy
   --agent-command <cmd>     After onboard, activate .venv and run: agent <cmd>
   --commit-when-done <msg>  In the worktree: git add --all && git commit -m <msg>
   --push-when-done          In the worktree: git push -u origin HEAD
@@ -35,6 +36,7 @@ function Fail([string]$Message) {
 $BranchName = $null
 $SkipMainCheck = $false
 $StashSwitch = $false
+$EmptyDatabase = $false
 $AgentCommand = $null
 $CommitWhenDone = $null
 $PushWhenDone = $false
@@ -56,6 +58,10 @@ while ($i -lt $argv.Count) {
         }
         "--stash-switch" {
             $StashSwitch = $true
+            $i++
+        }
+        "--empty-database" {
+            $EmptyDatabase = $true
             $i++
         }
         "--push-when-done" {
@@ -187,7 +193,11 @@ try {
     Set-Location $WorktreePath
 
     Write-Host "Running onboard..."
-    & "$WorktreePath\scripts\onboard.ps1"
+    if ($EmptyDatabase) {
+        & "$WorktreePath\scripts\onboard.ps1" -EmptyDatabase
+    } else {
+        & "$WorktreePath\scripts\onboard.ps1"
+    }
     if ($LASTEXITCODE -ne 0) { Fail "onboard.ps1 failed" }
 
     if ($null -ne $AgentCommand) {
