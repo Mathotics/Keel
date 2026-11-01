@@ -13,6 +13,7 @@ KEEL-
 <!-- `poe check` is the bar. Name any manual check too: pages opened, CLI run, phone build. -->
 
 - [ ] `poe check` passes locally (hooks + full suite at 90% coverage)
+- [ ] `poe audit` passes when dependencies changed
 
 ## Deploy notes
 

@@ -356,7 +356,7 @@ Keel is proprietary. The [license](#license) requires prior written permission f
 poe check
 ```
 
-That runs pre-commit (including isort and mypy) and the full pytest suite with 90% coverage. `git commit` runs the hooks and the unit tests. `poe hooks` reinstalls the hooks.
+That runs pre-commit (including isort and mypy) and the full pytest suite with 90% coverage. `git commit` runs the hooks and the unit tests. `poe hooks` reinstalls the hooks. `poe audit` checks the application dependencies for known vulnerabilities; CI runs it beside `poe check`.
 
 | Suite | Directory | Poe task |
 | --- | --- | --- |
