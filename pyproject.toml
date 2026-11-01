@@ -12,7 +12,8 @@ license = { file = "LICENSE" }
 authors = [{ name = "Keel" }]
 dependencies = [
     "argon2-cffi==25.1.0",
-    "fastapi==0.116.1",
+    "fastapi==0.162.0",
+    "starlette==1.10.0",
     "uvicorn[standard]==0.35.0",
     "pydantic-settings==2.10.1",
     "sqlalchemy==2.0.52",
@@ -28,7 +29,7 @@ dependencies = [
 dev = [
     "ruff==0.12.10",
     "pytest==8.4.1",
-    "httpx==0.28.1",
+    "httpx2==2.16.0",
     "poethepoet==0.48.0",
     "pre-commit==4.6.2",
     "mypy==2.3.1",
@@ -36,6 +37,8 @@ dev = [
     "types-Markdown==3.10.2.20260712",
     "isort==9.0.1",
     "pytest-cov==6.2.1",
+    "pip-audit==2.10.1",
+    "bandit==1.9.4",
 ]
 
 [project.scripts]
@@ -160,6 +163,22 @@ cmd = "pre-commit install --install-hooks"
 [tool.poe.tasks.pre-commit]
 help = "Run pre-commit on all files"
 cmd = "pre-commit run --all-files"
+
+[tool.poe.tasks.audit]
+help = "Audit application dependencies for known vulnerabilities"
+cmd = "pip-audit . --progress-spinner=off --strict --timeout 30"
+
+[tool.poe.tasks.scan-python]
+help = "Scan the Python server for security flaws in shipping code"
+cmd = "python scripts/code_scan.py python"
+
+[tool.poe.tasks.scan-browser]
+help = "Scan the browser scripts for security flaws"
+cmd = "python scripts/code_scan.py browser"
+
+[tool.poe.tasks.scan-phone]
+help = "Scan the phone app for security flaws in shipping code"
+cmd = "python scripts/code_scan.py phone"
 
 [tool.poe.tasks.check]
 help = "Run pre-commit hooks, then the full test suite at 90% coverage"

@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "detect-bidi-characters": {"level": "warn"},
+    "detect-buffer-noassert": {"level": "error"},
+    "detect-child-process": {"level": "error"},
+    "detect-disable-mustache-escape": {"level": "error"},
+    "detect-eval-with-expression": {"level": "error"},
+    "detect-invisible-characters": {"level": "warn"},
+    "detect-new-buffer": {"level": "error"},
+    "detect-no-csrf-before-method-override": {"level": "warn"},
+    "detect-non-literal-fs-filename": {"level": "error"},
+    "detect-non-literal-regexp": {"level": "warn"},
+    "detect-non-literal-require": {"level": "error"},
+    "detect-object-injection": {"level": "warn"},
+    "detect-possible-timing-attacks": {"level": "warn"},
+    "detect-pseudoRandomBytes": {"level": "error"},
+    "detect-unsafe-regex": {"level": "error"}
+  }
+}

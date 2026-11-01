@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Gantt{% endblock %}
+{% block main %}
+      <h1>Gantt</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% include "_filters.html" %}
+      {% macro carry(href, query) -%}
+        {%- if query -%}{{ href ~ ('&' if '?' in href else '?') ~ query }}{%- else -%}{{ href }}{%- endif -%}
+      {%- endmacro %}
+      <nav class="keel-tabs" aria-label="Gantt scale">
+        <a class="keel-tabs__tab" href="{{ carry(gantt.month_href, bar.query) }}"{% if gantt.view == "month" %} aria-current="page"{% endif %}>Month</a>
+        <a class="keel-tabs__tab" href="{{ carry(gantt.quarter_href, bar.query) }}"{% if gantt.view == "quarter" %} aria-current="page"{% endif %}>Quarter</a>
+        <a class="keel-tabs__tab" href="{{ carry(gantt.year_href, bar.query) }}"{% if gantt.view == "year" %} aria-current="page"{% endif %}>Year</a>
+      </nav>
+      <nav class="keel-cal__nav" aria-label="When">
+        <a href="{{ carry(gantt.prev_href, bar.query) }}">Previous</a>
+        {% if gantt.view != "month" %}
+        <h2>{{ gantt.label }}</h2>
+        {% endif %}
+        <form class="keel-cal__jump" method="get" action="{{ gantt.base }}" data-keel-autosubmit>
+          {% if gantt.view != "month" %}
+          <input type="hidden" name="view" value="{{ gantt.view }}">
+          {% endif %}
+          <label class="keel-visually-hidden" for="gantt-month">Month</label>
+          <select id="gantt-month" name="month_num">
+            {% for name in gantt.month_names %}
+            <option value="{{ loop.index }}"{% if loop.index == gantt.month_number %} selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+          </select>
+          <label class="keel-visually-hidden" for="gantt-year">Year</label>
+          <select id="gantt-year" name="year">
+            {% for y in gantt.years %}
+            <option value="{{ y }}"{% if y == gantt.year %} selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+          {% for name, value in bar.fields %}
+          <input type="hidden" name="{{ name }}" value="{{ value }}"/>
+          {% endfor %}
+          <button class="keel-autosubmit__fallback" type="submit">Show</button>
+        </form>
+        <a href="{{ carry(gantt.next_href, bar.query) }}">Next</a>
+        <a href="{{ carry(gantt.today_href, bar.query) }}">Today</a>
+      </nav>
+      {% if gantt.empty %}
+      <p class="keel-lede">{{ gantt.empty_note }}</p>
+      {% endif %}
+      {% if gantt.links %}
+      <p class="keel-gantt__legend">A solid arrow means blocks. A dashed line means relates to.</p>
+      {% endif %}
+      <div class="keel-gantt keel-gantt--{{ gantt.view }}" style="--cols: {{ gantt.columns | length }};">
+        <div class="keel-gantt__head">
+          <span class="keel-gantt__corner">Issue</span>
+          {% for col in gantt.columns %}
+          <span class="keel-gantt__col{% if col.is_today %} keel-gantt__col--today{% endif %}" title="{{ col.hint }}">{% if col.dow %}<span class="keel-gantt__dow">{{ col.dow }}</span>{% endif %}<span>{{ col.mark }}</span></span>
+          {% endfor %}
+        </div>
+        <div class="keel-gantt__body">
+          {% for row in gantt.rows %}
+          <div class="keel-gantt__row">
+            <a class="keel-gantt__name" href="/issues/{{ row.key }}" style="--depth: {{ row.depth }};"><span class="keel-gantt__key">{{ row.key }}</span> <span class="keel-gantt__title">{{ row.title }}</span> <span class="keel-gantt__status" data-status="{{ row.status.value }}">{{ row.status | label }}</span></a>
+            <div class="keel-gantt__track">
+              {% if gantt.today_column %}
+              <span class="keel-gantt__today" style="grid-column: {{ gantt.today_column }};"></span>
+              {% endif %}
+              <a class="keel-gantt__bar{% if row.continues_before %} keel-gantt__bar--continued{% endif %}{% if row.continues_after %} keel-gantt__bar--continues{% endif %}{% if row.point %} keel-gantt__bar--point{% endif %}" data-type="{{ row.type }}" href="/issues/{{ row.key }}" title="{{ row.key }} {{ row.title }}" style="grid-column: {{ row.column }} / span {{ row.length }};"><span class="keel-visually-hidden">{{ row.key }} {{ row.title }}</span></a>
+            </div>
+          </div>
+          {% endfor %}
+          {% if gantt.links %}
+          <div class="keel-gantt__links">
+            <svg viewBox="0 0 {{ gantt.columns | length }} {{ gantt.rows | length }}" preserveAspectRatio="none" aria-hidden="true">
+              {% for link in gantt.links %}
+              <path class="keel-gantt__link" data-kind="{{ link.kind }}" d="{{ link.path }}"><title>{{ link.text }}</title></path>
+              {% endfor %}
+            </svg>
+            {% for link in gantt.links if link.tip %}
+            <span class="keel-gantt__tip keel-gantt__tip--{{ link.tip }}" style="left: {{ link.tip_x }}%; top: {{ link.tip_y }}%;"></span>
+            {% endfor %}
+          </div>
+          <ul class="keel-visually-hidden">
+            {% for link in gantt.links %}
+            <li>{{ link.text }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </div>
+      </div>
+{% endblock %}

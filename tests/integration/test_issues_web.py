@@ -23,7 +23,7 @@ def submit_issue(client: TestClient, project: Json, **fields: str) -> str:
         data=data,
         follow_redirects=False,
     )
-    return response.headers["location"]
+    return str(response.headers["location"])
 
 
 def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:

@@ -104,7 +104,7 @@ Done when comments can be added and read, effort round-trips through the shortha
 | --- | --- |
 | Domain rules | Unit tests calling pure functions directly, no fixtures |
 | Services | Unit tests against an in-memory SQLite database per test |
-| Routes | Integration tests through httpx against the application |
+| Routes | Integration tests through the ASGI test client against the application |
 | End to end | System tests against a live server |
 | Board JavaScript | Not executed by the suite; its endpoints and fallback routes are covered automatically and dragging is checked by hand ([ADR 009](../adr/server-rendered-jinja2.md)) |
 

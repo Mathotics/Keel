@@ -24,7 +24,8 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies:
-          - fastapi==0.116.1
+          - fastapi==0.162.0
+          - starlette==1.10.0
           - pydantic-settings==2.10.1
           - uvicorn[standard]==0.35.0
           - sqlalchemy==2.0.52
@@ -36,13 +37,32 @@ repos:
           - bleach==6.4.0
           - types-bleach==6.4.0.20260728
           - types-Markdown==3.10.2.20260712
-          - httpx==0.28.1
+          - httpx2==2.16.0
           - pytest==8.4.1
           - argon2-cffi==25.1.0
         args: [src, tests]
         pass_filenames: false
   - repo: local
     hooks:
+      - id: scan-python
+        name: Python server security scan
+        language: system
+        entry: python scripts/code_scan.py python
+        pass_filenames: false
+        files: '^(src/keel/.+\.py|scan/python\.json|scripts/code_scan\.py)$'
+      - id: scan-browser
+        name: browser script security scan
+        language: system
+        entry: python scripts/code_scan.py browser
+        pass_filenames: false
+        files: '^(assets/js/.+\.js|scan/browser\.json|scan/package\.json|scan/package-lock\.json|scripts/code_scan\.py)$'
+      - id: scan-phone
+        name: phone app security scan
+        language: system
+        entry: python scripts/code_scan.py phone
+        pass_filenames: false
+        files: '^(mobile/(App\.js|index\.js|plugins/.+\.js|src/.+\.js)|scan/phone\.json|scan/package\.json|scan/package-lock\.json|scripts/code_scan\.py)$'
+        exclude: '\.test\.js$'
       - id: pytest-unit
         name: unit tests
         language: system

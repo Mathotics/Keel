@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  BackHandler,
   Modal,
   PanResponder,
   Platform,
@@ -23,10 +24,11 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadBacklog, loadBoards, loadCalendarIssues, loadCatalog, loadCompletedAt, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, requestPasswordReset, requestUsername, revokeToken, send } from "./src/api";
+import { loadBacklog, loadBoards, loadCalendarIssues, loadCatalog, loadCompletedAt, loadGanttLinks, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, requestPasswordReset, requestUsername, revokeToken, send } from "./src/api";
 import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
 import { calendarView, focusForView, moveFocus } from "./src/calendar";
+import { ganttView, focusForView as ganttFocusForView, moveFocus as ganttMoveFocus } from "./src/gantt";
 import { arrangeInbox, blankLayout, hideSection, homeKey, moveSection, parseLayout, showSection } from "./src/home";
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
@@ -60,6 +62,7 @@ import {
   queueRemoveComment,
   queueUpdate,
   presentQueue,
+  conflictView,
   rememberDetail,
   renameProject,
   storeKey,
@@ -71,6 +74,7 @@ import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel,
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
 import { formatMinutes, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
+import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
 const LOCK_KEY = "keel.lockSetting";
@@ -83,9 +87,9 @@ const OFFLINE_KEY = "keel.forceOffline";
 const CONNECTED = "Connected";
 const FAILED = "Could not connect.";
 const TOP_INSET = Platform.OS === "android" ? NativeStatusBar.currentHeight || 24 : 44;
-const MENU_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "schedules"];
-const TAB_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "schedules"];
-const CREATE_PHASES = ["home", "projects", "board", "backlog", "find", "calendar", "sprints", "schedules"];
+const MENU_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "gantt", "schedules"];
+const TAB_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "gantt", "schedules"];
+const CREATE_PHASES = ["home", "projects", "board", "backlog", "find", "calendar", "gantt", "sprints", "schedules"];
 const MARKS = ["#0068B0", "#7C3AED", "#0F7A73", "#DB2777", "#D97706"];
 
 const LOCK_OPTIONS = [
@@ -120,6 +124,27 @@ export default function App() {
   const listPhase = useRef("home");
   const queueFrom = useRef("home");
   const issueBackRef = useRef(null);
+  const requestBackRef = useRef(() => false);
+  const canSwipeBackRef = useRef(false);
+  const drawerOpenRef = useRef(false);
+  const lastBackAt = useRef(0);
+  const historyRef = useRef([]);
+  const phaseTrack = useRef("booting");
+  const restoringRef = useRef(false);
+  const pageBack = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
+        canSwipeBackRef.current && !drawerOpenRef.current && claimsPageBack(gesture),
+      onPanResponderRelease: (_event, gesture) => {
+        if (!canSwipeBackRef.current || drawerOpenRef.current || !releasesPageBack(gesture)) {
+          return;
+        }
+        requestBackRef.current();
+      },
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
+    }),
+  ).current;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [online, setOnline] = useState(false);
   const [forceOffline, setForceOffline] = useState(false);
@@ -150,6 +175,12 @@ export default function App() {
   const [calendarViewName, setCalendarViewName] = useState("month");
   const [calendarWhen, setCalendarWhen] = useState("start");
   const [calendarFocus, setCalendarFocus] = useState(localToday);
+  const [remoteGantt, setRemoteGantt] = useState(null);
+  const [ganttLinks, setGanttLinks] = useState([]);
+  const [ganttLink, setGanttLink] = useState("offline");
+  const [ganttProjectId, setGanttProjectId] = useState(null);
+  const [ganttViewName, setGanttViewName] = useState("month");
+  const [ganttFocus, setGanttFocus] = useState(localToday);
   const [remoteSeries, setRemoteSeries] = useState(null);
   const [scheduleLink, setScheduleLink] = useState("offline");
   const [scheduleProjectId, setScheduleProjectId] = useState(null);
@@ -179,6 +210,19 @@ export default function App() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+
+  useEffect(() => {
+    if (!account) {
+      return undefined;
+    }
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (drawerOpenRef.current) {
+        return false;
+      }
+      return requestBackRef.current();
+    });
+    return () => subscription.remove();
+  }, [account]);
 
   useEffect(() => {
     lockRef.current = lockSetting;
@@ -687,6 +731,8 @@ export default function App() {
           await refreshBacklog(currentAccount, next, backlogProjectId);
         } else if (showing === "calendar") {
           await refreshCalendar(currentAccount, next, calendarProjectId, calendarWhen);
+        } else if (showing === "gantt") {
+          await refreshGantt(currentAccount, next, ganttProjectId);
         } else if (showing === "sprints" || showing === "sprint") {
           await refreshPlanning(currentAccount, next, planningProjectId);
           if (showing === "sprint" && openSprint) {
@@ -1240,6 +1286,76 @@ export default function App() {
         return;
       }
       setCalendarLink("offline");
+      setWorkError(err.message || FAILED);
+    } finally {
+      if (pull) {
+        setRefreshing(false);
+      }
+    }
+  }
+
+  async function refreshGantt(currentAccount, currentLibrary, projectId) {
+    if (forcedOffline()) {
+      return;
+    }
+    const projects = enabledProjects(currentLibrary);
+    try {
+      const issues = await loadCalendarIssues(
+        currentAccount.origin,
+        currentAccount.token,
+        projects,
+        Number(currentAccount.userId),
+        projectId,
+      );
+      let links = [];
+      try {
+        links = await loadGanttLinks(currentAccount.origin, currentAccount.token, issues);
+      } catch (err) {
+        if (err.status === 401) {
+          throw err;
+        }
+        links = [];
+      }
+      setRemoteGantt(issues);
+      setGanttLinks(links);
+      setGanttLink("online");
+      setWorkError("");
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      setRemoteGantt(null);
+      setGanttLinks([]);
+      setGanttLink("offline");
+    }
+  }
+
+  async function openGantt(arg) {
+    const pull = wantsPull(arg);
+    listPhase.current = "gantt";
+    setPhase("gantt");
+    if (ganttLink !== "online") {
+      setGanttLink("offline");
+    }
+    if (pull) {
+      setRefreshing(true);
+    }
+    try {
+      const loaded = await openLibrary({ force: pull });
+      if (loaded.offline) {
+        setGanttLink("offline");
+        return;
+      }
+      await refreshGantt(account, loaded.store, ganttProjectId);
+      await refreshFilterSprints(account, loaded.store);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setGanttLink("offline");
       setWorkError(err.message || FAILED);
     } finally {
       if (pull) {
@@ -1979,6 +2095,7 @@ export default function App() {
       sprints: "Sprints",
       sprint: "Sprint",
       calendar: "Calendar",
+      gantt: "Gantt",
       schedules: "Schedules",
       schedule: "Schedule",
       create: "Create issue",
@@ -1993,11 +2110,10 @@ export default function App() {
 
   function shellBack() {
     if (phase === "issue") {
-      if (issueBackRef.current) {
-        issueBackRef.current();
-      } else {
-        setPhase(listPhase.current);
+      if (issueBackRef.current && issueBackRef.current()) {
+        return;
       }
+      setPhase(listPhase.current);
       return;
     }
     if (phase === "create" || phase === "settings" || phase === "account" || phase === "license") {
@@ -2030,6 +2146,47 @@ export default function App() {
       setRecipeMode("create");
       setPhase("schedules");
     }
+  }
+
+  function requestBack() {
+    if (drawerOpen) {
+      return false;
+    }
+    const now = Date.now();
+    if (now - lastBackAt.current < 350) {
+      return true;
+    }
+    if (phase === "issue" && issueBackRef.current && issueBackRef.current()) {
+      lastBackAt.current = now;
+      return true;
+    }
+    const previous = historyRef.current[historyRef.current.length - 1];
+    if (!previous) {
+      if (MENU_PHASES.includes(phase)) {
+        return false;
+      }
+      lastBackAt.current = now;
+      restoringRef.current = true;
+      shellBack();
+      return true;
+    }
+    lastBackAt.current = now;
+    restoringRef.current = true;
+    historyRef.current.pop();
+    setMessage("");
+    if (TAB_PHASES.includes(previous) || previous === "sprint") {
+      listPhase.current = previous;
+    }
+    if (phase === "schedule" && previous === "issue" && recipeIssue) {
+      setIssueId(recipeIssue.id);
+    }
+    if (phase === "schedule" && previous === "schedules") {
+      setRecipe(blankRecipe());
+      setRecipeMode("create");
+      setRecipeIssue(null);
+    }
+    setPhase(previous);
+    return true;
   }
 
   function openCreate() {
@@ -2074,6 +2231,10 @@ export default function App() {
       openCalendar();
       return;
     }
+    if (next === "gantt") {
+      openGantt();
+      return;
+    }
     if (next === "find") {
       openFind();
       return;
@@ -2099,8 +2260,16 @@ export default function App() {
     }
   }
 
+  const tracked = notePhase(historyRef.current, phaseTrack.current, phase, restoringRef.current);
+  historyRef.current = tracked.history;
+  phaseTrack.current = tracked.previous;
+  restoringRef.current = tracked.restoring;
+  requestBackRef.current = requestBack;
+  canSwipeBackRef.current = signedIn && (!MENU_PHASES.includes(phase) || historyRef.current.length > 0);
+  drawerOpenRef.current = drawerOpen;
+
   return (
-    <View style={signedIn ? styles.shell : styles.screen}>
+    <View style={signedIn ? styles.shell : styles.screen} {...(signedIn ? pageBack.panHandlers : {})}>
       <StatusBar style={signedIn ? "light" : "dark"} />
       {signedIn ? (
         <AppBar
@@ -2110,7 +2279,7 @@ export default function App() {
             setDrawerOpen(false);
             openAccount();
           }}
-          onBack={shellBack}
+          onBack={requestBack}
           onMenu={() => setDrawerOpen(true)}
           onConnection={toggleForceOffline}
           online={connectionMode(online, forceOffline)}
@@ -2751,6 +2920,77 @@ export default function App() {
           refreshing={refreshing}
         />
       ) : null}
+      {phase === "gantt" && account ? (
+        <GanttScreen
+          busy={busy}
+          chart={ganttView({
+            library,
+            remote: ganttLink === "online" ? remoteGantt || [] : null,
+            links: ganttLink === "online" ? ganttLinks : [],
+            view: ganttViewName,
+            focus: ganttFocus,
+            today: localToday(),
+            projectId: ganttProjectId,
+            userId: Number(account.userId),
+            filter: listFilter,
+          })}
+          error={workError}
+          filter={listFilter}
+          filterChoices={filterChoices(ganttProjectId)}
+          onFilter={setListFilter}
+          onMove={(direction) => {
+            setGanttFocus((current) => ganttMoveFocus(ganttViewName, current, localToday(), direction));
+          }}
+          onOpenIssue={(id) => {
+            listPhase.current = "gantt";
+            setIssueId(id);
+            setPhase("issue");
+          }}
+          onProject={async (projectId) => {
+            setGanttProjectId(projectId);
+            setRefreshing(true);
+            try {
+              await refreshGantt(account, library, projectId);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setGanttLink("offline");
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onRefresh={async () => {
+            setRefreshing(true);
+            try {
+              const store = await refreshLibrary(account, library);
+              await refreshGantt(account, store || library, ganttProjectId);
+            } catch (err) {
+              if (err.status === 401) {
+                await clearAccount();
+                setTone("error");
+                setMessage("Sign in.");
+                return;
+              }
+              setGanttLink("offline");
+              setWorkError(err.message || FAILED);
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+          onView={(next) => {
+            setGanttFocus((current) => ganttFocusForView(next, ganttViewName, current, localToday()));
+            setGanttViewName(next);
+          }}
+          projectId={ganttProjectId}
+          refreshing={refreshing}
+          showProject={ganttProjectId == null}
+        />
+      ) : null}
       {phase === "find" && account ? (
         <FindScreen
           account={account}
@@ -2821,7 +3061,6 @@ export default function App() {
         <IssueDetail
           account={account}
           issueId={issueId}
-          onBack={() => setPhase(listPhase.current)}
           onRegisterBack={(action) => {
             issueBackRef.current = action;
           }}
@@ -3916,6 +4155,268 @@ function CalendarScreen({
   );
 }
 
+function ganttColumnWidth(view) {
+  if (view === "year") {
+    return 56;
+  }
+  if (view === "quarter") {
+    return 48;
+  }
+  return 28;
+}
+
+function GanttTip({ direction, left, top }) {
+  const base = {
+    position: "absolute",
+    width: 0,
+    height: 0,
+    borderStyle: "solid",
+  };
+  if (direction === "left") {
+    return (
+      <View
+        style={{
+          ...base,
+          left,
+          top: top - 4,
+          borderTopWidth: 4,
+          borderBottomWidth: 4,
+          borderRightWidth: 8,
+          borderTopColor: "transparent",
+          borderBottomColor: "transparent",
+          borderRightColor: "#0062AB",
+        }}
+      />
+    );
+  }
+  if (direction === "down") {
+    return (
+      <View
+        style={{
+          ...base,
+          left: left - 4,
+          top,
+          borderLeftWidth: 4,
+          borderRightWidth: 4,
+          borderTopWidth: 8,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: "#0062AB",
+        }}
+      />
+    );
+  }
+  if (direction === "up") {
+    return (
+      <View
+        style={{
+          ...base,
+          left: left - 4,
+          top: top - 8,
+          borderLeftWidth: 4,
+          borderRightWidth: 4,
+          borderBottomWidth: 8,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderBottomColor: "#0062AB",
+        }}
+      />
+    );
+  }
+  return (
+    <View
+      style={{
+        ...base,
+        left: left - 8,
+        top: top - 4,
+        borderTopWidth: 4,
+        borderBottomWidth: 4,
+        borderLeftWidth: 8,
+        borderTopColor: "transparent",
+        borderBottomColor: "transparent",
+        borderLeftColor: "#0062AB",
+      }}
+    />
+  );
+}
+
+function GanttScreen({
+  chart,
+  busy,
+  error,
+  filter,
+  filterChoices,
+  showProject,
+  onFilter,
+  refreshing,
+  onRefresh,
+  projectId,
+  onView,
+  onMove,
+  onProject,
+  onOpenIssue,
+}) {
+  const selected = (current, value, label) => (current === value ? `● ${label}` : label);
+  const colW = ganttColumnWidth(chart && chart.view);
+  const rowH = 48;
+  const trackW = chart ? chart.columns.length * colW : 0;
+  return (
+    <ScrollView
+      contentContainerStyle={styles.workContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0068B0" />}
+      style={styles.work}
+    >
+      <View style={styles.toolbarActions}>
+        <TextButton label={selected(chart && chart.view, "month", "Month")} onPress={() => onView("month")} disabled={busy} />
+        <TextButton label={selected(chart && chart.view, "quarter", "Quarter")} onPress={() => onView("quarter")} disabled={busy} />
+        <TextButton label={selected(chart && chart.view, "year", "Year")} onPress={() => onView("year")} disabled={busy} />
+      </View>
+      <View style={styles.toolbarActions}>
+        <TextButton label="Previous" onPress={() => onMove(-1)} disabled={busy} />
+        <TextButton label="Today" onPress={() => onMove("today")} disabled={busy} />
+        <TextButton label="Next" onPress={() => onMove(1)} disabled={busy} />
+      </View>
+      {chart ? (
+        <View style={styles.toolbarActions}>
+          <TextButton label={projectId == null ? "● Mine" : "Mine"} onPress={() => onProject(null)} disabled={busy} />
+          {chart.projects.map((project) => (
+            <TextButton
+              key={project.id}
+              label={projectId === project.id ? `● ${project.key}` : project.key}
+              onPress={() => onProject(project.id)}
+              disabled={busy}
+            />
+          ))}
+        </View>
+      ) : null}
+      <FilterBar filter={filter} choices={filterChoices} showProject={showProject} onChange={onFilter} />
+      <Text style={styles.projectName}>{chart ? chart.label : ""}</Text>
+      {chart === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {chart && chart.banner ? <Text style={styles.message}>{chart.banner}</Text> : null}
+      {chart && chart.empty ? <Text style={styles.message}>{chart.empty}</Text> : null}
+      {chart && chart.legend ? <Text style={styles.ganttLegend}>{chart.legend}</Text> : null}
+      {chart ? (
+        <View style={styles.ganttChart}>
+          <View style={styles.ganttLabels}>
+            <View style={styles.ganttLabelHead} />
+            {chart.rows.map((row) => (
+              <Pressable
+                accessibilityRole="button"
+                key={row.id}
+                onPress={() => onOpenIssue(row.id)}
+                style={[styles.ganttLabel, { paddingLeft: 8 + Math.min(row.depth, 3) * 12 }]}
+              >
+                <Text numberOfLines={1} style={[styles.ganttKey, { color: row.color }]}>{row.key || "New"}</Text>
+                <Text numberOfLines={1} style={styles.ganttTitle}>{row.title}</Text>
+                <Text numberOfLines={1} style={styles.ganttStatus}>{row.statusLabel}</Text>
+                {row.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+              </Pressable>
+            ))}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator>
+            <View>
+              <View style={[styles.ganttHead, { width: trackW }]}>
+                {chart.columns.map((column, index) => (
+                  <View
+                    key={`${column.mark}-${index}`}
+                    style={[styles.ganttHeadCell, { width: colW }, column.isToday && styles.calendarToday]}
+                  >
+                    <Text numberOfLines={1} style={styles.ganttHeadMark}>{column.mark}</Text>
+                    {column.dow ? <Text style={styles.ganttHeadDow}>{column.dow}</Text> : null}
+                  </View>
+                ))}
+              </View>
+              <View style={{ width: trackW, height: chart.rows.length * rowH }}>
+                {chart.rows.map((row) => (
+                  <View key={row.id} style={[styles.ganttTrack, { width: trackW, height: rowH }]}>
+                    {chart.todayColumn ? (
+                      <View
+                        style={[
+                          styles.ganttToday,
+                          { left: (chart.todayColumn - 1) * colW, width: colW, height: rowH },
+                        ]}
+                      />
+                    ) : null}
+                    <Pressable
+                      accessibilityLabel={`${row.key} ${row.title}`}
+                      accessibilityRole="button"
+                      onPress={() => onOpenIssue(row.id)}
+                      style={[
+                        styles.ganttBar,
+                        {
+                          backgroundColor: row.color,
+                          left: row.point
+                            ? (row.column - 1) * colW + (colW - 16) / 2
+                            : (row.column - 1) * colW + 2,
+                          width: row.point ? 16 : Math.max(row.length * colW - 4, 8),
+                          borderTopLeftRadius: row.point || row.continuesBefore ? (row.point ? 8 : 0) : 8,
+                          borderBottomLeftRadius: row.point || row.continuesBefore ? (row.point ? 8 : 0) : 8,
+                          borderTopRightRadius: row.point || row.continuesAfter ? (row.point ? 8 : 0) : 8,
+                          borderBottomRightRadius: row.point || row.continuesAfter ? (row.point ? 8 : 0) : 8,
+                        },
+                      ]}
+                    />
+                  </View>
+                ))}
+                <View pointerEvents="none" style={styles.ganttLinks}>
+                  {chart.links.map((link) => (
+                    <View key={link.text}>
+                      {link.segments.map((segment, index) => (
+                        segment.axis === "x" ? (
+                          <View
+                            key={`${link.text}-x-${index}`}
+                            style={[
+                              styles.ganttSegmentX,
+                              link.kind === "relates_to" && styles.ganttSegmentDashed,
+                              {
+                                left: segment.x * colW,
+                                top: segment.y * rowH - 1,
+                                width: Math.max(segment.length * colW, 2),
+                              },
+                            ]}
+                          />
+                        ) : (
+                          <View
+                            key={`${link.text}-y-${index}`}
+                            style={[
+                              styles.ganttSegmentY,
+                              link.kind === "relates_to" && styles.ganttSegmentDashedY,
+                              {
+                                left: segment.x * colW - 1,
+                                top: segment.y * rowH,
+                                height: Math.max(segment.length * rowH, 2),
+                              },
+                            ]}
+                          />
+                        )
+                      ))}
+                      {link.tip ? (
+                        <GanttTip
+                          direction={link.tip}
+                          left={link.tipX * colW}
+                          top={link.tipY * rowH}
+                        />
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </View>
+      ) : null}
+      {chart && chart.links.length ? (
+        <View>
+          {chart.links.map((link) => (
+            <Text key={link.text} style={styles.ganttLinkText}>{link.text}</Text>
+          ))}
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+}
+
 function Home({
   account,
   inbox,
@@ -4754,7 +5255,6 @@ function IssueDetail({
   holdOffline,
   issueId,
   library,
-  onBack,
   onRegisterBack,
   onUnauthorized,
   onRemember,
@@ -4864,13 +5364,13 @@ function IssueDetail({
     if (editing) {
       setEditing(false);
       setError("");
-      return;
+      return true;
     }
     if (stack.length <= 1) {
-      onBack();
-      return;
+      return false;
     }
     setStack((current) => current.slice(0, -1));
+    return true;
   }
 
   useEffect(() => {
@@ -5048,12 +5548,7 @@ function IssueDetail({
             </View>
           ) : (
             <View>
-              <Text style={styles.message}>
-                This phone: {saved.raw.title}
-              </Text>
-              <Text style={styles.message}>
-                Server: {saved.conflict.server.title}
-              </Text>
+              <ConflictDiff conflict={conflictView(library, saved)} />
               <PrimaryButton label="Keep this phone" onPress={() => onKeepPhone(currentId)} disabled={false} />
               <PrimaryButton
                 label="Keep the server"
@@ -5465,10 +5960,9 @@ function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
   closeRef.current = onClose;
   const swipeLeft = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_event, gesture) =>
-        gesture.dx <= -24 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onMoveShouldSetPanResponderCapture: (_event, gesture) => claimsMenuDismiss(gesture),
       onPanResponderRelease: (_event, gesture) => {
-        if (gesture.dx <= -48 || gesture.vx <= -0.4) {
+        if (releasesMenuDismiss(gesture)) {
           closeRef.current();
         }
       },
@@ -5483,6 +5977,7 @@ function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
     { id: "sprints", label: "Sprints" },
     { id: "schedules", label: "Schedules" },
     { id: "calendar", label: "Calendar" },
+    { id: "gantt", label: "Gantt" },
     { id: "find", label: "Find" },
     { id: "create", label: "Create issue" },
     { id: "account", label: "Profile" },
@@ -5559,6 +6054,34 @@ function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
   );
 }
 
+function ConflictDiff({ conflict }) {
+  if (!conflict) {
+    return null;
+  }
+  if (conflict.kind === "deleted") {
+    return <Text style={styles.pending}>The server no longer has this issue.</Text>;
+  }
+  if (!conflict.changes.length) {
+    return (
+      <Text style={styles.conflictLine}>
+        Waiting on a conflict. The saved fields match. The server was updated after this phone last read the issue.
+      </Text>
+    );
+  }
+  return (
+    <View>
+      <Text style={styles.pending}>This phone and the server differ.</Text>
+      {conflict.changes.map((change) => (
+        <View key={change.field}>
+          <Text style={styles.conflictField}>{change.field}</Text>
+          <Text style={styles.conflictLine}>This phone: {change.phone}</Text>
+          <Text style={styles.conflictLine}>Server: {change.server}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function OfflineQueue({ rows, onOpen, onRemove }) {
   if (!rows.length) {
     return (
@@ -5577,7 +6100,7 @@ function OfflineQueue({ rows, onOpen, onRemove }) {
             <Text style={styles.issueTitle}>{row.issue}</Text>
             {row.project ? <Text style={styles.issueStatus}>{row.project}</Text> : null}
             {row.detail ? <Text style={styles.queueDetail}>{row.detail}</Text> : null}
-            {row.held ? <Text style={styles.pending}>Waiting on a conflict.</Text> : null}
+            {row.conflict ? <ConflictDiff conflict={row.conflict} /> : null}
             {row.error ? <Text style={styles.pending}>{row.error}</Text> : null}
           </Pressable>
           <View style={styles.toolbarActions}>
@@ -6600,6 +7123,18 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
   },
+  conflictField: {
+    color: "#9A3412",
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 10,
+  },
+  conflictLine: {
+    color: "#123044",
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 2,
+  },
   detailTitle: {
     color: "#0062AB",
     fontSize: 22,
@@ -6916,5 +7451,103 @@ const styles = StyleSheet.create({
   choiceText: {
     color: "#0062AB",
     fontSize: 16,
+  },
+  ganttChart: {
+    flexDirection: "row",
+    marginTop: 12,
+  },
+  ganttLabels: {
+    width: 132,
+  },
+  ganttLabelHead: {
+    height: 36,
+  },
+  ganttLabel: {
+    height: 48,
+    justifyContent: "center",
+    paddingRight: 8,
+  },
+  ganttKey: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  ganttTitle: {
+    color: "#16324F",
+    fontSize: 12,
+  },
+  ganttStatus: {
+    color: "#0F7A73",
+    fontSize: 11,
+  },
+  ganttHead: {
+    flexDirection: "row",
+    height: 36,
+  },
+  ganttHeadCell: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ganttHeadMark: {
+    color: "#0062AB",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  ganttHeadDow: {
+    color: "#0062AB",
+    fontSize: 10,
+  },
+  ganttTrack: {
+    position: "relative",
+  },
+  ganttToday: {
+    backgroundColor: "#E8F3FB",
+    position: "absolute",
+    top: 0,
+  },
+  ganttBar: {
+    height: 16,
+    position: "absolute",
+    top: 16,
+  },
+  ganttLinks: {
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
+  ganttSegmentX: {
+    backgroundColor: "#0062AB",
+    height: 2,
+    position: "absolute",
+  },
+  ganttSegmentY: {
+    backgroundColor: "#0062AB",
+    position: "absolute",
+    width: 2,
+  },
+  ganttSegmentDashed: {
+    backgroundColor: "transparent",
+    borderStyle: "dashed",
+    borderTopColor: "#5B8FB8",
+    borderTopWidth: 2,
+    height: 0,
+  },
+  ganttSegmentDashedY: {
+    backgroundColor: "transparent",
+    borderLeftColor: "#5B8FB8",
+    borderLeftWidth: 2,
+    borderStyle: "dashed",
+    width: 0,
+  },
+  ganttLegend: {
+    color: "#0062AB",
+    fontSize: 14,
+    marginTop: 8,
+  },
+  ganttLinkText: {
+    color: "#16324F",
+    fontSize: 14,
+    marginTop: 4,
   },
 });

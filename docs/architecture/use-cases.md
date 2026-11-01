@@ -13,6 +13,10 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 * **See the month, the week, or the day.** A user opens Calendar and sees issues assigned to them, across projects, on the days they cover, including Done and Cancelled. Inside a project, Calendar shows that project's dated issues, whoever they are assigned to. The status filter is what leaves Done or Cancelled off. A bar runs from the start day through the due day. On a week or a day, the same bar follows the hours between the start time and the due time. Month, Week, and Day, and Previous, Next, and the date dropdowns, stay on the same view. Choosing a bar opens the issue ([Calendar of assigned work](../adr/month-calendar.md)).
 
+## Gantt
+
+* **Compare how long work runs.** A user opens Gantt and sees one row per dated issue assigned to them, across projects, including Done and Cancelled. Inside a project, Gantt shows that project's dated issues, whoever they are assigned to. A bar runs from the start day through the due day. Month is one column per day. Quarter is one column per week. Year is one column per month. A child sits under its parent when that parent is also on the page. When both issues of a dependency are on the page, a solid arrow shows that one blocks the other and a dashed line shows that they relate. Month, Quarter, Year, Previous, Next, and the date dropdowns stay on the same chart. Choosing a row or a bar opens the issue. The phone app opens the same chart from its menu ([Gantt chart](../adr/gantt-chart.md)).
+
 ## Projects
 
 * **Create a project.** A user creates a named project to hold a body of work. Issues, boards, sprints, and the backlog all live inside a project. Multiple projects can exist side by side.

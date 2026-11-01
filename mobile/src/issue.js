@@ -294,5 +294,7 @@ module.exports = {
   issuePage,
   linkEnds,
   parseMarkdown,
+  priorityLabel,
   savedIssueId,
+  typeLabel,
 };

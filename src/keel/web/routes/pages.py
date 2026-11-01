@@ -17,6 +17,7 @@ from keel.domain.enums import (
 )
 from keel.paths import license_text
 from keel.services import calendar as calendar_service
+from keel.services import gantt as gantt_service
 from keel.services import home as home_service
 from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
@@ -215,6 +216,109 @@ def _calendar_page(
             ),
         ),
     )
+
+
+@router.get("/gantt", response_class=HTMLResponse)
+def gantt_page(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    raw: Annotated[FilterRequest, Depends(filter_request)],
+    month: str | None = None,
+    year: int | None = None,
+    month_num: int | None = None,
+    view: str | None = None,
+) -> HTMLResponse:
+    """Month, quarter, or year of issues assigned to the acting user."""
+    return _gantt_page(
+        request,
+        chrome,
+        session,
+        raw,
+        project=None,
+        assignee_id=None if chrome.current_user is None else chrome.current_user.id,
+        month=month,
+        year=year,
+        month_num=month_num,
+        view=view,
+        base="/gantt",
+    )
+
+
+def _gantt_page(
+    request: Request,
+    chrome: ChromeDep,
+    session: SessionDep,
+    raw: FilterRequest,
+    *,
+    project: Project | None,
+    assignee_id: int | None,
+    month: str | None,
+    year: int | None,
+    month_num: int | None,
+    view: str | None,
+    base: str,
+) -> HTMLResponse:
+    kept = _gantt_kept(request)
+    bar = read_bar(
+        session,
+        raw,
+        base=base,
+        include_projects=project is None,
+        extra=kept,
+    )
+    shown = gantt_service.open_gantt(
+        session,
+        assignee_id,
+        view=view,
+        month=month,
+        year=year,
+        month_num=month_num,
+        today=date.today(),
+        project_id=None if project is None else project.id,
+        base=base,
+        filters=bar.criteria,
+    )
+    projects = list(project_service.list_projects(session))
+    scope = None if project is None else project.id
+    return get_templates().TemplateResponse(
+        request,
+        "gantt.html",
+        page_context(
+            request,
+            chrome,
+            project=project,
+            gantt=shown,
+            **filter_context(
+                bar,
+                action=base,
+                show_project=project is None,
+                show_layout=False,
+                sprints=sprint_menu(
+                    session,
+                    project_id=scope,
+                    project_ids=bar.criteria.project_ids,
+                ),
+                project_keys={item.id: item.key for item in projects},
+                prefix=project is None,
+                separate=False,
+                preserve=kept,
+                error=None,
+            ),
+        ),
+    )
+
+
+def _gantt_kept(request: Request) -> tuple[tuple[str, str], ...]:
+    """Keep the gantt scale and dropdowns. Other date params belong to the calendar."""
+    kept: list[tuple[str, str]] = []
+    for key, value in date_pairs(request):
+        if key not in {"view", "month", "year", "month_num"}:
+            continue
+        if key == "view" and value not in {"quarter", "year"}:
+            continue
+        kept.append((key, value))
+    return tuple(kept)
 
 
 def render_create_page(

@@ -1,0 +1,8 @@
+{
+  "name": "keel-code-scan",
+  "private": true,
+  "dependencies": {
+    "eslint": "10.14.0",
+    "eslint-plugin-security": "4.2.1"
+  }
+}
