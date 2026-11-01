@@ -44,6 +44,25 @@ repos:
         pass_filenames: false
   - repo: local
     hooks:
+      - id: scan-python
+        name: Python server security scan
+        language: system
+        entry: python scripts/code_scan.py python
+        pass_filenames: false
+        files: '^(src/keel/.+\.py|scan/python\.json|scripts/code_scan\.py)$'
+      - id: scan-browser
+        name: browser script security scan
+        language: system
+        entry: python scripts/code_scan.py browser
+        pass_filenames: false
+        files: '^(assets/js/.+\.js|scan/browser\.json|scan/package\.json|scan/package-lock\.json|scripts/code_scan\.py)$'
+      - id: scan-phone
+        name: phone app security scan
+        language: system
+        entry: python scripts/code_scan.py phone
+        pass_filenames: false
+        files: '^(mobile/(App\.js|index\.js|plugins/.+\.js|src/.+\.js)|scan/phone\.json|scan/package\.json|scan/package-lock\.json|scripts/code_scan\.py)$'
+        exclude: '\.test\.js$'
       - id: pytest-unit
         name: unit tests
         language: system

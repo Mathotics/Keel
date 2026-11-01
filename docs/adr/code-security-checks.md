@@ -3,6 +3,8 @@
 * **Status:** Accepted
 * **Date:** 2026-11-01
 
+> **Amendment.** A commit runs each scan through pre-commit, and skips that scan when the commit includes no file that scan covers. `poe check` runs every hook on all files, so it runs all three. CI still has the three jobs.
+
 ## Background
 
 CI already fails when a published advisory matches a Python package the server installs ([Dependency vulnerability checks](dependency-vulnerability-checks.md)). That check does not read Keel’s own source. Ruff in CI checks style and correctness only. Nothing scans the Python server, the browser scripts in `assets/js`, or the phone app in `mobile/` for security flaws in code we wrote. A pull request can merge, and the Raspberry Pi deploy that waits on CI can install it, with that kind of flaw still in the tree.
@@ -61,7 +63,10 @@ A security flaw in code we wrote can ship while CI is green. The dependency audi
 * **Must** fail that app’s check if the scan cannot finish.
 * **Must** leave Deploy waiting on the CI workflow, so any failed check blocks the production update.
 * **Must** keep the dependency vulnerability check as its own check.
-* **May** be run locally before push, with the same pass or fail result CI would give.
+* **Must** run each scan from pre-commit when the commit includes a file that scan covers.
+* **Must** skip that scan on commit when the commit includes no such file.
+* **Must** run all three scans from `poe check`, because that runs every hook on all files.
+* **May** be run on their own before push, with the same pass or fail result CI would give.
 
 ## Consequences
 
@@ -76,6 +81,8 @@ A security flaw in code we wrote can ship while CI is green. The dependency audi
 This touches the CI workflow developers already watch, and the three shipping trees: the Python server, the hand-written browser scripts, and the phone app. It does not add a screen, a role, or a change to the running product. The dependency audit remains the check for packages that are installed, not for source we wrote. Which scanner each app uses is an implementation choice, as long as it can do what the requirements say: fail on high or critical, show lower findings, read a line suppression, and read a per-app config for a rule that is off everywhere in that app.
 
 The Python check runs Bandit on `src/keel`. Bandit has no critical tier, so a HIGH finding is what fails that check. The browser and phone checks run ESLint with `eslint-plugin-security` on `assets/js` and on the phone’s shipping JavaScript. Rules set to error are the high findings. Rules set to warn are shown and do not fail the check. `scan/python.json`, `scan/browser.json`, and `scan/phone.json` are the three configs. A later edit to one does not change the others.
+
+The same three commands are pre-commit hooks. Pre-commit runs a hook only when a staged file matches that hook, so a commit that leaves an app untouched skips that app’s scan. A phone test does not match the phone hook. `poe check` passes every file to the hooks, so it runs all three scans.
 
 ### UML Diagrams
 

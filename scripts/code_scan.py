@@ -16,6 +16,7 @@ belongs in that app's config under scan/, with a reason, and nowhere else.
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -493,5 +494,28 @@ def _rel(path: Path) -> str:
         return path.as_posix()
 
 
+def _venv_python() -> Path | None:
+    """Return the project virtualenv interpreter, when this checkout has one."""
+    for relative in (
+        Path(".venv") / "Scripts" / "python.exe",
+        Path(".venv") / "bin" / "python",
+    ):
+        candidate = ROOT / relative
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _same_python(left: Path, right: Path) -> bool:
+    return os.path.normcase(os.path.normpath(left)) == os.path.normcase(
+        os.path.normpath(right)
+    )
+
+
 if __name__ == "__main__":
+    # Git runs hooks with whatever `python` is on PATH. Bandit lives in the
+    # virtualenv, so a commit from outside that env continues there.
+    venv_python = _venv_python()
+    if venv_python is not None and not _same_python(venv_python, Path(sys.executable)):
+        raise SystemExit(subprocess.call([str(venv_python), *sys.argv]))
     raise SystemExit(main())

@@ -55,11 +55,13 @@ A few rules hold across the codebase:
 poe check
 ```
 
-That runs every pre-commit hook over all files — Ruff, isort, mypy, and the unit tests — then the full pytest run, which must hold **90%** coverage of `keel`. `git commit` runs the hooks without the full suite, so a green commit is not yet a green `poe check`.
+That runs every pre-commit hook over all files — Ruff, isort, mypy, the three code scans, and the unit tests — then the full pytest run, which must hold **90%** coverage of `keel`. `git commit` runs the hooks without the full suite, so a green commit is not yet a green `poe check`.
+
+Each code scan runs on commit only when that commit includes a file the scan covers, and is skipped otherwise. The Python scan covers `src/keel` and `scan/python.json`. The browser scan covers `assets/js` and `scan/browser.json`. The phone scan covers the phone app's shipping JavaScript and `scan/phone.json`, and a phone test does not count. A change to `scripts/code_scan.py` runs all three. A change to `scan/package.json` or its lockfile runs the browser and phone scans. The browser and phone scans need `npm ci --prefix scan` once per checkout. `poe scan-python`, `poe scan-browser`, and `poe scan-phone` run one scan on their own.
 
 CI also runs `poe audit`, which checks the application dependencies for known vulnerabilities. It needs network access to PyPI, so it stays out of `poe check` and out of the git hooks. Run it before you push when you have changed `pyproject.toml`.
 
-CI also runs three code scans, one per app: `poe scan-python`, `poe scan-browser`, and `poe scan-phone`. Each one reads the shipping code of that app and fails on a high or critical finding. Lower findings are printed and do not fail the check. Tests are not scanned. The browser and phone scans need `npm ci --prefix scan` once per checkout. A waiver is a suppression the scanner reads, placed with that finding, and it names the finding and why:
+CI also runs the three code scans as their own jobs. Each one fails on a high or critical finding. Lower findings are printed and do not fail the check. Tests are not scanned. A waiver is a suppression the scanner reads, placed with that finding, and it names the finding and why:
 
 ```python
 call()  # nosec B602 # the command list is constant
