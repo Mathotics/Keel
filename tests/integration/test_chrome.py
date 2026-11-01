@@ -104,6 +104,7 @@ def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
         < nav.index('href="/create"')
         < nav.index('href="/board"')
         < nav.index('href="/calendar"')
+        < nav.index('href="/gantt"')
     )
     assert 'href="/projects"' in nav
     assert 'href="/create"' in nav

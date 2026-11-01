@@ -94,6 +94,25 @@ def delete_dependency(session: Session, dependency_id: int) -> None:
     session.flush()
 
 
+def edges_among(session: Session, issue_ids: Sequence[int]) -> tuple[Dependency, ...]:
+    """Return links whose two ends are both in ``issue_ids``."""
+    ids = tuple({int(issue_id) for issue_id in issue_ids})
+    if len(ids) < 2:
+        return ()
+    rows = session.scalars(
+        select(Dependency).where(
+            Dependency.source_id.in_(ids),
+            Dependency.target_id.in_(ids),
+        ),
+    ).all()
+    return tuple(
+        sorted(
+            rows,
+            key=lambda row: (row.kind.value, row.source_id, row.target_id, row.id),
+        ),
+    )
+
+
 def list_for_issue(session: Session, issue_id: int) -> IssueDependencies:
     issue = issue_service.get_issue(session, issue_id)
     rows = session.scalars(

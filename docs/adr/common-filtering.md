@@ -1,8 +1,10 @@
 # Common filtering
 
 * **Status:** Accepted
-* **Date:** 2026-10-27
+* **Date:** 2026-10-31
 
+> **Amendment.** The same bar is on `/gantt` and `/projects/{key}/gantt`. It narrows the rows. Month, Quarter, Year, Previous, Next, Today, and the month and year dropdowns stay. Reset all leaves that window. A project gantt hides the project filter.
+>
 > **Amendment.** Start and Due are date ranges on the same bar, after Label and before Reset all. A range with neither end set does not restrict that field. Filling either end keeps issues whose start or due falls on those days, inclusive, and leaves out issues with no such date. A reversed range is read from the earlier day through the later day. Reset all clears both ranges.
 
 ## Background
@@ -23,16 +25,16 @@ The board and the calendar answer "which issues?" with different controls, and t
 
 ### In-Scope
 
-* The master board (`/board`), a project board (`/projects/{key}/board`), the master calendar (`/calendar`), and a project calendar (`/projects/{key}/calendar`).
+* The master board (`/board`), a project board (`/projects/{key}/board`), the master calendar (`/calendar`), a project calendar (`/projects/{key}/calendar`), the master gantt (`/gantt`), and a project gantt (`/projects/{key}/gantt`).
 * Type, status, and priority as multi-select dropdowns.
 * Sprint as a multi-select dropdown of active sprints, planned sprints, and Unscheduled. Completed sprints are not listed.
 * Label, assignee, created by, and project as lookups that can hold several choices, each shown as a removable chip.
-* Project chips on the master board and the master calendar only.
+* Project chips on the master board, the master calendar, and the master gantt only.
 
 ### Out-of-Scope
 
 * Backlog, home, search, the sprint list, and schedules.
-* Changing which issues the calendar is about before filters apply, except that Done and Cancelled stay in the set. The master calendar stays the signed-in user's dated issues. A project calendar stays that project's dated issues, for any assignee. The status filter is what removes Done or Cancelled.
+* Changing which issues the calendar or the gantt is about before filters apply, except that Done and Cancelled stay in the set. The master calendar and the master gantt stay the signed-in user's dated issues. A project calendar and a project gantt stay that project's dated issues, for any assignee. The status filter is what removes Done or Cancelled.
 * The board's Separate by sprint checkbox. It stays a layout control, not a filter.
 * Saved filters, or a filtered view that is not carried in the page address.
 
@@ -43,20 +45,21 @@ The board and the calendar answer "which issues?" with different controls, and t
 
 ## Technical Requirements
 
-* **Must** show the same filters on the board and the calendar: type, status, priority, sprint, label, assignee, created by, start, due, and, on the master board and master calendar only, project.
+* **Must** show the same filters on the board, the calendar, and the gantt: type, status, priority, sprint, label, assignee, created by, start, due, and, on the master board, master calendar, and master gantt only, project.
 * **Must** treat a blank filter as no restriction. The view still updates. On first open, status, priority, sprint, label, assignee, created by, project, start, and due are blank.
-* **Must** start the type filter with Epic, Story, and Subtask all checked, on the board and the calendar. Unchecking a type removes those issues. Checking it again brings them back. Unchecking all three shows none of them.
+* **Must** start the type filter with Epic, Story, and Subtask all checked, on the board, the calendar, and the gantt. Unchecking a type removes those issues. Checking it again brings them back. Unchecking all three shows none of them.
 * **Must** keep an issue when it matches every filter that has a choice. Inside one filter, any chosen value is enough. Two labels show issues that have either label. A label and an assignee together show issues that have that label and are one of the chosen people.
 * **Must** leave the view as it is while a box is checked or unchecked, a chip is added, or a chip is removed. **Must** update the view when the open list closes or the pointer leaves that list, and when a start or due date changes. When JavaScript has not run, an Apply control submits the form, and a chip's remove link still drops that one chip. With JavaScript, Apply is hidden.
 * **Must** keep all six board columns. A status that was not chosen stays as an empty column.
 * **Must** list Epic, Story, and Subtask in the type dropdown; the six workflow statuses in the status dropdown; and P1 through P5 in the priority dropdown.
 * **Must** list Unscheduled, active sprints, and planned sprints in the sprint dropdown. A project board lists that project's sprints. The master board lists those sprints with the project key.
 * **Must** turn a picked label, person, or project into a removable chip and clear the box so another can be added. Label still offers Unlabeled. Assignee still offers Unassigned. Created by offers the same people plus None for an issue with no reporter.
-* **Must** hide the project filter on a project board and a project calendar. That page is already one project.
+* **Must** hide the project filter on a project board, a project calendar, and a project gantt. That page is already one project.
 * **Must** leave month, week, day, Previous, Next, Today, and the date dropdowns on the calendar. Filters only narrow which issues appear on those dates.
+* **Must** leave Month, Quarter, Year, Previous, Next, Today, and the month and year dropdowns on the gantt. Filters only narrow which issues appear in that window. Reset all leaves the window as it is.
 * **May** summarize a closed dropdown with the chosen names, and show the field name when nothing is chosen.
 * **Must Not** require every filter to be filled before the view updates.
-* **Must Not** reload the board or the calendar on each checkbox change.
+* **Must Not** reload the board, the calendar, or the gantt on each checkbox change.
 * **Must** place Project immediately after Sprint. Assignee and Created by sit between Project and Label. Start and Due ranges follow Label, and Reset all follows Due. A project page still omits Project. Reset all clears every filter, including both ranges, and leaves the calendar date and Separate by sprint as they are.
 * **Must** treat a Start or Due range with neither end set as no restriction. Either end keeps issues on those days, inclusive, and leaves out issues with no such date. A date that cannot be read is refused, and that bound is not applied.
 * **Must Not** hide a board column because its status was not chosen.
@@ -65,7 +68,7 @@ The board and the calendar answer "which issues?" with different controls, and t
 
 ## Consequences
 
-* **Good:** The board and the calendar narrow the same way. Several labels, people, or projects can be combined. A blank field no longer looks like a required choice.
+* **Good:** The board, the calendar, and the gantt narrow the same way. Several labels, people, or projects can be combined. A blank field no longer looks like a required choice.
 * **Bad:** An issue that is still on the board inside a completed sprint cannot be isolated with the sprint filter.
 * **Risk:** The type filter starts fully checked, while the other filters start blank. A person may expect status and priority to start fully checked as well.
 
@@ -73,7 +76,7 @@ The board and the calendar answer "which issues?" with different controls, and t
 
 ### Technical Stack and Architecture
 
-The bar sits above the board columns and above the calendar grid, on both the master pages and the project pages. Project chips are omitted on the project pages. The board keeps Separate by sprint beside the bar. The calendar keeps its date controls. No new stored records: the choices live in the page address, as the board's filters do today.
+The bar sits above the board columns, above the calendar grid, and above the gantt, on both the master pages and the project pages. Project chips are omitted on the project pages. The board keeps Separate by sprint beside the bar. The calendar and the gantt keep their date controls. No new stored records: the choices live in the page address, as the board's filters do today.
 
 ### UML Diagrams
 
@@ -96,6 +99,7 @@ flowchart TD
 * [Issue and label lookup](issue-and-label-lookup.md)
 * [Master board](ADR-032.md)
 * [Calendar of assigned work](month-calendar.md)
+* [Gantt chart](gantt-chart.md)
 * [UI design](../design/ui.md)
 
 ## Assumptions

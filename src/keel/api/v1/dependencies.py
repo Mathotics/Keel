@@ -1,4 +1,6 @@
-from fastapi import APIRouter, status
+from typing import Annotated
+
+from fastapi import APIRouter, Query, status
 
 from keel.api.v1.deps import SessionDep
 from keel.schemas.dependency import (
@@ -38,6 +40,17 @@ def _groups(groups: IssueDependencies) -> IssueDependenciesRead:
 )
 def list_dependencies(issue_id: int, session: SessionDep) -> IssueDependenciesRead:
     return _groups(dependency_service.list_for_issue(session, issue_id))
+
+
+@router.get("/dependencies", response_model=list[DependencyRead])
+def list_dependency_edges(
+    session: SessionDep,
+    issue_id: Annotated[list[int] | None, Query()] = None,
+) -> list[DependencyRead]:
+    return [
+        DependencyRead.of(row)
+        for row in dependency_service.edges_among(session, issue_id or ())
+    ]
 
 
 @router.post(

@@ -65,6 +65,7 @@ View:
 * **View backlog.** Requires View issues.
 * **View board.** Requires View issues.
 * **View calendar.** Requires View issues.
+* **View gantt.** Requires View issues.
 * **View sprints.** Does not require View issues.
 * **View schedules.** Does not require View issues.
 

@@ -221,6 +221,20 @@ async function loadInboxIssues(origin, token, projects, userId) {
   return lists.flat();
 }
 
+async function loadGanttLinks(origin, token, issues) {
+  const ids = [
+    ...new Set(
+      (issues || []).map((issue) => Number(issue.id)).filter((id) => id > 0),
+    ),
+  ];
+  if (ids.length < 2) {
+    return [];
+  }
+  const query = ids.map((id) => `issue_id=${encodeURIComponent(String(id))}`).join("&");
+  const rows = await read(origin, token, `/api/v1/dependencies?${query}`);
+  return Array.isArray(rows) ? rows : [];
+}
+
 async function loadCompletedAt(origin, token, issues) {
   const projectIds = [
     ...new Set(
@@ -331,6 +345,7 @@ module.exports = {
   loadCalendarIssues,
   loadCatalog,
   loadCompletedAt,
+  loadGanttLinks,
   loadInboxIssues,
   loadIssue,
   loadIssueDetail,

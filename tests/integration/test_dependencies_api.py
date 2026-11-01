@@ -148,6 +148,40 @@ def test_a_link_can_be_removed(client: TestClient, project_id: int) -> None:
     assert grouped["relates_to"] == []
 
 
+def test_edges_among_the_named_issues(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    first = create_issue(client, project_id, title="First")
+    second = create_issue(client, project_id, title="Second")
+    third = create_issue(client, project_id, title="Third")
+    client.post(
+        "/api/v1/dependencies",
+        json={
+            "source_id": first["id"],
+            "target_id": second["id"],
+            "kind": "blocks",
+        },
+    )
+    client.post(
+        "/api/v1/dependencies",
+        json={
+            "source_id": first["id"],
+            "target_id": third["id"],
+            "kind": "relates_to",
+        },
+    )
+
+    listed = client.get(
+        "/api/v1/dependencies",
+        params=[("issue_id", first["id"]), ("issue_id", second["id"])],
+    )
+    assert listed.status_code == 200
+    pairs = {(row["source_id"], row["target_id"], row["kind"]) for row in listed.json()}
+    assert pairs == {(first["id"], second["id"], "blocks")}
+    assert client.get("/api/v1/dependencies").json() == []
+
+
 def test_an_unknown_dependency_is_not_found(client: TestClient) -> None:
     assert client.delete("/api/v1/dependencies/404").status_code == 404
 

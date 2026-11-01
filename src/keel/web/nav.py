@@ -9,6 +9,7 @@ DEFAULT_ORDER: tuple[str, ...] = (
     "create",
     "board",
     "calendar",
+    "gantt",
     "backlog",
     "sprints",
     "schedules",
@@ -20,6 +21,7 @@ LABELS = {
     "create": "Create",
     "board": "Board",
     "calendar": "Calendar",
+    "gantt": "Gantt",
     "backlog": "Backlog",
     "sprints": "Sprints",
     "schedules": "Schedules",
@@ -125,6 +127,8 @@ def _href(key: str, project_key: str | None) -> str:
         return f"/projects/{project_key}/board" if project_key else "/board"
     if key == "calendar":
         return f"/projects/{project_key}/calendar" if project_key else "/calendar"
+    if key == "gantt":
+        return f"/projects/{project_key}/gantt" if project_key else "/gantt"
     if key == "backlog":
         return f"/projects/{project_key}/backlog"
     if key == "sprints":
