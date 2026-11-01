@@ -38,6 +38,7 @@ Planning a stretch of work from the calendar means reading bars inside day cells
 - A child indented under its parent when that parent is also on the page. Otherwise the issue is a row of its own. Rows at the same level run from the earlier start.
 - The shared filter bar. It only narrows which of those issues appear. Reset all leaves the month, quarter, or year as it is.
 - The same page on a phone-narrow window: the chart scrolls sideways and the issue name stays put.
+- The phone app's Gantt screen, beside Calendar. Mine is the signed-in user's dated issues. Choosing a project shows that project's dated issues. Month, Quarter, and Year, and Previous, Next, and Today, follow the same scales. A row or a bar opens the issue. When the phone cannot reach the server it shows the saved copy, and dependency lines wait until it can read them.
 - A blocks arrow and a relates-to line for a dependency whose two issues are both rows. The arrow runs from the end of the blocking bar toward the start of the blocked bar. The relates-to line joins the middles and has no arrow. A short note names the two marks. Each link is also written as text.
 
 ### Out-of-Scope
@@ -48,7 +49,7 @@ Planning a stretch of work from the calendar means reading bars inside day cells
 - Drawing a dependency whose other issue is not a row on the page.
 - Rolling a child's dates up onto the parent.
 - Completed and Created on. The calendar already places those.
-- The phone app. The phone browser uses this page.
+- Month and year dropdowns in the phone app. Previous, Next, and Today move the scale there.
 - A saved zoom other than month, quarter, and year.
 
 ### Deliverables
@@ -80,7 +81,9 @@ Planning a stretch of work from the calendar means reading bars inside day cells
 * **Must** work without JavaScript and on the existing phone-narrow layout ([ADR 018](phone-layout.md)). On a narrow window the chart **Must** scroll sideways and the issue name **Must** stay visible.
 * **Must Not**, on `/gantt`, include an issue with neither date, an unassigned issue, or an issue assigned to someone else. **Must Not** drop a Done or Cancelled issue before the status filter runs.
 * **Must Not**, on a project chart, include an issue with neither date, or an issue from another project. **Must Not** drop a Done or Cancelled issue before the status filter runs.
-* **Must Not** change start, due, parent, status, or dependencies from either page.
+* **Must** offer Gantt in the phone app menu, beside Calendar. Mine **Must** be the signed-in user's dated issues. Choosing a project **Must** show that project's dated issues. Month, Quarter, and Year, and Previous, Next, and Today, **Must** follow the same scales as the pages. A row or a bar **Must** open the issue. When the phone cannot reach the server it **Must** show the saved copy. Dependency lines **Must** be omitted until the phone can read them.
+* **Must** let the phone read dependency edges whose two ends are both in a given set of issues, with `GET /api/v1/dependencies?issue_id=`.
+* **Must Not** change start, due, parent, status, or dependencies from either page or from the phone chart.
 
 ## Consequences
 
@@ -88,13 +91,14 @@ Planning a stretch of work from the calendar means reading bars inside day cells
 * **Bad:** Opening an issue from the master chart makes Gantt the project chart. Getting back to `/gantt` means leaving the project first. The calendar already works this way.
 * **Bad:** On the quarter scale a one-day issue fills a week column, so a short issue looks as wide as a week that it only touches. On the year scale it fills a month column.
 * **Bad:** A dependency whose other issue is off the page leaves no mark, so the chart can look quieter than the issue page.
+* **Bad:** A saved copy on the phone has the bars and the parent indent, and omits dependency lines until the phone can reach the server.
 * **Risk:** "Today" follows the server's local date, the same accepted risk as Home. A host in another timezone can disagree with the wall calendar used when the date was entered.
 
 ## System Design
 
 ### Technical Stack and Architecture
 
-This is two pages on the existing server-rendered chrome, the same split as the master calendar and a project calendar. Gantt sits in the top bar beside Calendar. With no project in context it opens `/gantt`. With a project in context it opens that project's chart. The bars are computed from issues already stored, using the same calendar-day reading as the home inbox. Choosing a row or a bar opens the existing issue page. A dependency already stored between two of those rows is drawn on the chart: *blocks* as an arrow from the blocking bar toward the blocked bar, *relates-to* as a dashed line. The line is omitted when the other issue is not a row. No new table and no JSON route. View gantt is another project permission beside View calendar. The catalog is seeded on startup. The page itself is not refused until the project route checks in KEEL-105.
+This is two pages on the existing server-rendered chrome, the same split as the master calendar and a project calendar, plus the same chart in the phone app. Gantt sits in the top bar beside Calendar. With no project in context it opens `/gantt`. With a project in context it opens that project's chart. The phone app opens Gantt from its menu, beside Calendar. Mine is assigned work. A project choice is that project's dated issues. The bars are computed from issues already stored, using the same calendar-day reading as the home inbox. Choosing a row or a bar opens the existing issue. A dependency already stored between two of those rows is drawn on the chart: *blocks* as an arrow from the blocking bar toward the blocked bar, *relates-to* as a dashed line. The line is omitted when the other issue is not a row. No new table. The pages stay server-rendered. The phone reads the edges it needs with `GET /api/v1/dependencies?issue_id=`. View gantt is another project permission beside View calendar. The catalog is seeded on startup. The page itself is not refused until the project route checks in KEEL-105.
 
 ### UML Diagrams
 

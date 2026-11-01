@@ -159,6 +159,7 @@ function decorate(raw, project, pending) {
     start_at: raw.start_at,
     due_at: raw.due_at,
     created_at: raw.created_at,
+    parentId: raw.parent_id == null ? null : raw.parent_id,
     pending: Boolean(pending),
   };
 }
@@ -504,4 +505,13 @@ module.exports = {
   calendarView,
   focusForView,
   moveFocus,
+  addDays,
+  monthStart,
+  monthEnd,
+  shiftMonth,
+  weekdayIndex,
+  savedIssues,
+  onlineIssues,
+  enabledProjects,
+  calendarDay,
 };
