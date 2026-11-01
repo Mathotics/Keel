@@ -60,6 +60,7 @@ import {
   queueRemoveComment,
   queueUpdate,
   presentQueue,
+  conflictView,
   rememberDetail,
   renameProject,
   storeKey,
@@ -4993,12 +4994,7 @@ function IssueDetail({
             </View>
           ) : (
             <View>
-              <Text style={styles.message}>
-                This phone: {saved.raw.title}
-              </Text>
-              <Text style={styles.message}>
-                Server: {saved.conflict.server.title}
-              </Text>
+              <ConflictDiff conflict={conflictView(library, saved)} />
               <PrimaryButton label="Keep this phone" onPress={() => onKeepPhone(currentId)} disabled={false} />
               <PrimaryButton
                 label="Keep the server"
@@ -5504,6 +5500,34 @@ function Drawer({ name, label, phase, waiting, onClose, onSelect, onSignOut }) {
   );
 }
 
+function ConflictDiff({ conflict }) {
+  if (!conflict) {
+    return null;
+  }
+  if (conflict.kind === "deleted") {
+    return <Text style={styles.pending}>The server no longer has this issue.</Text>;
+  }
+  if (!conflict.changes.length) {
+    return (
+      <Text style={styles.conflictLine}>
+        Waiting on a conflict. The saved fields match. The server was updated after this phone last read the issue.
+      </Text>
+    );
+  }
+  return (
+    <View>
+      <Text style={styles.pending}>This phone and the server differ.</Text>
+      {conflict.changes.map((change) => (
+        <View key={change.field}>
+          <Text style={styles.conflictField}>{change.field}</Text>
+          <Text style={styles.conflictLine}>This phone: {change.phone}</Text>
+          <Text style={styles.conflictLine}>Server: {change.server}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function OfflineQueue({ rows, onOpen, onRemove }) {
   if (!rows.length) {
     return (
@@ -5522,7 +5546,7 @@ function OfflineQueue({ rows, onOpen, onRemove }) {
             <Text style={styles.issueTitle}>{row.issue}</Text>
             {row.project ? <Text style={styles.issueStatus}>{row.project}</Text> : null}
             {row.detail ? <Text style={styles.queueDetail}>{row.detail}</Text> : null}
-            {row.held ? <Text style={styles.pending}>Waiting on a conflict.</Text> : null}
+            {row.conflict ? <ConflictDiff conflict={row.conflict} /> : null}
             {row.error ? <Text style={styles.pending}>{row.error}</Text> : null}
           </Pressable>
           <View style={styles.toolbarActions}>
@@ -6497,6 +6521,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginTop: 12,
     padding: 12,
+  },
+  conflictField: {
+    color: "#9A3412",
+    fontSize: 15,
+    fontWeight: "700",
+    marginTop: 10,
+  },
+  conflictLine: {
+    color: "#123044",
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 2,
   },
   detailTitle: {
     color: "#0062AB",

@@ -6,6 +6,7 @@ const {
   applyRefresh,
   choosePhone,
   chooseServer,
+  conflictView,
   discardIssue,
   dropProject,
   dropQueueItem,
@@ -450,6 +451,82 @@ test("the queue lists each change that has not reached the server", () => {
   assert.equal(rows[1].issue, "KEEL-9 Paint the deck");
   assert.equal(rows[1].project, "KEEL · Keel");
   assert.match(rows[1].detail, /Title: Paint the deck/);
+  assert.equal(rows[1].conflict, null);
+});
+
+test("a conflict lists each field that differs between this phone and the server", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [{ id: 2, display_name: "Jacob Hootman" }], labels: [] });
+  store = queueUpdate(
+    store,
+    9,
+    {
+      title: "Paint the deck",
+      status: "in_progress",
+      description: "Sand first",
+      labels: ["hull", "paint"],
+    },
+    { online: false },
+  ).store;
+  const server = {
+    ...snapshot().issues[0],
+    title: "Paint the hull",
+    status: "todo",
+    description: "",
+    assignee_id: 2,
+    labels: ["paint", "hull"],
+    updated_at: "2026-10-02T00:00:00",
+  };
+  store = markConflict(store, 9, { kind: "changed", server });
+  const diff = conflictView(store, store.projects[3].issues[9]);
+  assert.equal(diff.kind, "changed");
+  assert.deepEqual(
+    diff.changes.map((change) => change.field),
+    ["Title", "Description", "Status", "Assignee"],
+  );
+  const title = diff.changes.find((change) => change.field === "Title");
+  assert.equal(title.phone, "Paint the deck");
+  assert.equal(title.server, "Paint the hull");
+  const description = diff.changes.find((change) => change.field === "Description");
+  assert.equal(description.phone, "Sand first");
+  assert.equal(description.server, "None");
+  const status = diff.changes.find((change) => change.field === "Status");
+  assert.equal(status.phone, "In Progress");
+  assert.equal(status.server, "To Do");
+  const assignee = diff.changes.find((change) => change.field === "Assignee");
+  assert.equal(assignee.phone, "Unassigned");
+  assert.equal(assignee.server, "Jacob Hootman");
+  const rows = presentQueue(store);
+  assert.equal(rows[0].held, true);
+  assert.deepEqual(rows[0].conflict, diff);
+});
+
+test("a conflict with no saved-field difference says the copies still match", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Paint" }, { online: false }).store;
+  const server = { ...snapshot().issues[0], updated_at: "2026-10-02T00:00:00" };
+  store = markConflict(store, 9, { kind: "changed", server });
+  const diff = conflictView(store, store.projects[3].issues[9]);
+  assert.equal(diff.kind, "changed");
+  assert.deepEqual(diff.changes, []);
+});
+
+test("unknown sprints stay distinct in a conflict", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { sprint_id: 8 }, { online: true, sprint: { id: 8, name: "Next" } }).store;
+  const server = { ...snapshot().issues[0], sprint_id: 9, updated_at: "2026-10-02T00:00:00" };
+  store = markConflict(store, 9, { kind: "changed", server });
+  const sprint = conflictView(store, store.projects[3].issues[9]).changes.find((change) => change.field === "Sprint");
+  assert.equal(sprint.phone, "Next");
+  assert.equal(sprint.server, "Sprint 9");
+});
+
+test("a deleted conflict has no server fields to compare", () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  store = markConflict(store, 9, { kind: "deleted" });
+  const diff = conflictView(store, store.projects[3].issues[9]);
+  assert.deepEqual(diff, { kind: "deleted", changes: [] });
+  assert.deepEqual(presentQueue(store)[0].conflict, diff);
 });
 
 test("removing a waiting update restores the issue and sends nothing", async () => {
