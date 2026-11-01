@@ -2,6 +2,11 @@
 REM Onboard a local Keel development environment (venv + dependencies).
 setlocal EnableExtensions EnableDelayedExpansion
 
+if not "%~1"=="" if not "%~1"=="--empty-database" (
+    echo error: unknown argument: %~1 1>&2
+    exit /b 1
+)
+
 cd /d "%~dp0.."
 
 echo Configuring local git aliases...
@@ -139,6 +144,20 @@ if not exist ".env" if exist ".env.example" (
     copy /y ".env.example" ".env" >nul
     echo Created .env from .env.example
 )
+
+set "VENV_KEEL="
+if exist ".venv\Scripts\keel.exe" set "VENV_KEEL=.venv\Scripts\keel.exe"
+if not defined VENV_KEEL if exist ".venv\bin\keel" set "VENV_KEEL=.venv\bin\keel"
+if not defined VENV_KEEL (
+    echo error: keel was not installed into the virtual environment 1>&2
+    exit /b 1
+)
+if "%~1"=="--empty-database" (
+    "%VENV_KEEL%" db prepare-worktree --empty-database
+) else (
+    "%VENV_KEEL%" db prepare-worktree
+)
+if errorlevel 1 exit /b 1
 
 echo.
 echo Onboarding complete.

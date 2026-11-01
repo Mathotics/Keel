@@ -2,6 +2,16 @@
 # Onboard a local Keel development environment (venv + dependencies).
 set -euo pipefail
 
+EMPTY_DATABASE=0
+if [[ $# -gt 0 ]]; then
+  if [[ "$1" == "--empty-database" && $# -eq 1 ]]; then
+    EMPTY_DATABASE=1
+  else
+    echo "error: unknown argument: $1" >&2
+    exit 1
+  fi
+fi
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
@@ -96,6 +106,20 @@ echo "Checking isort and mypy..."
 if [[ ! -f .env ]] && [[ -f .env.example ]]; then
   cp .env.example .env
   echo "Created .env from .env.example"
+fi
+
+if [[ -x .venv/Scripts/keel.exe ]]; then
+  VENV_KEEL=".venv/Scripts/keel.exe"
+elif [[ -x .venv/bin/keel ]]; then
+  VENV_KEEL=".venv/bin/keel"
+else
+  echo "error: keel was not installed into the virtual environment" >&2
+  exit 1
+fi
+if [[ "$EMPTY_DATABASE" -eq 1 ]]; then
+  "$VENV_KEEL" db prepare-worktree --empty-database
+else
+  "$VENV_KEEL" db prepare-worktree
 fi
 
 echo

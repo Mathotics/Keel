@@ -15,4 +15,5 @@ build/
 htmlcov/
 *.log
 *.db
+.local/
 *.keystore

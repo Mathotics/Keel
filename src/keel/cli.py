@@ -23,6 +23,7 @@ from keel.db.revision import (
     schema_is_current,
     upgrade_to_head,
 )
+from keel.db.worktree import prepare_worktree_database
 from keel.domain.errors import DomainError, NotFoundError
 from keel.services import auth as auth_service
 from keel.services import users as user_service
@@ -91,6 +92,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--yes",
         action="store_true",
         help="Overwrite the live database if it already exists",
+    )
+    prepare = database_commands.add_parser(
+        "prepare-worktree",
+        help="Give this linked worktree its own database",
+    )
+    prepare.add_argument(
+        "--empty-database",
+        action="store_true",
+        help="Create an empty database even when the shared one can be copied",
     )
 
     people = subparsers.add_parser("users", help="Manage sign-in for people")
@@ -195,6 +205,10 @@ def _describe(url: str) -> str:
     return str(path) if path is not None else url
 
 
+def db_prepare_worktree(force_empty: bool) -> int:
+    return prepare_worktree_database(Path.cwd(), force_empty=force_empty)
+
+
 def database(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
     if args.db_command == "upgrade":
         return db_upgrade()
@@ -204,7 +218,9 @@ def database(parser: argparse.ArgumentParser, args: argparse.Namespace) -> int:
         return db_backup(args.destination, args.yes)
     if args.db_command == "restore":
         return db_restore(args.source, args.yes)
-    parser.error("usage: keel db {upgrade,revision,backup,restore}")
+    if args.db_command == "prepare-worktree":
+        return db_prepare_worktree(args.empty_database)
+    parser.error("usage: keel db {upgrade,revision,backup,restore,prepare-worktree}")
     return 2
 
 
