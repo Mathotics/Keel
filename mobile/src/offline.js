@@ -1,4 +1,4 @@
-const { commentView, issuePage } = require("./issue");
+const { commentView, formatMinutes, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
 const { statusLabel } = require("./work");
 
 const NOT_ON_SERVER = "Not on the server yet.";
@@ -913,6 +913,93 @@ function unlinkChild(store, issueId) {
   }
 }
 
+// Fields a person can choose between when this phone and the server both changed.
+const CONFLICT_FIELDS = [
+  ["type", "Type"],
+  ["title", "Title"],
+  ["description", "Description"],
+  ["definition_of_done", "Definition of Done"],
+  ["status", "Status"],
+  ["priority", "Priority"],
+  ["assignee_id", "Assignee"],
+  ["parent_id", "Parent"],
+  ["sprint_id", "Sprint"],
+  ["estimate_minutes", "Estimate"],
+  ["remaining_minutes", "Remaining"],
+  ["start_at", "Start"],
+  ["due_at", "Due"],
+  ["labels", "Labels"],
+];
+
+function conflictFieldValue(store, issue, key, value) {
+  if (key === "type") {
+    return value ? typeLabel(value) : "None";
+  }
+  if (key === "priority") {
+    return value ? priorityLabel(value) : "None";
+  }
+  if (key === "estimate_minutes" || key === "remaining_minutes") {
+    return formatMinutes(value);
+  }
+  if (key === "start_at" || key === "due_at") {
+    return formatWhen(value);
+  }
+  if (key === "labels") {
+    const names = [...(value || [])].map(String).sort((left, right) => left.localeCompare(right));
+    return names.length ? names.join(", ") : "None";
+  }
+  if (key === "assignee_id") {
+    if (value == null) {
+      return "Unassigned";
+    }
+    const person = (store.people || []).find((item) => item.id === value);
+    return person ? person.display_name : `Person ${value}`;
+  }
+  if (key === "parent_id") {
+    if (value == null) {
+      return "No parent";
+    }
+    const name = queueIssueName(store, value);
+    return name === "Issue" ? `Issue ${value}` : name;
+  }
+  if (key === "sprint_id") {
+    if (value == null) {
+      return "Unscheduled";
+    }
+    const named = queueSprint(store, value);
+    if (named !== "A sprint") {
+      return named;
+    }
+    if (issue && issue.raw && issue.raw.sprint_id === value && issue.page && issue.page.sprintName) {
+      return issue.page.sprintName;
+    }
+    return `Sprint ${value}`;
+  }
+  const shown = queueValue(store, key, value);
+  return shown === "Cleared" ? "None" : shown;
+}
+
+function conflictView(store, issue) {
+  if (!issue || !issue.conflict) {
+    return null;
+  }
+  if (issue.conflict.kind === "deleted" || !issue.conflict.server) {
+    return { kind: "deleted", changes: [] };
+  }
+  const phone = issue.raw || {};
+  const server = issue.conflict.server || {};
+  const changes = [];
+  for (const [key, label] of CONFLICT_FIELDS) {
+    const phoneText = conflictFieldValue(store, issue, key, phone[key]);
+    const serverText = conflictFieldValue(store, issue, key, server[key]);
+    if (phoneText === serverText) {
+      continue;
+    }
+    changes.push({ field: label, phone: phoneText, server: serverText });
+  }
+  return { kind: "changed", changes };
+}
+
 function finishQueueEdit(issue, queue) {
   const mine = queue.filter((item) => item.issueId === issue.id);
   const structural = mine.some((item) => item.kind === "update" || item.kind === "delete");
@@ -986,6 +1073,7 @@ function presentQueue(store) {
       action: QUEUE_ACTION[item.kind] || item.kind,
       detail: queueDetail(store, item),
       held: Boolean(issue && issue.conflict),
+      conflict: conflictView(store, issue),
       error: issue && issue.error ? issue.error : "",
     };
   });
@@ -997,6 +1085,7 @@ module.exports = {
   applyRefresh,
   choosePhone,
   chooseServer,
+  conflictView,
   discardIssue,
   dropProject,
   dropQueueItem,
