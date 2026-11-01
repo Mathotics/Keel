@@ -62,7 +62,7 @@ Forgetting the username blocks both sign-in and the password reset, because each
 
 ### Technical Stack and Architecture
 
-The lookup is a public step from the web sign-in page and from the Android signed-out screen. It depends on the unique non-blank email in [Email password reset](email-password-reset.md). The Android app already signs in by asking the server, so that screen has to be able to ask the server to send this mail as well. Mail uses the same SMTP settings as [Email password reset](email-password-reset.md). If mail is not configured, or the handoff fails, the person still sees the same notice and no message goes out.
+The lookup is a public step from the web sign-in page and from the Android signed-out screen. It depends on the unique non-blank email in [Email password reset](email-password-reset.md). The Android app already signs in by asking the server, so that screen has to be able to ask the server to send this mail as well. Mail uses the same separate SMTP service as [Email password reset](email-password-reset.md). Keel does not run that service. If mail is not configured, or the handoff fails, the person still sees the same notice and no message goes out.
 
 ### UML Diagrams
 

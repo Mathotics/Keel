@@ -78,7 +78,7 @@ erDiagram
 
 ## Password recovery
 
-A person who knows their username can request a one-hour link from the sign-in page. The link opens a page where they choose a new password and are signed in. Looking up a forgotten username emails that name to the address on the profile. Both are decided in [Email password reset](../adr/email-password-reset.md) and [Lookup username by email](../adr/lookup-username-by-email.md).
+A person who knows their username can request a one-hour link from the sign-in page. The link opens a page where they choose a new password and are signed in. Looking up a forgotten username emails that name to the address on the profile. Both are decided in [Email password reset](../adr/email-password-reset.md) and [Lookup username by email](../adr/lookup-username-by-email.md). Keel does not run a mail server. Those messages go out only when `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` point at a separate SMTP service, as described in the [README](../../README.md).
 
 On the server, when there is no email yet:
 

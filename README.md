@@ -79,14 +79,16 @@ Settings come from the environment and from a `.env` file in the directory where
 | `KEEL_DATABASE_URL` | SQLite in the OS user data directory | Where Keel stores its data |
 | `KEEL_DEFAULT_USER` | unset | On an empty database, the display name of the first person. That person has no password until you set one |
 | `KEEL_SEED_SIGN_IN` | `true` | When `KEEL_DEFAULT_USER` is unset, create username `keel` with password `keel`. Set `false` to use the operating-system username instead, with no password |
-| `KEEL_SMTP_HOST` | unset | SMTP server for password reset and username lookup. Unset means those pages still show their notice and no message is sent |
-| `KEEL_SMTP_PORT` | `587` | SMTP port |
-| `KEEL_SMTP_USERNAME` | unset | SMTP login, when the server requires one |
-| `KEEL_SMTP_PASSWORD` | unset | SMTP password |
-| `KEEL_SMTP_FROM` | unset | From address. Required, with the host, before a message is handed off |
+| `KEEL_SMTP_HOST` | unset | Host of a separate SMTP service. Keel does not run a mail server. Unset means password reset and username lookup still show their notice and no message is sent |
+| `KEEL_SMTP_PORT` | `587` | SMTP port on that service |
+| `KEEL_SMTP_USERNAME` | unset | Login for that service, when it requires one |
+| `KEEL_SMTP_PASSWORD` | unset | Password for that login |
+| `KEEL_SMTP_FROM` | unset | From address that service will send as. Required, with the host, before a message is handed off |
 | `KEEL_SMTP_STARTTLS` | `true` | Start TLS before login |
 
 `KEEL_DEFAULT_USER` wins over `KEEL_SEED_SIGN_IN`. A database that already has people is left as it is.
+
+Password reset and username lookup hand mail to an SMTP service you provide. Keel does not install or start one. That service is the submission host from a mailbox you already use, or a relay you run yourself. Set `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` to what it gives you, plus `KEEL_SMTP_USERNAME` and `KEEL_SMTP_PASSWORD` when it requires a login. Leave the host or From address unset and the pages still show their notice, but nothing is sent. The reset link is the address the person used to reach Keel, so that address has to be one they can open from the device that reads the mail.
 
 ## Usage
 
@@ -220,6 +222,14 @@ Those keys are in [`deploy/keel.env.example`](deploy/keel.env.example). The unit
 
 Bootstrap copies the example env to `/mnt/library/keel-data/keel.env` when that file is missing and does not overwrite an existing file. Add `KEEL_SEED_SIGN_IN=false` to a live env file yourself before rebuilding an empty production database.
 
+Mail is a separate service. The Pi sends password-reset and username-lookup messages only after `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` are set in `/mnt/library/keel-data/keel.env`. Keel does not install a mail server. Use the submission host, port, login, and From address that service gives you. Port 587 and STARTTLS are the defaults. Restart the user unit after editing the env file so the process reads the new values:
+
+```bash
+systemctl --user restart keel
+```
+
+Deploy does not overwrite an existing `keel.env`. Each person also needs an email on their profile. A profile that still has none can sign in, and a reset for that username sends nothing until they save an address. The link in the reset message is the URL that request came in on, plus `/reset-password`, so request it through the same host and port the phone or browser will open.
+
 Later updates are [`scripts/deploy-prod.sh`](scripts/deploy-prod.sh), invoked by the Deploy workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) after CI on `main` succeeds. Do not put VPN hostnames or addresses in this repository.
 
 A Backup workflow on the same Pi copies the live database onto `/mnt/library_backup`. Daily `keel.db` runs at 08:00 UTC, weekly `keel-weekly.db` on Sunday at 08:05 UTC, and monthly `keel-monthly.db` on the 1st at 08:10 UTC. Each file is replaced on the next run of that cadence. Restore one of those files with `keel db restore --yes` and its path, then restart `keel serve`.
@@ -337,6 +347,8 @@ The script defaults to a checkout at `/mnt/library/Keel` and data under `/mnt/li
 **The `keel` / `keel` account does not exist.** It is created only on an empty database when `KEEL_DEFAULT_USER` is unset and `KEEL_SEED_SIGN_IN` is true (the default). Set a password for the person who was created, or delete the unused database file and start again.
 
 **A new password is rejected.** Use at least 12 characters, at most 128, and a password that is not the username. The first-run `keel` password is the exception to that rule.
+
+**Forgot password or forgot username shows its notice and no mail arrives.** Keel only sends when `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` are set and the separate SMTP service accepts the message. The log says `Mail is not configured` when those two are missing, and `was not handed off` when the service refuses the connection. Confirm the profile has an email, then restart Keel after changing the env file.
 
 **Changes in `.env` seem to do nothing.** Keel reads `.env` from the working directory. Start `keel serve` from the repository root, or export the variables in the shell.
 
