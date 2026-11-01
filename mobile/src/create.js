@@ -42,6 +42,7 @@ function parseWhen(raw) {
   if (!trimmed) {
     return { value: null };
   }
+  // eslint-disable-next-line security/detect-unsafe-regex -- fixed-length date; the optional time cannot backtrack
   const matched = /^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}):(\d{2}))?$/.exec(trimmed);
   if (!matched) {
     return { error: "Use a date like 2026-10-12 or 2026-10-12 09:00." };

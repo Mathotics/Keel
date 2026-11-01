@@ -40,6 +40,7 @@ function formatWhen(parts) {
 }
 
 function readWhen(value, now) {
+  // eslint-disable-next-line security/detect-unsafe-regex -- fixed-length date; the optional time cannot backtrack
   const matched = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/.exec(String(value || "").trim());
   const clock = now || new Date();
   if (!matched) {

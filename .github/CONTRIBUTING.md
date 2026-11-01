@@ -59,6 +59,19 @@ That runs every pre-commit hook over all files — Ruff, isort, mypy, and the un
 
 CI also runs `poe audit`, which checks the application dependencies for known vulnerabilities. It needs network access to PyPI, so it stays out of `poe check` and out of the git hooks. Run it before you push when you have changed `pyproject.toml`.
 
+CI also runs three code scans, one per app: `poe scan-python`, `poe scan-browser`, and `poe scan-phone`. Each one reads the shipping code of that app and fails on a high or critical finding. Lower findings are printed and do not fail the check. Tests are not scanned. The browser and phone scans need `npm ci --prefix scan` once per checkout. A waiver is a suppression the scanner reads, placed with that finding, and it names the finding and why:
+
+```python
+call()  # nosec B602 # the command list is constant
+```
+
+```javascript
+// eslint-disable-next-line security/detect-eval-with-expression -- name is a fixed field
+eval(name);
+```
+
+A rule turned off for a whole app is listed with a reason in that app's file only: `scan/python.json`, `scan/browser.json`, or `scan/phone.json`.
+
 Tests are grouped by suite, and the pytest marker comes from the directory name:
 
 | Suite | Directory | Task |
@@ -80,7 +93,7 @@ KEEL-45 Add a contribution guide and pull request template so a change has one c
 
 Push the branch and open a pull request against `main`. [The template](PULL_REQUEST_TEMPLATE.md) fills itself in; keep the sections that apply and delete the rest.
 
-CI ([`.github/workflows/ci.yml`](workflows/ci.yml)) runs `poe check` and `poe audit` on Python 3.12 for every pull request. Both have to pass before merge.
+CI ([`.github/workflows/ci.yml`](workflows/ci.yml)) runs `poe check`, `poe audit`, and the three code scans on every pull request. All of them have to pass before merge.
 
 **Merging to `main` deploys.** Every push to `main` that passes CI updates the production Raspberry Pi with no further step ([ADR 026](../docs/adr/ADR-026.md)). Treat a merge as a release: the schema migration has to be safe against the live database, and nothing half-finished should land.
 

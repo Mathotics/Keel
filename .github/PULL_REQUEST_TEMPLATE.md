@@ -14,6 +14,7 @@ KEEL-
 
 - [ ] `poe check` passes locally (hooks + full suite at 90% coverage)
 - [ ] `poe audit` passes when dependencies changed
+- [ ] `poe scan-python`, `poe scan-browser`, and `poe scan-phone` pass when shipping code changed
 
 ## Deploy notes
 

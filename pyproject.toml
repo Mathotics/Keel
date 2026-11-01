@@ -38,6 +38,7 @@ dev = [
     "isort==9.0.1",
     "pytest-cov==6.2.1",
     "pip-audit==2.10.1",
+    "bandit==1.9.4",
 ]
 
 [project.scripts]
@@ -166,6 +167,18 @@ cmd = "pre-commit run --all-files"
 [tool.poe.tasks.audit]
 help = "Audit application dependencies for known vulnerabilities"
 cmd = "pip-audit . --progress-spinner=off --strict --timeout 30"
+
+[tool.poe.tasks.scan-python]
+help = "Scan the Python server for security flaws in shipping code"
+cmd = "python scripts/code_scan.py python"
+
+[tool.poe.tasks.scan-browser]
+help = "Scan the browser scripts for security flaws"
+cmd = "python scripts/code_scan.py browser"
+
+[tool.poe.tasks.scan-phone]
+help = "Scan the phone app for security flaws in shipping code"
+cmd = "python scripts/code_scan.py phone"
 
 [tool.poe.tasks.check]
 help = "Run pre-commit hooks, then the full test suite at 90% coverage"
