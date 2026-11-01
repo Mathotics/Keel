@@ -12,7 +12,7 @@ A profile is the signed-in person's own record. Other people are still managed o
 | `display_name` | The person, on their profile. Anyone signed in can also rename it on `/users` | Yes, editable | The name on issues, comments, and the top bar. Still unique, same rules as before. |
 | `first_name` | The person, on their profile | Yes, editable | Optional. Blank clears it. At most 100 characters, no control characters. |
 | `last_name` | The person, on their profile | Yes, editable | Optional. Same rules as `first_name`. |
-| `email` | The person, on their profile | Yes, editable | Optional primary address. Blank clears it. At most 254 characters, shaped like `name@example.com`, with no spaces. Not unique. Not used to sign in, and Keel still does not send mail. |
+| `email` | The person, on their profile. Adding a person also collects one | Yes, editable | Required on save. Blank does not clear it. At most 254 characters, shaped like `name@example.com`, with no spaces. Unique without regard to case. Not used to sign in. A profile that already has none can still sign in and must set one on the next save. See [Email password reset](../adr/email-password-reset.md). |
 | `date_of_birth` | The person, on their profile | Yes, editable | Optional calendar date. Blank clears it. It cannot be in the future. |
 | Password | The person, on their profile, and only if they send the current password | Write-only | Never stored or returned. Minimum 12 characters, maximum 128. Must not match the username. A change revokes other browser sessions. |
 | `created_at` | Nobody | Yes, read-only | When the row was created. |
@@ -78,7 +78,9 @@ erDiagram
 
 ## Password recovery
 
-There is no email reset. On the server:
+A person who knows their username can request a one-hour link from the sign-in page. The link opens a page where they choose a new password and are signed in. Looking up a forgotten username emails that name to the address on the profile. Both are decided in [Email password reset](../adr/email-password-reset.md) and [Lookup username by email](../adr/lookup-username-by-email.md). Keel does not run a mail server. Those messages go out only when `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` point at a separate SMTP service, as described in the [README](../../README.md).
+
+On the server, when there is no email yet:
 
 ```bash
 keel users set-password USERNAME

@@ -56,7 +56,11 @@ def test_login_then_profile_then_logout(anonymous_client: TestClient) -> None:
 
     renamed = anonymous_client.post(
         "/web/profile",
-        data={"display_name": "Tess", "username": "Tester"},
+        data={
+            "display_name": "Tess",
+            "username": "Tester",
+            "email": "tess@example.com",
+        },
     )
     assert "Profile updated." in renamed.text
     assert "Tess" in renamed.text

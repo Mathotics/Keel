@@ -52,7 +52,11 @@ def test_lookup_routes_return_short_lists(client: TestClient) -> None:
     assert plumbing.json() == ["plumbing"]
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada Lovelace", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada Lovelace",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     people = client.get("/web/lookup/users", params={"q": ""})
     assert people.json() == [{"id": None, "label": "Unassigned"}]

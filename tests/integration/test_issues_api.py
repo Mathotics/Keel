@@ -92,7 +92,11 @@ def test_the_reporter_follows_the_user_header(
 ) -> None:
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
 
     client.post(
@@ -253,7 +257,11 @@ def test_a_referenced_user_cannot_be_deleted(
 ) -> None:
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     create_issue(client, project_id, assignee_id=ada["id"])
 

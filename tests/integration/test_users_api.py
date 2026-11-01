@@ -11,7 +11,11 @@ def test_seeded_user_is_present(client: TestClient) -> None:
 def test_user_lifecycle(client: TestClient) -> None:
     created = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     )
     assert created.status_code == 201
     user_id = created.json()["id"]
@@ -34,11 +38,19 @@ def test_user_lifecycle(client: TestClient) -> None:
 def test_duplicate_name_returns_a_coded_conflict(client: TestClient) -> None:
     client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     )
     conflict = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     )
     assert conflict.status_code == 409
     detail = conflict.json()["detail"]

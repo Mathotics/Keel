@@ -14,6 +14,7 @@ def test_add_rename_and_delete_through_forms(client: TestClient) -> None:
         "/web/users",
         data={
             "display_name": "Ada",
+            "email": "ada@example.com",
             "password": TEST_PASSWORD,
             "confirm": TEST_PASSWORD,
         },
@@ -38,6 +39,7 @@ def test_duplicate_name_shows_a_message_on_the_page(client: TestClient) -> None:
         "/web/users",
         data={
             "display_name": "Ada",
+            "email": "ada@example.com",
             "password": TEST_PASSWORD,
             "confirm": TEST_PASSWORD,
         },
@@ -46,6 +48,7 @@ def test_duplicate_name_shows_a_message_on_the_page(client: TestClient) -> None:
         "/web/users",
         data={
             "display_name": "Ada",
+            "email": "ada@example.com",
             "password": TEST_PASSWORD,
             "confirm": TEST_PASSWORD,
         },
@@ -64,6 +67,7 @@ def test_renaming_to_a_taken_name_shows_a_message(client: TestClient) -> None:
         "/web/users",
         data={
             "display_name": "Ada",
+            "email": "ada@example.com",
             "password": TEST_PASSWORD,
             "confirm": TEST_PASSWORD,
         },
@@ -86,6 +90,7 @@ def test_deleting_a_user_still_named_on_an_issue_shows_a_message(
         "/web/users",
         data={
             "display_name": "Ada",
+            "email": "ada@example.com",
             "password": TEST_PASSWORD,
             "confirm": TEST_PASSWORD,
         },

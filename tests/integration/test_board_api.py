@@ -87,7 +87,11 @@ def test_an_assignee_parameter_filters_the_board(
 ) -> None:
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     create_issue(client, project_id, title="Ada's", assignee_id=ada["id"])
     create_issue(client, project_id, title="Open")

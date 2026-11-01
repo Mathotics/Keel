@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Date, DateTime, Index, String, func
+from sqlalchemy import Date, DateTime, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from keel.db.base import Base
@@ -26,3 +26,9 @@ class User(Base):
 
 
 Index("uq_users_username_lower", func.lower(User.username), unique=True)
+Index(
+    "uq_users_email_lower",
+    func.lower(User.email),
+    unique=True,
+    sqlite_where=text("email != ''"),
+)

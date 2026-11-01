@@ -279,6 +279,7 @@ def create_user(
     password: Annotated[str, Form()] = "",
     confirm: Annotated[str, Form()] = "",
     username: Annotated[str, Form()] = "",
+    email: Annotated[str, Form()] = "",
 ) -> HTMLResponse | RedirectResponse:
     denied = require_page(request, chrome, Permission.CREATE_USERS.value)
     if denied is not None:
@@ -291,6 +292,7 @@ def create_user(
             password,
             confirm=confirm,
             require_password=True,
+            email=email,
         )
     except DomainError as exc:
         session.rollback()

@@ -12,6 +12,7 @@ from keel.web.routes import (
     pages,
     project_access,
     projects,
+    recovery,
     schedules,
     search,
     sprints,
@@ -20,6 +21,7 @@ from keel.web.routes import (
 
 router = APIRouter()
 router.include_router(account.router)
+router.include_router(recovery.router)
 router.include_router(admin.router)
 router.include_router(access.router)
 router.include_router(pages.router)

@@ -18,12 +18,14 @@ Collections are nested under their parent; single resources are flat, so a clien
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/v1/users` | List users |
-| `POST` | `/api/v1/users` | Create a user — `{display_name, password, username?}`. `username` defaults to the display name |
+| `POST` | `/api/v1/users` | Create a user — `{display_name, password, email, username?}`. `username` defaults to the display name. `email` is required and unique |
 | `GET` | `/api/v1/users/{user_id}` | Read a user |
 | `PATCH` | `/api/v1/users/{user_id}` | Rename a user's display name |
 | `DELETE` | `/api/v1/users/{user_id}` | Delete, refused while referenced or when deleting yourself |
-| `GET` | `/api/v1/profile` | The signed-in user, including optional `email`, `first_name`, `last_name`, and `date_of_birth`. The user list does not include those fields |
-| `PATCH` | `/api/v1/profile` | Change your display name and username — `{display_name, username}` are required. Optional `email`, `first_name`, `last_name`, and `date_of_birth` change only when sent; `null` or `""` clears a text field, and `null` clears the date |
+| `GET` | `/api/v1/profile` | The signed-in user, including `email`, `first_name`, `last_name`, and `date_of_birth`. The user list does not include those fields |
+| `PATCH` | `/api/v1/profile` | Change your display name and username — `{display_name, username}` are required. Optional `email`, `first_name`, `last_name`, and `date_of_birth` change only when sent. `null` or `""` clears a name, and `null` clears the date. Email is required on a profile that has none, and `null` or `""` does not clear it |
+| `POST` | `/api/v1/password-resets` | Public. `{username}` sends a one-hour reset link when that profile has an email. Always the same `notice` for a non-blank username. A blank username is 422 |
+| `POST` | `/api/v1/username-lookups` | Public. `{email}` emails the username when one profile has that address. Always the same `notice`. A blank address is 422 |
 | `POST` | `/api/v1/profile/password` | Change your password — `{current_password, new_password, confirm_password}` |
 | `GET` | `/api/v1/profile/tokens` | List your API tokens (prefix, label, timestamps; no secret) |
 | `POST` | `/api/v1/profile/tokens` | Create a token — `{label}`. The response includes `token` once |
@@ -226,7 +228,8 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `user.duplicate_username` | 409 | A username is already taken |
 | `user.invalid_name` | 422 | A display name is blank or over 100 characters |
 | `user.invalid_username` | 422 | A username is blank, over 100 characters, or contains a control character |
-| `user.invalid_email` | 422 | An email address is too long or not shaped like `name@example.com` |
+| `user.invalid_email` | 422 | An email address is missing, too long, or not shaped like `name@example.com` |
+| `user.email_taken` | 422 | That email address is already used |
 | `user.invalid_profile_name` | 422 | A first or last name is over 100 characters or contains a control character |
 | `user.invalid_date_of_birth` | 422 | A date of birth is not a calendar date, or it is in the future |
 | `user.invalid_password` | 422 | A password is missing, too short, too long, or matches the username |
@@ -242,8 +245,11 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | --- | --- | --- |
 | `GET` | `/login` | Username and password. Public |
 | `POST` | `/login` | Sign in and set the `keel_session` cookie |
+| `GET`/`POST` | `/forgot-password` | Public. Ask for a reset link by username. The page shows one notice |
+| `GET`/`POST` | `/forgot-username` | Public. Ask for the username by email. The page shows one notice |
+| `GET`/`POST` | `/reset-password` | Public. Choose a new password from the link. Success signs the browser in |
 | `POST` | `/logout` | End the session |
-| `POST` | `/web/profile` | Update your display name, username, and optional first name, last name, email, and date of birth |
+| `POST` | `/web/profile` | Update your display name, username, required email, and optional first name, last name, and date of birth |
 | `POST` | `/web/profile/password` | Change your password |
 | `POST` | `/web/profile/tokens` | Create an API token; the secret is shown once on the next profile view |
 | `POST` | `/web/profile/tokens/{token_id}/revoke` | Revoke one of your tokens |

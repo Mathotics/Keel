@@ -47,7 +47,7 @@ def test_this_checkout_can_upgrade_from_its_own_revisions_only() -> None:
     assert head is not None
     assert head in reachable
     assert "0001" in reachable
-    assert "0028" not in reachable
+    assert "9999" not in reachable
 
 
 def test_the_main_checkout_keeps_the_shared_database(tmp_path: Path) -> None:
@@ -73,14 +73,14 @@ def test_an_unknown_revision_starts_an_empty_worktree_database(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     shared = tmp_path / "shared.db"
-    _stamp(shared, "0028")
+    _stamp(shared, "9999")
     before = shared.read_bytes()
     repo = tmp_path / "worktree"
     repo.mkdir()
     code = prepare_worktree_database(repo, linked=True, shared_database=shared)
     assert code == 0
     assert shared.read_bytes() == before
-    assert read_stamped_revision(shared) == "0028"
+    assert read_stamped_revision(shared) == "9999"
     destination = repo / WORKTREE_DATABASE
     url = f"sqlite+pysqlite:///{destination.resolve().as_posix()}"
     assert url in (repo / ".env").read_text(encoding="utf-8")
@@ -90,7 +90,7 @@ def test_an_unknown_revision_starts_an_empty_worktree_database(
     finally:
         engine.dispose()
     message = capsys.readouterr().out
-    assert "0028" in message
+    assert "9999" in message
     assert "empty database" in message
 
 

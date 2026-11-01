@@ -6,7 +6,19 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from keel.services.identity import SESSION_COOKIE, finish_lookup, resolve_current_user
 
-_PUBLIC_PATHS = frozenset({"/health", "/login", "/favicon.ico", "/api/v1/login"})
+_PUBLIC_PATHS = frozenset(
+    {
+        "/health",
+        "/login",
+        "/forgot-password",
+        "/forgot-username",
+        "/reset-password",
+        "/favicon.ico",
+        "/api/v1/login",
+        "/api/v1/password-resets",
+        "/api/v1/username-lookups",
+    }
+)
 _JSON_PATHS = frozenset({"/openapi.json", "/docs", "/redoc"})
 
 

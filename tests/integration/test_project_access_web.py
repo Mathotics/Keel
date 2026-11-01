@@ -14,6 +14,7 @@ def _ada(client: TestClient) -> int:
             "display_name": "Ada",
             "username": "ada",
             "password": ADA_PASSWORD,
+            "email": "ada@example.com",
         },
     )
     assert created.status_code == 201, created.text

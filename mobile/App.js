@@ -24,7 +24,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { loadBacklog, loadBoards, loadCalendarIssues, loadCatalog, loadCompletedAt, loadGanttLinks, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, revokeToken, send } from "./src/api";
+import { loadBacklog, loadBoards, loadCalendarIssues, loadCatalog, loadCompletedAt, loadGanttLinks, loadInboxIssues, loadIssueDetail, loadProfile, loadProjectSprints, loadSnapshots, login, read, renameLabel, requestPasswordReset, requestUsername, revokeToken, send } from "./src/api";
 import { backlogView } from "./src/backlog";
 import { boardView } from "./src/board";
 import { calendarView, focusForView, moveFocus } from "./src/calendar";
@@ -436,6 +436,59 @@ export default function App() {
       setMessage(FAILED);
     } finally {
       clearTimeout(timer);
+      setBusy(false);
+    }
+  }
+
+  async function onForgotPassword() {
+    const parsed = parseOrigin(address);
+    if (!parsed.ok) {
+      setTone("error");
+      setMessage(parsed.message);
+      return;
+    }
+    if (!username.trim()) {
+      setTone("error");
+      setMessage("Enter a username.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const body = await requestPasswordReset(parsed.origin, username.trim());
+      setTone("ok");
+      setMessage(body.notice);
+    } catch (error) {
+      setTone("error");
+      setMessage(error instanceof Error ? error.message : "Could not connect.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onForgotUsername(email) {
+    const parsed = parseOrigin(address);
+    if (!parsed.ok) {
+      setTone("error");
+      setMessage(parsed.message);
+      return;
+    }
+    const addressText = String(email || "").trim();
+    if (!addressText) {
+      setTone("error");
+      setMessage("Enter an email address.");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const body = await requestUsername(parsed.origin, addressText);
+      setTone("ok");
+      setMessage(body.notice);
+    } catch (error) {
+      setTone("error");
+      setMessage(error instanceof Error ? error.message : "Could not connect.");
+    } finally {
       setBusy(false);
     }
   }
@@ -2256,6 +2309,8 @@ export default function App() {
           onPassword={setPassword}
           onCheck={onCheck}
           onSignIn={onSignIn}
+          onForgotPassword={onForgotPassword}
+          onForgotUsername={onForgotUsername}
         />
       ) : null}
       {phase === "home" && account ? (
@@ -6199,7 +6254,11 @@ function SignedOut({
   onPassword,
   onCheck,
   onSignIn,
+  onForgotPassword,
+  onForgotUsername,
 }) {
+  const [lookup, setLookup] = useState(false);
+  const [lookupEmail, setLookupEmail] = useState("");
   return (
     <View>
       <Field
@@ -6223,6 +6282,49 @@ function SignedOut({
       />
       <PasswordField value={password} onChange={onPassword} disabled={busy} />
       <PrimaryButton label="Sign in" onPress={onSignIn} disabled={busy} />
+      <Pressable
+        accessibilityRole="button"
+        disabled={busy}
+        onPress={onForgotPassword}
+        style={styles.choice}
+      >
+        <Text style={styles.choiceText}>Forgot password?</Text>
+      </Pressable>
+      {lookup ? (
+        <View>
+          <Field
+            label="Email address"
+            value={lookupEmail}
+            onChange={setLookupEmail}
+            placeholder=""
+            keyboardType="email-address"
+            secure={false}
+            disabled={busy}
+          />
+          <PrimaryButton
+            label="Send username"
+            onPress={() => onForgotUsername(lookupEmail)}
+            disabled={busy}
+          />
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            onPress={() => setLookup(false)}
+            style={styles.choice}
+          >
+            <Text style={styles.choiceText}>Back</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => setLookup(true)}
+          style={styles.choice}
+        >
+          <Text style={styles.choiceText}>Forgot username?</Text>
+        </Pressable>
+      )}
       {message ? (
         <Text style={[styles.message, tone === "ok" ? styles.ok : null, tone === "error" ? styles.error : null]}>
           {message}

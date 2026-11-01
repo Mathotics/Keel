@@ -38,19 +38,30 @@ def test_profile_contact_fields_round_trip(client: TestClient) -> None:
     assert kept.json()["email"] == "Ada@Example.com"
     assert kept.json()["date_of_birth"] == "1815-12-10"
 
-    cleared = client.patch(
+    refused = client.patch(
         "/api/v1/profile",
         json={
             "display_name": "Tess",
             "username": me["username"],
             "email": None,
+        },
+    )
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "user.invalid_email"
+    assert client.get("/api/v1/profile").json()["email"] == "Ada@Example.com"
+
+    cleared = client.patch(
+        "/api/v1/profile",
+        json={
+            "display_name": "Tess",
+            "username": me["username"],
             "first_name": "",
             "last_name": None,
             "date_of_birth": None,
         },
     )
     assert cleared.status_code == 200
-    assert cleared.json()["email"] == ""
+    assert cleared.json()["email"] == "Ada@Example.com"
     assert cleared.json()["first_name"] == ""
     assert cleared.json()["last_name"] == ""
     assert cleared.json()["date_of_birth"] is None
@@ -123,7 +134,7 @@ def test_profile_page_saves_optional_fields(client: TestClient) -> None:
     assert still["email"] == "grace@example.com"
     assert still["date_of_birth"] == "1906-12-09"
 
-    cleared = client.post(
+    refused_blank = client.post(
         "/web/profile",
         data={
             "display_name": "Tester",
@@ -134,9 +145,25 @@ def test_profile_page_saves_optional_fields(client: TestClient) -> None:
             "date_of_birth": "",
         },
     )
+    assert "Enter an email address." in refused_blank.text
+    kept = client.get("/api/v1/profile").json()
+    assert kept["email"] == "grace@example.com"
+    assert kept["first_name"] == "Grace"
+
+    cleared = client.post(
+        "/web/profile",
+        data={
+            "display_name": "Tester",
+            "username": "Tester",
+            "first_name": "",
+            "last_name": "",
+            "email": "grace@example.com",
+            "date_of_birth": "",
+        },
+    )
     assert "Profile updated." in cleared.text
     blank = client.get("/api/v1/profile").json()
-    assert blank["email"] == ""
+    assert blank["email"] == "grace@example.com"
     assert blank["first_name"] == ""
     assert blank["last_name"] == ""
     assert blank["date_of_birth"] is None

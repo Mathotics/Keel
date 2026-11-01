@@ -63,6 +63,11 @@ class InvalidEmailError(DomainError):
     status_code = 422
 
 
+class EmailInUseError(DomainError):
+    code = "user.email_taken"
+    status_code = 422
+
+
 class InvalidProfileNameError(DomainError):
     code = "user.invalid_profile_name"
     status_code = 422

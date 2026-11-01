@@ -23,6 +23,12 @@ class KeelSettings(BaseSettings):
     # 0 turns that limit off. Age is checked first, then the log's own storage.
     request_log_max_age_days: int = 30
     request_log_max_bytes: int = 100 * 1024 * 1024
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_starttls: bool = True
 
     def resolved_database_url(self) -> str:
         """The configured URL, or a SQLite file in the user data directory."""

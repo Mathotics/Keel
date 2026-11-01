@@ -83,7 +83,11 @@ def test_filters_combine(client: TestClient) -> None:
 
     ada = client.post(
         "/api/v1/users",
-        json={"display_name": "Ada", "password": TEST_PASSWORD},
+        json={
+            "display_name": "Ada",
+            "password": TEST_PASSWORD,
+            "email": "ada@example.com",
+        },
     ).json()
     client.post(
         "/login",
