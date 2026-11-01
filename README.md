@@ -79,7 +79,7 @@ Settings come from the environment and from a `.env` file in the directory where
 | `KEEL_DATABASE_URL` | SQLite in the OS user data directory | Where Keel stores its data |
 | `KEEL_DEFAULT_USER` | unset | On an empty database, the display name of the first person. That person has no password until you set one |
 | `KEEL_SEED_SIGN_IN` | `true` | When `KEEL_DEFAULT_USER` is unset, create username `keel` with password `keel`. Set `false` to use the operating-system username instead, with no password |
-| `KEEL_SMTP_HOST` | unset | Host of a separate SMTP service. Keel does not run a mail server. Unset means password reset and username lookup still show their notice and no message is sent |
+| `KEEL_SMTP_HOST` | unset | SMTP host that accepts mail from Keel. On the Pi this is `127.0.0.1` (Postfix on the same machine). Unset means password reset and username lookup still show their notice and no message is sent |
 | `KEEL_SMTP_PORT` | `587` | SMTP port on that service |
 | `KEEL_SMTP_USERNAME` | unset | Login for that service, when it requires one |
 | `KEEL_SMTP_PASSWORD` | unset | Password for that login |
@@ -88,7 +88,7 @@ Settings come from the environment and from a `.env` file in the directory where
 
 `KEEL_DEFAULT_USER` wins over `KEEL_SEED_SIGN_IN`. A database that already has people is left as it is.
 
-Password reset and username lookup hand mail to an SMTP service you provide. Keel does not install or start one. That service is the submission host from a mailbox you already use, or a relay you run yourself. Set `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` to what it gives you, plus `KEEL_SMTP_USERNAME` and `KEEL_SMTP_PASSWORD` when it requires a login. Leave the host or From address unset and the pages still show their notice, but nothing is sent. The reset link is the address the person used to reach Keel, so that address has to be one they can open from the device that reads the mail.
+Password reset and username lookup hand each message to an SMTP server, then that server delivers it. On the production Pi that server is Postfix on the same machine: Keel connects to `127.0.0.1` port 25, and Postfix sends the message on to the recipient's mail server. Leave `KEEL_SMTP_HOST` or `KEEL_SMTP_FROM` unset and the pages still show their notice, but nothing is sent. The reset link is the address the person used to reach Keel, so that address has to be one they can open from the device that reads the mail. The Pi steps are under [Deploy](#deploy).
 
 ## Usage
 
@@ -222,11 +222,54 @@ Those keys are in [`deploy/keel.env.example`](deploy/keel.env.example). The unit
 
 Bootstrap copies the example env to `/mnt/library/keel-data/keel.env` when that file is missing and does not overwrite an existing file. Add `KEEL_SEED_SIGN_IN=false` to a live env file yourself before rebuilding an empty production database.
 
-Mail is a separate service. The Pi sends password-reset and username-lookup messages only after `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` are set in `/mnt/library/keel-data/keel.env`. Keel does not install a mail server. Use the submission host, port, login, and From address that service gives you. Port 587 and STARTTLS are the defaults. Restart the user unit after editing the env file so the process reads the new values:
+Mail on this host is Postfix, installed beside Keel. Keel does not start it. Postfix accepts the message on localhost and delivers it to the recipient's mail server. That is ordinary SMTP: no mailbox provider sits in the middle. Choose **Internet Site** when the package asks, and use the domain you send as (the part after `@` in `KEEL_SMTP_FROM`) as the system mail name.
+
+```bash
+sudo apt install postfix
+echo example.com | sudo tee /etc/mailname
+sudo postconf -e "myhostname = mail.example.com"
+sudo postconf -e "myorigin = example.com"
+sudo postconf -e "inet_interfaces = loopback-only"
+sudo postconf -e "inet_protocols = ipv4"
+sudo postconf -e "relayhost ="
+sudo systemctl enable --now postfix
+sudo systemctl restart postfix
+```
+
+`loopback-only` keeps Postfix from accepting mail from the network. `relayhost` empty means Postfix looks up the recipient's mail server and connects to it on port 25. Add this to `/mnt/library/keel-data/keel.env`, with your own From address:
+
+```text
+KEEL_SMTP_HOST=127.0.0.1
+KEEL_SMTP_PORT=25
+KEEL_SMTP_FROM=keel@example.com
+KEEL_SMTP_STARTTLS=false
+```
+
+Leave the SMTP username and password unset. Local Postfix already trusts localhost, and port 25 on localhost does not use STARTTLS. Restart Keel so it reads the file:
 
 ```bash
 systemctl --user restart keel
 ```
+
+Confirm the Pi can open port 25 to another mail server, then hand Postfix one message:
+
+```bash
+timeout 5 bash -c 'cat < /dev/null > /dev/tcp/gmail-smtp-in.l.google.com/25' && echo open || echo blocked
+python3 - <<'PY'
+import smtplib
+from email.message import EmailMessage
+message = EmailMessage()
+message["From"] = "keel@example.com"
+message["To"] = "you@example.com"
+message["Subject"] = "Keel mail test"
+message.set_content("Postfix accepted this.")
+with smtplib.SMTP("127.0.0.1", 25, timeout=15) as client:
+    client.send_message(message)
+print("handed off")
+PY
+```
+
+`handed off` means Keel's side of the path works. `mailq` and `journalctl -u postfix` then show whether delivery finished. A queue stuck on "connection timed out" or "network unreachable" means the path out to port 25 is blocked, which is common on a home connection. In that case set `relayhost` to a submission server that will send for you, and point Keel at that host with port 587, STARTTLS, and a login. Receivers also check that the public address the Pi uses is allowed to send for the From domain (an SPF record, and a reverse DNS name the provider controls). Mail from a home address often lands in spam until those exist.
 
 Deploy does not overwrite an existing `keel.env`. Each person also needs an email on their profile. A profile that still has none can sign in, and a reset for that username sends nothing until they save an address. The link in the reset message is the URL that request came in on, plus `/reset-password`, so request it through the same host and port the phone or browser will open.
 
@@ -348,7 +391,7 @@ The script defaults to a checkout at `/mnt/library/Keel` and data under `/mnt/li
 
 **A new password is rejected.** Use at least 12 characters, at most 128, and a password that is not the username. The first-run `keel` password is the exception to that rule.
 
-**Forgot password or forgot username shows its notice and no mail arrives.** Keel only sends when `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` are set and the separate SMTP service accepts the message. The log says `Mail is not configured` when those two are missing, and `was not handed off` when the service refuses the connection. Confirm the profile has an email, then restart Keel after changing the env file.
+**Forgot password or forgot username shows its notice and no mail arrives.** Keel only hands the message off when `KEEL_SMTP_HOST` and `KEEL_SMTP_FROM` are set. The log says `Mail is not configured` when those two are missing, and `was not handed off` when Postfix refuses the connection. On the Pi, `KEEL_SMTP_STARTTLS` has to be `false` for localhost port 25. Confirm the profile has an email, restart Keel after changing the env file, then check `mailq` and `journalctl -u postfix` for the delivery itself.
 
 **Changes in `.env` seem to do nothing.** Keel reads `.env` from the working directory. Start `keel serve` from the repository root, or export the variables in the shell.
 
