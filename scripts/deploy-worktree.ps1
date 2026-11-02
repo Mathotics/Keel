@@ -200,6 +200,13 @@ try {
     }
     if ($LASTEXITCODE -ne 0) { Fail "onboard.ps1 failed" }
 
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Fail "npm is required to install the code scan tools"
+    }
+    Write-Host "Installing code scan tools..."
+    npm ci --prefix scan
+    if ($LASTEXITCODE -ne 0) { Fail "npm ci --prefix scan failed" }
+
     if ($null -ne $AgentCommand) {
         Write-Host "Activating virtual environment..."
         $ActivatePs1 = Join-Path $WorktreePath ".venv\Scripts\Activate.ps1"

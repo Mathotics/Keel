@@ -3777,8 +3777,8 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
-      <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
-      <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
+      <DateTimeField label="Start" value={start} onChange={setStart} />
+      <DateTimeField label="Due" value={due} onChange={setDue} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton label="Save" onPress={save} disabled={false} />
     </View>
