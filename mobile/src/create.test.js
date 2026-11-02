@@ -1,7 +1,16 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { prepareCreate, prepareUpdate, assignableSprints } = require("./create");
+const {
+  prepareCreate,
+  prepareUpdate,
+  assignableSprints,
+  createSeedForSprint,
+  createOpening,
+  defaultSprintId,
+  openingSprints,
+  sprintsForCreate,
+} = require("./create");
 const { applyRefresh, queueCreate, workView } = require("./offline");
 const { uploadQueue } = require("./sync");
 
@@ -176,6 +185,34 @@ test("the backlog needs a connection and the active sprint does not", () => {
   const online = prepareUpdate(updateInput({ sprintId: null, online: true }));
   assert.equal(online.error, null);
   assert.deepEqual(online.changes, { sprint_id: null });
+});
+
+test("a sprint page opens create on that project and sprint", () => {
+  const projects = [
+    { id: 1, key: "AUTO", sprint: { id: 2, name: "Garage", state: "active" } },
+    { id: 3, key: "KEEL", sprint: { id: 7, name: "This month", state: "active" } },
+  ];
+  const planned = { id: 8, name: "Next", state: "planned" };
+  const seed = createSeedForSprint(3, planned);
+  const opening = createOpening(projects, seed);
+  assert.equal(opening.project.id, 3);
+  assert.equal(opening.sprintId, "8");
+  assert.deepEqual(openingSprints(opening.project, seed).map((sprint) => sprint.id), [7, 8]);
+  assert.equal(defaultSprintId(projects[0], seed), "2");
+  assert.equal(createSeedForSprint(3, { id: 6, name: "Last", state: "completed" }).sprintId, undefined);
+  assert.equal(createSeedForSprint(null, planned), null);
+  assert.deepEqual(
+    sprintsForCreate(null, opening.project, seed).map((sprint) => sprint.id),
+    [7, 8],
+  );
+  assert.deepEqual(
+    sprintsForCreate(
+      [{ id: 7, name: "This month", state: "active" }],
+      opening.project,
+      seed,
+    ).map((sprint) => sprint.id),
+    [7, 8],
+  );
 });
 
 test("sprint choices are the active sprint, planned sprints, and unscheduled", () => {
