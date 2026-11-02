@@ -13,6 +13,7 @@ from keel.domain.enums import (
 )
 from keel.domain.errors import (
     DomainError,
+    DuplicateSubmitError,
     InvalidIssueError,
     InvalidParentError,
     InvalidParentTypeError,
@@ -71,6 +72,115 @@ def test_a_deleted_number_is_never_reused(session: Session, project: Project) ->
     issue_service.delete_issue(session, make(session, project))
     replacement = issue_service.get_issue(session, make(session, project))
     assert replacement.number == 2
+
+
+def test_a_repeated_client_key_returns_the_first_issue(
+    session: Session,
+    project: Project,
+) -> None:
+    key = "a" * 16
+    first = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Once",
+        client_key=key,
+    )
+    second = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.EPIC,
+        title="Twice",
+        description="ignored",
+        client_key=f"  {key}  ",
+    )
+
+    assert second.id == first.id
+    assert second.title == "Once"
+    assert second.description == ""
+    nxt = issue_service.get_issue(session, make(session, project, title="Next"))
+    assert nxt.number == 2
+
+
+def test_the_same_title_without_a_key_files_two_issues(
+    session: Session,
+    project: Project,
+) -> None:
+    first = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Same",
+        client_key="",
+    )
+    second = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Same",
+    )
+
+    assert first.id != second.id
+    assert (first.number, second.number) == (1, 2)
+
+
+def test_a_client_key_from_another_reporter_is_refused(
+    session: Session,
+    project: Project,
+) -> None:
+    ada = user_service.create_user(session, "Ada")
+    grace = user_service.create_user(session, "Grace")
+    key = "b" * 16
+    issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Ada's",
+        reporter_id=ada.id,
+        client_key=key,
+    )
+    other = project_service.create_project(session, "SITE", "Site")
+
+    with pytest.raises(DuplicateSubmitError) as caught:
+        issue_service.create_issue(
+            session,
+            project.id,
+            type=IssueType.STORY,
+            title="Grace's",
+            reporter_id=grace.id,
+            client_key=key,
+        )
+    assert caught.value.code == "issue.duplicate_submit"
+
+    with pytest.raises(DuplicateSubmitError):
+        issue_service.create_issue(
+            session,
+            other.id,
+            type=IssueType.STORY,
+            title="Elsewhere",
+            reporter_id=ada.id,
+            client_key=key,
+        )
+
+
+def test_a_malformed_client_key_is_refused(session: Session, project: Project) -> None:
+    with pytest.raises(InvalidIssueError) as caught:
+        issue_service.create_issue(
+            session,
+            project.id,
+            type=IssueType.STORY,
+            title="Nope",
+            client_key="short",
+        )
+    assert caught.value.code == "issue.invalid"
+    filed = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Fresh",
+        client_key=issue_service.new_client_key(),
+    )
+    assert filed.client_key is not None
 
 
 @pytest.mark.parametrize("key", ["KEEL-99", "KEEL", "NOPE-1", "KEEL-x"])

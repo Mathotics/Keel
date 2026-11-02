@@ -3345,6 +3345,8 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
   const [issueCatalog, setIssueCatalog] = useState([]);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const filing = useRef(false);
 
   useEffect(() => {
     setParentIssue(null);
@@ -3435,42 +3437,52 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   }
 
   async function file() {
-    if (!project || lookupDirty(projectCommitted, projectQuery)) {
-      setError(LOOKUP_PROJECT);
+    if (filing.current) {
       return;
     }
-    if (lookupDirty(assigneeCommitted, assigneeQuery)) {
-      setError(LOOKUP_PERSON);
-      return;
-    }
-    if (lookupDirty(parentCommitted, parentQuery)) {
-      setError(LOOKUP_ISSUE);
-      return;
-    }
-    const prepared = prepareCreate({
-      title,
-      projectId: project.id,
-      type,
-      description,
-      definitionOfDone,
-      status,
-      priority,
-      assigneeId: assigneeId ? Number(assigneeId) : null,
-      parent: parentIssue,
-      sprintId: sprintId ? Number(sprintId) : null,
-      estimate,
-      remaining,
-      start,
-      due,
-      labels,
-    });
-    if (prepared.error) {
-      setError(prepared.error);
-      return;
-    }
-    const failure = await onFile(prepared.draft);
-    if (failure) {
-      setError(failure);
+    filing.current = true;
+    try {
+      if (!project || lookupDirty(projectCommitted, projectQuery)) {
+        setError(LOOKUP_PROJECT);
+        return;
+      }
+      if (lookupDirty(assigneeCommitted, assigneeQuery)) {
+        setError(LOOKUP_PERSON);
+        return;
+      }
+      if (lookupDirty(parentCommitted, parentQuery)) {
+        setError(LOOKUP_ISSUE);
+        return;
+      }
+      const prepared = prepareCreate({
+        title,
+        projectId: project.id,
+        type,
+        description,
+        definitionOfDone,
+        status,
+        priority,
+        assigneeId: assigneeId ? Number(assigneeId) : null,
+        parent: parentIssue,
+        sprintId: sprintId ? Number(sprintId) : null,
+        estimate,
+        remaining,
+        start,
+        due,
+        labels,
+      });
+      if (prepared.error) {
+        setError(prepared.error);
+        return;
+      }
+      setSubmitting(true);
+      const failure = await onFile(prepared.draft);
+      if (failure) {
+        setError(failure);
+      }
+    } finally {
+      filing.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -3544,7 +3556,7 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
       <DateTimeField label="Start" value={start} onChange={setStart} />
       <DateTimeField label="Due" value={due} onChange={setDue} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <PrimaryButton label="Create issue" onPress={file} disabled={busy} />
+      <PrimaryButton label="Create issue" onPress={file} disabled={busy || submitting} />
     </ScrollView>
   );
 }
@@ -5275,6 +5287,8 @@ function IssueDetail({
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
   const [childTitle, setChildTitle] = useState("");
+  const [addingChild, setAddingChild] = useState(false);
+  const addingChildLock = useRef(false);
   const [commentBody, setCommentBody] = useState("");
   const [relation, setRelation] = useState("blocks");
   const [linkKey, setLinkKey] = useState("");
@@ -5400,37 +5414,47 @@ function IssueDetail({
   }
 
   async function addChild() {
-    const raw = saved && saved.raw;
-    if (!raw) {
+    if (addingChildLock.current) {
       return;
     }
-    const type = raw.type === "epic" ? "story" : raw.type === "story" ? "subtask" : null;
-    if (!type) {
-      setError("A subtask cannot have children.");
-      return;
+    addingChildLock.current = true;
+    try {
+      const raw = saved && saved.raw;
+      if (!raw) {
+        return;
+      }
+      const type = raw.type === "epic" ? "story" : raw.type === "story" ? "subtask" : null;
+      if (!type) {
+        setError("A subtask cannot have children.");
+        return;
+      }
+      if (Number(raw.id) < 0) {
+        setError("This issue is not on the server yet.");
+        return;
+      }
+      const prepared = prepareCreate({
+        title: childTitle,
+        projectId: raw.project_id,
+        type,
+        parent: { id: raw.id, type: raw.type, projectId: raw.project_id },
+        sprintId: raw.sprint_id,
+      });
+      if (prepared.error) {
+        setError(prepared.error);
+        return;
+      }
+      setAddingChild(true);
+      const failure = await onAddChild(prepared.draft);
+      if (failure) {
+        setError(failure);
+        return;
+      }
+      setChildTitle("");
+      setError("");
+    } finally {
+      addingChildLock.current = false;
+      setAddingChild(false);
     }
-    if (Number(raw.id) < 0) {
-      setError("This issue is not on the server yet.");
-      return;
-    }
-    const prepared = prepareCreate({
-      title: childTitle,
-      projectId: raw.project_id,
-      type,
-      parent: { id: raw.id, type: raw.type, projectId: raw.project_id },
-      sprintId: raw.sprint_id,
-    });
-    if (prepared.error) {
-      setError(prepared.error);
-      return;
-    }
-    const failure = await onAddChild(prepared.draft);
-    if (failure) {
-      setError(failure);
-      return;
-    }
-    setChildTitle("");
-    setError("");
   }
 
   async function reloadIssue() {
@@ -5632,7 +5656,7 @@ function IssueDetail({
               <PrimaryButton
                 label={saved.raw.type === "epic" ? "Add story" : "Add subtask"}
                 onPress={addChild}
-                disabled={false}
+                disabled={addingChild}
               />
             </View>
           ) : null}

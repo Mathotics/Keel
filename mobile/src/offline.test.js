@@ -229,6 +229,7 @@ test("a deleted issue can be discarded or filed again", async () => {
   const again = queueRecreate(held, 9);
   assert.equal(again.queue[0].kind, "create");
   assert.equal(again.queue[0].path, "/api/v1/projects/3/issues");
+  assert.match(again.queue[0].body.client_key, /^[a-f0-9]{32}$/);
 });
 
 test("edits to a saved issue wait as one patch", async () => {
@@ -265,6 +266,17 @@ test("moving off the active sprint waits for a connection", () => {
   assert.equal(allowed.error, null);
   assert.equal(allowed.store.projects[3].issues[9].raw.sprint_id, 8);
   assert.equal(allowed.store.projects[3].issues[9].page.sprintName, "Next");
+});
+
+test("each create keeps its own client key", () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const first = queueCreate(store, { projectId: 3, title: "Paint", type: "story" });
+  const second = queueCreate(first.store, { projectId: 3, title: "Paint", type: "story" });
+  const keys = second.store.queue.map((item) => item.body.client_key);
+  assert.equal(keys.length, 2);
+  assert.match(keys[0], /^[a-f0-9]{32}$/);
+  assert.match(keys[1], /^[a-f0-9]{32}$/);
+  assert.notEqual(keys[0], keys[1]);
 });
 
 test("a child stays under its parent until that issue is on the server", () => {

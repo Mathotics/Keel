@@ -172,7 +172,9 @@ def test_running_setup_again_does_not_replace_the_worktree_database(
     tmp_path: Path,
 ) -> None:
     shared = tmp_path / "shared.db"
-    _stamp(shared, "0028")
+    head = head_revision(alembic_config("sqlite://"))
+    assert head is not None
+    _stamp(shared, head)
     repo = tmp_path / "worktree"
     repo.mkdir()
     assert prepare_worktree_database(repo, linked=True, shared_database=shared) == 0

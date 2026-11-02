@@ -38,7 +38,7 @@ The same URLs and pages serve a phone. A wide window keeps the desktop layout wi
 | `/projects/{key}/calendar` | `calendar.html` | That project's issues, whoever they are assigned to; same month, week, day, and View by controls, and the same filter bar without the project filter |
 | `/gantt` | `gantt.html` | Master month or quarter of the signed-in user's dated issues, across projects, including Done and Cancelled unless the status filter removes them. Each issue is a row. A bar runs from the start day through the due day. The month is one column per day. The quarter is one column per week. The year is one column per month. A child sits under its parent when that parent is also a row. When both ends of a dependency are rows, blocks is a solid arrow and relates to is a dashed line. Month, Quarter, and Year; Previous, Next, Today, and month and year dropdowns. The shared filter bar narrows which of those issues appear ([Gantt chart](../adr/gantt-chart.md)) |
 | `/projects/{key}/gantt` | `gantt.html` | That project's dated issues, whoever they are assigned to; same month, quarter, and year controls, the same dependency marks, and the same filter bar without the project filter |
-| `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists |
+| `/create` | `create.html` | Project, type, title, priority, and the other create-time fields; comments and links wait until the issue exists. A hidden create key keeps a second post of the same form to one issue ([One create per submit](../adr/one-create-per-submit.md)) |
 | `/projects` | `projects.html` | Project list with a create form |
 | `/projects/{key}` | `project.html` | Project summary, rename, sprint cadence, sprints in advance, and delete, issue counts by status |
 | `/board` | `board.html` | Master Kanban of every project's current work; shared filter bar including project; sprint names prefixed by project key |
@@ -139,7 +139,7 @@ The issue's fields, including start date, due date, created-on, and updated-on; 
 
 ## JavaScript
 
-Eight scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls, except the lookup script, which leaves its text field in place, and the filter script, which submits when the open list closes: `data-keel-js` for autosubmit forms and the find submit button, `data-keel-nav` for the section order, `data-keel-inbox` for home Minimize/Expand, `data-keel-issue-panels` for issue-page Minimize/Expand, `data-keel-board` for the board, `data-keel-overlay-js` for the issue repeating overlay.
+Nine scripts, all vanilla and with no third-party dependency. Each sets a marker on the document root that CSS keys on to hide that script's fallback controls, except the lookup script, which leaves its text field in place, the filter script, which submits when the open list closes, and the submit-once script, which ignores a second submit and hides nothing: `data-keel-js` for autosubmit forms and the find submit button, `data-keel-nav` for the section order, `data-keel-inbox` for home Minimize/Expand, `data-keel-issue-panels` for issue-page Minimize/Expand, `data-keel-board` for the board, `data-keel-overlay-js` for the issue repeating overlay, `data-keel-once` for a second create submit.
 
 `assets/js/userpicker.js` submits every `data-keel-autosubmit` form on `change`, replacing those forms' Apply and Save buttons. Type dropdowns marked `keel-type-select` keep `data-type` in sync with the current value so the closed control stays the type's color. Paired sprint date fields marked `data-keel-range` keep `min` and `max` in sync so the calendar cannot offer an end before the start.
 
@@ -154,6 +154,8 @@ Eight scripts, all vanilla and with no third-party dependency. Each sets a marke
 `assets/js/issue-panels.js` loads on the issue page. It posts the closed panel keys to `/web/issue-panels` when a disclosure toggles. Minimize and Expand remain in the markup and are hidden only after the script has run ([Foldable issue panels](../adr/foldable-issue-panels.md)).
 
 `assets/js/overlay.js` loads on the issue page. It intercepts Make this repeating and Edit series so the native `dialog` opens with `showModal()` instead of navigating, and Close, Cancel, Escape, and a click on the dimmed page close it without a round trip. The `?repeat=1` link and Cancel/Close hrefs remain so the overlay still opens when the script does not run.
+
+`assets/js/submit-once.js` loads on every page and only acts on forms marked `data-keel-submit-once`: Create and Add child. A second submit of that form is ignored. The form still posts without the script, and the hidden create key makes the repeat return the issue the first post already filed ([One create per submit](../adr/one-create-per-submit.md)).
 
 None of the scripts is required. All are loaded with `defer`, hide their fallback controls only once they have run, and no page or action is reachable through JavaScript alone.
 
@@ -186,6 +188,7 @@ Web routes catch the same domain errors the JSON API returns and re-render the o
 * [ADR 030: Issue priority as a required ranked field](../adr/ADR-030.md)
 * [ADR 031: Issue labels](../adr/ADR-031.md)
 * [Issue definition of done](../adr/issue-definition-of-done.md)
+* [One create per submit](../adr/one-create-per-submit.md)
 * [Issue and label lookup](../adr/issue-and-label-lookup.md)
 * [Common filtering](../adr/common-filtering.md)
 * [ADR 032: Master board across all projects](../adr/ADR-032.md)

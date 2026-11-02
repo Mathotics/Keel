@@ -109,6 +109,7 @@ def issue_page(
             repeat_overlay=repeat == "1",
             collapsed_issue_panels=collapsed,
             issue_panel_toggle=issue_panel_toggle,
+            client_key=issue_service.new_client_key(),
         ),
     )
 

@@ -80,6 +80,8 @@ Create body:
 }
 ```
 
+Optional `client_key` is 16 to 64 letters, digits, hyphens, or underscores. The first create with a key files the issue. A later create with that same key, the same project, and the same reporter returns that issue and does not file another, even when the second body differs. A blank or omitted key files a new issue every time, so two chores with the same title still both exist. A key with the wrong shape is `issue.invalid`. A key that already belongs to another project or reporter is `issue.duplicate_submit` ([One create per submit](../adr/one-create-per-submit.md)).
+
 Response body, with the fields the interface needs added:
 
 ```json
@@ -205,7 +207,8 @@ Codes are stable and append-only; a new rule gets a new code rather than reusing
 | `project.duplicate_key` | 409 | A project key is already taken |
 | `project.invalid_key` | 422 | A project key is not two to ten letters and digits starting with a letter |
 | `project.invalid_name` | 422 | A project name is blank |
-| `issue.invalid` | 422 | An issue title is blank |
+| `issue.invalid` | 422 | An issue title is blank, or a create key is the wrong shape |
+| `issue.duplicate_submit` | 409 | A create key already belongs to another project or reporter |
 | `issue.invalid_parent_type` | 409 | The parent's type is illegal for the child's type |
 | `issue.invalid_parent` | 409 | The parent is in a different project |
 | `issue.parent_cycle` | 409 | The assignment would make an issue its own ancestor |

@@ -123,6 +123,7 @@ def create_issue(
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
         labels=payload.labels,
+        client_key=payload.client_key,
     )
     return _read(session, issue)
 

@@ -27,7 +27,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Group work under an Epic.** A user creates an Epic to represent a large body of work, files Stories from that Epic, and sees its child Stories and rolled-up progress.
 * **Write a Story.** A user creates a Story (optionally under an Epic), gives it a description, assigns it to a person, sets a priority and a time estimate, and moves it through statuses.
 * **Say what Done means.** A user writes an issue's definition of done in its own panel beneath Description, so the next reader knows which criteria to check before moving it to *Done*. Nothing enforces it ([Issue definition of done](../adr/issue-definition-of-done.md)).
-* **File an issue quickly.** A user opens Create from the menu, picks a project and type, types a title, and lands on the new issue to fill in the rest.
+* **File an issue quickly.** A user opens Create from the menu, picks a project and type, types a title, and lands on the new issue to fill in the rest. A double click or a repeated post of that form still files one issue ([One create per submit](../adr/one-create-per-submit.md)).
 * **Find work by name.** A user types an issue key, a title, or other text in the menu and jumps to that item, or sees a short list of matches, without scanning the board.
 * **Break a Story into Subtasks.** A user creates Subtasks from the Story's page; Subtask progress and time estimates roll up to the parent Story.
 

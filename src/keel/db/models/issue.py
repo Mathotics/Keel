@@ -68,6 +68,7 @@ class Issue(Base):
             unique=True,
             sqlite_where=text("series_id is not null"),
         ),
+        UniqueConstraint("client_key", name="uq_issues_client_key"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -123,6 +124,7 @@ class Issue(Base):
         String(300),
         default=None,
     )
+    client_key: Mapped[str | None] = mapped_column(String(64), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime,
