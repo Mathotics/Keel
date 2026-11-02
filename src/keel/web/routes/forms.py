@@ -42,6 +42,16 @@ from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
+from keel.web.board_lanes import (
+    COLLAPSED_COOKIE,
+    COOKIE_MAX_AGE,
+    HIDDEN_COOKIE,
+    encode_keys,
+    hide_lane,
+    merge_collapsed,
+    parse_keys,
+    show_lane,
+)
 from keel.web.context import Chrome, ChromeDep, SessionDep
 from keel.web.forbid import require_page
 from keel.web.home_layout import (
@@ -184,6 +194,68 @@ def save_inbox_collapsed(
         samesite="lax",
     )
     return response
+
+
+def _remember_board_keys(
+    response: RedirectResponse,
+    cookie: str,
+    keys: frozenset[str],
+) -> RedirectResponse:
+    response.set_cookie(
+        cookie,
+        encode_keys(keys),
+        max_age=COOKIE_MAX_AGE,
+        path="/",
+        samesite="lax",
+    )
+    return response
+
+
+@router.post("/board-lanes")
+def save_board_lanes(
+    request: Request,
+    collapsed: Annotated[str, Form()] = "",
+    present: Annotated[str | None, Form()] = None,
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    merged = merge_collapsed(
+        parse_keys(request.cookies.get(COLLAPSED_COOKIE)),
+        collapsed,
+        present,
+    )
+    return _remember_board_keys(
+        _back(safe_next(return_to)),
+        COLLAPSED_COOKIE,
+        merged,
+    )
+
+
+@router.post("/board-lanes/hide")
+def hide_board_lane(
+    request: Request,
+    lane: Annotated[str, Form()],
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    hidden = hide_lane(parse_keys(request.cookies.get(HIDDEN_COOKIE)), lane)
+    return _remember_board_keys(
+        _back(safe_next(return_to)),
+        HIDDEN_COOKIE,
+        hidden,
+    )
+
+
+@router.post("/board-lanes/show")
+def show_board_lane(
+    request: Request,
+    lane: Annotated[str, Form()],
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    hidden = show_lane(parse_keys(request.cookies.get(HIDDEN_COOKIE)), lane)
+    return _remember_board_keys(
+        _back(safe_next(return_to)),
+        HIDDEN_COOKIE,
+        hidden,
+    )
 
 
 @router.post("/issue-panels")

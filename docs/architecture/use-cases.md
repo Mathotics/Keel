@@ -58,6 +58,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **See a card's parent.** A user looking at a Story or Subtask sees **Parent {key}** when that issue has a parent, and can open the parent from the card. Epic, Story, and Subtask are colored distinctly wherever type is shown ([ADR 027](../adr/ADR-027.md)).
 * **Filter the board.** A user restricts the board to chosen issue types, to a chosen assignee including unassigned, and to a chosen sprint including unscheduled.
 * **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to. The board opens this way by default; the user can turn it off to see one shared row of columns. On the master board those rows are named with the project key, and dropping a card onto another project's row is refused.
+* **Fold a sprint row.** A user minimizes a sprint on the board, or removes it until they add it back. The heading and how many cards it holds stay visible while it is only minimized. This browser remembers the choice. One shared row of columns still shows every card the filters allow ([Collapsible board sprint lanes](../adr/collapsible-board-sprint-lanes.md)).
 * **Advance an issue.** A user moves a card from one column to the next, which changes the issue's status.
 
 ## Ticket dependencies
@@ -95,5 +96,6 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * [ADR 032: Master board across all projects](../adr/ADR-032.md)
 * [Completed sprints off the board](../adr/completed-sprints-off-the-board.md)
 * [Collapsible home inbox sections](../adr/collapsible-home-inbox-sections.md)
+* [Collapsible board sprint lanes](../adr/collapsible-board-sprint-lanes.md)
 * [Completed today on the home inbox](../adr/completed-today-home-panel.md)
 * [Now on the home inbox](../adr/now-home-panel.md)

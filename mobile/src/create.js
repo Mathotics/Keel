@@ -252,9 +252,89 @@ function assignableSprints(sprints) {
   ];
 }
 
+function sameId(left, right) {
+  return left != null && right != null && String(left) === String(right);
+}
+
+function createSeedForSprint(projectId, sprint) {
+  if (projectId == null) {
+    return null;
+  }
+  const assignable = sprint
+    && sprint.id != null
+    && (sprint.state === "active" || sprint.state === "planned");
+  if (!assignable) {
+    return { projectId };
+  }
+  return { projectId, sprintId: sprint.id, sprint };
+}
+
+function createOpening(projects, seed) {
+  const list = projects || [];
+  const seeded = seed && seed.projectId != null
+    ? list.find((project) => sameId(project.id, seed.projectId))
+    : null;
+  const project = seeded || list[0] || null;
+  return { project, sprintId: defaultSprintId(project, seed) };
+}
+
+function defaultSprintId(project, seed) {
+  if (!project) {
+    return "";
+  }
+  if (seed && sameId(seed.projectId, project.id) && seed.sprintId != null && seed.sprintId !== "") {
+    return String(seed.sprintId);
+  }
+  return project.sprint && project.sprint.id != null ? String(project.sprint.id) : "";
+}
+
+function sprintsForCreate(rows, project, seed) {
+  const fromServer = Array.isArray(rows);
+  const open = fromServer
+    ? rows.filter((row) => row.state === "active" || row.state === "planned")
+    : [];
+  const base = fromServer && open.length ? open : openingSprints(project, seed);
+  const sprint = seed && seed.sprint;
+  if (
+    !project
+    || !sprint
+    || !sameId(seed.projectId, project.id)
+    || sprint.id == null
+    || (sprint.state !== "active" && sprint.state !== "planned")
+    || base.some((row) => sameId(row.id, sprint.id))
+  ) {
+    return base;
+  }
+  return base.concat(sprint);
+}
+
+function openingSprints(project, seed) {
+  const rows = [];
+  if (project && project.sprint) {
+    rows.push(project.sprint);
+  }
+  const sprint = seed && seed.sprint;
+  if (
+    project
+    && sprint
+    && sameId(seed.projectId, project.id)
+    && sprint.id != null
+    && (sprint.state === "active" || sprint.state === "planned")
+    && !rows.some((row) => sameId(row.id, sprint.id))
+  ) {
+    rows.push(sprint);
+  }
+  return rows;
+}
+
 module.exports = {
   inputWhen,
   prepareCreate,
   prepareUpdate,
   assignableSprints,
+  createSeedForSprint,
+  createOpening,
+  defaultSprintId,
+  openingSprints,
+  sprintsForCreate,
 };

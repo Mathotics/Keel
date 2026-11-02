@@ -7,6 +7,8 @@
 
 > **Amendment.** Separate by sprint is on by default. The HTML board still accepts `by=sprint`, and `by=status` restores one shared row of columns.
 
+> **Amendment.** Each sprint row on the HTML board can be minimized or removed in this browser ([Collapsible board sprint lanes](collapsible-board-sprint-lanes.md)). `by=status` is unchanged.
+
 > **Amendment.** [ADR 020](cancelled-status.md) adds *Cancelled* as a sixth status. *Done* and *Cancelled* are both closed (backlog membership and sprint carry-over). Only *Done* is completed (blocker resolution and descendants-done progress).
 
 ## Background
