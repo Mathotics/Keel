@@ -84,6 +84,11 @@ class Issue(Base):
         default="",
         server_default="",
     )
+    location: Mapped[str] = mapped_column(
+        String(300),
+        default="",
+        server_default="",
+    )
     status: Mapped[IssueStatus] = mapped_column(
         _enum_column(IssueStatus, "ck_issues_status"),
         default=INITIAL_STATUS,

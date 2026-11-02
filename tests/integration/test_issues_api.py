@@ -108,6 +108,41 @@ def test_definition_of_done_defaults_to_blank_and_round_trips(
     assert history[0]["to_value"] == "Reviewed and deployed."
 
 
+def test_location_defaults_to_blank_and_round_trips(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    issue = create_issue(client, project_id)
+    assert issue["location"] == ""
+
+    updated = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"location": "  The shed  "},
+    ).json()
+    assert updated["location"] == "The shed"
+
+    cleared = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"location": "   "},
+    ).json()
+    assert cleared["location"] == ""
+
+    seeded = create_issue(client, project_id, title="Seeded", location="Marina")
+    assert seeded["location"] == "Marina"
+
+    history = client.get(f"/api/v1/issues/{issue['id']}/history").json()
+    assert [(row["field"], row["from_value"], row["to_value"]) for row in history] == [
+        ("location", "none", "The shed"),
+        ("location", "The shed", "none"),
+    ]
+
+    too_long = client.patch(
+        f"/api/v1/issues/{issue['id']}",
+        json={"location": "x" * 301},
+    )
+    assert too_long.status_code == 422
+
+
 def test_the_reporter_defaults_to_the_acting_user(
     client: TestClient,
     project_id: int,

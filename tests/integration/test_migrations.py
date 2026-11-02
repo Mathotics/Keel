@@ -95,6 +95,10 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     assert "due_at" in columns
     assert "priority" in columns
     assert "definition_of_done" in columns
+    assert "location" in columns
+    assert any("'location'" in check["sqltext"] for check in history_checks), (
+        history_checks
+    )
     priority = next(column for column in issue_columns if column["name"] == "priority")
     assert "p4" in str(priority["default"])
     assert "start_at" in columns

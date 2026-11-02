@@ -218,6 +218,21 @@ def test_definition_of_done_is_recorded_like_a_description(
     ]
 
 
+def test_location_is_recorded_and_a_repeat_is_quiet(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(session, issue_id, location="The shed", actor_name="Ada")
+    issue_service.update_issue(session, issue_id, location="The shed", actor_name="Ada")
+    issue_service.update_issue(session, issue_id, location="", actor_name="Ada")
+    events = history_service.list_history(session, issue_id)
+    assert [(event.field, event.from_value, event.to_value) for event in events] == [
+        ("location", "none", "The shed"),
+        ("location", "The shed", "none"),
+    ]
+
+
 def test_several_fields_append_several_lines(
     session: Session,
     project: Project,

@@ -52,6 +52,7 @@ class IssueDraft:
     title: str = ""
     description: str = ""
     definition_of_done: str = ""
+    location: str = ""
     status: IssueStatus = IssueStatus.TODO
     priority: IssuePriority = INITIAL_PRIORITY
     parent_label: str = ""

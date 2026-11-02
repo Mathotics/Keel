@@ -257,6 +257,11 @@ def test_capture_describes_records_without_secrets(session: Session) -> None:
     assert "secret bar" not in (done_note or "")
 
     token = begin_capture()
+    issue_service.update_issue(session, issue.id, location="The shed")
+    located = finish_capture(token)
+    assert located == "KEEL-1 location none → The shed"
+
+    token = begin_capture()
     issue_service.update_issue(session, issue.id, title="x" * 400)
     long_note = finish_capture(token)
     assert long_note is not None
