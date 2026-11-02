@@ -103,6 +103,17 @@ def test_a_definition_of_done_edit_appears_in_history(client: TestClient) -> Non
     assert "Tester — definition of done none → Deployed" in _history(page.text)
 
 
+def test_a_location_edit_appears_in_history(client: TestClient) -> None:
+    issue = _issue(client, _project(client))
+    client.post(
+        f"/web/issues/{issue['id']}/location",
+        data={"location": "The shed"},
+        follow_redirects=False,
+    )
+    page = client.get("/issues/KEEL-1")
+    assert "Tester — location none → The shed" in _history(page.text)
+
+
 def test_api_patch_uses_the_acting_user(client: TestClient) -> None:
     issue = _issue(client, _project(client))
     patched = client.patch(

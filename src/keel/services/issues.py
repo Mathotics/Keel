@@ -34,6 +34,7 @@ from keel.domain.schedule import check_start_due_window
 from keel.services import projects as project_service
 
 MAX_TITLE_LENGTH = 300
+MAX_LOCATION_LENGTH = 300
 UNSET = object()
 _CLIENT_KEY = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 _DUPLICATE_SUBMIT = "That create was already used. Reload the page and try again."
@@ -157,6 +158,7 @@ def create_issue(
     title: str,
     description: str = "",
     definition_of_done: str = "",
+    location: str = "",
     status: IssueStatus = INITIAL_STATUS,
     priority: IssuePriority = INITIAL_PRIORITY,
     parent_id: int | None = None,
@@ -191,6 +193,7 @@ def create_issue(
         title=_clean_title(title),
         description=description.strip(),
         definition_of_done=definition_of_done.strip(),
+        location=_clean_location(location),
         status=status,
         priority=priority,
         reporter_id=reporter_id,
@@ -229,6 +232,7 @@ def update_issue(
     title: str | None = None,
     description: str | None = None,
     definition_of_done: str | None = None,
+    location: str | None = None,
     status: IssueStatus | None = None,
     priority: IssuePriority | None = None,
     parent_id: int | None | object = UNSET,
@@ -296,6 +300,18 @@ def update_issue(
                 actor_name=who,
             )
             issue.definition_of_done = cleaned_done
+    if location is not None:
+        cleaned_location = _clean_location(location)
+        if cleaned_location != issue.location:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_LOCATION,
+                from_value=history_service.text_label(issue.location),
+                to_value=history_service.text_label(cleaned_location),
+                actor_name=who,
+            )
+            issue.location = cleaned_location
     if status is not None and status is not issue.status:
         history_service.record(
             session,
@@ -695,6 +711,10 @@ def _clean_title(title: str) -> str:
     if not cleaned:
         raise InvalidIssueError("An issue needs a title.")
     return cleaned[:MAX_TITLE_LENGTH]
+
+
+def _clean_location(location: str) -> str:
+    return location.strip()[:MAX_LOCATION_LENGTH]
 
 
 def _check_minutes(value: int | None) -> None:

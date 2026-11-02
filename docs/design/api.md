@@ -68,6 +68,7 @@ Create body:
   "title": "Rework the onboarding script",
   "description": "",
   "definition_of_done": "",
+  "location": "",
   "status": "todo",
   "priority": "p4",
   "parent_id": null,
@@ -94,6 +95,7 @@ Response body, with the fields the interface needs added:
   "title": "Rework the onboarding script",
   "description": "",
   "definition_of_done": "",
+  "location": "",
   "status": "todo",
   "priority": "p4",
   "parent_id": null,
@@ -118,7 +120,7 @@ Response body, with the fields the interface needs added:
 }
 ```
 
-`rollup` covers the issue and all its descendants ([ADR 012](../adr/issue-realization.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/cancelled-status.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)). `description` and `definition_of_done` are plain text, trimmed on write, and default to the empty string; the interface renders them as Markdown ([ADR 017](../adr/markdown-descriptions-and-comments.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
+`rollup` covers the issue and all its descendants ([ADR 012](../adr/issue-realization.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/cancelled-status.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)). `description` and `definition_of_done` are plain text, trimmed on write, and default to the empty string; the interface renders them as Markdown ([ADR 017](../adr/markdown-descriptions-and-comments.md), [Issue definition of done](../adr/issue-definition-of-done.md)). `location` is plain text, trimmed on write, at most 300 characters, and defaults to the empty string. It is not Markdown ([Issue location](../adr/issue-location.md)).
 
 ## Projections
 
@@ -267,6 +269,7 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/issues/{issue_id}/priority` | The issue page's priority |
 | `POST` | `/web/issues/{issue_id}/description` | The issue page's description |
 | `POST` | `/web/issues/{issue_id}/definition-of-done` | The issue page's definition of done |
+| `POST` | `/web/issues/{issue_id}/location` | The issue page's location |
 | `POST` | `/web/issues/{issue_id}/parent` | The issue page's parent |
 | `POST` | `/web/issues/{issue_id}/children` | Create a child Story or Subtask from the issue page |
 | `POST` | `/web/issues/{issue_id}/sprint` | Schedule or unschedule an issue |

@@ -23,6 +23,7 @@ FIELD_PRIORITY = "priority"
 FIELD_TITLE = "title"
 FIELD_DESCRIPTION = "description"
 FIELD_DEFINITION_OF_DONE = "definition of done"
+FIELD_LOCATION = "location"
 FIELD_LABELS = "labels"
 
 UNASSIGNED = "Unassigned"

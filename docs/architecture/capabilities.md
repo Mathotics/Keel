@@ -60,8 +60,9 @@ flowchart LR
 * Set and change an issue's priority on the five-level scale (see [ADR 030](../adr/ADR-030.md)).
 * Add and read comments on an issue. Issue descriptions, definitions of done, and comment bodies render as Markdown on the issue page ([ADR 017](../adr/markdown-descriptions-and-comments.md)).
 * Write an issue's definition of done — the criteria for calling it *Done* — in its own panel beneath Description ([Issue definition of done](../adr/issue-definition-of-done.md)).
+* Record where an issue will happen in an optional location, blank until set ([Issue location](../adr/issue-location.md)).
 * Add and remove labels on an issue, and filter the board and issue list by one label ([ADR 031](../adr/ADR-031.md)).
-* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, location, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md)).
 
 ## Planning
 
