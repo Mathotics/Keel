@@ -1,12 +1,21 @@
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from keel.domain.enums import label
 from keel.services import boards as board_service
 from keel.services import projects as project_service
+from keel.services.boards import BoardLane
+from keel.web.board_lanes import (
+    COLLAPSED_COOKIE,
+    HIDDEN_COOKIE,
+    encode_toggle,
+    lane_key,
+    parse_lanes,
+)
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.filters import (
     FilterRequest,
@@ -19,6 +28,37 @@ from keel.web.filters import (
 
 router = APIRouter()
 project_router = APIRouter(prefix="/projects")
+
+
+@dataclass(frozen=True)
+class LaneRow:
+    """One sprint row, plus the cookie key the Minimize and Remove controls post."""
+
+    key: str
+    title: str
+    count: int
+    lane: BoardLane
+
+
+def _lane_rows(
+    lanes: tuple[BoardLane, ...],
+    project_id: int | None,
+    hidden: frozenset[str],
+) -> tuple[tuple[LaneRow, ...], tuple[LaneRow, ...]]:
+    shown: list[LaneRow] = []
+    removed: list[LaneRow] = []
+    for lane in lanes:
+        key = lane_key(lane.sprint_id, project_id=project_id)
+        title = lane.name
+        if lane.state is not None:
+            title = f"{title} ({label(lane.state)})"
+        count = sum(len(column.cards) for column in lane.columns)
+        row = LaneRow(key=key, title=title, count=count, lane=lane)
+        if key in hidden:
+            removed.append(row)
+        else:
+            shown.append(row)
+    return tuple(shown), tuple(removed)
 
 
 def _render(
@@ -58,6 +98,18 @@ def _render(
         project_id=project_id,
         project_ids=criteria.project_ids,
     )
+    prefs = parse_lanes(
+        request.cookies.get(COLLAPSED_COOKIE),
+        request.cookies.get(HIDDEN_COOKIE),
+    )
+    shown, removed = _lane_rows(board.lanes, project_id, prefs.hidden)
+    board_return = request.url.path
+    if request.url.query:
+        board_return = f"{board_return}?{request.url.query}"
+
+    def board_lane_toggle(key: str) -> str:
+        return encode_toggle(prefs.collapsed, key)
+
     return get_templates().TemplateResponse(
         request,
         "board.html",
@@ -68,6 +120,11 @@ def _render(
             board=board,
             has_projects=has_projects,
             card_count=board_service.card_count(board),
+            board_lanes=shown,
+            hidden_board_lanes=removed,
+            collapsed_board_lanes=prefs.collapsed,
+            board_lane_toggle=board_lane_toggle,
+            board_return=board_return,
             **filter_context(
                 bar,
                 action=action,

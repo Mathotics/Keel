@@ -83,6 +83,7 @@ flowchart LR
 * Derive board columns from the shared workflow statuses.
 * Restrict the board to chosen issue types, to a chosen assignee, to a chosen sprint, and to a chosen label; on the master board, also to a chosen project.
 * Separate the board into a row of columns per sprint; on the master board, prefix those rows with the project key and refuse a drop onto another project's sprint. A completed sprint is not a row, and its Done and Cancelled issues stay off both boards ([Completed sprints off the board](../adr/completed-sprints-off-the-board.md)).
+* Minimize a sprint row, or remove it and add it back, and keep that choice in this browser ([Collapsible board sprint lanes](../adr/collapsible-board-sprint-lanes.md)).
 * Change an issue's status by moving its card between columns.
 
 ## Dependencies
@@ -112,3 +113,4 @@ flowchart LR
 * [ADR 027: Parent key on Kanban cards and type colors](../adr/ADR-027.md)
 * [ADR 032: Master board across all projects](../adr/ADR-032.md)
 * [Completed sprints off the board](../adr/completed-sprints-off-the-board.md)
+* [Collapsible board sprint lanes](../adr/collapsible-board-sprint-lanes.md)
