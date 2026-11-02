@@ -69,7 +69,7 @@ import {
   workView,
 } from "./src/offline";
 import { pullLibrary } from "./src/sync";
-import { inputWhen, prepareCreate, prepareUpdate, assignableSprints } from "./src/create";
+import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpening, createSeedForSprint, defaultSprintId, openingSprints, sprintsForCreate } from "./src/create";
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
@@ -89,7 +89,7 @@ const FAILED = "Could not connect.";
 const TOP_INSET = Platform.OS === "android" ? NativeStatusBar.currentHeight || 24 : 44;
 const MENU_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "gantt", "schedules"];
 const TAB_PHASES = ["home", "projects", "board", "find", "backlog", "sprints", "calendar", "gantt", "schedules"];
-const CREATE_PHASES = ["home", "projects", "board", "backlog", "find", "calendar", "gantt", "sprints", "schedules"];
+const CREATE_PHASES = ["home", "projects", "board", "backlog", "find", "calendar", "gantt", "sprints", "sprint", "schedules"];
 const MARKS = ["#0068B0", "#7C3AED", "#0F7A73", "#DB2777", "#D97706"];
 
 const LOCK_OPTIONS = [
@@ -166,6 +166,7 @@ export default function App() {
   const [planningMode, setPlanningMode] = useState("offline");
   const [planningProjectId, setPlanningProjectId] = useState(null);
   const [openSprint, setOpenSprint] = useState(null);
+  const [createSeed, setCreateSeed] = useState(null);
   const [sprintNotice, setSprintNotice] = useState("");
   const [findResult, setFindResult] = useState(null);
   const [remoteCalendar, setRemoteCalendar] = useState(null);
@@ -2193,6 +2194,7 @@ export default function App() {
     if (CREATE_PHASES.includes(phase)) {
       listPhase.current = phase;
     }
+    setCreateSeed(phase === "sprint" ? createSeedForSprint(planningProjectId, openSprint) : null);
     setMessage("");
     setDrawerOpen(false);
     setPhase("create");
@@ -3044,6 +3046,7 @@ export default function App() {
           account={account}
           busy={busy}
           library={library}
+          seed={createSeed}
           onCancel={() => setPhase(listPhase.current)}
           onFile={async (draft) => {
             const filed = queueCreate(library, draft);
@@ -3271,7 +3274,12 @@ export default function App() {
         />
       ) : null}
       {signedIn && CREATE_PHASES.includes(phase) ? (
-        <Pressable accessibilityLabel="Create issue" accessibilityRole="button" onPress={openCreate} style={styles.fab}>
+        <Pressable
+          accessibilityLabel="Create issue"
+          accessibilityRole="button"
+          onPress={openCreate}
+          style={[styles.fab, TAB_PHASES.includes(phase) ? null : styles.fabLow]}
+        >
           <Text style={styles.fabText}>+</Text>
         </Pressable>
       ) : null}
@@ -3314,13 +3322,14 @@ const PRIORITY_OPTIONS = [
   { id: "p5", title: "P5 — Trivial" },
 ];
 
-function CreateIssue({ account, library, busy, onCancel, onFile }) {
+function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const projects = Object.values(library.projects || {})
     .filter((project) => project.enabled)
     .sort((left, right) => left.key.localeCompare(right.key));
-  const opening = projects[0] || null;
-  const openingLabel = opening ? projectLabel(opening) : "";
-  const [projectId, setProjectId] = useState(opening ? String(opening.id) : "");
+  const opening = createOpening(projects, seed);
+  const openingProject = opening.project;
+  const openingLabel = openingProject ? projectLabel(openingProject) : "";
+  const [projectId, setProjectId] = useState(openingProject ? String(openingProject.id) : "");
   const [projectQuery, setProjectQuery] = useState(openingLabel);
   const [projectCommitted, setProjectCommitted] = useState(openingLabel);
   const project = projects.find((item) => String(item.id) === projectId) || null;
@@ -3336,13 +3345,13 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
   const [parentIssue, setParentIssue] = useState(null);
   const [parentQuery, setParentQuery] = useState("");
   const [parentCommitted, setParentCommitted] = useState("");
-  const [sprintId, setSprintId] = useState(project && project.sprint ? String(project.sprint.id) : "");
+  const [sprintId, setSprintId] = useState(opening.sprintId);
   const [labels, setLabels] = useState("");
   const [estimate, setEstimate] = useState("");
   const [remaining, setRemaining] = useState("");
   const [start, setStart] = useState("");
   const [due, setDue] = useState("");
-  const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
+  const [sprints, setSprints] = useState(openingSprints(openingProject, seed));
   const [issueCatalog, setIssueCatalog] = useState([]);
   const [error, setError] = useState("");
 
@@ -3356,7 +3365,7 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
       setSprintId("");
       return undefined;
     }
-    setSprintId(project.sprint ? String(project.sprint.id) : "");
+    setSprintId(defaultSprintId(project, seed));
     let active = true;
     const saved = Object.values(project.issues || {})
       .filter((issue) => Number(issue.id) > 0 && issue.raw)
@@ -3372,14 +3381,11 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
         if (!active) {
           return;
         }
-        const open = (rows || []).filter(
-          (row) => row.state === "active" || row.state === "planned",
-        );
-        setSprints(open.length ? open : project.sprint ? [project.sprint] : []);
+        setSprints(sprintsForCreate(rows, project, seed));
       })
       .catch(() => {
         if (active) {
-          setSprints(project.sprint ? [project.sprint] : []);
+          setSprints(sprintsForCreate(null, project, seed));
         }
       });
     read(account.origin, account.token, `/api/v1/projects/${project.id}/issues`)
@@ -3405,7 +3411,7 @@ function CreateIssue({ account, library, busy, onCancel, onFile }) {
     return () => {
       active = false;
     };
-  }, [account.origin, account.token, project && project.id]);
+  }, [account.origin, account.token, project && project.id, seed]);
 
   function chooseProject(option) {
     const next = projects.find((item) => item.id === option.id);
@@ -6804,6 +6810,9 @@ const styles = StyleSheet.create({
     fontSize: 32,
     lineHeight: 34,
     fontWeight: "400",
+  },
+  fabLow: {
+    bottom: 24,
   },
   drawerLayer: {
     flex: 1,
