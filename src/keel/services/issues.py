@@ -1,9 +1,12 @@
+import re
+import secrets
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 from sqlalchemy import Select, and_, exists, false, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, IssueLabel, Label, Project, Sprint
@@ -18,6 +21,7 @@ from keel.domain.enums import (
     statuses_in_workflow_order,
 )
 from keel.domain.errors import (
+    DuplicateSubmitError,
     InvalidIssueError,
     IssueHasChildrenError,
     NotFoundError,
@@ -31,6 +35,8 @@ from keel.services import projects as project_service
 
 MAX_TITLE_LENGTH = 300
 UNSET = object()
+_CLIENT_KEY = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+_DUPLICATE_SUBMIT = "That create was already used. Reload the page and try again."
 
 
 @dataclass(frozen=True)
@@ -139,6 +145,11 @@ def list_children(session: Session, issue_id: int) -> Sequence[Issue]:
     ).all()
 
 
+def new_client_key() -> str:
+    """A create token the form or the phone can send back unchanged."""
+    return secrets.token_urlsafe(16)
+
+
 def create_issue(
     session: Session,
     project_id: int,
@@ -159,8 +170,14 @@ def create_issue(
     series_id: int | None = None,
     occurrence_on: date | None = None,
     labels: Sequence[str] | str = (),
+    client_key: str | None = None,
 ) -> Issue:
     project = project_service.get_project(session, project_id)
+    key = _clean_client_key(client_key)
+    if key is not None:
+        already = _resubmitted_issue(session, key, project.id, reporter_id)
+        if already is not None:
+            return already
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
     wanted_labels = parse_label_names(labels) if labels else ()
@@ -184,11 +201,14 @@ def create_issue(
         remaining_minutes=remaining_minutes,
         series_id=series_id,
         occurrence_on=occurrence_on,
+        client_key=key,
     )
     _assign_parent(session, issue, parent_id)
     _assign_sprint(session, issue, sprint_id)
-    session.add(issue)
-    session.flush()
+    fresh = issue
+    issue = _flush_new_issue(session, issue, key, project.id, reporter_id)
+    if issue is not fresh:
+        return issue
     if wanted_labels:
         from keel.services import labels as label_service
 
@@ -616,6 +636,58 @@ def parse_datetime(raw: str, field: str) -> datetime | None:
     if parsed.tzinfo is not None:
         parsed = parsed.astimezone(UTC).replace(tzinfo=None)
     return parsed
+
+
+def _clean_client_key(value: str | None) -> str | None:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if _CLIENT_KEY.fullmatch(cleaned) is None:
+        raise InvalidIssueError(
+            "A create key must be 16 to 64 letters, digits, hyphens, or underscores.",
+        )
+    return cleaned
+
+
+def _resubmitted_issue(
+    session: Session,
+    client_key: str,
+    project_id: int,
+    reporter_id: int | None,
+) -> Issue | None:
+    found = session.scalars(
+        select(Issue).where(Issue.client_key == client_key),
+    ).first()
+    if found is None:
+        return None
+    if found.project_id != project_id or found.reporter_id != reporter_id:
+        raise DuplicateSubmitError(_DUPLICATE_SUBMIT)
+    return found
+
+
+def _flush_new_issue(
+    session: Session,
+    issue: Issue,
+    client_key: str | None,
+    project_id: int,
+    reporter_id: int | None,
+) -> Issue:
+    """Inserts the issue. A key collision returns the issue that won the race."""
+    session.add(issue)
+    if client_key is None:
+        session.flush()
+        return issue
+    try:
+        with session.begin_nested():
+            session.flush()
+    except IntegrityError:
+        found = _resubmitted_issue(session, client_key, project_id, reporter_id)
+        if found is None:
+            raise
+        return found
+    return issue
 
 
 def _clean_title(title: str) -> str:

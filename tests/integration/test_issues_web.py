@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -14,6 +15,12 @@ def project(client: TestClient) -> Json:
         json={"key": "KEEL", "name": "Keel"},
     ).json()
     return created
+
+
+def _client_key(html: str) -> str:
+    matched = re.search(r'name="client_key" value="([^"]+)"', html)
+    assert matched is not None
+    return matched.group(1)
 
 
 def submit_issue(client: TestClient, project: Json, **fields: str) -> str:
@@ -38,6 +45,9 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert page.status_code == 200
     assert 'name="title"' in page.text
     assert 'name="project"' in page.text
+    assert 'name="client_key"' in page.text
+    assert "data-keel-submit-once" in page.text
+    assert "/assets/js/submit-once.js" in page.text
     assert 'data-keel-lookup="projects"' in page.text
     project_at = page.text.index('data-keel-lookup="projects"')
     project_list = page.text.index('id="issue-project-list"', project_at)
@@ -84,6 +94,37 @@ def test_an_issue_is_created_and_lands_on_its_page(
     page = client.get(location)
     assert page.status_code == 200
     assert "Rework onboarding" in page.text
+
+
+def test_posting_the_create_form_twice_files_one_issue(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get(f"/create?project={project['key']}")
+    token = _client_key(page.text)
+    data = {
+        "project_id": str(project["id"]),
+        "type": "story",
+        "title": "Once",
+        "client_key": token,
+    }
+    first = client.post("/web/issues", data=data, follow_redirects=False)
+    second = client.post("/web/issues", data=data, follow_redirects=False)
+
+    assert first.status_code == 303
+    assert first.headers["location"] == "/issues/KEEL-1"
+    assert second.headers["location"] == "/issues/KEEL-1"
+    issues = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    assert [item["title"] for item in issues] == ["Once"]
+
+    fresh = _client_key(client.get(f"/create?project={project['key']}").text)
+    assert fresh != token
+    another = client.post(
+        "/web/issues",
+        data={**data, "title": "Twice", "client_key": fresh},
+        follow_redirects=False,
+    )
+    assert another.headers["location"] == "/issues/KEEL-2"
 
 
 def test_create_from_the_menu_needs_only_a_title(
@@ -234,6 +275,35 @@ def test_a_child_can_be_created_from_an_epic_page(
     child = next(item for item in issues if item["title"] == "First story")
     assert child["type"] == "story"
     assert child["parent_id"] == epic_id
+
+
+def test_adding_the_same_child_twice_files_one(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, type="epic", title="Epic")
+    epic_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    token = _client_key(client.get("/issues/KEEL-1").text)
+    data = {"title": "First story", "client_key": token}
+
+    first = client.post(
+        f"/web/issues/{epic_id}/children",
+        data=data,
+        follow_redirects=False,
+    )
+    second = client.post(
+        f"/web/issues/{epic_id}/children",
+        data=data,
+        follow_redirects=False,
+    )
+
+    assert first.headers["location"] == "/issues/KEEL-1"
+    assert second.headers["location"] == "/issues/KEEL-1"
+    titles = [
+        item["title"]
+        for item in client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    ]
+    assert titles.count("First story") == 1
 
 
 def test_a_child_can_be_created_from_a_story_page(

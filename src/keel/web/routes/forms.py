@@ -532,6 +532,7 @@ def create_issue_from_page(
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
+    client_key: Annotated[str, Form()] = "",
     assign_to_me: Annotated[str, Form()] = "",
 ) -> RedirectResponse | HTMLResponse:
     chosen = _optional_id(project_id)
@@ -596,6 +597,7 @@ def create_issue_from_page(
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
             labels=labels,
+            client_key=client_key,
         )
     except DomainError as exc:
         session.rollback()
@@ -624,6 +626,7 @@ def create_issue(
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
+    client_key: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     key = project_service.get_project(session, project_id).key
     try:
@@ -651,6 +654,7 @@ def create_issue(
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
             labels=labels,
+            client_key=client_key,
         )
     except DomainError as exc:
         session.rollback()
@@ -775,6 +779,7 @@ def create_child_issue(
     chrome: ChromeDep,
     issue_id: int,
     title: Annotated[str, Form()] = "",
+    client_key: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     parent = issue_service.get_issue(session, issue_id)
     here = _issue_here(session, issue_id)
@@ -791,6 +796,7 @@ def create_child_issue(
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
+            client_key=client_key,
         )
     except DomainError as exc:
         session.rollback()

@@ -332,7 +332,8 @@
       </table>
       </div>
       {% if child_type %}
-      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/children">
+      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/children" data-keel-submit-once>
+        <input type="hidden" name="client_key" value="{{ client_key }}"/>
         <label class="keel-visually-hidden" for="issue-child-title">{{ child_type | label }} title</label>
         <input id="issue-child-title" name="title" type="text" maxlength="300" required placeholder="What needs doing?"/>
         <button class="keel-primary" type="submit">Add {{ child_type | label }}</button>

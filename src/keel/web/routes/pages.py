@@ -19,6 +19,7 @@ from keel.paths import license_text
 from keel.services import calendar as calendar_service
 from keel.services import gantt as gantt_service
 from keel.services import home as home_service
+from keel.services import issues as issue_service
 from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
@@ -364,6 +365,7 @@ def render_create_page(
             default_priority=filled.priority,
             sprints=sprints,
             draft=filled,
+            client_key=issue_service.new_client_key(),
         ),
     )
 

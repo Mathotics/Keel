@@ -122,6 +122,12 @@ class InvalidIssueError(DomainError):
     status_code = 422
 
 
+class DuplicateSubmitError(DomainError):
+    """The create key already filed an issue for someone else."""
+
+    code = "issue.duplicate_submit"
+
+
 class InvalidDurationError(DomainError):
     code = "issue.invalid_duration"
     status_code = 422

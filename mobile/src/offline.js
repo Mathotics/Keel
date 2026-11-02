@@ -3,6 +3,18 @@ const { statusLabel } = require("./work");
 
 const NOT_ON_SERVER = "Not on the server yet.";
 
+function newClientKey() {
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi && typeof cryptoApi.randomUUID === "function") {
+    return cryptoApi.randomUUID().replace(/-/g, "");
+  }
+  let key = "";
+  for (let index = 0; index < 32; index += 1) {
+    key += Math.floor(Math.random() * 16).toString(16);
+  }
+  return key;
+}
+
 function emptyStore() {
   return { projects: {}, people: [], labels: [], queue: [] };
 }
@@ -237,6 +249,7 @@ function queueRecreate(store, issueId) {
       start_at: raw.start_at,
       due_at: raw.due_at,
       labels: raw.labels || [],
+      client_key: newClientKey(),
     },
     baseUpdatedAt: null,
     force: true,
@@ -532,6 +545,7 @@ function queueCreate(store, draft) {
       start_at: raw.start_at,
       due_at: raw.due_at,
       labels: raw.labels,
+      client_key: newClientKey(),
     },
     baseUpdatedAt: null,
     force: true,

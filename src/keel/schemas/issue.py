@@ -29,6 +29,7 @@ class IssueCreate(BaseModel):
     start_at: datetime | None = None
     due_at: datetime | None = None
     labels: list[str] = Field(default_factory=list)
+    client_key: str | None = None
 
 
 class IssueUpdate(BaseModel):

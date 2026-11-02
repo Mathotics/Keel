@@ -166,6 +166,7 @@ Indexes and constraints:
 | `occurrence_on` | DATE | nullable |
 | `former_series_title` | TEXT | nullable |
 | `former_series_cadence` | TEXT | nullable |
+| `client_key` | TEXT | nullable, unique, at most 64 characters |
 | `created_at` | TIMESTAMP | not null |
 | `updated_at` | TIMESTAMP | not null |
 
@@ -178,6 +179,7 @@ Indexes and constraints:
 * `ix_issues_sprint_id` on (`sprint_id`) for sprint membership
 * `ix_issues_series_id` on (`series_id`)
 * `uq_issues_series_occurrence` — unique on (`series_id`, `occurrence_on`) where `series_id` is not null
+* `uq_issues_client_key` — unique on (`client_key`). Nulls do not collide, so a repeated create key returns the original issue and a create without a key still inserts ([One create per submit](../adr/one-create-per-submit.md))
 
 ### series
 
@@ -357,6 +359,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0026` | `project_everyone_roles` |
 | `0027` | `issues.definition_of_done` and `definition of done` on `issue_history.field` |
 | `0028` | unique non-blank emails, and `password_reset_tokens` |
+| `0029` | `issues.client_key` |
 
 ## Related documents
 
@@ -376,3 +379,4 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [Domain model](../architecture/domain-model.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)
+* [One create per submit](../adr/one-create-per-submit.md)

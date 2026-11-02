@@ -49,6 +49,38 @@ def test_a_created_issue_carries_its_key(client: TestClient, project_id: int) ->
     assert issue["priority"] == "p4"
 
 
+def test_a_repeated_client_key_returns_the_original_issue(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    key = "c" * 32
+    first = create_issue(client, project_id, title="Once", client_key=key)
+    second = create_issue(client, project_id, title="Twice", client_key=key)
+    third = create_issue(client, project_id, title="Next")
+
+    assert second["id"] == first["id"]
+    assert second["title"] == "Once"
+    assert third["number"] == 2
+    titles = [
+        item["title"]
+        for item in client.get(f"/api/v1/projects/{project_id}/issues").json()
+    ]
+    assert titles == ["Once", "Next"]
+
+
+def test_a_malformed_client_key_is_a_coded_error(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    response = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={"type": "story", "title": "Nope", "client_key": "short"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "issue.invalid"
+
+
 def test_definition_of_done_defaults_to_blank_and_round_trips(
     client: TestClient,
     project_id: int,

@@ -26,8 +26,9 @@
           </div>
         </form>
         {% if project %}
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues">
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues" data-keel-submit-once>
           <input type="hidden" name="project_id" value="{{ project.id }}"/>
+          <input type="hidden" name="client_key" value="{{ client_key }}"/>
           <fieldset>
             <legend>Issue</legend>
             <div class="keel-fields">
