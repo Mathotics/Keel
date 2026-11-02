@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from collections.abc import Callable
@@ -37,7 +38,9 @@ print("\\n".join(sorted(ids)))
 """
 
 _LIST_PLUGIN_RULES = (
-    "const plugin = require('eslint-plugin-security');"
+    "const {createRequire}=require('module');"
+    "const plugin=createRequire(process.env.KEEL_SCAN_PACKAGE)"
+    "('eslint-plugin-security');"
     "process.stdout.write(Object.keys(plugin.rules).sort().join('\\n'));"
 )
 
@@ -301,6 +304,7 @@ def _scan_javascript(app: str) -> int:
     files = browser_sources(ROOT) if app == "browser" else phone_sources(ROOT)
     if not files:
         raise ScanError(f"no {app} files to scan")
+    _ensure_scan_tools()
     plugin_rules = _plugin_rules()
     levels = javascript_levels(_load_json(SCAN / f"{app}.json"), plugin_rules)
     known_rules = set(levels)
@@ -308,7 +312,7 @@ def _scan_javascript(app: str) -> int:
     if problems:
         _print_problems(problems)
         return 1
-    eslint = SCAN / "node_modules" / "eslint" / "bin" / "eslint.js"
+    eslint = _eslint_bin()
     if not eslint.is_file():
         raise ScanError("ESLint is not installed; run npm ci --prefix scan")
     config = SCAN / "_eslint.config.mjs"
@@ -443,8 +447,35 @@ def _bandit_ids() -> set[str]:
     return {line.strip() for line in completed.stdout.splitlines() if line.strip()}
 
 
+def _eslint_bin() -> Path:
+    return SCAN / "node_modules" / "eslint" / "bin" / "eslint.js"
+
+
+def _scan_plugin() -> Path:
+    return SCAN / "node_modules" / "eslint-plugin-security" / "package.json"
+
+
+def _ensure_scan_tools() -> None:
+    """Install the scan packages when this checkout does not have them yet.
+
+    `scan/node_modules` is gitignored, so a new worktree does not receive it.
+    """
+    if _eslint_bin().is_file() and _scan_plugin().is_file():
+        return
+    npm = shutil.which("npm")
+    if npm is None:
+        raise ScanError("npm is not installed; run npm ci --prefix scan")
+    print("installing scan tools", flush=True)
+    completed = _run([npm, "ci", "--prefix", str(SCAN)])
+    if completed.returncode != 0 or not _scan_plugin().is_file():
+        detail = (completed.stderr or completed.stdout).strip()
+        raise ScanError(detail or "ESLint is not installed; run npm ci --prefix scan")
+
+
 def _plugin_rules() -> set[str]:
-    completed = _run(["node", "-e", _LIST_PLUGIN_RULES], cwd=SCAN)
+    env = os.environ.copy()
+    env["KEEL_SCAN_PACKAGE"] = str((SCAN / "package.json").resolve())
+    completed = _run(["node", "-e", _LIST_PLUGIN_RULES], cwd=SCAN, env=env)
     if completed.returncode != 0:
         detail = completed.stderr.strip() or (
             "ESLint is not installed; run npm ci --prefix scan"
@@ -461,12 +492,15 @@ def _load_json(path: Path) -> object:
 
 
 def _run(
-    command: list[str], cwd: Path | None = None
+    command: list[str],
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
             command,
             cwd=ROOT if cwd is None else cwd,
+            env=env,
             check=False,
             capture_output=True,
             text=True,
