@@ -41,7 +41,7 @@ import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
 import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
-import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS } from "./src/work";
+import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS, foldedStories } from "./src/work";
 import {
   NOT_ON_SERVER,
   absorbIssues,
@@ -5175,6 +5175,10 @@ function Work({
   onFind,
   onCalendar,
 }) {
+  const [openStories, setOpenStories] = useState({});
+  function toggleStories(projectId) {
+    setOpenStories((current) => ({ ...current, [projectId]: !current[projectId] }));
+  }
   return (
     <ScrollView
       contentContainerStyle={styles.workContent}
@@ -5198,6 +5202,7 @@ function Work({
             const open = section.issues.filter(
               (issue) => issue.status !== "done" && issue.status !== "cancelled",
             ).length;
+            const fold = foldedStories(section.issues, Boolean(openStories[section.projectId]));
             return (
             <View key={section.projectId}>
               <Pressable
@@ -5234,7 +5239,16 @@ function Work({
               {section.saved && section.sprintName && section.issues.length === 0 ? (
                 <Text style={styles.message}>{NO_ISSUES}</Text>
               ) : null}
-              {section.issues.map((issue) => (
+              {fold.label ? (
+                <View style={styles.seeMore}>
+                  <TextButton
+                    accessibilityLabel={fold.label}
+                    label={fold.label}
+                    onPress={() => toggleStories(section.projectId)}
+                  />
+                </View>
+              ) : null}
+              {fold.visible.map((issue) => (
                 <Pressable
                   accessibilityLabel={`${issue.key || "New"} ${issue.title}`}
                   accessibilityRole="button"
@@ -7023,6 +7037,9 @@ const styles = StyleSheet.create({
     color: "#0068B0",
     fontSize: 16,
     fontWeight: "700",
+  },
+  seeMore: {
+    marginTop: 8,
   },
   project: {
     backgroundColor: "#FFFFFF",

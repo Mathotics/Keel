@@ -7,6 +7,8 @@
 > **Amendment.** [Customizable home panels](customizable-home-panels.md) lets this browser remove and reorder those sections. Collapse is unchanged. The out-of-scope line below that forbids reordering or removing sections is superseded by that record.
 >
 > **Amendment.** [Now on the home inbox](now-home-panel.md) adds a **Now** section. It collapses with the same cookie.
+>
+> **Amendment.** Sprint rows on the Kanban can be minimized and removed in this browser ([Collapsible board sprint lanes](collapsible-board-sprint-lanes.md)). Collapsing other panels on the board, on projects, or on schedules stays out of scope.
 
 ## Background
 
@@ -37,7 +39,7 @@ Every non-empty inbox section is always fully open. Assigned to me repeats issue
 
 ### Out-of-Scope
 
-* Collapsing panels on the board, projects, or schedules. Issue-page panels fold separately ([Foldable issue panels](foldable-issue-panels.md)).
+* Collapsing panels other than sprint rows on the board, and collapsing panels on projects or schedules. Sprint rows fold separately ([Collapsible board sprint lanes](collapsible-board-sprint-lanes.md)). Issue-page panels fold separately ([Foldable issue panels](foldable-issue-panels.md)).
 * Renaming home sections. Removing and reordering them is [Customizable home panels](customizable-home-panels.md).
 * Hiding a section with no heading, or changing which issues belong in which section.
 * Storing the preference on the user row or in the database.
