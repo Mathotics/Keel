@@ -20,6 +20,17 @@ function activeSprint(sprints) {
   return found || null;
 }
 
+function foldedStories(issues, expanded) {
+  const list = Array.isArray(issues) ? issues : [];
+  if (!list.length) {
+    return { visible: [], label: null, hidden: 0 };
+  }
+  if (expanded) {
+    return { visible: list, label: "See less", hidden: 0 };
+  }
+  return { visible: [], label: `See more (${list.length})`, hidden: list.length };
+}
+
 function workSection(project, sprints, detail) {
   const sprint = activeSprint(sprints);
   const issues =
@@ -46,6 +57,7 @@ module.exports = {
   NO_ISSUES,
   NO_PROJECTS,
   activeSprint,
+  foldedStories,
   statusLabel,
   workSection,
 };
