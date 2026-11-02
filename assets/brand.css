@@ -348,7 +348,10 @@ body {
 
 .keel-inbox__fallback button,
 .keel-inbox__tools button,
-.keel-home-add button {
+.keel-home-add button,
+.keel-board-lane__fallback button,
+.keel-board-lane__tools button,
+.keel-board-add button {
   height: var(--keel-control-height);
   padding: 0 0.75rem;
   border: 1px solid var(--keel-blue);
@@ -1695,6 +1698,72 @@ body {
 .keel-board__lane-title {
   margin: 0 0 0.5rem;
   font-size: 1.05rem;
+}
+
+/* Sprint rows collapse with native disclosure, matching the home inbox.
+   The heading and card count stay visible when the columns are hidden. */
+.keel-board-lane {
+  margin: 0;
+}
+
+.keel-board-lane > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  margin: 0 0 0.5rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.keel-board-lane > summary::-webkit-details-marker {
+  display: none;
+}
+
+.keel-board-lane > summary::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--keel-blue);
+  border-bottom: 2px solid var(--keel-blue);
+  transform: rotate(-45deg);
+  translate: 0 -0.05rem;
+}
+
+.keel-board-lane[open] > summary::before {
+  transform: rotate(45deg);
+  translate: 0 -0.15rem;
+}
+
+.keel-board-lane > summary:focus-visible {
+  outline: 2px solid var(--keel-blue);
+  outline-offset: 2px;
+}
+
+.keel-board-lane > summary > .keel-board__lane-title {
+  margin: 0;
+}
+
+.keel-board-lane__count {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+.keel-board-lane__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.keel-board-lane__tools form,
+.keel-board-add {
+  margin: 0;
+}
+
+[data-keel-board] .keel-board-lane__fallback {
+  display: none;
 }
 
 .keel-board__filter {

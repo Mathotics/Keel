@@ -120,4 +120,32 @@
       }
     });
   }
+
+  const lanes = [...board.querySelectorAll("[data-keel-board-lane]")];
+  if (!lanes.length) {
+    return;
+  }
+
+  const saveLanes = () => {
+    const collapsed = lanes
+      .filter((lane) => !lane.open)
+      .map((lane) => lane.dataset.keelBoardLane)
+      .filter(Boolean)
+      .join(".");
+    const present = lanes
+      .map((lane) => lane.dataset.keelBoardLane)
+      .filter(Boolean)
+      .join(".");
+    const next = `${window.location.pathname}${window.location.search}`;
+    fetch("/web/board-lanes", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ collapsed, present, next }),
+      redirect: "manual",
+    });
+  };
+
+  for (const lane of lanes) {
+    lane.addEventListener("toggle", saveLanes);
+  }
 })();

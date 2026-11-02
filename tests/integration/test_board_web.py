@@ -647,3 +647,230 @@ def test_the_fallback_form_returns_to_the_master_board(client: TestClient) -> No
     )
     assert response.status_code == 303
     assert response.headers["location"] == "/board"
+
+
+def _lane(page: str, key: str) -> str:
+    marker = f'data-keel-board-lane="{key}"'
+    start = page.index(marker)
+    open_at = page.rindex("<details", 0, start)
+    return page[open_at : page.index("</details>", start)]
+
+
+def test_sprint_rows_are_open_disclosures_with_a_count(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    )
+
+    page = client.get("/projects/KEEL/board")
+    lane = _lane(page.text, str(sprint["id"]))
+    assert " open" in lane.split(">", 1)[0]
+    assert '<h2 class="keel-board__lane-title">Sprint 1 (Planned)</h2>' in lane
+    assert 'class="keel-board-lane__count">1<' in lane
+    assert "Minimize" in lane
+    assert "Remove" in lane
+    assert 'action="/web/board-lanes"' in page.text
+    assert 'action="/web/board-lanes/hide"' in page.text
+    assert 'name="next" value="/projects/KEEL/board"' in page.text
+
+    together = client.get("/projects/KEEL/board", params={"by": "status"})
+    assert "data-keel-board-lane" not in together.text
+    assert "Minimize" not in together.text
+    assert "Add a sprint" not in together.text
+    assert "In sprint" in together.text
+
+
+def test_the_board_lane_cookie_closes_a_sprint_and_keeps_its_cards(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    )
+    client.cookies.set("keel_board_lanes", f"{sprint['id']}.nope")
+
+    page = client.get("/projects/KEEL/board")
+    lane = _lane(page.text, str(sprint["id"]))
+    assert " open" not in lane.split(">", 1)[0]
+    assert "Sprint 1 (Planned)" in lane
+    assert "In sprint" in lane
+    assert "Expand" in lane
+
+
+def test_minimizing_a_sprint_sets_the_cookie_and_returns_to_the_board(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    )
+    response = client.post(
+        "/web/board-lanes",
+        data={
+            "collapsed": f"{sprint['id']}.nope",
+            "next": "/projects/KEEL/board?by=sprint",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/projects/KEEL/board?by=sprint"
+    assert response.cookies["keel_board_lanes"] == str(sprint["id"])
+    page = client.get("/projects/KEEL/board")
+    assert " open" not in _lane(page.text, str(sprint["id"])).split(">", 1)[0]
+
+    refused = client.post(
+        "/web/board-lanes",
+        data={"collapsed": str(sprint["id"]), "next": "https://evil.example"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"] == "/"
+    assert client.cookies["keel_board_lanes"] == str(sprint["id"])
+
+
+def test_folding_one_page_keeps_a_sprint_that_is_not_on_it(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.cookies.set("keel_board_lanes", str(sprint["id"]))
+    response = client.post(
+        "/web/board-lanes",
+        data={
+            "collapsed": "",
+            "present": f"unscheduled-{project['id']}",
+            "next": "/projects/KEEL/board",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.cookies["keel_board_lanes"] == str(sprint["id"])
+
+
+def test_removing_a_sprint_hides_it_until_it_is_added(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    )
+    removed = client.post(
+        "/web/board-lanes/hide",
+        data={"lane": str(sprint["id"]), "next": "/projects/KEEL/board"},
+        follow_redirects=False,
+    )
+    assert removed.status_code == 303
+    assert removed.headers["location"] == "/projects/KEEL/board"
+    assert removed.cookies["keel_board_hidden"] == str(sprint["id"])
+
+    page = client.get("/projects/KEEL/board")
+    assert '<h2 class="keel-board__lane-title">Sprint 1 (Planned)</h2>' not in page.text
+    assert "In sprint" not in page.text
+    assert "Add a sprint" in page.text
+    assert f'value="{sprint["id"]}">Sprint 1 (Planned)</option>' in page.text
+
+    master = client.get("/board")
+    assert (
+        '<h2 class="keel-board__lane-title">KEEL / Sprint 1 (Planned)</h2>'
+        not in master.text
+    )
+    assert "In sprint" not in master.text
+
+    added = client.post(
+        "/web/board-lanes/show",
+        data={"lane": str(sprint["id"]), "next": "/projects/KEEL/board"},
+        follow_redirects=False,
+    )
+    assert added.status_code == 303
+    restored = client.get("/projects/KEEL/board")
+    assert '<h2 class="keel-board__lane-title">Sprint 1 (Planned)</h2>' in restored.text
+    assert "In sprint" in restored.text
+    assert "Add a sprint" not in restored.text
+
+
+def test_hiding_unscheduled_on_a_project_leaves_the_master_row(
+    client: TestClient,
+    project: Json,
+) -> None:
+    client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "Waiting"},
+    )
+    removed = client.post(
+        "/web/board-lanes/hide",
+        data={
+            "lane": f"unscheduled-{project['id']}",
+            "next": "/projects/KEEL/board",
+        },
+        follow_redirects=False,
+    )
+    assert removed.cookies["keel_board_hidden"] == f"unscheduled-{project['id']}"
+    page = client.get("/projects/KEEL/board")
+    assert "Every sprint is hidden." in page.text
+    assert '<h2 class="keel-board__lane-title">Unscheduled</h2>' not in page.text
+    assert "Waiting" not in page.text
+    assert 'value="unscheduled-' in page.text
+
+    master = client.get("/board")
+    assert _lane(master.text, "unscheduled")
+    assert "Waiting" in master.text
+
+
+def test_a_status_move_keeps_a_collapsed_sprint(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    issue = client.post(
+        f"/api/v1/projects/{project['id']}/issues",
+        json={"type": "story", "title": "In sprint", "sprint_id": sprint["id"]},
+    ).json()
+    client.cookies.set("keel_board_lanes", str(sprint["id"]))
+    response = client.post(
+        f"/web/issues/{issue['id']}/status",
+        data={"status": "in_progress", "next": "/projects/KEEL/board"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    page = client.get("/projects/KEEL/board")
+    assert " open" not in _lane(page.text, str(sprint["id"])).split(">", 1)[0]
+    assert "In Progress" in page.text
+
+
+def test_board_script_persists_a_sprint_disclosure(client: TestClient) -> None:
+    script = client.get("/assets/js/board.js")
+    assert "/web/board-lanes" in script.text
+    assert "keelBoardLane" in script.text
+    css = client.get("/assets/brand.css").text
+    hidden = css.split("[data-keel-board] .keel-board-lane__fallback", 1)[1].split(
+        "}",
+        1,
+    )[0]
+    assert "display: none" in hidden

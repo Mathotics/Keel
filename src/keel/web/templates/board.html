@@ -74,16 +74,51 @@
       <div data-keel-board-root>
         <p class="keel-error" data-keel-board-error hidden></p>
         {% if separate_by_sprint %}
-          {% for lane in board.lanes %}
+          {% if board_lanes %}
+            {% for row in board_lanes %}
           <section class="keel-board__lane">
-            <h2 class="keel-board__lane-title">{% if lane.state %}{{ lane.name }} ({{ lane.state | label }}){% else %}{{ lane.name }}{% endif %}</h2>
-            <div class="keel-board">
-              {% for column in lane.columns %}
-              {{ board_column(column, board.columns, lane.sprint_id if lane.sprint_id is not none else "", "h3") }}
-              {% endfor %}
-            </div>
+            <details class="keel-board-lane"{% if row.key not in collapsed_board_lanes %} open{% endif %} data-keel-board-lane="{{ row.key }}">
+              <summary>
+                <h2 class="keel-board__lane-title">{{ row.title }}</h2>
+                <span class="keel-board-lane__count">{{ row.count }}</span>
+                <span class="keel-board-lane__tools">
+                  <form method="post" action="/web/board-lanes/hide">
+                    <input type="hidden" name="lane" value="{{ row.key }}"/>
+                    <input type="hidden" name="next" value="{{ board_return }}"/>
+                    <button type="submit">Remove</button>
+                  </form>
+                  <form class="keel-board-lane__fallback" method="post" action="/web/board-lanes">
+                    <input type="hidden" name="next" value="{{ board_return }}"/>
+                    <input type="hidden" name="collapsed" value="{{ board_lane_toggle(row.key) }}"/>
+                    <button type="submit">{% if row.key in collapsed_board_lanes %}Expand{% else %}Minimize{% endif %}</button>
+                  </form>
+                </span>
+              </summary>
+              <div class="keel-board">
+                {% for column in row.lane.columns %}
+                {{ board_column(column, board.columns, row.lane.sprint_id if row.lane.sprint_id is not none else "", "h3") }}
+                {% endfor %}
+              </div>
+            </details>
           </section>
-          {% endfor %}
+            {% endfor %}
+          {% elif board.lanes %}
+          <p class="keel-lede">Every sprint is hidden.</p>
+          {% endif %}
+          {% if hidden_board_lanes %}
+          <form class="keel-form keel-board-add" method="post" action="/web/board-lanes/show">
+            <input type="hidden" name="next" value="{{ board_return }}"/>
+            <p>
+              <label for="board-add-sprint">Add a sprint</label>
+              <select id="board-add-sprint" name="lane">
+                {% for row in hidden_board_lanes %}
+                <option value="{{ row.key }}">{{ row.title }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit">Add</button>
+            </p>
+          </form>
+          {% endif %}
         {% else %}
           <div class="keel-board">
             {% for column in board.columns %}
