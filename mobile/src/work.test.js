@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { activeSprint, statusLabel, workSection } = require("./work");
+const { activeSprint, foldedStories, statusLabel, workSection } = require("./work");
 
 test("names the workflow statuses", () => {
   assert.equal(statusLabel("todo"), "To Do");
@@ -38,6 +38,27 @@ test("builds a project section from the active sprint only", () => {
       statusLabel: "In Progress",
     },
   ]);
+});
+
+test("stories under a project start folded behind see more", () => {
+  const stories = [
+    { id: 1, title: "Paint" },
+    { id: 2, title: "Sand" },
+  ];
+  const folded = foldedStories(stories, false);
+  assert.deepEqual(folded.visible, []);
+  assert.equal(folded.label, "See more (2)");
+  assert.equal(folded.hidden, 2);
+
+  const open = foldedStories(stories, true);
+  assert.deepEqual(open.visible, stories);
+  assert.equal(open.label, "See less");
+  assert.equal(open.hidden, 0);
+});
+
+test("a project with no stories has no see more control", () => {
+  assert.deepEqual(foldedStories([], false), { visible: [], label: null, hidden: 0 });
+  assert.deepEqual(foldedStories(null, true), { visible: [], label: null, hidden: 0 });
 });
 
 test("drops issues when the project has no active sprint", () => {
