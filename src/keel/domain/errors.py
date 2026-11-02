@@ -133,6 +133,11 @@ class InvalidDurationError(DomainError):
     status_code = 422
 
 
+class InvalidCostError(DomainError):
+    code = "issue.invalid_cost"
+    status_code = 422
+
+
 class InvalidCommentError(DomainError):
     code = "comment.invalid"
     status_code = 422

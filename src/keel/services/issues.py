@@ -167,6 +167,9 @@ def create_issue(
     sprint_id: int | None = None,
     estimate_minutes: int | None = None,
     remaining_minutes: int | None = None,
+    planned_value_cents: int | None = None,
+    earned_value_cents: int | None = None,
+    actual_cost_cents: int | None = None,
     series_id: int | None = None,
     occurrence_on: date | None = None,
     labels: Sequence[str] | str = (),
@@ -180,6 +183,9 @@ def create_issue(
             return already
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
+    _check_cents(planned_value_cents)
+    _check_cents(earned_value_cents)
+    _check_cents(actual_cost_cents)
     wanted_labels = parse_label_names(labels) if labels else ()
     check_start_due_window(start_at, due_at)
     if remaining_minutes is None:
@@ -199,6 +205,9 @@ def create_issue(
         due_at=due_at,
         estimate_minutes=estimate_minutes,
         remaining_minutes=remaining_minutes,
+        planned_value_cents=planned_value_cents,
+        earned_value_cents=earned_value_cents,
+        actual_cost_cents=actual_cost_cents,
         series_id=series_id,
         occurrence_on=occurrence_on,
         client_key=key,
@@ -238,6 +247,9 @@ def update_issue(
     sprint_id: int | None | object = UNSET,
     estimate_minutes: int | None | object = UNSET,
     remaining_minutes: int | None | object = UNSET,
+    planned_value_cents: int | None | object = UNSET,
+    earned_value_cents: int | None | object = UNSET,
+    actual_cost_cents: int | None | object = UNSET,
     labels: Sequence[str] | str | object = UNSET,
     actor_name: str | None = None,
 ) -> Issue:
@@ -387,6 +399,42 @@ def update_issue(
                 actor_name=who,
             )
             issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
+    if planned_value_cents is not UNSET:
+        _check_cents(planned_value_cents)  # type: ignore[arg-type]
+        if planned_value_cents != issue.planned_value_cents:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_PLANNED_VALUE,
+                from_value=history_service.cost_label(issue.planned_value_cents),
+                to_value=history_service.cost_label(planned_value_cents),  # type: ignore[arg-type]
+                actor_name=who,
+            )
+            issue.planned_value_cents = planned_value_cents  # type: ignore[assignment]
+    if earned_value_cents is not UNSET:
+        _check_cents(earned_value_cents)  # type: ignore[arg-type]
+        if earned_value_cents != issue.earned_value_cents:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_EARNED_VALUE,
+                from_value=history_service.cost_label(issue.earned_value_cents),
+                to_value=history_service.cost_label(earned_value_cents),  # type: ignore[arg-type]
+                actor_name=who,
+            )
+            issue.earned_value_cents = earned_value_cents  # type: ignore[assignment]
+    if actual_cost_cents is not UNSET:
+        _check_cents(actual_cost_cents)  # type: ignore[arg-type]
+        if actual_cost_cents != issue.actual_cost_cents:
+            history_service.record(
+                session,
+                issue.id,
+                field=history_service.FIELD_ACTUAL_COST,
+                from_value=history_service.cost_label(issue.actual_cost_cents),
+                to_value=history_service.cost_label(actual_cost_cents),  # type: ignore[arg-type]
+                actor_name=who,
+            )
+            issue.actual_cost_cents = actual_cost_cents  # type: ignore[assignment]
     if labels is not UNSET:
         from keel.services import labels as label_service
 
@@ -433,6 +481,9 @@ def issue_rollup(session: Session, issue_id: int) -> Rollup:
             estimate_minutes=item.estimate_minutes,
             remaining_minutes=item.remaining_minutes,
             status=item.status,
+            planned_value_cents=item.planned_value_cents,
+            earned_value_cents=item.earned_value_cents,
+            actual_cost_cents=item.actual_cost_cents,
         )
         for item in _load_subtree(session, issue.id)
     ]
@@ -700,3 +751,8 @@ def _clean_title(title: str) -> str:
 def _check_minutes(value: int | None) -> None:
     if value is not None and value < 0:
         raise InvalidIssueError("Effort cannot be negative.")
+
+
+def _check_cents(value: int | None) -> None:
+    if value is not None and value < 0:
+        raise InvalidIssueError("Cost cannot be negative.")

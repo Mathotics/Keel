@@ -5,6 +5,7 @@ const PARENT = {
 };
 
 const EFFORT = "Effort must look like 2h, 90m, 1h 30m, or 1d.";
+const COST = "Cost must look like 12, 12.50, or $1,234.56.";
 const MINUTES_PER_HOUR = 60;
 const MINUTES_PER_DAY = 8 * MINUTES_PER_HOUR;
 
@@ -35,6 +36,45 @@ function parseDuration(raw) {
     }
   }
   return { value: total };
+}
+
+function parseCost(raw) {
+  const cleaned = String(raw || "").trim();
+  if (!cleaned) {
+    return { value: null };
+  }
+  if (cleaned.startsWith("-")) {
+    return { error: COST };
+  }
+  const body = cleaned.startsWith("$") ? cleaned.slice(1) : cleaned;
+  const dot = body.indexOf(".");
+  const dollarsText = dot === -1 ? body : body.slice(0, dot);
+  const fractionText = dot === -1 ? "" : body.slice(dot + 1);
+  if (
+    !dollarsText ||
+    (dot !== -1 && body.indexOf(".", dot + 1) !== -1) ||
+    (dot !== -1 && !/^\d{1,2}$/.test(fractionText)) ||
+    !groupedDollars(dollarsText)
+  ) {
+    return { error: COST };
+  }
+  const dollars = Number(dollarsText.replaceAll(",", ""));
+  if (!Number.isSafeInteger(dollars)) {
+    return { error: COST };
+  }
+  const fraction = fractionText.padEnd(2, "0");
+  return { value: dollars * 100 + Number(fraction) };
+}
+
+function groupedDollars(text) {
+  if (!text.includes(",")) {
+    return /^\d+$/.test(text);
+  }
+  const groups = text.split(",");
+  if (!/^\d{1,3}$/.test(groups[0])) {
+    return false;
+  }
+  return groups.slice(1).every((group) => /^\d{3}$/.test(group));
 }
 
 function parseWhen(raw) {
@@ -119,6 +159,18 @@ function prepareCreate(input) {
   if (remaining.error) {
     return remaining;
   }
+  const planned = parseCost(input.plannedValue);
+  if (planned.error) {
+    return planned;
+  }
+  const earned = parseCost(input.earnedValue);
+  if (earned.error) {
+    return earned;
+  }
+  const actual = parseCost(input.actualCost);
+  if (actual.error) {
+    return actual;
+  }
   const start = parseWhen(input.start);
   if (start.error) {
     return start;
@@ -149,6 +201,9 @@ function prepareCreate(input) {
       sprint_id: input.sprintId || null,
       estimate_minutes: estimate.value,
       remaining_minutes: remaining.value,
+      planned_value_cents: planned.value,
+      earned_value_cents: earned.value,
+      actual_cost_cents: actual.value,
       start_at: start.value,
       due_at: due.value,
       labels,
@@ -171,6 +226,9 @@ function prepareUpdate(input) {
     sprintId: input.sprintId,
     estimate: input.estimate,
     remaining: input.remaining,
+    plannedValue: input.plannedValue,
+    earnedValue: input.earnedValue,
+    actualCost: input.actualCost,
     start: input.start,
     due: input.due,
     labels: input.labels,
@@ -225,6 +283,15 @@ function prepareUpdate(input) {
   }
   if ((draft.remaining_minutes ?? null) !== (issue.remaining_minutes ?? null)) {
     changes.remaining_minutes = draft.remaining_minutes;
+  }
+  if ((draft.planned_value_cents ?? 0) !== (issue.planned_value_cents ?? 0)) {
+    changes.planned_value_cents = draft.planned_value_cents;
+  }
+  if ((draft.earned_value_cents ?? 0) !== (issue.earned_value_cents ?? 0)) {
+    changes.earned_value_cents = draft.earned_value_cents;
+  }
+  if ((draft.actual_cost_cents ?? 0) !== (issue.actual_cost_cents ?? 0)) {
+    changes.actual_cost_cents = draft.actual_cost_cents;
   }
   if (!sameWhen(draft.start_at, issue.start_at)) {
     changes.start_at = draft.start_at;

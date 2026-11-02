@@ -126,6 +126,23 @@
               </p>
             </div>
           </fieldset>
+          <fieldset>
+            <legend>Cost</legend>
+            <div class="keel-fields">
+              <p>
+                <label for="issue-planned-value">Planned value (PV)</label>
+                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ draft.planned_value or '$0.00' }}"/>
+              </p>
+              <p>
+                <label for="issue-earned-value">Earned value (EV)</label>
+                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ draft.earned_value or '$0.00' }}"/>
+              </p>
+              <p>
+                <label for="issue-actual-cost">Actual cost (AC)</label>
+                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ draft.actual_cost or '$0.00' }}"/>
+              </p>
+            </div>
+          </fieldset>
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Create issue</button></p>
         </form>
         {% endif %}

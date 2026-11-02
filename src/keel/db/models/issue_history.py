@@ -13,7 +13,8 @@ class IssueHistory(Base):
         CheckConstraint(
             "field in ('status', 'assignee', 'sprint', 'estimate', "
             "'remaining', 'due date', 'parent', 'type', 'title', "
-            "'description', 'definition of done', 'priority', 'labels')",
+            "'description', 'definition of done', 'priority', 'labels', "
+            "'planned value', 'earned value', 'actual cost')",
             name="ck_issue_history_field",
         ),
         Index("ix_issue_history_issue_created", "issue_id", "created_at"),

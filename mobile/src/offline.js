@@ -1,4 +1,4 @@
-const { commentView, formatMinutes, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
+const { commentView, formatMinutes, formatMoney, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
 const { statusLabel } = require("./work");
 
 const NOT_ON_SERVER = "Not on the server yet.";
@@ -246,6 +246,9 @@ function queueRecreate(store, issueId) {
       sprint_id: raw.sprint_id,
       estimate_minutes: raw.estimate_minutes,
       remaining_minutes: raw.remaining_minutes,
+      planned_value_cents: raw.planned_value_cents ?? null,
+      earned_value_cents: raw.earned_value_cents ?? null,
+      actual_cost_cents: raw.actual_cost_cents ?? null,
       start_at: raw.start_at,
       due_at: raw.due_at,
       labels: raw.labels || [],
@@ -497,6 +500,9 @@ function queueCreate(store, draft) {
     assignee_id: draft.assignee_id || null,
     estimate_minutes: draft.estimate_minutes ?? null,
     remaining_minutes: draft.remaining_minutes ?? null,
+    planned_value_cents: draft.planned_value_cents ?? null,
+    earned_value_cents: draft.earned_value_cents ?? null,
+    actual_cost_cents: draft.actual_cost_cents ?? null,
     start_at: draft.start_at || null,
     due_at: draft.due_at || null,
     labels: draft.labels || [],
@@ -542,6 +548,9 @@ function queueCreate(store, draft) {
       assignee_id: raw.assignee_id,
       estimate_minutes: raw.estimate_minutes,
       remaining_minutes: raw.remaining_minutes,
+      planned_value_cents: raw.planned_value_cents,
+      earned_value_cents: raw.earned_value_cents,
+      actual_cost_cents: raw.actual_cost_cents,
       start_at: raw.start_at,
       due_at: raw.due_at,
       labels: raw.labels,
@@ -829,6 +838,9 @@ const QUEUE_FIELD = {
   sprint_id: "Sprint",
   estimate_minutes: "Estimate",
   remaining_minutes: "Remaining",
+  planned_value_cents: "Planned value",
+  earned_value_cents: "Earned value",
+  actual_cost_cents: "Actual cost",
   start_at: "Start",
   due_at: "Due",
   labels: "Labels",
@@ -893,6 +905,9 @@ function queueValue(store, key, value) {
   if (key === "estimate_minutes" || key === "remaining_minutes") {
     return value == null ? "None" : `${value}m`;
   }
+  if (key === "planned_value_cents" || key === "earned_value_cents" || key === "actual_cost_cents") {
+    return formatMoney(value);
+  }
   if (value == null || value === "") {
     return "Cleared";
   }
@@ -940,6 +955,9 @@ const CONFLICT_FIELDS = [
   ["sprint_id", "Sprint"],
   ["estimate_minutes", "Estimate"],
   ["remaining_minutes", "Remaining"],
+  ["planned_value_cents", "Planned value"],
+  ["earned_value_cents", "Earned value"],
+  ["actual_cost_cents", "Actual cost"],
   ["start_at", "Start"],
   ["due_at", "Due"],
   ["labels", "Labels"],
@@ -954,6 +972,9 @@ function conflictFieldValue(store, issue, key, value) {
   }
   if (key === "estimate_minutes" || key === "remaining_minutes") {
     return formatMinutes(value);
+  }
+  if (key === "planned_value_cents" || key === "earned_value_cents" || key === "actual_cost_cents") {
+    return formatMoney(value);
   }
   if (key === "start_at" || key === "due_at") {
     return formatWhen(value);

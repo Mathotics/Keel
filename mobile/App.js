@@ -73,7 +73,7 @@ import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpeni
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
-import { formatMinutes, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
+import { formatMinutes, formatMoney, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
 import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
@@ -3349,6 +3349,9 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [labels, setLabels] = useState("");
   const [estimate, setEstimate] = useState("");
   const [remaining, setRemaining] = useState("");
+  const [plannedValue, setPlannedValue] = useState("$0.00");
+  const [earnedValue, setEarnedValue] = useState("$0.00");
+  const [actualCost, setActualCost] = useState("$0.00");
   const [start, setStart] = useState("");
   const [due, setDue] = useState("");
   const [sprints, setSprints] = useState(openingSprints(openingProject, seed));
@@ -3473,6 +3476,9 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         sprintId: sprintId ? Number(sprintId) : null,
         estimate,
         remaining,
+        plannedValue,
+        earnedValue,
+        actualCost,
         start,
         due,
         labels,
@@ -3559,6 +3565,9 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder="$0.00" />
+      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder="$0.00" />
+      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder="$0.00" />
       <DateTimeField label="Start" value={start} onChange={setStart} />
       <DateTimeField label="Due" value={due} onChange={setDue} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -3588,6 +3597,9 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       ? ""
       : formatMinutes(issue.remaining_minutes),
   );
+  const [plannedValue, setPlannedValue] = useState(formatMoney(issue.planned_value_cents ?? 0));
+  const [earnedValue, setEarnedValue] = useState(formatMoney(issue.earned_value_cents ?? 0));
+  const [actualCost, setActualCost] = useState(formatMoney(issue.actual_cost_cents ?? 0));
   const [start, setStart] = useState(inputWhen(issue.start_at));
   const [due, setDue] = useState(inputWhen(issue.due_at));
   const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
@@ -3694,6 +3706,9 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       online: connected,
       estimate,
       remaining,
+      plannedValue,
+      earnedValue,
+      actualCost,
       start,
       due,
       labels,
@@ -3777,6 +3792,9 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder="$0.00" />
+      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder="$0.00" />
+      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder="$0.00" />
       <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
       <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -5634,10 +5652,20 @@ function IssueDetail({
           <DetailLine label="Due" value={page.due} />
           <DetailLine label="Estimate" value={page.estimate} />
           <DetailLine label="Remaining" value={page.remaining} />
+          <DetailLine label="Planned value (PV)" value={page.plannedValue} />
+          <DetailLine label="Earned value (EV)" value={page.earnedValue} />
+          <DetailLine label="Actual cost (AC)" value={page.actualCost} />
+          <DetailLine label="Budget at completion" value={page.budgetAtCompletion} />
+          <DetailLine label="Estimate at completion" value={page.estimateAtCompletion} />
+          <DetailLine label="Schedule performance index" value={page.schedulePerformanceIndex} />
+          <DetailLine label="Cost performance index" value={page.costPerformanceIndex} />
           {page.rollup ? (
             <View>
               <DetailLine label="Rollup estimate" value={page.rollup.estimate} />
               <DetailLine label="Rollup remaining" value={page.rollup.remaining} />
+              <DetailLine label="Rollup planned value" value={page.rollup.plannedValue} />
+              <DetailLine label="Rollup earned value" value={page.rollup.earnedValue} />
+              <DetailLine label="Rollup actual cost" value={page.rollup.actualCost} />
               <DetailLine label="Progress" value={page.rollup.progress} />
               {page.rollup.cancelled ? (
                 <DetailLine label="Cancelled" value={page.rollup.cancelled} />

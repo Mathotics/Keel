@@ -84,6 +84,11 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Estimate effort.** A user sets an estimated time on an issue and updates the time remaining as work progresses.
 * **See rolled-up effort.** A user views a Story or Epic and sees estimated time and remaining time aggregated from its children.
 
+## Cost
+
+* **Record cost.** A user sets an optional planned value, earned value, and actual cost on an issue, in dollars, and clears any of them.
+* **See earned value.** A user views a Story or Epic and sees those amounts summed with its children, plus budget at completion, estimate at completion, and the schedule and cost performance indexes calculated from the sums ([Cost estimation](../adr/cost-estimation.md)).
+
 ## Related documents
 
 * [Context](context.md)

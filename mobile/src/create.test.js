@@ -54,6 +54,7 @@ test("a story can sit under an epic and effort is read", () => {
   assert.equal(prepared.error, null);
   assert.equal(prepared.draft.parent_id, 4);
   assert.equal(prepared.draft.estimate_minutes, 90);
+  assert.equal(prepared.draft.planned_value_cents, null);
   assert.deepEqual(prepared.draft.labels, ["hull", "deck"]);
   assert.equal(prepared.draft.start_at, "2026-10-12T09:00:00");
 });
@@ -149,10 +150,41 @@ function updateInput(overrides) {
   };
 }
 
+test("cost is read as cents and a bad amount is refused", () => {
+  const prepared = prepareCreate({
+    title: "Paint",
+    projectId: 3,
+    plannedValue: "$1,234.56",
+    earnedValue: "10",
+    actualCost: "0",
+  });
+  assert.equal(prepared.error, null);
+  assert.equal(prepared.draft.planned_value_cents, 123456);
+  assert.equal(prepared.draft.earned_value_cents, 1000);
+  assert.equal(prepared.draft.actual_cost_cents, 0);
+  assert.match(prepareCreate({ title: "Paint", projectId: 3, plannedValue: "-4" }).error, /Cost must look like/);
+});
+
 test("an unchanged issue sends no fields", () => {
   const prepared = prepareUpdate(updateInput());
   assert.equal(prepared.error, null);
   assert.deepEqual(prepared.changes, {});
+});
+
+test("a blank cost shown as zero does not rewrite an unset amount", () => {
+  const prepared = prepareUpdate(updateInput({
+    plannedValue: "$0.00",
+    earnedValue: "0.00",
+    actualCost: "0",
+  }));
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, {});
+});
+
+test("a planned value change is the only field sent", () => {
+  const prepared = prepareUpdate(updateInput({ plannedValue: "20" }));
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, { planned_value_cents: 2000 });
 });
 
 test("a title change is the only field sent", () => {

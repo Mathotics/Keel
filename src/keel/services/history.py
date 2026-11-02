@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from keel.db.models import Issue, IssueHistory, Project, Sprint, User
 from keel.domain.duration import format_minutes
 from keel.domain.enums import IssuePriority, IssueStatus, IssueType, label
+from keel.domain.money import format_cents
 from keel.services.identity import acting_display_name
 
 SYSTEM_ACTOR = "Keel"
@@ -16,6 +17,9 @@ FIELD_ASSIGNEE = "assignee"
 FIELD_SPRINT = "sprint"
 FIELD_ESTIMATE = "estimate"
 FIELD_REMAINING = "remaining"
+FIELD_PLANNED_VALUE = "planned value"
+FIELD_EARNED_VALUE = "earned value"
+FIELD_ACTUAL_COST = "actual cost"
 FIELD_DUE = "due date"
 FIELD_PARENT = "parent"
 FIELD_TYPE = "type"
@@ -144,6 +148,12 @@ def effort_label(minutes: int | None) -> str:
     if minutes is None:
         return NONE
     return format_minutes(minutes)
+
+
+def cost_label(cents: int | None) -> str:
+    if cents is None:
+        return NONE
+    return format_cents(cents)
 
 
 def due_label(value: datetime | None) -> str:

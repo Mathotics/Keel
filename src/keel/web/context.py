@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from keel.db.models import User
 from keel.domain.duration import format_minutes
 from keel.domain.enums import INITIAL_PRIORITY, label
+from keel.domain.money import format_cents, format_ratio
 from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
@@ -46,6 +47,8 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["clock"] = format_clock
     templates.env.filters["day"] = format_day
     templates.env.filters["duration"] = format_duration
+    templates.env.filters["money"] = format_money
+    templates.env.filters["ratio"] = format_ratio
     templates.env.filters["markdown"] = render_markdown
     return templates
 
@@ -55,6 +58,13 @@ def format_duration(value: int | None) -> str:
     if value is None:
         return ""
     return format_minutes(value)
+
+
+def format_money(value: int | None) -> str:
+    """Dollars for templates; unset stays blank."""
+    if value is None:
+        return ""
+    return format_cents(value)
 
 
 def format_when(value: datetime | None) -> str:

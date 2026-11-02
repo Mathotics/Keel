@@ -439,6 +439,58 @@ def test_negative_effort_is_refused(session: Session, project: Project) -> None:
         make(session, project, estimate_minutes=-1)
 
 
+def test_cost_is_stored_as_cents_and_rolls_up_without_replacing_own(
+    session: Session,
+    project: Project,
+) -> None:
+    epic = make(
+        session,
+        project,
+        IssueType.EPIC,
+        "Epic",
+        planned_value_cents=10000,
+        earned_value_cents=4000,
+        actual_cost_cents=5000,
+    )
+    story = make(
+        session,
+        project,
+        IssueType.STORY,
+        "Story",
+        parent_id=epic,
+        planned_value_cents=5000,
+        earned_value_cents=5000,
+        actual_cost_cents=2500,
+    )
+    issue_service.update_issue(session, story, actual_cost_cents=None)
+
+    own = issue_service.get_issue(session, epic)
+    assert own.planned_value_cents == 10000
+    assert own.earned_value_cents == 4000
+    assert own.actual_cost_cents == 5000
+    child = issue_service.get_issue(session, story)
+    assert child.actual_cost_cents is None
+
+    rollup = issue_service.issue_rollup(session, epic)
+    assert rollup.planned_value_cents == 15000
+    assert rollup.earned_value_cents == 9000
+    assert rollup.actual_cost_cents == 5000
+    assert rollup.budget_at_completion_cents == 15000
+    assert own.planned_value_cents == 10000
+
+
+def test_a_new_issue_leaves_cost_unset(session: Session, project: Project) -> None:
+    issue = issue_service.get_issue(session, make(session, project))
+    assert issue.planned_value_cents is None
+    assert issue.earned_value_cents is None
+    assert issue.actual_cost_cents is None
+
+
+def test_negative_cost_is_refused(session: Session, project: Project) -> None:
+    with pytest.raises(InvalidIssueError):
+        make(session, project, planned_value_cents=-1)
+
+
 def test_rollup_covers_the_issue_and_its_descendants(
     session: Session,
     project: Project,

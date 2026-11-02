@@ -75,3 +75,45 @@ def test_cancelled_descendants_are_counted_separately_and_omit_remaining() -> No
     assert rollup.descendants_done == 1
     assert rollup.descendants_cancelled == 1
     assert rollup.progress_sentence() == "1 of 3 done, 1 cancelled"
+
+
+def test_cost_sums_include_cancelled_work_and_skip_unset_values() -> None:
+    rollup = compute_rollup(
+        1,
+        [
+            EffortNode(1, None, None, IssueStatus.TODO, 10000, 4000, 5000),
+            EffortNode(2, None, None, IssueStatus.DONE, 5000, 5000, None),
+            EffortNode(3, None, None, IssueStatus.CANCELLED, None, 0, 2500),
+            EffortNode(4, None, None, IssueStatus.TODO, None, None, None),
+        ],
+    )
+    assert rollup.planned_value_cents == 15000
+    assert rollup.earned_value_cents == 9000
+    assert rollup.actual_cost_cents == 7500
+    assert rollup.budget_at_completion_cents == 15000
+    assert rollup.estimate_at_completion_cents == 13500
+    assert rollup.schedule_performance_index == 0.6
+    assert rollup.cost_performance_index == 1.2
+
+
+def test_indexes_use_the_sums_rather_than_an_average_of_children() -> None:
+    rollup = compute_rollup(
+        1,
+        [
+            EffortNode(1, None, None, IssueStatus.TODO, 10000, 5000, 5000),
+            EffortNode(2, None, None, IssueStatus.TODO, 10000, 10000, 20000),
+        ],
+    )
+    assert rollup.schedule_performance_index == 0.75
+    assert rollup.cost_performance_index == 0.6
+
+
+def test_indexes_are_absent_until_the_divisor_is_set() -> None:
+    rollup = compute_rollup(
+        1,
+        [EffortNode(1, None, None, IssueStatus.TODO, None, 100, 0)],
+    )
+    assert rollup.budget_at_completion_cents is None
+    assert rollup.estimate_at_completion_cents is None
+    assert rollup.schedule_performance_index is None
+    assert rollup.cost_performance_index is None

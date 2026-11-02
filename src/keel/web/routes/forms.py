@@ -29,6 +29,7 @@ from keel.domain.errors import (
 )
 from keel.domain.hierarchy import child_type_of
 from keel.domain.labels import parse_label_names
+from keel.domain.money import parse_cost
 from keel.domain.schedule import parse_clock
 from keel.services import access as access_service
 from keel.services import auto_sprint
@@ -531,6 +532,9 @@ def create_issue_from_page(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    planned_value: Annotated[str, Form()] = "",
+    earned_value: Annotated[str, Form()] = "",
+    actual_cost: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
     client_key: Annotated[str, Form()] = "",
     assign_to_me: Annotated[str, Form()] = "",
@@ -567,6 +571,9 @@ def create_issue_from_page(
                 due_at=due_at,
                 estimate=estimate,
                 remaining=remaining,
+                planned_value=planned_value,
+                earned_value=earned_value,
+                actual_cost=actual_cost,
                 labels=labels,
             ),
         )
@@ -596,6 +603,9 @@ def create_issue_from_page(
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            planned_value_cents=parse_cost(planned_value),
+            earned_value_cents=parse_cost(earned_value),
+            actual_cost_cents=parse_cost(actual_cost),
             labels=labels,
             client_key=client_key,
         )
@@ -625,6 +635,9 @@ def create_issue(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    planned_value: Annotated[str, Form()] = "",
+    earned_value: Annotated[str, Form()] = "",
+    actual_cost: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
     client_key: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
@@ -653,6 +666,9 @@ def create_issue(
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            planned_value_cents=parse_cost(planned_value),
+            earned_value_cents=parse_cost(earned_value),
+            actual_cost_cents=parse_cost(actual_cost),
             labels=labels,
             client_key=client_key,
         )
@@ -869,6 +885,93 @@ def update_issue_remaining(
             remaining_minutes=parse_duration(remaining),
             actor_name=_actor_name(chrome),
         )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/planned-value")
+def update_issue_planned_value(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    planned_value: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    return _update_cost(
+        session,
+        chrome,
+        issue_id,
+        planned_value,
+        "planned_value_cents",
+    )
+
+
+@router.post("/issues/{issue_id}/earned-value")
+def update_issue_earned_value(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    earned_value: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    return _update_cost(
+        session,
+        chrome,
+        issue_id,
+        earned_value,
+        "earned_value_cents",
+    )
+
+
+@router.post("/issues/{issue_id}/actual-cost")
+def update_issue_actual_cost(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    actual_cost: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    return _update_cost(
+        session,
+        chrome,
+        issue_id,
+        actual_cost,
+        "actual_cost_cents",
+    )
+
+
+def _update_cost(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    raw: str,
+    field: str,
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    cents = parse_cost(raw)
+    try:
+        if field == "planned_value_cents":
+            issue_service.update_issue(
+                session,
+                issue_id,
+                actor_name=_actor_name(chrome),
+                planned_value_cents=cents,
+            )
+        elif field == "earned_value_cents":
+            issue_service.update_issue(
+                session,
+                issue_id,
+                actor_name=_actor_name(chrome),
+                earned_value_cents=cents,
+            )
+        elif field == "actual_cost_cents":
+            issue_service.update_issue(
+                session,
+                issue_id,
+                actor_name=_actor_name(chrome),
+                actual_cost_cents=cents,
+            )
+        else:
+            raise ValueError(field)
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)

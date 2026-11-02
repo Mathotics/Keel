@@ -162,29 +162,72 @@
             </form>
           </dd>
         </div>
-        <div class="keel-fact">
-          <dt>Estimate</dt>
-          <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit>
-              <label class="keel-visually-hidden" for="issue-estimate">Estimate</label>
-              <input id="issue-estimate" name="estimate" type="text" value="{{ issue.estimate_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
-              <button class="keel-autosubmit__fallback" type="submit">Save</button>
-            </form>
-          </dd>
-        </div>
-        <div class="keel-fact">
-          <dt>Remaining</dt>
-          <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit>
-              <label class="keel-visually-hidden" for="issue-remaining">Remaining</label>
-              <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
-              <button class="keel-autosubmit__fallback" type="submit">Save</button>
-            </form>
-            {% if rollup.descendants %}
-            <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
-            {% endif %}
-          </dd>
-        </div>
+      </dl>
+
+      <div class="keel-fact-group">
+        <dl class="keel-facts">
+          <div class="keel-fact">
+            <dt>Estimate</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit>
+                <label class="keel-visually-hidden" for="issue-estimate">Estimate</label>
+                <input id="issue-estimate" name="estimate" type="text" value="{{ issue.estimate_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Remaining</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit>
+                <label class="keel-visually-hidden" for="issue-remaining">Remaining</label>
+                <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+              {% if rollup.descendants %}
+              <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
+              {% endif %}
+            </dd>
+          </div>
+        </dl>
+      </div>
+      <div class="keel-fact-group keel-fact-group--cost">
+        <dl class="keel-facts">
+          <div class="keel-fact">
+            <dt>Planned value (PV)</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/planned-value" data-keel-autosubmit>
+                <label class="keel-visually-hidden" for="issue-planned-value">Planned value</label>
+                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ issue.planned_value_cents | money or '$0.00' }}"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Earned value (EV)</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/earned-value" data-keel-autosubmit>
+                <label class="keel-visually-hidden" for="issue-earned-value">Earned value</label>
+                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ issue.earned_value_cents | money or '$0.00' }}"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Actual cost (AC)</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/actual-cost" data-keel-autosubmit>
+                <label class="keel-visually-hidden" for="issue-actual-cost">Actual cost</label>
+                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ issue.actual_cost_cents | money or '$0.00' }}"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+            </dd>
+          </div>
+        </dl>
+        <p class="keel-rollup keel-fact-group__note">Budget at completion {{ rollup.budget_at_completion_cents | money or "$0.00" }}. Estimate at completion {{ rollup.estimate_at_completion_cents | money or "$0.00" }}. Schedule performance index {{ rollup.schedule_performance_index | ratio or "none" }}. Cost performance index {{ rollup.cost_performance_index | ratio or "none" }}.{% if rollup.descendants %} Including descendants: {{ rollup.planned_value_cents | money or "$0.00" }} planned, {{ rollup.earned_value_cents | money or "$0.00" }} earned, {{ rollup.actual_cost_cents | money or "$0.00" }} actual.{% endif %}</p>
+      </div>
+
+      <dl class="keel-facts">
         <div class="keel-fact">
           <dt>Labels</dt>
           <dd>

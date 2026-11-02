@@ -23,6 +23,7 @@ What Keel v1 includes, what it defers, and why. Scope is kept proportional to a 
 * **Definition of done** — a second free-text body on every issue, beneath Description, for the criteria that make it *Done*. Optional and unenforced ([Issue definition of done](../adr/issue-definition-of-done.md)).
 * **Lightweight issue history** — a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md)).
 * **Time-based estimates** — estimated time and time remaining on issues, with rollup.
+* **Cost estimates** — optional planned value, earned value, and actual cost on issues, with rollup, plus calculated budget at completion, estimate at completion, and schedule and cost performance indexes ([Cost estimation](../adr/cost-estimation.md)).
 * **Priority** — a required five-level rank on every issue so urgency is visible on cards and lists ([ADR 030](../adr/ADR-030.md)).
 * **Find** — a field in the top bar that jumps to an exact key or unique name, or lists a short page of matches ([ADR 016](../adr/find-from-the-top-bar.md)).
 * **Repeating work** — a per-project Schedules page of series recipes that spawn ordinary issues on a cadence, each copy taking the recipe's priority ([ADR 021](../adr/repeating-work-scheduling-manager.md), [Series recipe priority](../adr/series-recipe-priority.md)).

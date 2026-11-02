@@ -122,6 +122,9 @@ def create_issue(
         due_at=payload.due_at,
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
+        planned_value_cents=payload.planned_value_cents,
+        earned_value_cents=payload.earned_value_cents,
+        actual_cost_cents=payload.actual_cost_cents,
         labels=payload.labels,
         client_key=payload.client_key,
     )
@@ -187,6 +190,21 @@ def update_issue(
         remaining_minutes=(
             payload.remaining_minutes
             if "remaining_minutes" in supplied
+            else issue_service.UNSET
+        ),
+        planned_value_cents=(
+            payload.planned_value_cents
+            if "planned_value_cents" in supplied
+            else issue_service.UNSET
+        ),
+        earned_value_cents=(
+            payload.earned_value_cents
+            if "earned_value_cents" in supplied
+            else issue_service.UNSET
+        ),
+        actual_cost_cents=(
+            payload.actual_cost_cents
+            if "actual_cost_cents" in supplied
             else issue_service.UNSET
         ),
         labels=(payload.labels or () if "labels" in supplied else issue_service.UNSET),

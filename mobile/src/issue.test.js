@@ -86,7 +86,10 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.reporter, "None");
   assert.equal(page.priorityLabel, "P3 — Major");
   assert.equal(page.estimate, "1h");
+  assert.equal(page.plannedValue, "$0.00");
+  assert.equal(page.budgetAtCompletion, "$0.00");
   assert.equal(page.rollup.progress, "1 of 2 done");
+  assert.equal(page.rollup.plannedValue, "$0.00");
   assert.equal(page.parent.key, "KEEL-1");
   assert.equal(page.children[0].statusLabel, "Done");
   assert.equal(page.blockedBy[0].projectKey, "BOAT");

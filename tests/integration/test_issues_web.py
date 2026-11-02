@@ -973,6 +973,71 @@ def test_effort_round_trips_through_shorthand(
     assert client.get(f"/api/v1/issues/{issue_id}").json()["remaining_minutes"] == 45
 
 
+def test_cost_round_trips_through_dollars(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get(f"/create?project={project['key']}")
+    assert "Planned value (PV)" in page.text
+    assert "Earned value (EV)" in page.text
+    assert "Actual cost (AC)" in page.text
+    assert 'value="$0.00"' in page.text
+    assert 'placeholder="12.50"' not in page.text
+
+    location = submit_issue(
+        client,
+        project,
+        title="Priced",
+        planned_value="12.50",
+        earned_value="$10",
+        actual_cost="1,234.56",
+    )
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+    body = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert body["planned_value_cents"] == 1250
+    assert body["earned_value_cents"] == 1000
+    assert body["actual_cost_cents"] == 123456
+    assert body["rollup"]["budget_at_completion_cents"] == 1250
+    assert body["rollup"]["estimate_at_completion_cents"] == 123706
+    assert body["rollup"]["schedule_performance_index"] == 0.8
+    assert body["rollup"]["cost_performance_index"] == 0.0081
+
+    detail = client.get(location)
+    assert 'class="keel-fact-group"' in detail.text
+    assert "keel-fact-group--cost" in detail.text
+    assert 'value="$12.50"' in detail.text
+    assert 'value="$10.00"' in detail.text
+    assert 'value="$1,234.56"' in detail.text
+    assert "Budget at completion $12.50." in detail.text
+    assert "Schedule performance index 0.80." in detail.text
+
+    saved = client.post(
+        f"/web/issues/{issue_id}/actual-cost",
+        data={"actual_cost": ""},
+        follow_redirects=False,
+    )
+    assert saved.headers["location"] == "/issues/KEEL-1"
+    cleared = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert cleared["actual_cost_cents"] is None
+    assert cleared["rollup"]["cost_performance_index"] is None
+    cleared_page = client.get("/issues/KEEL-1")
+    assert (
+        'name="actual_cost" type="text" inputmode="decimal" value="$0.00"'
+        in cleared_page.text
+    )
+    assert "Estimate at completion $0.00." in cleared_page.text
+
+    refused = client.post(
+        f"/web/issues/{issue_id}/planned-value",
+        data={"planned_value": "-4"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    assert (
+        client.get(f"/api/v1/issues/{issue_id}").json()["planned_value_cents"] == 1250
+    )
+
+
 def test_a_blank_title_returns_to_the_issue_with_the_message(
     client: TestClient,
     project: Json,

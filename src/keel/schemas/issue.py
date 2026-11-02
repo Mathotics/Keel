@@ -26,6 +26,9 @@ class IssueCreate(BaseModel):
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    planned_value_cents: int | None = Field(default=None, ge=0)
+    earned_value_cents: int | None = Field(default=None, ge=0)
+    actual_cost_cents: int | None = Field(default=None, ge=0)
     start_at: datetime | None = None
     due_at: datetime | None = None
     labels: list[str] = Field(default_factory=list)
@@ -51,6 +54,9 @@ class IssueUpdate(BaseModel):
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    planned_value_cents: int | None = Field(default=None, ge=0)
+    earned_value_cents: int | None = Field(default=None, ge=0)
+    actual_cost_cents: int | None = Field(default=None, ge=0)
     start_at: datetime | None = None
     due_at: datetime | None = None
     labels: list[str] | None = None
@@ -62,6 +68,13 @@ class RollupRead(BaseModel):
     descendants: int
     descendants_done: int
     descendants_cancelled: int
+    planned_value_cents: int | None
+    earned_value_cents: int | None
+    actual_cost_cents: int | None
+    budget_at_completion_cents: int | None
+    estimate_at_completion_cents: int | None
+    schedule_performance_index: float | None
+    cost_performance_index: float | None
 
     @classmethod
     def of(cls, rollup: Rollup) -> "RollupRead":
@@ -71,6 +84,13 @@ class RollupRead(BaseModel):
             descendants=rollup.descendants,
             descendants_done=rollup.descendants_done,
             descendants_cancelled=rollup.descendants_cancelled,
+            planned_value_cents=rollup.planned_value_cents,
+            earned_value_cents=rollup.earned_value_cents,
+            actual_cost_cents=rollup.actual_cost_cents,
+            budget_at_completion_cents=rollup.budget_at_completion_cents,
+            estimate_at_completion_cents=rollup.estimate_at_completion_cents,
+            schedule_performance_index=rollup.schedule_performance_index,
+            cost_performance_index=rollup.cost_performance_index,
         )
 
 
@@ -93,6 +113,9 @@ class IssueRead(BaseModel):
     assignee_id: int | None
     estimate_minutes: int | None
     remaining_minutes: int | None
+    planned_value_cents: int | None
+    earned_value_cents: int | None
+    actual_cost_cents: int | None
     start_at: datetime | None
     due_at: datetime | None
     series_id: int | None = None
@@ -131,6 +154,9 @@ class IssueRead(BaseModel):
             assignee_id=issue.assignee_id,
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
+            planned_value_cents=issue.planned_value_cents,
+            earned_value_cents=issue.earned_value_cents,
+            actual_cost_cents=issue.actual_cost_cents,
             start_at=issue.start_at,
             due_at=issue.due_at,
             series_id=issue.series_id,

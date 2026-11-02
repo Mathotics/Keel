@@ -1451,6 +1451,32 @@ body {
   background: var(--keel-sheet);
 }
 
+.keel-fact-group {
+  max-width: 48rem;
+  margin: 0 0 0.75rem;
+  padding: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--keel-blue) 35%, var(--keel-white));
+  border-radius: 0.45rem;
+  background: var(--keel-sheet);
+}
+
+.keel-fact-group > .keel-facts {
+  max-width: none;
+  margin: 0;
+}
+
+.keel-fact-group--cost > .keel-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.keel-fact-group .keel-fact {
+  background: var(--keel-white);
+}
+
+.keel-fact-group__note {
+  margin: 0.35rem 0.35rem 0.2rem;
+}
+
 .keel-facts dt {
   font-size: 0.8125rem;
   font-weight: 650;
@@ -2481,7 +2507,8 @@ select.keel-type-select[data-type] {
   }
 
   .keel-fields,
-  .keel-facts {
+  .keel-facts,
+  .keel-fact-group--cost > .keel-facts {
     grid-template-columns: minmax(0, 1fr);
   }
 
