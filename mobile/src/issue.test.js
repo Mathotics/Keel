@@ -1,13 +1,22 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
+const { amountForEditing, amountForIdle, formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
 
 test("formats effort the way the server does", () => {
   assert.equal(formatMinutes(null), "None");
   assert.equal(formatMinutes(0), "0m");
   assert.equal(formatMinutes(90), "1h 30m");
   assert.equal(formatMinutes(480), "1d");
+});
+
+test("a cost field shows the unit until it is edited", () => {
+  assert.equal(amountForEditing("$1,234.56 USD", "USD"), "1234.56");
+  assert.equal(amountForEditing("¥12.40 JPY", "JPY"), "12.40");
+  assert.equal(amountForEditing("", "USD"), "");
+  assert.equal(amountForIdle("12.5", "USD"), "$12.50 USD");
+  assert.equal(amountForIdle("12.4", "JPY"), "¥12.40 JPY");
+  assert.equal(amountForIdle("", "USD"), "");
 });
 
 test("shows timestamps in UTC", () => {

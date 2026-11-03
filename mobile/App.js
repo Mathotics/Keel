@@ -73,7 +73,7 @@ import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpeni
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
-import { formatMinutes, formatMoney, issueKeyParts, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
+import { formatMinutes, formatMoney, amountForEditing, amountForIdle, issueKeyParts, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
 import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
@@ -3576,9 +3576,9 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
-      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder={formatMoney(0, currency, "edit")} />
-      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder={formatMoney(0, currency, "edit")} />
-      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder={formatMoney(0, currency, "edit")} />
+      <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
+      <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
+      <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
       <DateTimeField label="Start" value={start} onChange={setStart} />
       <DateTimeField label="Due" value={due} onChange={setDue} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -3811,9 +3811,9 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
-      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder={formatMoney(0, currency, "edit")} />
-      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder={formatMoney(0, currency, "edit")} />
-      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder={formatMoney(0, currency, "edit")} />
+      <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
+      <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
+      <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
       <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
       <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -6467,7 +6467,7 @@ function PasswordField({ label, value, onChange, disabled }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, keyboardType, secure, disabled, multiline }) {
+function Field({ label, value, onChange, placeholder, keyboardType, secure, disabled, multiline, onFocus, onBlur }) {
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
@@ -6478,7 +6478,9 @@ function Field({ label, value, onChange, placeholder, keyboardType, secure, disa
         editable={!disabled}
         keyboardType={keyboardType}
         multiline={Boolean(multiline)}
+        onBlur={onBlur}
         onChangeText={onChange}
+        onFocus={onFocus}
         placeholder={placeholder}
         placeholderTextColor="#8AA0B2"
         secureTextEntry={secure}
@@ -6486,6 +6488,19 @@ function Field({ label, value, onChange, placeholder, keyboardType, secure, disa
         value={value}
       />
     </View>
+  );
+}
+
+function MoneyField({ label, value, onChange, currency }) {
+  return (
+    <Field
+      label={label}
+      value={value}
+      keyboardType="decimal-pad"
+      onBlur={() => onChange(amountForIdle(value, currency))}
+      onChange={onChange}
+      onFocus={() => onChange(amountForEditing(value, currency))}
+    />
   );
 }
 

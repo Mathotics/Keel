@@ -48,8 +48,8 @@ Cost was always presented as dollars. A project that works in another currency h
 * **Must** accept only a real ISO 4217 alphabetic code. An unknown or blank code is refused, and the previous currency stays.
 * **Must** keep the same digits when the currency changes. 12.50 USD becomes 12.50 in the new unit. There is no conversion.
 * **Must** show the currency code on every displayed amount. For USD, EUR, GBP, CAD, AUD, NZD, JPY, CNY, INR, MXN, BRL, CHF, SEK, NOK, DKK, SGD, HKD, KRW, and ZAR, **Must** also show that currency's symbol before the number, as in `$12.50 USD` or `¥12 JPY`.
-* **Must** show the symbol and code inside the cost field, as part of the value.
-* **Must** show two decimal places in an edit field, matching the stored amount, so a hidden fraction is visible while editing. An empty field shows zero at that precision (`$0.00 USD`, `¥0.00 JPY`) and does not store zero until the person actually changes it.
+* **Must** show the symbol and code inside a cost field that is not being edited, as in `$12.50 USD`. While the field is being edited, it shows only the number.
+* **Must** show two decimal places in an edit field, matching the stored amount, so a hidden fraction is visible while editing. An empty field shows zero at that precision when it is not being edited (`$0.00 USD`, `¥0.00 JPY`) and does not store zero until the person actually changes it.
 * **Must** show read-only amounts and totals in the currency's usual decimal places when that is zero or two. A zero-decimal total drops the fraction: stored 12.90 shows as `¥12 JPY`. Zero shows as `$0.00 USD` or `¥0 JPY`, not the word "none".
 * **Must** keep showing two decimal places for a currency whose official minor unit is three or four. A third decimal typed into a field is refused.
 * **Must** accept a bare amount (`12`, `12.50`, `1,234.56`) and the formatted field value. A symbol or code for a different currency is refused.
@@ -81,7 +81,7 @@ flowchart TD
   known -->|no| unchanged[Previous currency stays and an error is shown]
   known -->|yes| saved[Project currency is saved]
   saved --> sameDigits[Saved amounts keep the same digits]
-  sameDigits --> editBox[Edit fields show the full stored amount with symbol and code]
+  sameDigits --> editBox[Idle cost fields show the amount with its symbol and code]
   sameDigits --> totals[Read-only amounts and totals use the currency's usual decimal places]
   sameDigits --> history[New history lines use the new unit. Old lines stay as written]
 ```

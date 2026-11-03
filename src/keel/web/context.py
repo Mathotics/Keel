@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
-from keel.domain.currency import DEFAULT_CURRENCY
+from keel.domain.currency import DEFAULT_CURRENCY, SYMBOLS
 from keel.domain.duration import format_minutes
 from keel.domain.enums import INITIAL_PRIORITY, label
 from keel.domain.money import format_money_display, format_money_edit, format_ratio
@@ -49,6 +49,7 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["day"] = format_day
     templates.env.filters["duration"] = format_duration
     templates.env.filters["money"] = format_money
+    templates.env.filters["currency_symbol"] = currency_symbol
     templates.env.filters["ratio"] = format_ratio
     templates.env.filters["markdown"] = render_markdown
     return templates
@@ -59,6 +60,13 @@ def format_duration(value: int | None) -> str:
     if value is None:
         return ""
     return format_minutes(value)
+
+
+def currency_symbol(code: str) -> str:
+    """The symbol shown before an amount, or nothing when this code has none."""
+    if not isinstance(code, str):
+        return ""
+    return SYMBOLS.get(code.strip().upper(), "")
 
 
 def format_money(

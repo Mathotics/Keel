@@ -480,6 +480,28 @@ function commentView(comment, users) {
   };
 }
 
+function amountForEditing(value, currency) {
+  const parsed = parseAmount(value, currency);
+  if (parsed.error || parsed.value == null) {
+    return String(value || "").trim();
+  }
+  const whole = Math.floor(parsed.value / 100);
+  const fraction = String(parsed.value % 100).padStart(2, "0");
+  return `${whole}.${fraction}`;
+}
+
+function amountForIdle(value, currency) {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) {
+    return "";
+  }
+  const parsed = parseAmount(cleaned, currency);
+  if (parsed.error || parsed.value == null) {
+    return cleaned;
+  }
+  return formatMoney(parsed.value, currency, "edit");
+}
+
 function costFigures(issue) {
   if (issue.rollup && issue.rollup.descendants) {
     return costMetrics(issue.rollup);
@@ -492,6 +514,8 @@ module.exports = {
   formatIndex,
   formatMinutes,
   formatMoney,
+  amountForEditing,
+  amountForIdle,
   formatWhen,
   parseAmount,
   projectCurrency,

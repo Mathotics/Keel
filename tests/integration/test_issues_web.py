@@ -1006,6 +1006,9 @@ def test_cost_round_trips_through_dollars(
     assert 'class="keel-fact-group"' in detail.text
     assert "keel-fact-group--cost" in detail.text
     assert 'value="$12.50 USD"' in detail.text
+    assert "data-keel-money" in detail.text
+    assert 'data-currency-code="USD"' in detail.text
+    assert 'data-currency-symbol="$"' in detail.text
     assert 'value="$10.00 USD"' in detail.text
     assert 'value="$1,234.56 USD"' in detail.text
     assert 'id="issue-budget-at-completion" class="keel-readonly-value"' in detail.text

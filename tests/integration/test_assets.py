@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 ASSETS = (
     "/assets/brand.css",
     "/assets/js/userpicker.js",
+    "/assets/js/money.js",
     "/assets/js/lookup.js",
     "/assets/js/filters.js",
     "/assets/js/nav.js",

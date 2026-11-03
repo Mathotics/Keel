@@ -198,7 +198,7 @@
             <dd>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/planned-value" data-keel-autosubmit>
                 <label class="keel-visually-hidden" for="issue-planned-value">Planned value</label>
-                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ issue.planned_value_cents | money(project.currency) }}"/>
+                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ issue.planned_value_cents | money(project.currency) }}" data-keel-money data-currency-code="{{ project.currency }}" data-currency-symbol="{{ project.currency | currency_symbol }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
             </dd>
@@ -208,7 +208,7 @@
             <dd>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/earned-value" data-keel-autosubmit>
                 <label class="keel-visually-hidden" for="issue-earned-value">Earned value</label>
-                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ issue.earned_value_cents | money(project.currency) }}"/>
+                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ issue.earned_value_cents | money(project.currency) }}" data-keel-money data-currency-code="{{ project.currency }}" data-currency-symbol="{{ project.currency | currency_symbol }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
             </dd>
@@ -218,7 +218,7 @@
             <dd>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/actual-cost" data-keel-autosubmit>
                 <label class="keel-visually-hidden" for="issue-actual-cost">Actual cost</label>
-                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ issue.actual_cost_cents | money(project.currency) }}"/>
+                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ issue.actual_cost_cents | money(project.currency) }}" data-keel-money data-currency-code="{{ project.currency }}" data-currency-symbol="{{ project.currency | currency_symbol }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
             </dd>
