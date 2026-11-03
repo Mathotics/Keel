@@ -71,6 +71,7 @@ def test_a_new_project_has_auto_sprint_off(client: TestClient) -> None:
     assert created["sprint_cadence"] == "off"
     assert created["sprint_cadence_days"] is None
     assert created["sprint_ahead"] == 0
+    assert created["currency"] == "USD"
 
 
 def test_a_project_can_enable_weekly_auto_sprint(client: TestClient) -> None:
@@ -108,6 +109,35 @@ def test_sprint_ahead_above_the_limit_is_refused(client: TestClient) -> None:
         json={"sprint_ahead": 13},
     )
     assert response.status_code == 422
+
+
+def test_currency_defaults_to_usd_and_an_unknown_code_is_refused(
+    client: TestClient,
+) -> None:
+    created = create_project(client)
+    assert created["currency"] == "USD"
+
+    updated = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"currency": "eur"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["currency"] == "EUR"
+
+    refused = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"currency": "XYZ"},
+    )
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "project.invalid_currency"
+    assert client.get(f"/api/v1/projects/{created['id']}").json()["currency"] == "EUR"
+
+    blank = client.patch(
+        f"/api/v1/projects/{created['id']}",
+        json={"currency": ""},
+    )
+    assert blank.status_code == 422
+    assert client.get(f"/api/v1/projects/{created['id']}").json()["currency"] == "EUR"
 
 
 def test_every_n_days_without_a_count_is_refused(client: TestClient) -> None:

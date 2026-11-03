@@ -73,7 +73,7 @@ def test_a_project_is_renamed_from_the_form(
 ) -> None:
     client.post(
         f"/web/projects/{project['id']}/update",
-        data={"name": "Keel Tracker", "description": "A tracker"},
+        data={"name": "Keel Tracker", "description": "A tracker", "currency": "USD"},
     )
 
     page = client.get("/projects/KEEL")
@@ -86,7 +86,7 @@ def test_a_blank_name_on_update_returns_with_the_message(
 ) -> None:
     response = client.post(
         f"/web/projects/{project['id']}/update",
-        data={"name": "  ", "description": ""},
+        data={"name": "  ", "description": "", "currency": "USD"},
         follow_redirects=False,
     )
     assert response.status_code == 303
@@ -125,6 +125,7 @@ def test_the_project_form_saves_sprint_cadence(
             "sprint_cadence": "weekly",
             "sprint_cadence_days": "",
             "sprint_ahead": "2",
+            "currency": "USD",
         },
         follow_redirects=False,
     )
@@ -153,6 +154,7 @@ def test_an_unknown_cadence_returns_to_the_project_with_the_message(
             "sprint_cadence": "whenever",
             "sprint_cadence_days": "abc",
             "sprint_ahead": "0",
+            "currency": "USD",
         },
         follow_redirects=False,
     )
@@ -174,6 +176,7 @@ def test_a_non_numeric_day_count_returns_to_the_project_with_the_message(
             "sprint_cadence": "weekly",
             "sprint_cadence_days": "abc",
             "sprint_ahead": "0",
+            "currency": "USD",
         },
         follow_redirects=False,
     )
@@ -195,6 +198,7 @@ def test_a_non_numeric_ahead_count_returns_to_the_project_with_the_message(
             "sprint_cadence": "weekly",
             "sprint_cadence_days": "",
             "sprint_ahead": "abc",
+            "currency": "USD",
         },
         follow_redirects=False,
     )
@@ -202,3 +206,44 @@ def test_a_non_numeric_ahead_count_returns_to_the_project_with_the_message(
     location = response.headers["location"]
     assert location.startswith("/projects/KEEL?error=")
     assert "Sprints in advance" in client.get(location).text
+
+
+def test_the_project_form_saves_a_currency_and_refuses_a_blank_one(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get("/projects/KEEL")
+    assert 'name="currency"' in page.text
+    assert 'value="USD"' in page.text
+
+    saved = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={
+            "name": "Keel",
+            "description": "",
+            "sprint_cadence": "off",
+            "sprint_cadence_days": "",
+            "sprint_ahead": "0",
+            "currency": "jpy",
+        },
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    assert client.get(f"/api/v1/projects/{project['id']}").json()["currency"] == "JPY"
+    create = client.get(f"/create?project={project['key']}")
+    assert 'value="¥0.00 JPY"' in create.text
+
+    refused = client.post(
+        f"/web/projects/{project['id']}/update",
+        data={
+            "name": "Keel",
+            "description": "",
+            "sprint_cadence": "off",
+            "sprint_cadence_days": "",
+            "sprint_ahead": "0",
+            "currency": "",
+        },
+        follow_redirects=False,
+    )
+    assert refused.headers["location"].startswith("/projects/KEEL?error=")
+    assert client.get(f"/api/v1/projects/{project['id']}").json()["currency"] == "JPY"

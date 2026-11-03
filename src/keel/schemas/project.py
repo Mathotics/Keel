@@ -26,6 +26,7 @@ class ProjectUpdate(BaseModel):
         ge=MIN_SPRINT_AHEAD,
         le=MAX_SPRINT_AHEAD,
     )
+    currency: str | None = None
 
 
 class ProjectRead(BaseModel):
@@ -38,4 +39,5 @@ class ProjectRead(BaseModel):
     sprint_cadence: SprintCadence
     sprint_cadence_days: int | None
     sprint_ahead: int
+    currency: str
     created_at: datetime

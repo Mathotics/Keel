@@ -1,3 +1,5 @@
+const { parseAmount } = require("./issue");
+
 const PARENT = {
   epic: null,
   story: "epic",
@@ -35,6 +37,10 @@ function parseDuration(raw) {
     }
   }
   return { value: total };
+}
+
+function parseCost(raw, currency) {
+  return parseAmount(raw, currency || "USD");
 }
 
 function parseWhen(raw) {
@@ -119,6 +125,19 @@ function prepareCreate(input) {
   if (remaining.error) {
     return remaining;
   }
+  const currency = input.currency || "USD";
+  const planned = parseCost(input.plannedValue, currency);
+  if (planned.error) {
+    return planned;
+  }
+  const earned = parseCost(input.earnedValue, currency);
+  if (earned.error) {
+    return earned;
+  }
+  const actual = parseCost(input.actualCost, currency);
+  if (actual.error) {
+    return actual;
+  }
   const start = parseWhen(input.start);
   if (start.error) {
     return start;
@@ -151,6 +170,9 @@ function prepareCreate(input) {
       sprint_id: input.sprintId || null,
       estimate_minutes: estimate.value,
       remaining_minutes: remaining.value,
+      planned_value_cents: planned.value,
+      earned_value_cents: earned.value,
+      actual_cost_cents: actual.value,
       start_at: start.value,
       due_at: due.value,
       labels,
@@ -174,6 +196,10 @@ function prepareUpdate(input) {
     sprintId: input.sprintId,
     estimate: input.estimate,
     remaining: input.remaining,
+    plannedValue: input.plannedValue,
+    earnedValue: input.earnedValue,
+    actualCost: input.actualCost,
+    currency: input.currency,
     start: input.start,
     due: input.due,
     labels: input.labels,
@@ -231,6 +257,15 @@ function prepareUpdate(input) {
   }
   if ((draft.remaining_minutes ?? null) !== (issue.remaining_minutes ?? null)) {
     changes.remaining_minutes = draft.remaining_minutes;
+  }
+  if ((draft.planned_value_cents ?? 0) !== (issue.planned_value_cents ?? 0)) {
+    changes.planned_value_cents = draft.planned_value_cents;
+  }
+  if ((draft.earned_value_cents ?? 0) !== (issue.earned_value_cents ?? 0)) {
+    changes.earned_value_cents = draft.earned_value_cents;
+  }
+  if ((draft.actual_cost_cents ?? 0) !== (issue.actual_cost_cents ?? 0)) {
+    changes.actual_cost_cents = draft.actual_cost_cents;
   }
   if (!sameWhen(draft.start_at, issue.start_at)) {
     changes.start_at = draft.start_at;
@@ -333,10 +368,31 @@ function openingSprints(project, seed) {
   return rows;
 }
 
+function untouchedCost(value) {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) {
+    return true;
+  }
+  let body = cleaned;
+  const suffix = body.slice(-3);
+  if (/^[A-Za-z]{3}$/.test(suffix)) {
+    body = body.slice(0, -3).trim();
+  }
+  const symbols = ["R$", "Fr", "kr", "₩", "₹", "¥", "€", "£", "$", "R"];
+  for (const symbol of symbols) {
+    if (body.startsWith(symbol)) {
+      body = body.slice(symbol.length).trim();
+      break;
+    }
+  }
+  return body === "0" || body === "0.00";
+}
+
 module.exports = {
   inputWhen,
   prepareCreate,
   prepareUpdate,
+  untouchedCost,
   assignableSprints,
   createSeedForSprint,
   createOpening,

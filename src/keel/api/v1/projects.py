@@ -83,6 +83,9 @@ def update_project(
             if "sprint_ahead" in supplied
             else project_service.UNSET
         ),
+        currency=(
+            payload.currency if "currency" in supplied else project_service.UNSET
+        ),
     )
     return ProjectRead.model_validate(project)
 

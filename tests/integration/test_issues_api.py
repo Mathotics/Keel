@@ -405,6 +405,49 @@ def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> N
     assert cleared["estimate_minutes"] is None
 
 
+def test_cost_round_trips_as_cents_and_rolls_up(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    epic = create_issue(
+        client,
+        project_id,
+        type="epic",
+        title="Epic",
+        planned_value_cents=10000,
+    )
+    assert epic["planned_value_cents"] == 10000
+    assert epic["earned_value_cents"] is None
+    assert epic["actual_cost_cents"] is None
+    assert epic["rollup"]["budget_at_completion_cents"] == 10000
+    assert epic["rollup"]["estimate_at_completion_cents"] is None
+
+    create_issue(
+        client,
+        project_id,
+        type="story",
+        title="Story",
+        parent_id=epic["id"],
+        planned_value_cents=5000,
+        earned_value_cents=5000,
+        actual_cost_cents=2500,
+    )
+    body = client.get(f"/api/v1/issues/{epic['id']}").json()
+    assert body["planned_value_cents"] == 10000
+    assert body["rollup"]["planned_value_cents"] == 15000
+    assert body["rollup"]["earned_value_cents"] == 5000
+    assert body["rollup"]["actual_cost_cents"] == 2500
+    assert body["rollup"]["budget_at_completion_cents"] == 15000
+    assert body["rollup"]["schedule_performance_index"] == 0.3333
+
+    cleared = client.patch(
+        f"/api/v1/issues/{epic['id']}",
+        json={"planned_value_cents": None},
+    ).json()
+    assert cleared["planned_value_cents"] is None
+    assert cleared["rollup"]["planned_value_cents"] == 5000
+
+
 def test_an_epic_reports_subtree_rollup(client: TestClient, project_id: int) -> None:
     epic = create_issue(
         client,
@@ -442,6 +485,13 @@ def test_an_epic_reports_subtree_rollup(client: TestClient, project_id: int) -> 
         "descendants": 2,
         "descendants_done": 1,
         "descendants_cancelled": 0,
+        "planned_value_cents": None,
+        "earned_value_cents": None,
+        "actual_cost_cents": None,
+        "budget_at_completion_cents": None,
+        "estimate_at_completion_cents": None,
+        "schedule_performance_index": None,
+        "cost_performance_index": None,
     }
 
 
@@ -474,6 +524,13 @@ def test_cancelled_children_are_counted_separately_in_api_rollup(
         "descendants": 1,
         "descendants_done": 0,
         "descendants_cancelled": 1,
+        "planned_value_cents": None,
+        "earned_value_cents": None,
+        "actual_cost_cents": None,
+        "budget_at_completion_cents": None,
+        "estimate_at_completion_cents": None,
+        "schedule_performance_index": None,
+        "cost_performance_index": None,
     }
 
 

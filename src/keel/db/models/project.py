@@ -37,6 +37,10 @@ class Project(Base):
             f"sprint_ahead between {MIN_SPRINT_AHEAD} and {MAX_SPRINT_AHEAD}",
             name="ck_projects_sprint_ahead_range",
         ),
+        CheckConstraint(
+            "currency GLOB '[A-Z][A-Z][A-Z]'",
+            name="ck_projects_currency_code",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -60,5 +64,10 @@ class Project(Base):
         Text,
         default="",
         server_default="",
+    )
+    currency: Mapped[str] = mapped_column(
+        String(3),
+        default="USD",
+        server_default="USD",
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)

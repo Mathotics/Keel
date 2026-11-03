@@ -9,8 +9,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
+from keel.domain.currency import DEFAULT_CURRENCY, SYMBOLS
 from keel.domain.duration import format_minutes
 from keel.domain.enums import INITIAL_PRIORITY, label
+from keel.domain.money import format_money_display, format_money_edit, format_ratio
 from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
@@ -46,6 +48,9 @@ def get_templates() -> Jinja2Templates:
     templates.env.filters["clock"] = format_clock
     templates.env.filters["day"] = format_day
     templates.env.filters["duration"] = format_duration
+    templates.env.filters["money"] = format_money
+    templates.env.filters["currency_symbol"] = currency_symbol
+    templates.env.filters["ratio"] = format_ratio
     templates.env.filters["markdown"] = render_markdown
     return templates
 
@@ -55,6 +60,26 @@ def format_duration(value: int | None) -> str:
     if value is None:
         return ""
     return format_minutes(value)
+
+
+def currency_symbol(code: str) -> str:
+    """The symbol shown before an amount, or nothing when this code has none."""
+    if not isinstance(code, str):
+        return ""
+    return SYMBOLS.get(code.strip().upper(), "")
+
+
+def format_money(
+    value: int | None,
+    currency: str = DEFAULT_CURRENCY,
+    style: str = "edit",
+) -> str:
+    """A cost amount for templates. Unset shows zero, not a blank."""
+    amount = 0 if value is None else value
+    code = currency if isinstance(currency, str) and currency else DEFAULT_CURRENCY
+    if style == "display":
+        return format_money_display(amount, code)
+    return format_money_edit(amount, code)
 
 
 def format_when(value: datetime | None) -> str:

@@ -1029,6 +1029,20 @@ body {
   margin: 0;
 }
 
+.keel-readonly-value {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--keel-control-height);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  color: var(--keel-blue-deep);
+  font: inherit;
+  cursor: default;
+  user-select: none;
+}
+
 .keel-form input:not([type="checkbox"]):not([type="radio"]),
 .keel-form select,
 .keel-form textarea,
@@ -1449,6 +1463,32 @@ body {
   padding: 0.55rem 0.7rem 0.65rem;
   border-radius: 0.35rem;
   background: var(--keel-sheet);
+}
+
+.keel-fact-group {
+  max-width: 48rem;
+  margin: 0 0 0.75rem;
+  padding: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--keel-blue) 35%, var(--keel-white));
+  border-radius: 0.45rem;
+  background: var(--keel-sheet);
+}
+
+.keel-fact-group > .keel-facts {
+  max-width: none;
+  margin: 0;
+}
+
+.keel-fact-group--cost > .keel-facts {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.keel-fact-group .keel-fact {
+  background: var(--keel-white);
+}
+
+.keel-fact-group__note {
+  margin: 0.35rem 0.35rem 0.2rem;
 }
 
 .keel-fact--wide {
@@ -2485,7 +2525,8 @@ select.keel-type-select[data-type] {
   }
 
   .keel-fields,
-  .keel-facts {
+  .keel-facts,
+  .keel-fact-group--cost > .keel-facts {
     grid-template-columns: minmax(0, 1fr);
   }
 

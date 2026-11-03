@@ -1,4 +1,4 @@
-const { commentView, formatMinutes, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
+const { commentView, formatMinutes, formatMoney, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
 const { statusLabel } = require("./work");
 
 const NOT_ON_SERVER = "Not on the server yet.";
@@ -48,7 +48,7 @@ function hasWaiting(store, projectId) {
   );
 }
 
-function pageFromSnapshot(issue, issues, people, sprint) {
+function pageFromSnapshot(issue, issues, people, sprint, currency) {
   const parent = (issues || []).find((item) => item.id === issue.parent_id) || null;
   const children = (issues || []).filter((item) => item.parent_id === issue.id);
   const page = issuePage({
@@ -60,18 +60,19 @@ function pageFromSnapshot(issue, issues, people, sprint) {
     history: [],
     historyAvailable: false,
     sprint,
+    currency,
   });
   page.complete = false;
   return page;
 }
 
-function freshIssue(projectId, issue, issues, people, sprint) {
+function freshIssue(projectId, issue, issues, people, sprint, currency) {
   return {
     id: issue.id,
     projectId,
     baseUpdatedAt: issue.updated_at,
     raw: issue,
-    page: pageFromSnapshot(issue, issues, people, sprint),
+    page: pageFromSnapshot(issue, issues, people, sprint, currency),
     pending: false,
     conflict: null,
     error: null,
@@ -96,6 +97,7 @@ function applyRefresh(store, snapshots, extras) {
     };
     record.key = incoming.key;
     record.name = incoming.name;
+    record.currency = incoming.currency || record.currency || "USD";
     if (!record.enabled) {
       next.projects[incoming.id] = record;
       continue;
@@ -115,6 +117,7 @@ function applyRefresh(store, snapshots, extras) {
           serverIssues,
           next.people,
           snapshot.sprint,
+          record.currency,
         );
         if (prior && prior.page && prior.page.comments) {
           fresh.page.comments = prior.page.comments.filter((comment) => !comment.pending);
@@ -247,6 +250,9 @@ function queueRecreate(store, issueId) {
       sprint_id: raw.sprint_id,
       estimate_minutes: raw.estimate_minutes,
       remaining_minutes: raw.remaining_minutes,
+      planned_value_cents: raw.planned_value_cents ?? null,
+      earned_value_cents: raw.earned_value_cents ?? null,
+      actual_cost_cents: raw.actual_cost_cents ?? null,
       start_at: raw.start_at,
       due_at: raw.due_at,
       labels: raw.labels || [],
@@ -341,6 +347,7 @@ function noteUploaded(store, item, saved) {
       [saved],
       next.people,
       project.sprint,
+      project.currency,
     );
     created.page.comments = comments;
     project.issues[saved.id] = created;
@@ -390,7 +397,13 @@ function noteUploaded(store, item, saved) {
     const comments = issue.page && issue.page.comments;
     issue.raw = saved;
     issue.baseUpdatedAt = saved.updated_at;
-    issue.page = pageFromSnapshot(saved, [saved], next.people, null);
+    issue.page = pageFromSnapshot(
+      saved,
+      [saved],
+      next.people,
+      null,
+      next.projects[issue.projectId] && next.projects[issue.projectId].currency,
+    );
     issue.page.complete = false;
     issue.page.comments = comments || [];
   }
@@ -418,7 +431,7 @@ function absorbIssues(store, projectId, issues) {
     if (prior && (prior.pending || prior.conflict)) {
       continue;
     }
-    const fresh = freshIssue(record.id, issue, list, next.people, record.sprint);
+    const fresh = freshIssue(record.id, issue, list, next.people, record.sprint, record.currency);
     if (issue.completed_at) {
       fresh.raw.completedOn = issue.completed_at;
     }
@@ -451,7 +464,7 @@ function rememberDetail(store, issueId, raw, page) {
     if (!project) {
       return next;
     }
-    issue = freshIssue(project.id, raw, [], next.people, project.sprint);
+    issue = freshIssue(project.id, raw, [], next.people, project.sprint, project.currency);
     project.issues[issueId] = issue;
   }
   issue.raw = raw;
@@ -499,6 +512,9 @@ function queueCreate(store, draft) {
     assignee_id: draft.assignee_id || null,
     estimate_minutes: draft.estimate_minutes ?? null,
     remaining_minutes: draft.remaining_minutes ?? null,
+    planned_value_cents: draft.planned_value_cents ?? null,
+    earned_value_cents: draft.earned_value_cents ?? null,
+    actual_cost_cents: draft.actual_cost_cents ?? null,
     start_at: draft.start_at || null,
     due_at: draft.due_at || null,
     labels: draft.labels || [],
@@ -506,7 +522,7 @@ function queueCreate(store, draft) {
     updated_at: new Date().toISOString(),
     rollup: null,
   };
-  const record = freshIssue(project.id, raw, Object.values(project.issues).map((item) => item.raw).concat(raw), next.people, project.sprint);
+  const record = freshIssue(project.id, raw, Object.values(project.issues).map((item) => item.raw).concat(raw), next.people, project.sprint, project.currency);
   if (raw.parent_id && next.queue.some((item) => item.issueId === raw.parent_id && item.kind === "delete")) {
     return { store, error: "This issue is waiting to be deleted." };
   }
@@ -545,6 +561,9 @@ function queueCreate(store, draft) {
       assignee_id: raw.assignee_id,
       estimate_minutes: raw.estimate_minutes,
       remaining_minutes: raw.remaining_minutes,
+      planned_value_cents: raw.planned_value_cents,
+      earned_value_cents: raw.earned_value_cents,
+      actual_cost_cents: raw.actual_cost_cents,
       start_at: raw.start_at,
       due_at: raw.due_at,
       labels: raw.labels,
@@ -585,7 +604,7 @@ function rewritePage(issue, project, people, changes, options) {
   } else if (options.sprint && options.sprint.id === issue.raw.sprint_id) {
     sprint = options.sprint;
   }
-  issue.page = pageFromSnapshot(issue.raw, issues, people, sprint);
+  issue.page = pageFromSnapshot(issue.raw, issues, people, sprint, project && project.currency);
   if (!previous) {
     return;
   }
@@ -754,7 +773,13 @@ function queueComment(store, issueId, text, authorName) {
     next.people,
   );
   if (!record.page) {
-    record.page = pageFromSnapshot(record.raw, [record.raw], next.people, null);
+    record.page = pageFromSnapshot(
+      record.raw,
+      [record.raw],
+      next.people,
+      null,
+      next.projects[record.projectId] && next.projects[record.projectId].currency,
+    );
   }
   record.page.comments = [...(record.page.comments || []), comment];
   record.pending = true;
@@ -833,6 +858,9 @@ const QUEUE_FIELD = {
   sprint_id: "Sprint",
   estimate_minutes: "Estimate",
   remaining_minutes: "Remaining",
+  planned_value_cents: "Planned value",
+  earned_value_cents: "Earned value",
+  actual_cost_cents: "Actual cost",
   start_at: "Start",
   due_at: "Due",
   labels: "Labels",
@@ -878,7 +906,7 @@ function queueSprint(store, sprintId) {
   return "A sprint";
 }
 
-function queueValue(store, key, value) {
+function queueValue(store, key, value, currency) {
   if (key === "status") {
     return statusLabel(value);
   }
@@ -897,6 +925,9 @@ function queueValue(store, key, value) {
   if (key === "estimate_minutes" || key === "remaining_minutes") {
     return value == null ? "None" : `${value}m`;
   }
+  if (key === "planned_value_cents" || key === "earned_value_cents" || key === "actual_cost_cents") {
+    return formatMoney(value, currency || "USD", "edit");
+  }
   if (value == null || value === "") {
     return "Cleared";
   }
@@ -914,9 +945,11 @@ function queueDetail(store, item) {
     return "This issue will be deleted on the server.";
   }
   const body = item.body || {};
+  const project = store.projects && store.projects[item.projectId];
+  const currency = project && project.currency;
   return Object.keys(body)
     .filter((key) => !QUEUE_BLANK_HIDDEN.has(key) || body[key])
-    .map((key) => `${QUEUE_FIELD[key] || key}: ${queueValue(store, key, body[key])}`)
+    .map((key) => `${QUEUE_FIELD[key] || key}: ${queueValue(store, key, body[key], currency)}`)
     .join("\n");
 }
 
@@ -945,6 +978,9 @@ const CONFLICT_FIELDS = [
   ["sprint_id", "Sprint"],
   ["estimate_minutes", "Estimate"],
   ["remaining_minutes", "Remaining"],
+  ["planned_value_cents", "Planned value"],
+  ["earned_value_cents", "Earned value"],
+  ["actual_cost_cents", "Actual cost"],
   ["start_at", "Start"],
   ["due_at", "Due"],
   ["labels", "Labels"],
@@ -959,6 +995,10 @@ function conflictFieldValue(store, issue, key, value) {
   }
   if (key === "estimate_minutes" || key === "remaining_minutes") {
     return formatMinutes(value);
+  }
+  if (key === "planned_value_cents" || key === "earned_value_cents" || key === "actual_cost_cents") {
+    const project = issue && store.projects && store.projects[issue.projectId];
+    return formatMoney(value, project && project.currency, "edit");
   }
   if (key === "start_at" || key === "due_at") {
     return formatWhen(value);
@@ -1068,7 +1108,13 @@ function dropQueueItem(store, itemId) {
   }
   if (item.kind === "uncomment" && record && item.comment) {
     if (!record.page) {
-      record.page = pageFromSnapshot(record.raw, [record.raw], next.people, null);
+      record.page = pageFromSnapshot(
+      record.raw,
+      [record.raw],
+      next.people,
+      null,
+      next.projects[record.projectId] && next.projects[record.projectId].currency,
+    );
     }
     const comments = record.page.comments || [];
     if (!comments.some((comment) => comment.id === item.comment.id)) {

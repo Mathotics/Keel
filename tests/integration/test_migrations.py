@@ -95,7 +95,13 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     assert "due_at" in columns
     assert "priority" in columns
     assert "definition_of_done" in columns
+    assert "planned_value_cents" in columns
+    assert "earned_value_cents" in columns
+    assert "actual_cost_cents" in columns
     assert "location" in columns
+    assert any("planned value" in check["sqltext"] for check in history_checks), (
+        history_checks
+    )
     assert any("'location'" in check["sqltext"] for check in history_checks), (
         history_checks
     )
@@ -139,6 +145,7 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "sprint_cadence_days",
         "sprint_ahead",
         "auto_sprint_notice",
+        "currency",
     }
     assert series >= {
         "id",

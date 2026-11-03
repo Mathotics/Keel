@@ -7,7 +7,7 @@ const CADENCES = [
   ["every_n_days", "Every N days"],
 ];
 
-function prepareProjectUpdate({ name, description, cadence, days, ahead }) {
+function prepareProjectUpdate({ name, description, cadence, days, ahead, currency }) {
   const cleaned = String(name || "").trim();
   if (!cleaned) {
     return { error: "A project needs a name." };
@@ -33,6 +33,13 @@ function prepareProjectUpdate({ name, description, cadence, days, ahead }) {
       return { error: "Every N days needs a number of days of at least 1." };
     }
     body.sprint_cadence_days = count;
+  }
+  if (currency !== undefined && currency !== null && String(currency).trim() !== "") {
+    const code = String(currency).trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(code)) {
+      return { error: "Currency must be an ISO code such as USD." };
+    }
+    body.currency = code;
   }
   return { body };
 }

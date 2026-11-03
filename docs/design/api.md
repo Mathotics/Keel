@@ -8,6 +8,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 
 * All request and response bodies are JSON. Timestamps are ISO 8601 in UTC.
 * Effort is exchanged as whole minutes in `estimate_minutes` and `remaining_minutes`; the shorthand of [ADR 012](../adr/issue-realization.md) is a user-interface concern, not a wire format.
+* Cost is exchanged as whole cents in `planned_value_cents` (PV), `earned_value_cents` (EV), and `actual_cost_cents` (AC). The project `currency` (default `USD`) is the unit shown for those amounts. Entry on the website and phone accepts a bare number or the formatted value, and refuses a symbol or code for a different currency ([Cost estimation](../adr/cost-estimation.md), [Project currency](../adr/project-currency.md)).
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is the signed-in person ([Password login](../adr/password-login.md)). Browsers send the `keel_session` cookie. Scripts send `Authorization: Bearer`. A bearer header that does not match a live token does not fall through to the cookie. `X-Keel-User` is ignored. The acting user defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
 * Enumerated values on the wire are the stored strings: types `epic`, `story`, `subtask`; priorities `p1`, `p2`, `p3`, `p4`, `p5`; statuses `todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`; sprint states `planned`, `active`, `completed`; sprint cadences `off`, `weekly`, `two_weeks`, `monthly`, `every_n_days`; series states `active`, `paused`; spawn modes `calendar`, `after_closed`; sprint bases `due_on`, `start_on`, `created_on`; recurrence `daily`, `weekly`, `monthly`, `yearly`; dependency kinds `blocks`, `relates_to`.
@@ -43,7 +44,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 | `PATCH` | `/api/v1/projects/{project_id}` | Rename, redescribe, or set sprint cadence and sprints in advance; `key` is immutable |
 | `DELETE` | `/api/v1/projects/{project_id}` | Delete, cascading its contents |
 
-A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints to keep planned (0–12, default 0); 0 creates the next window only at rollover ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
+A project's `sprint_cadence` is `off` (the default), `weekly`, `two_weeks`, `monthly`, or `every_n_days`. `every_n_days` requires `sprint_cadence_days` of at least 1. Turning cadence on opens a sprint immediately if none is active ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints to keep planned (0–12, default 0); 0 creates the next window only at rollover ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `currency` is an ISO 4217 alphabetic code, `USD` until a project owner chooses another. Changing it does not convert stored amounts ([Project currency](../adr/project-currency.md)).
 
 ## Issues
 
@@ -104,6 +105,9 @@ Response body, with the fields the interface needs added:
   "assignee_id": 2,
   "estimate_minutes": 180,
   "remaining_minutes": 180,
+  "planned_value_cents": 10000,
+  "earned_value_cents": null,
+  "actual_cost_cents": null,
   "start_at": "2026-09-14T09:00:00Z",
   "due_at": "2026-09-15T17:00:00Z",
   "labels": ["onboarding"],
@@ -112,7 +116,14 @@ Response body, with the fields the interface needs added:
     "remaining_minutes": 300,
     "descendants": 4,
     "descendants_done": 1,
-    "descendants_cancelled": 0
+    "descendants_cancelled": 0,
+    "planned_value_cents": 10000,
+    "earned_value_cents": null,
+    "actual_cost_cents": null,
+    "budget_at_completion_cents": 10000,
+    "estimate_at_completion_cents": null,
+    "schedule_performance_index": null,
+    "cost_performance_index": null
   },
   "unresolved_blockers": 2,
   "created_at": "2026-08-31T14:02:11Z",
@@ -120,7 +131,7 @@ Response body, with the fields the interface needs added:
 }
 ```
 
-`rollup` covers the issue and all its descendants ([ADR 012](../adr/issue-realization.md)); the issue's own `estimate_minutes` is never overwritten by it. Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/cancelled-status.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)). `description` and `definition_of_done` are plain text, trimmed on write, and default to the empty string; the interface renders them as Markdown ([ADR 017](../adr/markdown-descriptions-and-comments.md), [Issue definition of done](../adr/issue-definition-of-done.md)). `location` is plain text, trimmed on write, at most 300 characters, and defaults to the empty string. It is not Markdown ([Issue location](../adr/issue-location.md)).
+`rollup` covers the issue and all its descendants ([ADR 012](../adr/issue-realization.md)); the issue's own `estimate_minutes` is never overwritten by it. The same rollup sums `planned_value_cents`, `earned_value_cents`, and `actual_cost_cents`, including cancelled descendants, and leaves an unset amount out of the total. `budget_at_completion_cents` is that planned total. `estimate_at_completion_cents` is actual + (budget − earned) when all three totals are present. `schedule_performance_index` is earned / planned and `cost_performance_index` is earned / actual, each rounded half up to four decimal places, and null when the divisor is missing or zero. Those four figures are calculated; a `PATCH` cannot set them ([Cost estimation](../adr/cost-estimation.md)). Progress counts *Done* descendants separately from *Cancelled* ones ([ADR 020](../adr/cancelled-status.md)). Moving a card on the board is a `PATCH` of `status`; moving an issue into or out of a sprint is a `PATCH` of `sprint_id`. `sprint_id` may name any sprint of the same project, including a completed one. `null` unschedules the issue. The HTML sprint menus list active and planned sprints and leave completed ones out ([Sprint assignment choices](../adr/sprint-assignment-choices.md)). `labels` is a list of names; a `PATCH` that names `labels` replaces the set, and `[]` clears it ([ADR 031](../adr/ADR-031.md)). `description` and `definition_of_done` are plain text, trimmed on write, and default to the empty string; the interface renders them as Markdown ([ADR 017](../adr/markdown-descriptions-and-comments.md), [Issue definition of done](../adr/issue-definition-of-done.md)). `location` is plain text, trimmed on write, at most 300 characters, and defaults to the empty string. It is not Markdown ([Issue location](../adr/issue-location.md)).
 
 ## Projections
 
@@ -289,6 +300,9 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/dependencies/{dependency_id}/delete` | Remove a link |
 | `POST` | `/web/issues/{issue_id}/estimate` | The issue page's estimate |
 | `POST` | `/web/issues/{issue_id}/remaining` | The issue page's remaining time |
+| `POST` | `/web/issues/{issue_id}/planned-value` | The issue page's planned value |
+| `POST` | `/web/issues/{issue_id}/earned-value` | The issue page's earned value |
+| `POST` | `/web/issues/{issue_id}/actual-cost` | The issue page's actual cost |
 | `POST` | `/web/issues/{issue_id}/comments` | Add a comment |
 | `POST` | `/web/comments/{comment_id}/delete` | Remove a comment |
 

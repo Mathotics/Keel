@@ -108,9 +108,10 @@ The email holds the random token. The row stores its SHA-256 hash. A newer unuse
 | `sprint_cadence_days` | INTEGER | nullable, `CHECK` null or `>= 1` |
 | `sprint_ahead` | INTEGER | not null, default 0, `CHECK` between 0 and 12 |
 | `auto_sprint_notice` | TEXT | not null, default `''` |
+| `currency` | TEXT | not null, default `'USD'`, `CHECK` three uppercase letters |
 | `created_at` | TIMESTAMP | not null |
 
-`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/issue-realization.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
+`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/issue-realization.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page. `currency` is the ISO code shown on cost amounts, `USD` until changed ([Project currency](../adr/project-currency.md)).
 
 ### boards
 
@@ -161,6 +162,9 @@ Indexes and constraints:
 | `assignee_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |
 | `estimate_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `remaining_minutes` | INTEGER | nullable, `CHECK` not negative |
+| `planned_value_cents` | INTEGER | nullable, `CHECK` not negative |
+| `earned_value_cents` | INTEGER | nullable, `CHECK` not negative |
+| `actual_cost_cents` | INTEGER | nullable, `CHECK` not negative |
 | `start_at` | TIMESTAMP | nullable |
 | `due_at` | TIMESTAMP | nullable, `CHECK` null or not before `start_at` |
 | `series_id` | INTEGER | nullable, references `series(id)` `ON DELETE SET NULL` |
@@ -263,7 +267,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`, `planned value`, `earned value`, `actual cost`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -314,7 +318,7 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 
 **The backlog.** A project's issues where `sprint_id IS NULL` and `status` is not `done` or `cancelled`, ordered by `created_at` ascending. This is the amended definition from [ADR 013](../adr/planning-realization.md), which supersedes the rank-based definition in [ADR 005](../adr/boards-sprints-and-backlog.md).
 
-**Effort and progress rollup.** Computed per request with a recursive query walking `parent_id` down from the issue, summing `estimate_minutes` over the subtree, summing `remaining_minutes` excluding cancelled descendants, counting descendants whose status is `done`, and counting descendants whose status is `cancelled` separately. Nothing is cached or denormalized.
+**Effort, cost, and progress rollup.** Computed per request with a recursive query walking `parent_id` down from the issue, summing `estimate_minutes` over the subtree, summing `remaining_minutes` excluding cancelled descendants, summing `planned_value_cents`, `earned_value_cents`, and `actual_cost_cents` over the subtree including cancelled descendants, counting descendants whose status is `done`, and counting descendants whose status is `cancelled` separately. Budget at completion, estimate at completion, and the two performance indexes are derived from those cost sums in the same pass ([Cost estimation](../adr/cost-estimation.md)). Nothing is cached or denormalized.
 
 ## Deletion behaviour
 
@@ -362,6 +366,8 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0028` | unique non-blank emails, and `password_reset_tokens` |
 | `0029` | `issues.client_key` |
 | `0030` | `issues.location` and `location` on `issue_history.field` |
+| `0031` | `issues.planned_value_cents`, `issues.earned_value_cents`, `issues.actual_cost_cents`, and those names on `issue_history.field` |
+| `0032` | `projects.currency` |
 
 ## Related documents
 

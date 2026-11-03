@@ -62,7 +62,7 @@ flowchart LR
 * Write an issue's definition of done — the criteria for calling it *Done* — in its own panel beneath Description ([Issue definition of done](../adr/issue-definition-of-done.md)).
 * Record where an issue will happen in an optional location, blank until set ([Issue location](../adr/issue-location.md)).
 * Add and remove labels on an issue, and filter the board and issue list by one label ([ADR 031](../adr/ADR-031.md)).
-* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, location, and labels ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, labels, location, planned value, earned value, and actual cost ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md), [Cost estimation](../adr/cost-estimation.md)).
 
 ## Planning
 
@@ -72,6 +72,7 @@ flowchart LR
 * Optionally run a project's sprints on a cadence so windows open and close without a manual Start or Complete click, and optionally keep the next N sprints planned in advance ([ADR 019](../adr/auto-sprint-cadence.md), [Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)).
 * Record a time-based estimate on an issue and update its remaining time as work progresses.
 * View estimated and remaining time aggregated from child issues.
+* Record optional planned value, earned value, and actual cost on an issue, see them aggregated from child issues, and read budget at completion, estimate at completion, and the schedule and cost performance indexes calculated from those totals ([Cost estimation](../adr/cost-estimation.md)).
 * Define a repeating series that spawns ordinary issues on a cadence, including a recipe priority copied onto each copy ([ADR 021](../adr/repeating-work-scheduling-manager.md), [Series recipe priority](../adr/series-recipe-priority.md)).
 * Show the acting user's unfinished issues that have a start or due date on a month, week, or day calendar at `/calendar`, and that project's unfinished dated issues at `/projects/{key}/calendar`, as a bar from the start day through the due day ([Calendar of assigned work](../adr/month-calendar.md)).
 * Show the acting user's dated issues, including Done and Cancelled, as one row each on a month, a quarter, or a year at `/gantt`, and that project's dated issues at `/projects/{key}/gantt`, with a child under its parent when the parent is on the page. A dependency between two of those rows is drawn on the chart. The phone app opens the same chart from its menu ([Gantt chart](../adr/gantt-chart.md)).

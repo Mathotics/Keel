@@ -72,7 +72,7 @@ View:
 Issue work:
 
 * **Create issues in a project.** Requires View issues, and the global Create issues permission. The global permission is necessary and is not sufficient on its own.
-* **Edit issues in a project.** Requires View issues, and the global Edit issues permission. Title, description, definition of done, location, type, priority, dates, estimates, labels, and parent or child links.
+* **Edit issues in a project.** Requires View issues, and the global Edit issues permission. Title, description, definition of done, location, type, priority, dates, estimates, cost, labels, and parent or child links.
 * **Update issues.** Requires View issues. Status, assignee, and which existing sprint the issue is on. No global gate.
 * **Delete issues in a project.** Requires View issues, and the global Delete issues permission.
 * **Comment on issues.** Requires View issues, and the global Create comments permission. The global permission is necessary and is not sufficient on its own.
@@ -95,7 +95,7 @@ Schedules:
 
 Project administration:
 
-* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, and lookahead.
+* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, lookahead, and currency.
 * **Delete this project.** Requires View issues. This project only.
 * **View project RBAC page.** Requires View issues.
 * **Manage project RBAC.** Requires View project RBAC page.

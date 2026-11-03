@@ -76,6 +76,11 @@
                 <label for="project-description">Description</label>
                 <input id="project-description" name="description" type="text" value="{{ project.description }}"/>
               </p>
+              <p>
+                <label for="project-currency">Currency</label>
+                <input id="project-currency" name="currency" type="text" maxlength="3" required
+                       autocapitalize="characters" spellcheck="false" value="{{ project.currency }}"/>
+              </p>
             </div>
           </fieldset>
           <fieldset>
