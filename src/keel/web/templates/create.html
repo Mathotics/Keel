@@ -128,18 +128,19 @@
           </fieldset>
           <fieldset>
             <legend>Cost</legend>
+            {% set currency = project.currency if project and project.currency else "USD" %}
             <div class="keel-fields">
               <p>
                 <label for="issue-planned-value">Planned value (PV)</label>
-                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ draft.planned_value or '$0.00' }}"/>
+                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ draft.planned_value or (0 | money(currency)) }}"/>
               </p>
               <p>
                 <label for="issue-earned-value">Earned value (EV)</label>
-                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ draft.earned_value or '$0.00' }}"/>
+                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ draft.earned_value or (0 | money(currency)) }}"/>
               </p>
               <p>
                 <label for="issue-actual-cost">Actual cost (AC)</label>
-                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ draft.actual_cost or '$0.00' }}"/>
+                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ draft.actual_cost or (0 | money(currency)) }}"/>
               </p>
             </div>
           </fieldset>

@@ -478,6 +478,7 @@ def update_project(
     sprint_cadence: Annotated[str, Form()] = SprintCadence.OFF.value,
     sprint_cadence_days: Annotated[str, Form()] = "",
     sprint_ahead: Annotated[str, Form()] = "0",
+    currency: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     try:
         project = project_service.update_project(
@@ -488,6 +489,7 @@ def update_project(
             sprint_cadence=_parse_cadence(sprint_cadence),
             sprint_cadence_days=_parse_cadence_days(sprint_cadence_days),
             sprint_ahead=_parse_sprint_ahead(sprint_ahead),
+            currency=currency,
         )
     except DomainError as exc:
         session.rollback()
@@ -603,9 +605,9 @@ def create_issue_from_page(
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
-            planned_value_cents=parse_cost(planned_value),
-            earned_value_cents=parse_cost(earned_value),
-            actual_cost_cents=parse_cost(actual_cost),
+            planned_value_cents=parse_cost(planned_value, project.currency),
+            earned_value_cents=parse_cost(earned_value, project.currency),
+            actual_cost_cents=parse_cost(actual_cost, project.currency),
             labels=labels,
             client_key=client_key,
         )
@@ -641,7 +643,8 @@ def create_issue(
     labels: Annotated[str, Form()] = "",
     client_key: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
-    key = project_service.get_project(session, project_id).key
+    project = project_service.get_project(session, project_id)
+    key = project.key
     try:
         issue = issue_service.create_issue(
             session,
@@ -666,9 +669,9 @@ def create_issue(
             sprint_id=_optional_id(sprint_id),
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
-            planned_value_cents=parse_cost(planned_value),
-            earned_value_cents=parse_cost(earned_value),
-            actual_cost_cents=parse_cost(actual_cost),
+            planned_value_cents=parse_cost(planned_value, project.currency),
+            earned_value_cents=parse_cost(earned_value, project.currency),
+            actual_cost_cents=parse_cost(actual_cost, project.currency),
             labels=labels,
             client_key=client_key,
         )
@@ -947,8 +950,10 @@ def _update_cost(
     field: str,
 ) -> RedirectResponse:
     here = _issue_here(session, issue_id)
-    cents = parse_cost(raw)
+    issue = issue_service.get_issue(session, issue_id)
+    currency = project_service.get_project(session, issue.project_id).currency
     try:
+        cents = parse_cost(raw, currency)
         if field == "planned_value_cents":
             issue_service.update_issue(
                 session,

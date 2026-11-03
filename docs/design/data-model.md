@@ -108,9 +108,10 @@ The email holds the random token. The row stores its SHA-256 hash. A newer unuse
 | `sprint_cadence_days` | INTEGER | nullable, `CHECK` null or `>= 1` |
 | `sprint_ahead` | INTEGER | not null, default 0, `CHECK` between 0 and 12 |
 | `auto_sprint_notice` | TEXT | not null, default `''` |
+| `currency` | TEXT | not null, default `'USD'`, `CHECK` three uppercase letters |
 | `created_at` | TIMESTAMP | not null |
 
-`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/issue-realization.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page.
+`key` is uppercase and starts with a letter; the full pattern is validated in the schema layer, with length checked in the database. `issue_seq` is the per-project issue counter from [ADR 012](../adr/issue-realization.md), incremented in the same transaction that inserts an issue and never decremented, so numbers are not reused. `sprint_cadence` is off until the project opts in; `sprint_cadence_days` is the N for *every N days* ([ADR 019](../adr/auto-sprint-cadence.md)). `sprint_ahead` is how many upcoming sprints auto-sprint keeps planned (0 means create the next window only at rollover) ([Auto-sprint lookahead](../adr/auto-sprint-lookahead.md)). `auto_sprint_notice` holds the last automatic open/close message for the sprints page. `currency` is the ISO code shown on cost amounts, `USD` until changed ([Project currency](../adr/project-currency.md)).
 
 ### boards
 
@@ -364,6 +365,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0028` | unique non-blank emails, and `password_reset_tokens` |
 | `0029` | `issues.client_key` |
 | `0030` | `issues.planned_value_cents`, `issues.earned_value_cents`, `issues.actual_cost_cents`, and those names on `issue_history.field` |
+| `0031` | `projects.currency` |
 
 ## Related documents
 

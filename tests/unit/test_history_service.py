@@ -263,12 +263,37 @@ def test_cost_changes_use_dollar_labels(
     )
     events = history_service.list_history(session, issue_id)
     assert [(event.field, event.from_value, event.to_value) for event in events] == [
-        ("planned value", "none", "$12.50"),
-        ("earned value", "none", "$0.00"),
-        ("actual cost", "none", "$5.00"),
-        ("planned value", "$12.50", "none"),
+        ("planned value", "none", "$12.50 USD"),
+        ("earned value", "none", "$0.00 USD"),
+        ("actual cost", "none", "$5.00 USD"),
+        ("planned value", "$12.50 USD", "none"),
     ]
     assert {event.actor_name for event in events} == {"Ada"}
+
+
+def test_changing_currency_does_not_rewrite_older_cost_history(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(
+        session,
+        issue_id,
+        planned_value_cents=1250,
+        actor_name="Ada",
+    )
+    project_service.update_project(session, project.id, currency="EUR")
+    issue_service.update_issue(
+        session,
+        issue_id,
+        planned_value_cents=500,
+        actor_name="Ada",
+    )
+    events = history_service.list_history(session, issue_id)
+    assert [(event.field, event.from_value, event.to_value) for event in events] == [
+        ("planned value", "none", "$12.50 USD"),
+        ("planned value", "€12.50 EUR", "€5.00 EUR"),
+    ]
 
 
 def test_cleared_due_parent_and_type_use_issue_page_labels(

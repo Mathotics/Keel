@@ -5,9 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Issue, IssueHistory, Project, Sprint, User
+from keel.domain.currency import DEFAULT_CURRENCY
 from keel.domain.duration import format_minutes
 from keel.domain.enums import IssuePriority, IssueStatus, IssueType, label
-from keel.domain.money import format_cents
+from keel.domain.money import format_money_edit
 from keel.services.identity import acting_display_name
 
 SYSTEM_ACTOR = "Keel"
@@ -150,10 +151,11 @@ def effort_label(minutes: int | None) -> str:
     return format_minutes(minutes)
 
 
-def cost_label(cents: int | None) -> str:
+def cost_label(cents: int | None, currency: str = DEFAULT_CURRENCY) -> str:
+    """The unit in effect when the edit is saved. Later changes do not rewrite it."""
     if cents is None:
         return NONE
-    return format_cents(cents)
+    return format_money_edit(cents, currency)
 
 
 def due_label(value: datetime | None) -> str:

@@ -30,7 +30,7 @@ There is nowhere to record what a piece of work was planned to cost, what was ea
 
 ### Out-of-Scope
 
-* A currency code, exchange rates, or more than one currency. Amounts are dollars.
+* Exchange rates, or a currency of its own on one issue. The unit shown for these amounts is the project currency ([Project currency](project-currency.md)).
 * Editing the four calculated figures, or storing them.
 * Putting cost on a board card. Cards keep the content named in [ADR 032](ADR-032.md).
 * A cost field on the series recipe. Spawned issues start with the three amounts unset.
@@ -47,7 +47,7 @@ There is nowhere to record what a piece of work was planned to cost, what was ea
 
 * **Must** store planned value, earned value, and actual cost as whole non-negative cents, nullable, default null.
 * **Must** treat null as unset. Unset contributes nothing to a sum. An explicit zero is stored and does contribute.
-* **Must** accept dollar input of the form `12`, `12.50`, or `$1,234.56` on the website and the phone, and reject anything else, including a negative amount.
+* **Must** accept an amount of the form `12`, `12.50`, or `$1,234.56` on the website and the phone, in the project currency, and reject a negative amount. A symbol or code for a different currency is refused ([Project currency](project-currency.md)).
 * **Must** exchange the three amounts as cents on the JSON API. A negative value is refused.
 * **Must** show a parent both its own three amounts and a rolled-up total of itself and all descendants, including cancelled descendants.
 * **Must Not** overwrite an issue's own amounts with a value derived from its children.
@@ -55,7 +55,7 @@ There is nowhere to record what a piece of work was planned to cost, what was ea
 * **Must** set estimate at completion to actual + (budget at completion − earned) when planned, earned, and actual totals are all present, and leave it null otherwise.
 * **Must** set the schedule performance index to earned / planned, and the cost performance index to earned / actual, using the subtree totals. Each is null when its divisor is missing or zero, and otherwise rounded half up to four decimal places.
 * **Must Not** accept the four calculated figures on create or update.
-* **Must** append a history line when planned value, earned value, or actual cost changes, labeled in dollars, with `none` when the amount is unset.
+* **Must** append a history line when planned value, earned value, or actual cost changes, labeled in the project currency then in effect, with `none` when the amount is unset.
 * **May** leave the three amounts blank. Nothing requires them before an issue can be done.
 
 ## Consequences
@@ -63,7 +63,7 @@ There is nowhere to record what a piece of work was planned to cost, what was ea
 * **Good:** Cost follows the effort rules people already know: own value beside a subtree total, unset is not zero, and a parent never loses what was typed on it. The indexes are computed from the sums, so a parent does not average its children's indexes.
 * **Bad:** Budget at completion is the planned-value total, not a separately entered project budget. If planned value is only the work scheduled so far, budget at completion understates the full budget.
 * **Bad:** Estimate at completion assumes the work still to earn will be spent at the original rate. It does not assume the current cost index continues.
-* **Risk:** One currency is implicit. A later need for another currency would be a new field, not a reinterpretation of these cents.
+* **Risk:** The stored cents keep two decimal places of the major unit. A later change of currency relabels those digits; it does not convert them ([Project currency](project-currency.md)).
 * **Risk:** Cancelled work stays in the cost totals, so a cancelled child's actual spend still raises the parent's actual cost. That matches money already spent; it will surprise anyone who expects cancellation to zero the rollup.
 
 ## System Design
@@ -85,6 +85,7 @@ flowchart LR
 ## Supporting Documentation
 
 * [KEEL-118](http://100.83.123.25:8000/issues/KEEL-118)
+* [Project currency](project-currency.md)
 * [Issue realization](issue-realization.md)
 * [API reference](../design/api.md)
 * [Data model](../design/data-model.md)

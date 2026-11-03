@@ -161,17 +161,17 @@ def assign_day_one(session: Session) -> None:
     if owner is not None:
         replace_global_roles(session, owner.id, frozenset({RoleCode.OWNER}))
         for key in DAY_ONE_OWNER_PROJECTS:
-            project = _project_by_key(session, key)
-            if project is not None:
-                set_project_role(session, owner.id, project.id, RoleCode.PROJECT_OWNER)
+            project_id = _project_id_by_key(session, key)
+            if project_id is not None:
+                set_project_role(session, owner.id, project_id, RoleCode.PROJECT_OWNER)
     for username, key in DAY_ONE_CONTRIBUTORS:
         person = user_service.find_by_username(session, username)
-        project = _project_by_key(session, key)
-        if person is None or project is None:
+        project_id = _project_id_by_key(session, key)
+        if person is None or project_id is None:
             continue
         if owner is None or person.id != owner.id:
             _keep_member(session, person.id)
-        set_project_role(session, person.id, project.id, RoleCode.CONTRIBUTOR)
+        set_project_role(session, person.id, project_id, RoleCode.CONTRIBUTOR)
 
 
 def grant_default_global_role(session: Session, user: User) -> None:
@@ -856,8 +856,9 @@ def _project_permission_codes(codes: Sequence[str]) -> frozenset[Permission]:
     return frozenset(found)
 
 
-def _project_by_key(session: Session, key: str) -> Project | None:
-    return session.scalars(select(Project).where(Project.key == key)).first()
+def _project_id_by_key(session: Session, key: str) -> int | None:
+    """The id only, so an upgrade can run before later project columns exist."""
+    return session.scalar(select(Project.id).where(Project.key == key))
 
 
 def _permission_rows(session: Session) -> dict[str, PermissionRow]:

@@ -183,7 +183,12 @@ async function loadSnapshots(origin, token) {
           ? sprint
           : null;
       return {
-        project: { id: project.id, key: project.key, name: project.name },
+        project: {
+          id: project.id,
+          key: project.key,
+          name: project.name,
+          currency: project.currency || "USD",
+        },
         sprint: active ? { id: active.id, name: active.name, state: active.state } : null,
         issues: active ? detail.issues || [] : [],
       };
@@ -316,6 +321,15 @@ async function loadIssueDetail(origin, token, issueId) {
   const sprint = issue.sprint_id
     ? await read(origin, token, `/api/v1/sprints/${issue.sprint_id}`)
     : null;
+  let currency = "USD";
+  try {
+    const project = await read(origin, token, `/api/v1/projects/${issue.project_id}`);
+    currency = (project && project.currency) || "USD";
+  } catch (error) {
+    if (error.status === 401) {
+      throw error;
+    }
+  }
   return {
     issue,
     page: issuePage({
@@ -328,6 +342,7 @@ async function loadIssueDetail(origin, token, issueId) {
       historyAvailable,
       sprint,
       comments,
+      currency,
     }),
   };
 }

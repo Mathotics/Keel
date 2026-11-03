@@ -981,7 +981,7 @@ def test_cost_round_trips_through_dollars(
     assert "Planned value (PV)" in page.text
     assert "Earned value (EV)" in page.text
     assert "Actual cost (AC)" in page.text
-    assert 'value="$0.00"' in page.text
+    assert 'value="$0.00 USD"' in page.text
     assert 'placeholder="12.50"' not in page.text
 
     location = submit_issue(
@@ -1005,11 +1005,19 @@ def test_cost_round_trips_through_dollars(
     detail = client.get(location)
     assert 'class="keel-fact-group"' in detail.text
     assert "keel-fact-group--cost" in detail.text
-    assert 'value="$12.50"' in detail.text
-    assert 'value="$10.00"' in detail.text
-    assert 'value="$1,234.56"' in detail.text
-    assert "Budget at completion $12.50." in detail.text
-    assert "Schedule performance index 0.80." in detail.text
+    assert 'value="$12.50 USD"' in detail.text
+    assert 'value="$10.00 USD"' in detail.text
+    assert 'value="$1,234.56 USD"' in detail.text
+    assert 'id="issue-budget-at-completion" class="keel-readonly-value"' in detail.text
+    assert (
+        'id="issue-estimate-at-completion" class="keel-readonly-value">$1,237.06 USD<'
+        in detail.text
+    )
+    assert (
+        'id="issue-schedule-performance-index" class="keel-readonly-value">0.80<'
+        in detail.text
+    )
+    assert 'type="text" readonly' not in detail.text
 
     saved = client.post(
         f"/web/issues/{issue_id}/actual-cost",
@@ -1022,10 +1030,18 @@ def test_cost_round_trips_through_dollars(
     assert cleared["rollup"]["cost_performance_index"] is None
     cleared_page = client.get("/issues/KEEL-1")
     assert (
-        'name="actual_cost" type="text" inputmode="decimal" value="$0.00"'
+        'name="actual_cost" type="text" inputmode="decimal" value="$0.00 USD"'
         in cleared_page.text
     )
-    assert "Estimate at completion $0.00." in cleared_page.text
+    assert (
+        'id="issue-estimate-at-completion" class="keel-readonly-value">$0.00 USD<'
+        in cleared_page.text
+    )
+    assert (
+        'id="issue-cost-performance-index" class="keel-readonly-value">N/A<'
+        in cleared_page.text
+    )
+    assert "keel-form--readonly" not in cleared_page.text
 
     refused = client.post(
         f"/web/issues/{issue_id}/planned-value",

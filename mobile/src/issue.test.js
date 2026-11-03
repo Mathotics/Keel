@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { formatMinutes, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
+const { formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
 
 test("formats effort the way the server does", () => {
   assert.equal(formatMinutes(null), "None");
@@ -86,10 +86,19 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.reporter, "None");
   assert.equal(page.priorityLabel, "P3 — Major");
   assert.equal(page.estimate, "1h");
-  assert.equal(page.plannedValue, "$0.00");
-  assert.equal(page.budgetAtCompletion, "$0.00");
+  assert.equal(page.plannedValue, "$0.00 USD");
+  assert.equal(page.budgetAtCompletion, "$0.00 USD");
+  assert.equal(page.schedulePerformanceIndex, "N/A");
+  assert.equal(page.costPerformanceIndex, "N/A");
   assert.equal(page.rollup.progress, "1 of 2 done");
-  assert.equal(page.rollup.plannedValue, "$0.00");
+  assert.equal(page.rollup.plannedValue, "$0.00 USD");
+  const yen = issuePage({
+    issue: { id: 2, planned_value_cents: 1290, rollup: null },
+    users: [],
+    currency: "JPY",
+  });
+  assert.equal(yen.plannedValue, "¥12 JPY");
+  assert.equal(formatMoney(1290, "JPY", "edit"), "¥12.90 JPY");
   assert.equal(page.parent.key, "KEEL-1");
   assert.equal(page.children[0].statusLabel, "Done");
   assert.equal(page.blockedBy[0].projectKey, "BOAT");

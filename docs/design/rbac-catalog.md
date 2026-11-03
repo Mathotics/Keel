@@ -95,7 +95,7 @@ Schedules:
 
 Project administration:
 
-* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, and lookahead.
+* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, lookahead, and currency.
 * **Delete this project.** Requires View issues. This project only.
 * **View project RBAC page.** Requires View issues.
 * **Manage project RBAC.** Requires View project RBAC page.

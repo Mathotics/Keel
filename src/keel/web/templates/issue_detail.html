@@ -198,7 +198,7 @@
             <dd>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/planned-value" data-keel-autosubmit>
                 <label class="keel-visually-hidden" for="issue-planned-value">Planned value</label>
-                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ issue.planned_value_cents | money or '$0.00' }}"/>
+                <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ issue.planned_value_cents | money(project.currency) }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
             </dd>
@@ -208,7 +208,7 @@
             <dd>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/earned-value" data-keel-autosubmit>
                 <label class="keel-visually-hidden" for="issue-earned-value">Earned value</label>
-                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ issue.earned_value_cents | money or '$0.00' }}"/>
+                <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ issue.earned_value_cents | money(project.currency) }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
             </dd>
@@ -218,13 +218,39 @@
             <dd>
               <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/actual-cost" data-keel-autosubmit>
                 <label class="keel-visually-hidden" for="issue-actual-cost">Actual cost</label>
-                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ issue.actual_cost_cents | money or '$0.00' }}"/>
+                <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ issue.actual_cost_cents | money(project.currency) }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
             </dd>
           </div>
+          <div class="keel-fact">
+            <dt>Budget at completion (BAC)</dt>
+            <dd>
+              <div id="issue-budget-at-completion" class="keel-readonly-value">{{ rollup.budget_at_completion_cents | money(project.currency) }}</div>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Estimate at completion (EAC)</dt>
+            <dd>
+              <div id="issue-estimate-at-completion" class="keel-readonly-value">{{ rollup.estimate_at_completion_cents | money(project.currency) }}</div>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Schedule performance index (SPI)</dt>
+            <dd>
+              <div id="issue-schedule-performance-index" class="keel-readonly-value">{{ rollup.schedule_performance_index | ratio or "N/A" }}</div>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Cost performance index (CPI)</dt>
+            <dd>
+              <div id="issue-cost-performance-index" class="keel-readonly-value">{{ rollup.cost_performance_index | ratio or "N/A" }}</div>
+            </dd>
+          </div>
         </dl>
-        <p class="keel-rollup keel-fact-group__note">Budget at completion {{ rollup.budget_at_completion_cents | money or "$0.00" }}. Estimate at completion {{ rollup.estimate_at_completion_cents | money or "$0.00" }}. Schedule performance index {{ rollup.schedule_performance_index | ratio or "none" }}. Cost performance index {{ rollup.cost_performance_index | ratio or "none" }}.{% if rollup.descendants %} Including descendants: {{ rollup.planned_value_cents | money or "$0.00" }} planned, {{ rollup.earned_value_cents | money or "$0.00" }} earned, {{ rollup.actual_cost_cents | money or "$0.00" }} actual.{% endif %}</p>
+        {% if rollup.descendants %}
+        <p class="keel-rollup keel-fact-group__note">Including descendants: {{ rollup.planned_value_cents | money(project.currency) }} planned, {{ rollup.earned_value_cents | money(project.currency) }} earned, {{ rollup.actual_cost_cents | money(project.currency) }} actual.</p>
+        {% endif %}
       </div>
 
       <dl class="keel-facts">

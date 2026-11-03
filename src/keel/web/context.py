@@ -9,9 +9,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
+from keel.domain.currency import DEFAULT_CURRENCY
 from keel.domain.duration import format_minutes
 from keel.domain.enums import INITIAL_PRIORITY, label
-from keel.domain.money import format_cents, format_ratio
+from keel.domain.money import format_money_display, format_money_edit, format_ratio
 from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
 from keel.services import users as user_service
@@ -60,11 +61,17 @@ def format_duration(value: int | None) -> str:
     return format_minutes(value)
 
 
-def format_money(value: int | None) -> str:
-    """Dollars for templates; unset stays blank."""
-    if value is None:
-        return ""
-    return format_cents(value)
+def format_money(
+    value: int | None,
+    currency: str = DEFAULT_CURRENCY,
+    style: str = "edit",
+) -> str:
+    """A cost amount for templates. Unset shows zero, not a blank."""
+    amount = 0 if value is None else value
+    code = currency if isinstance(currency, str) and currency else DEFAULT_CURRENCY
+    if style == "display":
+        return format_money_display(amount, code)
+    return format_money_edit(amount, code)
 
 
 def format_when(value: datetime | None) -> str:

@@ -399,6 +399,7 @@ def update_issue(
                 actor_name=who,
             )
             issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
+    cost_currency = project_service.get_project(session, issue.project_id).currency
     if planned_value_cents is not UNSET:
         _check_cents(planned_value_cents)  # type: ignore[arg-type]
         if planned_value_cents != issue.planned_value_cents:
@@ -406,8 +407,14 @@ def update_issue(
                 session,
                 issue.id,
                 field=history_service.FIELD_PLANNED_VALUE,
-                from_value=history_service.cost_label(issue.planned_value_cents),
-                to_value=history_service.cost_label(planned_value_cents),  # type: ignore[arg-type]
+                from_value=history_service.cost_label(
+                    issue.planned_value_cents,
+                    cost_currency,
+                ),
+                to_value=history_service.cost_label(
+                    planned_value_cents,  # type: ignore[arg-type]
+                    cost_currency,
+                ),
                 actor_name=who,
             )
             issue.planned_value_cents = planned_value_cents  # type: ignore[assignment]
@@ -418,8 +425,14 @@ def update_issue(
                 session,
                 issue.id,
                 field=history_service.FIELD_EARNED_VALUE,
-                from_value=history_service.cost_label(issue.earned_value_cents),
-                to_value=history_service.cost_label(earned_value_cents),  # type: ignore[arg-type]
+                from_value=history_service.cost_label(
+                    issue.earned_value_cents,
+                    cost_currency,
+                ),
+                to_value=history_service.cost_label(
+                    earned_value_cents,  # type: ignore[arg-type]
+                    cost_currency,
+                ),
                 actor_name=who,
             )
             issue.earned_value_cents = earned_value_cents  # type: ignore[assignment]
@@ -430,8 +443,14 @@ def update_issue(
                 session,
                 issue.id,
                 field=history_service.FIELD_ACTUAL_COST,
-                from_value=history_service.cost_label(issue.actual_cost_cents),
-                to_value=history_service.cost_label(actual_cost_cents),  # type: ignore[arg-type]
+                from_value=history_service.cost_label(
+                    issue.actual_cost_cents,
+                    cost_currency,
+                ),
+                to_value=history_service.cost_label(
+                    actual_cost_cents,  # type: ignore[arg-type]
+                    cost_currency,
+                ),
                 actor_name=who,
             )
             issue.actual_cost_cents = actual_cost_cents  # type: ignore[assignment]

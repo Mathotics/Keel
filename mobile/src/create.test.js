@@ -163,6 +163,17 @@ test("cost is read as cents and a bad amount is refused", () => {
   assert.equal(prepared.draft.earned_value_cents, 1000);
   assert.equal(prepared.draft.actual_cost_cents, 0);
   assert.match(prepareCreate({ title: "Paint", projectId: 3, plannedValue: "-4" }).error, /Cost must look like/);
+  const yen = prepareCreate({
+    title: "Paint",
+    projectId: 3,
+    currency: "JPY",
+    plannedValue: "¥12.40 JPY",
+  });
+  assert.equal(yen.draft.planned_value_cents, 1240);
+  assert.match(
+    prepareCreate({ title: "Paint", projectId: 3, plannedValue: "€12.50" }).error,
+    /Cost must look like/,
+  );
 });
 
 test("an unchanged issue sends no fields", () => {

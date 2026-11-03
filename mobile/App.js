@@ -69,11 +69,11 @@ import {
   workView,
 } from "./src/offline";
 import { pullLibrary } from "./src/sync";
-import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpening, createSeedForSprint, defaultSprintId, openingSprints, sprintsForCreate } from "./src/create";
+import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpening, createSeedForSprint, defaultSprintId, openingSprints, sprintsForCreate, untouchedCost } from "./src/create";
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
-import { formatMinutes, formatMoney, issueKeyParts, linkEnds, savedIssueId } from "./src/issue";
+import { formatMinutes, formatMoney, issueKeyParts, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
 import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
@@ -1481,6 +1481,9 @@ export default function App() {
       );
       setSettingsProject(saved);
       const named = renameProject(library, saved.id, saved.name);
+      if (named.projects[saved.id]) {
+        named.projects[saved.id].currency = saved.currency || "USD";
+      }
       await persistLibrary(account.userId, named);
       scheduleSync(account, named);
       return null;
@@ -3333,6 +3336,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [projectQuery, setProjectQuery] = useState(openingLabel);
   const [projectCommitted, setProjectCommitted] = useState(openingLabel);
   const project = projects.find((item) => String(item.id) === projectId) || null;
+  const currency = projectCurrency(project);
   const [type, setType] = useState("story");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -3349,9 +3353,15 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [labels, setLabels] = useState("");
   const [estimate, setEstimate] = useState("");
   const [remaining, setRemaining] = useState("");
-  const [plannedValue, setPlannedValue] = useState("$0.00");
-  const [earnedValue, setEarnedValue] = useState("$0.00");
-  const [actualCost, setActualCost] = useState("$0.00");
+  const [plannedValue, setPlannedValue] = useState(formatMoney(0, currency, "edit"));
+  const [earnedValue, setEarnedValue] = useState(formatMoney(0, currency, "edit"));
+  const [actualCost, setActualCost] = useState(formatMoney(0, currency, "edit"));
+  useEffect(() => {
+    const zero = formatMoney(0, currency, "edit");
+    setPlannedValue((current) => (untouchedCost(current) ? zero : current));
+    setEarnedValue((current) => (untouchedCost(current) ? zero : current));
+    setActualCost((current) => (untouchedCost(current) ? zero : current));
+  }, [currency]);
   const [start, setStart] = useState("");
   const [due, setDue] = useState("");
   const [sprints, setSprints] = useState(openingSprints(openingProject, seed));
@@ -3479,6 +3489,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         plannedValue,
         earnedValue,
         actualCost,
+        currency,
         start,
         due,
         labels,
@@ -3565,9 +3576,9 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
-      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder="$0.00" />
-      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder="$0.00" />
-      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder="$0.00" />
+      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder={formatMoney(0, currency, "edit")} />
+      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder={formatMoney(0, currency, "edit")} />
+      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder={formatMoney(0, currency, "edit")} />
       <DateTimeField label="Start" value={start} onChange={setStart} />
       <DateTimeField label="Due" value={due} onChange={setDue} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -3597,9 +3608,16 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       ? ""
       : formatMinutes(issue.remaining_minutes),
   );
-  const [plannedValue, setPlannedValue] = useState(formatMoney(issue.planned_value_cents ?? 0));
-  const [earnedValue, setEarnedValue] = useState(formatMoney(issue.earned_value_cents ?? 0));
-  const [actualCost, setActualCost] = useState(formatMoney(issue.actual_cost_cents ?? 0));
+  const currency = projectCurrency(project);
+  const [plannedValue, setPlannedValue] = useState(
+    formatMoney(issue.planned_value_cents ?? 0, currency, "edit"),
+  );
+  const [earnedValue, setEarnedValue] = useState(
+    formatMoney(issue.earned_value_cents ?? 0, currency, "edit"),
+  );
+  const [actualCost, setActualCost] = useState(
+    formatMoney(issue.actual_cost_cents ?? 0, currency, "edit"),
+  );
   const [start, setStart] = useState(inputWhen(issue.start_at));
   const [due, setDue] = useState(inputWhen(issue.due_at));
   const [sprints, setSprints] = useState(project && project.sprint ? [project.sprint] : []);
@@ -3709,6 +3727,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       plannedValue,
       earnedValue,
       actualCost,
+      currency,
       start,
       due,
       labels,
@@ -3792,9 +3811,9 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
-      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder="$0.00" />
-      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder="$0.00" />
-      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder="$0.00" />
+      <Field label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} placeholder={formatMoney(0, currency, "edit")} />
+      <Field label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} placeholder={formatMoney(0, currency, "edit")} />
+      <Field label="Actual cost (AC)" value={actualCost} onChange={setActualCost} placeholder={formatMoney(0, currency, "edit")} />
       <Field label="Start" value={start} onChange={setStart} placeholder="2026-10-12 09:00" />
       <Field label="Due" value={due} onChange={setDue} placeholder="2026-10-12 17:00" />
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -5102,10 +5121,11 @@ function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDel
     project && project.sprint_cadence_days ? String(project.sprint_cadence_days) : "",
   );
   const [ahead, setAhead] = useState(project ? String(project.sprint_ahead ?? 0) : "0");
+  const [currency, setCurrency] = useState(project ? project.currency || "USD" : "USD");
   const [formError, setFormError] = useState("");
   const [notice, setNotice] = useState("");
   const signature = project
-    ? `${project.id}|${project.name}|${project.description}|${project.sprint_cadence}|${project.sprint_cadence_days}|${project.sprint_ahead}`
+    ? `${project.id}|${project.name}|${project.description}|${project.sprint_cadence}|${project.sprint_cadence_days}|${project.sprint_ahead}|${project.currency}`
     : "";
   useEffect(() => {
     if (!project) {
@@ -5116,6 +5136,7 @@ function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDel
     setCadence(project.sprint_cadence || "off");
     setDays(project.sprint_cadence_days ? String(project.sprint_cadence_days) : "");
     setAhead(String(project.sprint_ahead ?? 0));
+    setCurrency(project.currency || "USD");
     setFormError("");
   }, [signature]);
 
@@ -5153,6 +5174,13 @@ function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDel
             placeholder="0"
             keyboardType="number-pad"
           />
+          <Field
+            label="Currency"
+            value={currency}
+            onChange={setCurrency}
+            placeholder="USD"
+            autoCapitalize="characters"
+          />
           <Text style={styles.message}>
             A cadence other than Off opens a sprint when this project has none active. Zero sprints in advance waits until the current one ends. Up to 12 can stay planned.
           </Text>
@@ -5163,7 +5191,7 @@ function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDel
             disabled={busy}
             onPress={async () => {
               setNotice("");
-              const failure = await onSave({ name, description, cadence, days, ahead });
+              const failure = await onSave({ name, description, cadence, days, ahead, currency });
               setFormError(failure || "");
               if (!failure) {
                 setNotice("Saved.");

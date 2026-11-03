@@ -117,6 +117,11 @@ class InvalidSprintCadenceError(DomainError):
     status_code = 422
 
 
+class InvalidCurrencyError(DomainError):
+    code = "project.invalid_currency"
+    status_code = 422
+
+
 class InvalidIssueError(DomainError):
     code = "issue.invalid"
     status_code = 422

@@ -25,6 +25,60 @@ function priorityLabel(priority) {
   return PRIORITY_LABELS[priority] || priority;
 }
 
+const SYMBOLS = {
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  CAD: "$",
+  AUD: "$",
+  NZD: "$",
+  JPY: "¥",
+  CNY: "¥",
+  INR: "₹",
+  MXN: "$",
+  BRL: "R$",
+  CHF: "Fr",
+  SEK: "kr",
+  NOK: "kr",
+  DKK: "kr",
+  SGD: "$",
+  HKD: "$",
+  KRW: "₩",
+  ZAR: "R",
+};
+
+const ZERO_DECIMAL = new Set([
+  "BIF",
+  "CLP",
+  "DJF",
+  "GNF",
+  "ISK",
+  "JPY",
+  "KMF",
+  "KRW",
+  "PYG",
+  "RWF",
+  "UGX",
+  "UYI",
+  "VND",
+  "VUV",
+  "XAF",
+  "XOF",
+  "XPF",
+]);
+
+const KNOWN_SYMBOLS = ["R$", "Fr", "kr", "₩", "₹", "¥", "€", "£", "$", "R"];
+
+function projectCurrency(project) {
+  const code = project && project.currency ? String(project.currency).trim().toUpperCase() : "USD";
+  return /^[A-Z]{3}$/.test(code) ? code : "USD";
+}
+
+function costExample(code) {
+  const symbol = SYMBOLS[code] || "";
+  return `Cost must look like 12, 12.50, or ${symbol}1,234.56 ${code}.`;
+}
+
 function groupThousands(value) {
   const parts = [];
   let rest = String(value);
@@ -36,22 +90,83 @@ function groupThousands(value) {
   return parts.join(",");
 }
 
-function formatMoney(cents) {
+function formatMoney(cents, currency, style) {
   if (cents === null || cents === undefined || Number.isNaN(Number(cents))) {
     return "None";
   }
+  const code = projectCurrency({ currency: currency || "USD" });
+  const places = style === "display" && ZERO_DECIMAL.has(code) ? 0 : 2;
   const negative = cents < 0;
   const amount = Math.abs(Math.trunc(Number(cents)));
   const dollars = Math.floor(amount / 100);
   const remainder = amount % 100;
   const grouped = groupThousands(dollars);
-  const body = `${grouped}.${String(remainder).padStart(2, "0")}`;
-  return negative ? `-$${body}` : `$${body}`;
+  const digits = places === 0 ? grouped : `${grouped}.${String(remainder).padStart(2, "0")}`;
+  const symbol = SYMBOLS[code] || "";
+  const body = `${symbol}${digits} ${code}`;
+  return negative ? `-${body}` : body;
+}
+
+function groupedDollars(text) {
+  if (!text.includes(",")) {
+    return /^\d+$/.test(text);
+  }
+  const groups = text.split(",");
+  if (!/^\d{1,3}$/.test(groups[0])) {
+    return false;
+  }
+  return groups.slice(1).every((group) => /^\d{3}$/.test(group));
+}
+
+function parseAmount(raw, currency) {
+  const code = projectCurrency({ currency: currency || "USD" });
+  const cleaned = String(raw || "").trim();
+  if (!cleaned) {
+    return { value: null };
+  }
+  if (cleaned.includes("-")) {
+    return { error: costExample(code) };
+  }
+  let body = cleaned;
+  const suffix = cleaned.slice(-3);
+  if (/^[A-Za-z]{3}$/.test(suffix)) {
+    if (suffix.toUpperCase() !== code) {
+      return { error: costExample(code) };
+    }
+    body = cleaned.slice(0, -3).trim();
+  }
+  const symbol = SYMBOLS[code] || "";
+  for (const known of KNOWN_SYMBOLS) {
+    if (body.startsWith(known)) {
+      if (known !== symbol) {
+        return { error: costExample(code) };
+      }
+      body = body.slice(known.length).trim();
+      break;
+    }
+  }
+  const dot = body.indexOf(".");
+  const dollarsText = dot === -1 ? body : body.slice(0, dot);
+  const fractionText = dot === -1 ? "" : body.slice(dot + 1);
+  if (
+    !dollarsText
+    || (dot !== -1 && body.indexOf(".", dot + 1) !== -1)
+    || (dot !== -1 && !/^\d{1,2}$/.test(fractionText))
+    || !groupedDollars(dollarsText)
+  ) {
+    return { error: costExample(code) };
+  }
+  const dollars = Number(dollarsText.replaceAll(",", ""));
+  if (!Number.isSafeInteger(dollars)) {
+    return { error: costExample(code) };
+  }
+  const fraction = fractionText.padEnd(2, "0");
+  return { value: dollars * 100 + Number(fraction) };
 }
 
 function formatIndex(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
-    return "None";
+    return "N/A";
   }
   let text = Number(value).toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
   if (!text.includes(".")) {
@@ -281,7 +396,9 @@ function issuePage({
   historyAvailable,
   sprint,
   comments,
+  currency,
 }) {
+  const code = projectCurrency({ currency });
   const groups = dependencies || { blocks: [], blocked_by: [], relates_to: [] };
   return {
     id: issue.id,
@@ -309,11 +426,11 @@ function issuePage({
     updated: formatWhen(issue.updated_at),
     estimate: formatMinutes(issue.estimate_minutes),
     remaining: formatMinutes(issue.remaining_minutes),
-    plannedValue: formatMoney(issue.planned_value_cents ?? 0),
-    earnedValue: formatMoney(issue.earned_value_cents ?? 0),
-    actualCost: formatMoney(issue.actual_cost_cents ?? 0),
-    budgetAtCompletion: formatMoney(costFigures(issue).bac ?? 0),
-    estimateAtCompletion: formatMoney(costFigures(issue).eac ?? 0),
+    plannedValue: formatMoney(issue.planned_value_cents ?? 0, code, "display"),
+    earnedValue: formatMoney(issue.earned_value_cents ?? 0, code, "display"),
+    actualCost: formatMoney(issue.actual_cost_cents ?? 0, code, "display"),
+    budgetAtCompletion: formatMoney(costFigures(issue).bac ?? 0, code, "display"),
+    estimateAtCompletion: formatMoney(costFigures(issue).eac ?? 0, code, "display"),
     schedulePerformanceIndex: formatIndex(costFigures(issue).spi),
     costPerformanceIndex: formatIndex(costFigures(issue).cpi),
     rollup:
@@ -321,9 +438,9 @@ function issuePage({
         ? {
             estimate: formatMinutes(issue.rollup.estimate_minutes),
             remaining: formatMinutes(issue.rollup.remaining_minutes),
-            plannedValue: formatMoney(issue.rollup.planned_value_cents ?? 0),
-            earnedValue: formatMoney(issue.rollup.earned_value_cents ?? 0),
-            actualCost: formatMoney(issue.rollup.actual_cost_cents ?? 0),
+            plannedValue: formatMoney(issue.rollup.planned_value_cents ?? 0, code, "display"),
+            earnedValue: formatMoney(issue.rollup.earned_value_cents ?? 0, code, "display"),
+            actualCost: formatMoney(issue.rollup.actual_cost_cents ?? 0, code, "display"),
             progress: `${issue.rollup.descendants_done} of ${issue.rollup.descendants} done`,
             cancelled: issue.rollup.descendants_cancelled
               ? `${issue.rollup.descendants_cancelled} cancelled`
@@ -376,6 +493,8 @@ module.exports = {
   formatMinutes,
   formatMoney,
   formatWhen,
+  parseAmount,
+  projectCurrency,
   issueKeyParts,
   issuePage,
   linkEnds,

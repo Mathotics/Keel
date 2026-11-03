@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from keel.db.models import Board, Project
+from keel.domain.currency import normalize_currency
 from keel.domain.enums import SprintCadence
 from keel.domain.errors import (
     DuplicateProjectKeyError,
@@ -69,14 +70,22 @@ def update_project(
     sprint_cadence: SprintCadence | object = UNSET,
     sprint_cadence_days: int | None | object = UNSET,
     sprint_ahead: int | object = UNSET,
+    currency: str | None | object = UNSET,
     today: date | None = None,
 ) -> Project:
     """The key is immutable once issues carry it, so it is not updatable."""
     project = get_project(session, project_id)
+    chosen = (
+        None
+        if currency is UNSET
+        else normalize_currency(None if currency is None else str(currency))
+    )
     if name is not None:
         project.name = _clean_name(name)
     if description is not None:
         project.description = description.strip()
+    if chosen is not None:
+        project.currency = chosen
     from keel.services import auto_sprint
 
     if sprint_ahead is not UNSET:

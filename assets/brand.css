@@ -1029,6 +1029,20 @@ body {
   margin: 0;
 }
 
+.keel-readonly-value {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--keel-control-height);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+  color: var(--keel-blue-deep);
+  font: inherit;
+  cursor: default;
+  user-select: none;
+}
+
 .keel-form input:not([type="checkbox"]):not([type="radio"]),
 .keel-form select,
 .keel-form textarea,

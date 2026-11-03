@@ -1,3 +1,5 @@
+const { parseAmount } = require("./issue");
+
 const PARENT = {
   epic: null,
   story: "epic",
@@ -5,7 +7,6 @@ const PARENT = {
 };
 
 const EFFORT = "Effort must look like 2h, 90m, 1h 30m, or 1d.";
-const COST = "Cost must look like 12, 12.50, or $1,234.56.";
 const MINUTES_PER_HOUR = 60;
 const MINUTES_PER_DAY = 8 * MINUTES_PER_HOUR;
 
@@ -38,43 +39,8 @@ function parseDuration(raw) {
   return { value: total };
 }
 
-function parseCost(raw) {
-  const cleaned = String(raw || "").trim();
-  if (!cleaned) {
-    return { value: null };
-  }
-  if (cleaned.startsWith("-")) {
-    return { error: COST };
-  }
-  const body = cleaned.startsWith("$") ? cleaned.slice(1) : cleaned;
-  const dot = body.indexOf(".");
-  const dollarsText = dot === -1 ? body : body.slice(0, dot);
-  const fractionText = dot === -1 ? "" : body.slice(dot + 1);
-  if (
-    !dollarsText ||
-    (dot !== -1 && body.indexOf(".", dot + 1) !== -1) ||
-    (dot !== -1 && !/^\d{1,2}$/.test(fractionText)) ||
-    !groupedDollars(dollarsText)
-  ) {
-    return { error: COST };
-  }
-  const dollars = Number(dollarsText.replaceAll(",", ""));
-  if (!Number.isSafeInteger(dollars)) {
-    return { error: COST };
-  }
-  const fraction = fractionText.padEnd(2, "0");
-  return { value: dollars * 100 + Number(fraction) };
-}
-
-function groupedDollars(text) {
-  if (!text.includes(",")) {
-    return /^\d+$/.test(text);
-  }
-  const groups = text.split(",");
-  if (!/^\d{1,3}$/.test(groups[0])) {
-    return false;
-  }
-  return groups.slice(1).every((group) => /^\d{3}$/.test(group));
+function parseCost(raw, currency) {
+  return parseAmount(raw, currency || "USD");
 }
 
 function parseWhen(raw) {
@@ -159,15 +125,16 @@ function prepareCreate(input) {
   if (remaining.error) {
     return remaining;
   }
-  const planned = parseCost(input.plannedValue);
+  const currency = input.currency || "USD";
+  const planned = parseCost(input.plannedValue, currency);
   if (planned.error) {
     return planned;
   }
-  const earned = parseCost(input.earnedValue);
+  const earned = parseCost(input.earnedValue, currency);
   if (earned.error) {
     return earned;
   }
-  const actual = parseCost(input.actualCost);
+  const actual = parseCost(input.actualCost, currency);
   if (actual.error) {
     return actual;
   }
@@ -229,6 +196,7 @@ function prepareUpdate(input) {
     plannedValue: input.plannedValue,
     earnedValue: input.earnedValue,
     actualCost: input.actualCost,
+    currency: input.currency,
     start: input.start,
     due: input.due,
     labels: input.labels,
@@ -394,10 +362,31 @@ function openingSprints(project, seed) {
   return rows;
 }
 
+function untouchedCost(value) {
+  const cleaned = String(value || "").trim();
+  if (!cleaned) {
+    return true;
+  }
+  let body = cleaned;
+  const suffix = body.slice(-3);
+  if (/^[A-Za-z]{3}$/.test(suffix)) {
+    body = body.slice(0, -3).trim();
+  }
+  const symbols = ["R$", "Fr", "kr", "₩", "₹", "¥", "€", "£", "$", "R"];
+  for (const symbol of symbols) {
+    if (body.startsWith(symbol)) {
+      body = body.slice(symbol.length).trim();
+      break;
+    }
+  }
+  return body === "0" || body === "0.00";
+}
+
 module.exports = {
   inputWhen,
   prepareCreate,
   prepareUpdate,
+  untouchedCost,
   assignableSprints,
   createSeedForSprint,
   createOpening,

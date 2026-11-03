@@ -141,6 +141,7 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
         "sprint_cadence_days",
         "sprint_ahead",
         "auto_sprint_notice",
+        "currency",
     }
     assert series >= {
         "id",
