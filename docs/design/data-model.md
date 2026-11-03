@@ -153,6 +153,7 @@ Indexes and constraints:
 | `title` | TEXT | not null |
 | `description` | TEXT | not null, default `''` |
 | `definition_of_done` | TEXT | not null, default `''` |
+| `location` | TEXT | not null, default `''`, at most 300 characters |
 | `status` | TEXT | not null, default `'todo'`, `CHECK` in (`todo`, `in_progress`, `in_review`, `blocked`, `done`, `cancelled`) |
 | `priority` | TEXT | not null, default `'p4'`, `CHECK` in (`p1`, `p2`, `p3`, `p4`, `p5`) |
 | `parent_id` | INTEGER | nullable, references `issues(id)` `ON DELETE RESTRICT` |
@@ -266,7 +267,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `planned value`, `earned value`, `actual cost`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`, `planned value`, `earned value`, `actual cost`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -364,8 +365,9 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0027` | `issues.definition_of_done` and `definition of done` on `issue_history.field` |
 | `0028` | unique non-blank emails, and `password_reset_tokens` |
 | `0029` | `issues.client_key` |
-| `0030` | `issues.planned_value_cents`, `issues.earned_value_cents`, `issues.actual_cost_cents`, and those names on `issue_history.field` |
-| `0031` | `projects.currency` |
+| `0030` | `issues.location` and `location` on `issue_history.field` |
+| `0031` | `issues.planned_value_cents`, `issues.earned_value_cents`, `issues.actual_cost_cents`, and those names on `issue_history.field` |
+| `0032` | `projects.currency` |
 
 ## Related documents
 

@@ -1,7 +1,7 @@
 # Worktree-local development database
 
 * **Status:** Accepted
-* **Date:** 2026-11-01
+* **Date:** 2026-11-02
 
 ## Background
 
@@ -35,7 +35,7 @@ A migration applied in one worktree stamps the shared development database. Anot
 
 - The production database, and the main checkout’s database.
 - Teaching Alembic to store more than one head in one file.
-- A mock dataset. Later, when the shared database cannot be copied, that mock should look like a database someone has been using: several people (the `keel` / `keel` account still signs in and remains owner of everything), at least two projects, different access for each person, several sprints, issues that differ in title, description, definition of done, priority, assignee, creator, status, start, due, estimate, and remaining time, different repeating schedules, comments from different people, and revision history.
+- A mock dataset. Later, when the shared database cannot be copied, that mock should look like a database someone has been using: several people (the `keel` / `keel` account still signs in and remains owner of everything), at least two projects, different access for each person, several sprints, issues that differ in title, description, definition of done, location, priority, assignee, creator, status, start, due, estimate, and remaining time, different repeating schedules, comments from different people, and revision history.
 - Reusing a database after the worktree folder is deleted. Creating that branch’s worktree again starts the choice over.
 
 ### Deliverables

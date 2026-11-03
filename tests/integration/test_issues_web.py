@@ -65,6 +65,7 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert "Epic" in page.text
     assert 'name="description"' in page.text
     assert 'name="definition_of_done"' in page.text
+    assert 'name="location"' in page.text
     assert 'name="status"' in page.text
     assert ">Cancelled<" in page.text
     assert 'name="priority"' in page.text
@@ -181,6 +182,7 @@ def test_create_can_set_the_other_fields_at_birth(
             "title": "Full",
             "description": "Body text",
             "definition_of_done": "Reviewed and deployed",
+            "location": "The shed",
             "status": "in_progress",
             "priority": "p1",
             "parent_id": str(parent_id),
@@ -199,6 +201,7 @@ def test_create_can_set_the_other_fields_at_birth(
     assert "Full" in html
     assert "Body text" in html
     assert "Reviewed and deployed" in html
+    assert 'value="The shed"' in html
     assert "In Progress" in html
     assert "P1 — Blocker" in html
     assert 'value="2026-11-02T08:15"' in html
@@ -901,6 +904,34 @@ def test_definition_of_done_can_be_changed_from_the_issue_page(
     assert "<strong>passing</strong>" in page.text
     assert "Edit definition of done" in page.text
     assert ">Add a definition of done<" not in page.text
+
+
+def test_location_can_be_changed_from_the_issue_page(
+    client: TestClient,
+    project: Json,
+) -> None:
+    submit_issue(client, project, title="Ready")
+    issue_id = client.get(f"/api/v1/projects/{project['id']}/issues").json()[0]["id"]
+
+    page = client.get("/issues/KEEL-1")
+    assert ">Location<" in page.text
+    assert 'name="location"' in page.text
+    assert 'placeholder="Where will this happen?"' in page.text
+    dates_at = page.text.index(">Dates<")
+    location_at = page.text.index(">Location<")
+    estimate_at = page.text.index(">Estimate<")
+    assert dates_at < location_at < estimate_at
+
+    saved = client.post(
+        f"/web/issues/{issue_id}/location",
+        data={"location": "  Marina slip 2  "},
+        follow_redirects=False,
+    )
+    assert saved.headers["location"] == "/issues/KEEL-1"
+    stored = client.get(f"/api/v1/issues/{issue_id}").json()
+    assert stored["location"] == "Marina slip 2"
+    again = client.get("/issues/KEEL-1")
+    assert 'value="Marina slip 2"' in again.text
 
 
 def test_parent_can_be_changed_from_the_issue_page(

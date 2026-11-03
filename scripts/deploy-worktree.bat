@@ -215,6 +215,18 @@ if errorlevel 1 (
     exit /b 1
 )
 
+where npm >nul 2>&1
+if errorlevel 1 (
+    call :fail "npm is required to install the code scan tools"
+    exit /b 1
+)
+echo Installing code scan tools...
+call npm ci --prefix scan
+if errorlevel 1 (
+    call :fail "npm ci --prefix scan failed"
+    exit /b 1
+)
+
 if "%HAVE_AGENT%"=="1" (
     echo Activating virtual environment...
     if not exist "%WORKTREE_PATH%\.venv\Scripts\activate.bat" (

@@ -1491,6 +1491,10 @@ body {
   margin: 0.35rem 0.35rem 0.2rem;
 }
 
+.keel-fact--wide {
+  grid-column: 1 / -1;
+}
+
 .keel-facts dt {
   font-size: 0.8125rem;
   font-weight: 650;

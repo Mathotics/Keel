@@ -19,6 +19,7 @@ class IssueCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     description: str = ""
     definition_of_done: str = ""
+    location: str = Field(default="", max_length=300)
     status: IssueStatus = INITIAL_STATUS
     priority: IssuePriority = INITIAL_PRIORITY
     parent_id: int | None = None
@@ -47,6 +48,7 @@ class IssueUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=300)
     description: str | None = None
     definition_of_done: str | None = None
+    location: str | None = Field(default=None, max_length=300)
     status: IssueStatus | None = None
     priority: IssuePriority | None = None
     parent_id: int | None = None
@@ -105,6 +107,7 @@ class IssueRead(BaseModel):
     title: str
     description: str
     definition_of_done: str
+    location: str
     status: IssueStatus
     priority: IssuePriority
     parent_id: int | None
@@ -146,6 +149,7 @@ class IssueRead(BaseModel):
             title=issue.title,
             description=issue.description,
             definition_of_done=issue.definition_of_done,
+            location=issue.location,
             status=issue.status,
             priority=issue.priority,
             parent_id=issue.parent_id,

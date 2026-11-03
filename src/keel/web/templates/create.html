@@ -108,6 +108,10 @@
           <fieldset>
             <legend>Dates and effort</legend>
             <div class="keel-fields">
+              <p class="keel-fields__full">
+                <label for="issue-location">Location</label>
+                <input id="issue-location" name="location" type="text" maxlength="300" placeholder="Where will this happen?" value="{{ draft.location }}"/>
+              </p>
               <p>
                 <label for="issue-start">Start date</label>
                 <input id="issue-start" name="start_at" type="datetime-local" data-keel-range="start" value="{{ draft.start_at }}"/>

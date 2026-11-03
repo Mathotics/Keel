@@ -98,7 +98,11 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     assert "planned_value_cents" in columns
     assert "earned_value_cents" in columns
     assert "actual_cost_cents" in columns
+    assert "location" in columns
     assert any("planned value" in check["sqltext"] for check in history_checks), (
+        history_checks
+    )
+    assert any("'location'" in check["sqltext"] for check in history_checks), (
         history_checks
     )
     priority = next(column for column in issue_columns if column["name"] == "priority")

@@ -217,6 +217,27 @@ test("a definition of done rides along on create and edit", () => {
   assert.deepEqual(edited.changes, { definition_of_done: "Two even coats." });
 });
 
+test("a location rides along on create and edit", () => {
+  const prepared = prepareCreate({
+    title: "Paint",
+    projectId: 3,
+    location: "  Marina slip 2  ",
+  });
+  assert.equal(prepared.draft.location, "Marina slip 2");
+
+  const edited = prepareUpdate(updateInput({ location: "The shed" }));
+  assert.equal(edited.error, null);
+  assert.deepEqual(edited.changes, { location: "The shed" });
+
+  const cleared = prepareUpdate(
+    updateInput({
+      location: "   ",
+      issue: { ...savedIssue, location: "The shed" },
+    }),
+  );
+  assert.deepEqual(cleared.changes, { location: "" });
+});
+
 test("existing children block a type the server would refuse", () => {
   const prepared = prepareUpdate(updateInput({ type: "subtask", childTypes: ["story"] }));
   assert.match(prepared.error, /Existing story children/);

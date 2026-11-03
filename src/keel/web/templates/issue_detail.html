@@ -162,6 +162,16 @@
             </form>
           </dd>
         </div>
+        <div class="keel-fact keel-fact--wide">
+          <dt>Location</dt>
+          <dd>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/location" data-keel-autosubmit>
+              <label class="keel-visually-hidden" for="issue-location">Location</label>
+              <input id="issue-location" name="location" type="text" maxlength="300" value="{{ issue.location }}" placeholder="Where will this happen?"/>
+              <button class="keel-autosubmit__fallback" type="submit">Save</button>
+            </form>
+          </dd>
+        </div>
       </dl>
 
       <div class="keel-fact-group">

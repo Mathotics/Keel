@@ -221,6 +221,31 @@ def test_definition_of_done_is_blank_until_set_and_is_trimmed(
     assert updated.description == ""
 
 
+def test_location_is_blank_until_set_and_is_trimmed(
+    session: Session,
+    project: Project,
+) -> None:
+    fresh = issue_service.get_issue(session, make(session, project))
+    assert fresh.location == ""
+
+    seeded = issue_service.get_issue(
+        session,
+        make(session, project, title="Seeded", location="  Marina slip 2  "),
+    )
+    assert seeded.location == "Marina slip 2"
+
+    updated = issue_service.update_issue(
+        session,
+        fresh.id,
+        location="  The shed  ",
+    )
+    assert updated.location == "The shed"
+    same = issue_service.update_issue(session, fresh.id, location="The shed")
+    assert same.location == "The shed"
+    cleared = issue_service.update_issue(session, fresh.id, location="  ")
+    assert cleared.location == ""
+
+
 def test_priority_can_be_set_and_filtered(session: Session, project: Project) -> None:
     blocker = make(session, project, title="Blocker", priority=IssuePriority.P1)
     make(session, project, title="Ordinary")

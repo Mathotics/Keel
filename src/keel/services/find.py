@@ -221,6 +221,7 @@ def _issue_hits(
                 Issue.title.ilike(pattern, escape="\\"),
                 Issue.description.ilike(pattern, escape="\\"),
                 Issue.definition_of_done.ilike(pattern, escape="\\"),
+                Issue.location.ilike(pattern, escape="\\"),
                 _issue_key_expr().ilike(pattern, escape="\\"),
                 Issue.id.in_(comment_ids),
             ),
@@ -260,6 +261,9 @@ def _issue_snippet(
     if snippet is not None:
         return snippet
     snippet = _snippet(issue.definition_of_done, needle)
+    if snippet is not None:
+        return snippet
+    snippet = _snippet(issue.location, needle)
     if snippet is not None:
         return snippet
     comments = session.scalars(

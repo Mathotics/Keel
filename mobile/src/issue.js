@@ -408,6 +408,7 @@ function issuePage({
     formerSeries: issue.former_series_title || "",
     descriptionText: issue.description || "",
     definitionOfDoneText: issue.definition_of_done || "",
+    location: (issue.location || "").trim() || "None",
     type: issue.type,
     priority: issue.priority,
     parentId: issue.parent_id || null,

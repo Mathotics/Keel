@@ -1,9 +1,9 @@
 # Code security checks
 
 * **Status:** Accepted
-* **Date:** 2026-11-01
+* **Date:** 2026-11-02
 
-> **Amendment.** A commit runs each scan through pre-commit, and skips that scan when the commit includes no file that scan covers. `poe check` runs every hook on all files, so it runs all three. CI still has the three jobs.
+> **Amendment.** A commit runs each scan through pre-commit, and skips that scan when the commit includes no file that scan covers. `poe check` runs every hook on all files, so it runs all three. CI still has the three jobs. The browser and phone scans install their ESLint packages from `scan/package-lock.json` when `scan/node_modules` is missing, because that directory is not in git and a new worktree does not have it.
 
 ## Background
 

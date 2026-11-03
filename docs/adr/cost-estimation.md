@@ -39,7 +39,7 @@ There is nowhere to record what a piece of work was planned to cost, what was ea
 
 ### Deliverables
 
-* Columns, checks, and the history-field names in the schema and in migration `0030`.
+* Columns, checks, and the history-field names in the schema and in migration `0031`.
 * Rollup arithmetic in `keel.domain`.
 * Website and phone controls for the three amounts, and read-only display of the four calculated figures.
 
