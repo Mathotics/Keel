@@ -168,6 +168,10 @@ cd "${WORKTREE_PATH}"
 echo "Running onboard..."
 ./scripts/onboard.sh
 
+command -v npm >/dev/null 2>&1 || die "npm is required to install the code scan tools"
+echo "Installing code scan tools..."
+npm ci --prefix scan
+
 if [[ "${HAVE_AGENT}" -eq 1 ]]; then
   echo "Activating virtual environment..."
   if [[ -f .venv/bin/activate ]]; then
