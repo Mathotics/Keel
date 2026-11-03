@@ -3337,6 +3337,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [definitionOfDone, setDefinitionOfDone] = useState("");
+  const [location, setLocation] = useState("");
   const [status, setStatus] = useState("todo");
   const [priority, setPriority] = useState("p4");
   const [assigneeId, setAssigneeId] = useState("");
@@ -3466,6 +3467,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         type,
         description,
         definitionOfDone,
+        location,
         status,
         priority,
         assigneeId: assigneeId ? Number(assigneeId) : null,
@@ -3561,6 +3563,12 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
       <DateTimeField label="Start" value={start} onChange={setStart} />
       <DateTimeField label="Due" value={due} onChange={setDue} />
+      <Field
+        label="Location"
+        value={location}
+        onChange={setLocation}
+        placeholder="Where will this happen?"
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton label="Create issue" onPress={file} disabled={busy || submitting} />
     </ScrollView>
@@ -3572,6 +3580,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
   const [title, setTitle] = useState(issue.title || "");
   const [description, setDescription] = useState(issue.description || "");
   const [definitionOfDone, setDefinitionOfDone] = useState(issue.definition_of_done || "");
+  const [location, setLocation] = useState(issue.location || "");
   const [status, setStatus] = useState(issue.status || "todo");
   const [priority, setPriority] = useState(issue.priority || "p4");
   const [assigneeId, setAssigneeId] = useState(issue.assignee_id ? String(issue.assignee_id) : "");
@@ -3681,6 +3690,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       type,
       description,
       definitionOfDone,
+      location,
       status,
       priority,
       assigneeId: assigneeId ? Number(assigneeId) : null,
@@ -3779,6 +3789,12 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
       <DateTimeField label="Start" value={start} onChange={setStart} />
       <DateTimeField label="Due" value={due} onChange={setDue} />
+      <Field
+        label="Location"
+        value={location}
+        onChange={setLocation}
+        placeholder="Where will this happen?"
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <PrimaryButton label="Save" onPress={save} disabled={false} />
     </View>
@@ -5632,6 +5648,7 @@ function IssueDetail({
           <DetailLine label="Sprint" value={page.sprintName || "None"} />
           <DetailLine label="Start" value={page.start} />
           <DetailLine label="Due" value={page.due} />
+          <DetailLine label="Location" value={page.location} />
           <DetailLine label="Estimate" value={page.estimate} />
           <DetailLine label="Remaining" value={page.remaining} />
           {page.rollup ? (

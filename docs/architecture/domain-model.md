@@ -57,6 +57,7 @@ The single work entity. Its **type** distinguishes an Epic, a Story, or a Subtas
 * Number — a per-project sequence which, with the project's key, names the issue (see [ADR 012](../adr/issue-realization.md)).
 * Status — one of the shared workflow statuses (see Status).
 * Optional start date/time; optional due date/time — when both are set, start must not be after due (see [ADR 029](../adr/ADR-029.md)).
+* Optional location — where the work will happen, blank until set, at most 300 characters ([Issue location](../adr/issue-location.md)).
 * Estimated time; time remaining — time-based effort tracking for the issue.
 * Relationships: belongs to one project; optionally has one parent issue and many child issues; optionally scheduled in one sprint; optionally belongs to one repeating series as an occurrence; classified by one status; reported by one user; optionally assigned to one user; tagged by many labels; carries many comments; records many history lines; participates in many dependencies as source and as target.
 

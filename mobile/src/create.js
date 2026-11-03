@@ -134,6 +134,7 @@ function prepareCreate(input) {
     .split(",")
     .map((label) => label.trim())
     .filter(Boolean);
+  const location = String(input.location || "").trim().slice(0, 300);
   return {
     error: null,
     draft: {
@@ -142,6 +143,7 @@ function prepareCreate(input) {
       type,
       description: String(input.description || ""),
       definition_of_done: String(input.definitionOfDone || ""),
+      location,
       status: input.status || "todo",
       priority: input.priority || "p4",
       assignee_id: input.assigneeId || null,
@@ -164,6 +166,7 @@ function prepareUpdate(input) {
     type: input.type,
     description: input.description,
     definitionOfDone: input.definitionOfDone,
+    location: input.location,
     status: input.status,
     priority: input.priority,
     assigneeId: input.assigneeId,
@@ -204,6 +207,9 @@ function prepareUpdate(input) {
   }
   if ((draft.definition_of_done || "") !== (issue.definition_of_done || "")) {
     changes.definition_of_done = draft.definition_of_done;
+  }
+  if ((draft.location || "") !== (issue.location || "")) {
+    changes.location = draft.location;
   }
   if (draft.status !== issue.status) {
     changes.status = draft.status;

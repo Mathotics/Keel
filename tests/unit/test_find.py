@@ -114,6 +114,27 @@ def test_a_definition_of_done_match_opens_the_issue(session: Session) -> None:
     assert outcome.issues[0].snippet == "the widget spins"
 
 
+def test_a_location_match_opens_the_issue_and_yields_to_description(
+    session: Session,
+) -> None:
+    owner = project(session)
+    story(session, owner, title="Quiet", location="the widget shed")
+    both = story(
+        session,
+        owner,
+        title="Also quiet",
+        description="mentions a widget",
+        location="widget dock",
+    )
+    outcome = find_service.find(session, "widget")
+    assert isinstance(outcome, FindResults)
+    assert {hit.key for hit in outcome.issues} == {"KEEL-1", "KEEL-2"}
+    by_key = {hit.key: hit.snippet for hit in outcome.issues}
+    assert by_key["KEEL-1"] == "the widget shed"
+    described = issue_service.get_issue(session, both)
+    assert by_key[issue_service.issue_key(described, owner)] == "mentions a widget"
+
+
 def test_done_issues_and_completed_sprints_are_included(session: Session) -> None:
     owner = project(session)
     story(session, owner, title="Shipped widget", status=IssueStatus.DONE)

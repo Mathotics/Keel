@@ -1451,6 +1451,10 @@ body {
   background: var(--keel-sheet);
 }
 
+.keel-fact--wide {
+  grid-column: 1 / -1;
+}
+
 .keel-facts dt {
   font-size: 0.8125rem;
   font-weight: 650;
