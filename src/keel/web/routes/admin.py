@@ -7,12 +7,14 @@ from keel.domain.access import Permission
 from keel.services.request_log import (
     LOG_PATH,
     RequestLogQuery,
+    count_requests,
     list_requests,
     parse_query,
 )
 from keel.settings import KeelSettings
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.forbid import require_page
+from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager
 
 router = APIRouter()
 
@@ -29,7 +31,8 @@ def request_log_page(
     kind: str | None = None,
     result: str | None = None,
     path: str | None = None,
-    page: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     denied = require_page(request, chrome, Permission.VIEW_LOG_TRACKER.value)
     if denied is not None:
@@ -42,24 +45,32 @@ def request_log_page(
         kind=kind,
         result=result,
         path=path,
-        page=page,
     )
     settings = request.app.state.settings
     assert isinstance(settings, KeelSettings)
-    listed = list_requests(session, query, settings)
-    shown = RequestLogQuery(
-        user_id=query.user_id,
-        start=query.start,
-        end=query.end,
-        span=query.span,
-        changes_only=query.changes_only,
-        result=query.result,
-        path=query.path,
-        page=listed.page,
+    total = count_requests(session, query, settings)
+    pager = one_pager(
+        LOG_PATH,
+        PagerRequest(
+            label="Requests per page",
+            field_id="log-list-size",
+            aria_label="Request pages",
+            empty="0 requests",
+            total=total,
+            page=page,
+            size=size,
+            keep=_keep(query),
+        ),
+    )
+    rows = list_requests(
+        session,
+        query,
+        limit=pager.window.page_size,
+        offset=pager.window.offset,
     )
     empty = (
         "No requests yet."
-        if listed.total == 0 and not query.narrowed
+        if total == 0 and not query.narrowed
         else "No requests match."
     )
     return get_templates().TemplateResponse(
@@ -68,35 +79,48 @@ def request_log_page(
         page_context(
             request,
             chrome,
-            rows=listed.rows,
-            query=shown,
+            rows=rows,
+            query=query,
             empty_message=empty,
-            has_older=listed.has_older,
-            has_newer=listed.has_newer,
-            today_href=_href(shown, span="today", page=None),
-            week_href=_href(shown, span="7", page=None),
-            month_href=_href(shown, span="30", page=None),
-            older_href=_href(shown, page=shown.page + 1),
-            newer_href=_href(shown, page=shown.page - 1),
+            pager=pager,
+            today_href=_href(query, size=pager.window.page_size, span="today"),
+            week_href=_href(query, size=pager.window.page_size, span="7"),
+            month_href=_href(query, size=pager.window.page_size, span="30"),
         ),
     )
 
 
-def _href(query: RequestLogQuery, **overrides: object) -> str:
+def _keep(query: RequestLogQuery) -> tuple[tuple[str, str], ...]:
+    """Filter fields the pager must carry so turning a page keeps the search."""
+    pairs: list[tuple[str, str]] = []
+    if query.user_id is not None:
+        pairs.append(("person", str(query.user_id)))
+    if query.span:
+        pairs.append(("span", query.span))
+    else:
+        if query.start is not None:
+            pairs.append(("start", query.start.isoformat()))
+        if query.end is not None:
+            pairs.append(("end", query.end.isoformat()))
+    if query.changes_only:
+        pairs.append(("kind", "changes"))
+    if query.result != "all":
+        pairs.append(("result", query.result))
+    if query.path:
+        pairs.append(("path", query.path))
+    return tuple(pairs)
+
+
+def _href(query: RequestLogQuery, *, size: int, span: str) -> str:
+    """A date shortcut. It keeps the other filters and the page size."""
     values: dict[str, object] = {
         "person": query.user_id if query.user_id is not None else "",
-        "start": query.start.isoformat() if query.start else "",
-        "end": query.end.isoformat() if query.end else "",
-        "span": query.span,
-        "kind": "changes" if query.changes_only else "all",
-        "result": query.result,
+        "span": span,
+        "kind": "changes" if query.changes_only else "",
+        "result": "" if query.result == "all" else query.result,
         "path": query.path,
-        "page": query.page if query.page > 1 else "",
+        "size": size,
     }
-    values.update(overrides)
-    if overrides.get("span"):
-        values["start"] = ""
-        values["end"] = ""
     params = {
         key: str(value)
         for key, value in values.items()

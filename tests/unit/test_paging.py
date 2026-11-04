@@ -148,3 +148,22 @@ def test_turning_one_table_leaves_the_other_tables_alone() -> None:
     )
     assert active.window.total == 0
     assert active.empty == "0 sprints"
+
+
+def test_a_filtered_table_keeps_its_filters_on_every_link() -> None:
+    pager = one_pager(
+        "/admin/log",
+        PagerRequest(
+            label="Requests per page",
+            field_id="log-list-size",
+            aria_label="Request pages",
+            empty="0 requests",
+            total=3,
+            page=2,
+            size=1,
+            keep=(("kind", "changes"), ("path", "/api"), ("person", "")),
+        ),
+    )
+
+    assert pager.next_href == "/admin/log?page=3&size=1&kind=changes&path=%2Fapi"
+    assert pager.hidden == (("page", 1), ("kind", "changes"), ("path", "/api"))

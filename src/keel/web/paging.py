@@ -35,6 +35,8 @@ class PagerRequest:
 
     ``key`` prefixes the query (``planned`` becomes ``planned_page``). An
     empty key uses ``page`` and ``size``, for a page with a single table.
+    ``keep`` is extra query fields, such as filters, that stay on every
+    link and in the size form.
     """
 
     label: str
@@ -45,6 +47,7 @@ class PagerRequest:
     page: int
     size: int
     key: str = ""
+    keep: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -59,7 +62,7 @@ class TablePager:
     size_name: str
     window: PageWindow
     sizes: tuple[int, ...]
-    hidden: tuple[tuple[str, int], ...]
+    hidden: tuple[tuple[str, int | str], ...]
     first_href: str
     previous_href: str
     next_href: str
@@ -110,13 +113,14 @@ def table_pagers(path: str, requests: Sequence[PagerRequest]) -> list[TablePager
     for index, item in enumerate(requests):
         window = windows[index]
         page_name, size_name = _names(item.key)
-        hidden = [(page_name, 1)]
+        hidden: list[tuple[str, int | str]] = [(page_name, 1)]
         for other_index, other in enumerate(requests):
             if other_index == index:
                 continue
             other_page, other_size = _names(other.key)
             hidden.append((other_page, windows[other_index].page))
             hidden.append((other_size, windows[other_index].page_size))
+        hidden.extend(_kept(item.keep))
         pagers.append(
             TablePager(
                 label=item.label,
@@ -161,10 +165,15 @@ def _href(
     focus: int,
     page: int,
 ) -> str:
-    pairs: list[tuple[str, int]] = []
+    pairs: list[tuple[str, int | str]] = []
     for index, item in enumerate(requests):
         page_name, size_name = _names(item.key)
         shown = page if index == focus else windows[index].page
         pairs.append((page_name, shown))
         pairs.append((size_name, windows[index].page_size))
+    pairs.extend(_kept(requests[focus].keep))
     return f"{path}?{urlencode(pairs)}"
+
+
+def _kept(pairs: Sequence[tuple[str, str]]) -> tuple[tuple[str, str], ...]:
+    return tuple((name, value) for name, value in pairs if value != "")

@@ -37,7 +37,6 @@ from keel.domain.enums import label
 from keel.services import history as history_service
 from keel.settings import KeelSettings
 
-PAGE_SIZE = 50
 _NOTE_LIMIT = 2000
 _ROW_OVERHEAD = 32
 _SIZE_CHECK_SECONDS = 60.0
@@ -79,7 +78,6 @@ class RequestLogQuery:
     changes_only: bool
     result: str
     path: str
-    page: int
 
     @property
     def narrowed(self) -> bool:
@@ -91,15 +89,6 @@ class RequestLogQuery:
             or self.result != "all"
             or self.path
         )
-
-
-@dataclass(frozen=True)
-class RequestLogPage:
-    rows: Sequence[RequestLog]
-    page: int
-    total: int
-    has_older: bool
-    has_newer: bool
 
 
 def install_request_log_listener() -> None:
@@ -252,7 +241,6 @@ def parse_query(
     kind: str | None = None,
     result: str | None = None,
     path: str | None = None,
-    page: str | None = None,
     today: date | None = None,
 ) -> RequestLogQuery:
     current = today or datetime.now(UTC).date()
@@ -286,35 +274,36 @@ def parse_query(
         changes_only=(kind or "").strip() == "changes",
         result=outcome,
         path=(path or "").strip()[:200],
-        page=_parse_page(page),
+    )
+
+
+def count_requests(
+    session: Session,
+    query: RequestLogQuery,
+    settings: KeelSettings,
+) -> int:
+    """How many rows match, after old rows have been dropped."""
+    enforce_retention(session, settings)
+    filtered = _filtered(query)
+    return int(
+        session.scalar(select(func.count()).select_from(filtered.subquery())) or 0,
     )
 
 
 def list_requests(
     session: Session,
     query: RequestLogQuery,
-    settings: KeelSettings,
-) -> RequestLogPage:
-    enforce_retention(session, settings)
-    filtered = _filtered(query)
-    total = int(
-        session.scalar(select(func.count()).select_from(filtered.subquery())) or 0,
-    )
-    pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE) if total else 1
-    page = min(query.page, pages)
-    offset = (page - 1) * PAGE_SIZE
-    rows = session.scalars(
-        filtered.order_by(RequestLog.created_at.desc(), RequestLog.id.desc())
+    *,
+    limit: int,
+    offset: int,
+) -> Sequence[RequestLog]:
+    """One page of matching rows, newest first."""
+    return session.scalars(
+        _filtered(query)
+        .order_by(RequestLog.created_at.desc(), RequestLog.id.desc())
         .offset(offset)
-        .limit(PAGE_SIZE),
+        .limit(limit),
     ).all()
-    return RequestLogPage(
-        rows=rows,
-        page=page,
-        total=total,
-        has_older=offset + len(rows) < total,
-        has_newer=page > 1 and total > 0,
-    )
 
 
 def _filtered(query: RequestLogQuery) -> Select[tuple[RequestLog]]:
@@ -526,12 +515,6 @@ def _parse_person(value: str | None) -> int | None:
     if not value or not _PERSON_RE.fullmatch(value.strip()):
         return None
     return int(value.strip())
-
-
-def _parse_page(value: str | None) -> int:
-    if not value or not value.strip().isdigit():
-        return 1
-    return min(max(int(value.strip()), 1), 10_000)
 
 
 def _like(value: str) -> str:
