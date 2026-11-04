@@ -406,6 +406,72 @@ def _seed_assigned(client: TestClient) -> dict[str, Any]:
     return issue
 
 
+def test_each_home_table_turns_its_own_pages(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "KEEL", "name": "Keel"},
+    ).json()
+    tester = _tester(client)
+    created = []
+    for number in range(1, 8):
+        issue = client.post(
+            f"/api/v1/projects/{project['id']}/issues",
+            json={
+                "type": "story",
+                "title": f"Home {number}",
+                "assignee_id": tester["id"],
+            },
+        ).json()
+        created.append(issue)
+    for issue in created[:3]:
+        moved = client.patch(
+            f"/api/v1/issues/{issue['id']}",
+            json={"status": "in_progress"},
+        )
+        assert moved.status_code == 200
+
+    page = client.get("/?assigned_size=5&now_size=1")
+
+    assert page.status_code == 200
+    assigned = _section(page.text, "assigned")
+    now = _section(page.text, "now")
+    assert 'class="keel-inbox__count">7<' in assigned
+    assert "Home 1" in assigned
+    assert "Home 5" in assigned
+    assert "Home 6" not in assigned
+    assert assigned.count("<tr>") == 6
+    assert 'class="keel-inbox__count">3<' in now
+    assert now.count("<tr>") == 2
+    assert "Issues per page" in assigned
+    assert "Issues per page" in now
+    assert (
+        'href="/?now_page=1&amp;now_size=1&amp;assigned_page=2&amp;assigned_size=5"'
+        in assigned
+    )
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in assigned
+
+    later = client.get("/?assigned_size=5&assigned_page=2&now_size=1")
+    assigned_later = _section(later.text, "assigned")
+    now_later = _section(later.text, "now")
+    assert "6–7 of 7" in assigned_later
+    assert "Home 6" in assigned_later
+    assert "Home 7" in assigned_later
+    assert "Home 1" not in assigned_later
+    assert 'aria-disabled="true">Next' in assigned_later
+    assert now_later.count("<tr>") == 2
+    assert 'class="keel-inbox__count">3<' in now_later
+
+    refused = client.get("/?assigned_page=nope")
+    assert refused.status_code == 422
+
+
+def _section(html: str, key: str) -> str:
+    marker = f'data-keel-inbox-panel="{key}"'
+    start = html.index(marker)
+    return html[start : html.index("</details>", start)]
+
+
 def test_home_sections_are_open_disclosures_with_a_count(client: TestClient) -> None:
     _seed_assigned(client)
     page = client.get("/")
