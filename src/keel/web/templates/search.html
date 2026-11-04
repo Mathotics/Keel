@@ -32,9 +32,7 @@
         </tbody>
       </table>
       </div>
-      {% if results.issues_more %}
-      <p class="keel-lede">More issues match. Narrow the query.</p>
-      {% endif %}
+      {% with pager=issues_pager %}{% include "_pager.html" %}{% endwith %}
 
       <h2>Projects</h2>
       <div class="keel-table-scroll">
@@ -55,9 +53,7 @@
         </tbody>
       </table>
       </div>
-      {% if results.projects_more %}
-      <p class="keel-lede">More projects match. Narrow the query.</p>
-      {% endif %}
+      {% with pager=projects_pager %}{% include "_pager.html" %}{% endwith %}
 
       <h2>Sprints</h2>
       <div class="keel-table-scroll">
@@ -82,9 +78,7 @@
         </tbody>
       </table>
       </div>
-      {% if results.sprints_more %}
-      <p class="keel-lede">More sprints match. Narrow the query.</p>
-      {% endif %}
+      {% with pager=sprints_pager %}{% include "_pager.html" %}{% endwith %}
 
       <h2>Users</h2>
       <div class="keel-table-scroll">
@@ -103,7 +97,5 @@
         </tbody>
       </table>
       </div>
-      {% if results.users_more %}
-      <p class="keel-lede">More users match. Narrow the query.</p>
-      {% endif %}
+      {% with pager=users_pager %}{% include "_pager.html" %}{% endwith %}
 {% endblock %}

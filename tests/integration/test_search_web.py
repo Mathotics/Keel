@@ -123,6 +123,62 @@ def test_the_project_list_finds_globally(client: TestClient) -> None:
     assert 'name="project"' not in find
 
 
+def test_each_find_table_turns_its_own_pages(client: TestClient) -> None:
+    project = _project(client)
+    for number in range(1, 8):
+        _issue(client, project["id"], title=f"Needle {number}")
+    for letter, key in zip(
+        "ABCDEFG", ("NA", "NB", "NC", "ND", "NE", "NF", "NG"), strict=True
+    ):
+        created = client.post(
+            "/api/v1/projects",
+            json={"key": key, "name": f"Needle {letter}"},
+        )
+        assert created.status_code == 201
+
+    page = client.get(
+        "/search", params={"q": "Needle", "issues_size": 5, "projects_size": 1}
+    )
+
+    assert page.status_code == 200
+    issues = page.text.split("<h2>Issues</h2>", 1)[1].split("<h2>Projects</h2>", 1)[0]
+    projects = page.text.split("<h2>Projects</h2>", 1)[1].split("<h2>Sprints</h2>", 1)[
+        0
+    ]
+    assert "Needle 1" in issues
+    assert "Needle 5" in issues
+    assert "Needle 6" not in issues
+    assert "1–5 of 7" in issues
+    assert "Needle A" in projects
+    assert "Needle B" not in projects
+    assert "1–1 of 7" in projects
+    assert "q=Needle" in issues
+    assert "issues_page=2" in issues
+    assert "projects_size=1" in issues
+    assert "0 sprints" in page.text
+
+    later = client.get(
+        "/search",
+        params={
+            "q": "Needle",
+            "issues_size": 5,
+            "issues_page": 2,
+            "projects_size": 1,
+        },
+    )
+    issues_later = later.text.split("<h2>Issues</h2>", 1)[1].split(
+        "<h2>Projects</h2>", 1
+    )[0]
+    projects_later = later.text.split("<h2>Projects</h2>", 1)[1].split(
+        "<h2>Sprints</h2>", 1
+    )[0]
+    assert "Needle 6" in issues_later
+    assert "Needle 7" in issues_later
+    assert "Needle 1" not in issues_later
+    assert "Needle A" in projects_later
+    assert "Needle B" not in projects_later
+
+
 def test_an_unknown_project_scope_still_searches(client: TestClient) -> None:
     page = client.get("/search", params={"q": "xyzzy", "project": "NOPE"})
     assert page.status_code == 200

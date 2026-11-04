@@ -39,6 +39,45 @@ def test_an_end_before_the_start_returns_to_the_form_with_the_message(
     assert "cannot end before it starts" in client.get(location).text
 
 
+def test_the_sprint_issue_table_pages_in_number_order(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    for number in range(1, 8):
+        created = client.post(
+            f"/api/v1/projects/{project['id']}/issues",
+            json={
+                "type": "story",
+                "title": f"Sprint work {number}",
+                "sprint_id": sprint["id"],
+            },
+        )
+        assert created.status_code == 201
+
+    page = client.get(f"/projects/KEEL/sprints/{sprint['id']}?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Sprint work 1" in page.text
+    assert "Sprint work 5" in page.text
+    assert "Sprint work 6" not in page.text
+    assert (
+        f'href="/projects/KEEL/sprints/{sprint["id"]}?page=2&amp;size=5"' in page.text
+    )
+    assert "Issues per page" in page.text
+
+    later = client.get(f"/projects/KEEL/sprints/{sprint['id']}?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Sprint work 6" in later.text
+    assert "Sprint work 7" in later.text
+    assert "Sprint work 1" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
+
+
 def test_saving_an_end_before_the_start_returns_to_the_sprint(
     client: TestClient,
     project: Json,

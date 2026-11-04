@@ -21,6 +21,7 @@ from keel.web.paging import (
     DEFAULT_PAGE_SIZE,
     PagerRequest,
     TablePager,
+    one_pager,
     page_rows,
     table_pagers,
 )
@@ -116,11 +117,26 @@ def sprint_detail_page(
     session: SessionDep,
     error: str | None = None,
     notice: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
     sprint = sprint_service.get_sprint(session, sprint_id)
     if sprint.project_id != project.id:
         raise NotFoundError(f"No sprint {sprint_id} in {project.key}.")
+    found = sprint_service.list_sprint_issues(session, sprint.id)
+    pager = one_pager(
+        f"/projects/{project.key}/sprints/{sprint.id}",
+        PagerRequest(
+            label="Issues per page",
+            field_id="sprint-issue-size",
+            aria_label="Sprint issue pages",
+            empty="0 issues",
+            total=len(found),
+            page=page,
+            size=size,
+        ),
+    )
     names = {user.id: user.display_name for user in user_service.list_users(session)}
     return get_templates().TemplateResponse(
         request,
@@ -130,8 +146,9 @@ def sprint_detail_page(
             chrome,
             project=project,
             sprint=sprint,
-            issues=sprint_service.list_sprint_issues(session, sprint.id),
+            issues=page_rows(found, pager.window),
             names=names,
+            pager=pager,
             error=error,
             notice=notice,
         ),
