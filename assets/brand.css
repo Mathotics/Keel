@@ -1382,6 +1382,47 @@ body {
   margin: 0 0 1.15rem;
 }
 
+.keel-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem 1.25rem;
+  margin: 0.85rem 0 1.15rem;
+}
+
+.keel-pager__size {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.keel-pager__size select {
+  height: var(--keel-control-height);
+  font: inherit;
+  font-size: var(--keel-control-font-size);
+  color: var(--keel-blue-deep);
+}
+
+.keel-pager__status {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.keel-pager__moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.keel-action[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .keel-tabs {
   display: flex;
   flex-wrap: wrap;

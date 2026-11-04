@@ -13,6 +13,11 @@ from keel.services import projects as project_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.filters import FilterRequest, filter_request
+from keel.web.paging import (
+    DEFAULT_ISSUE_PAGE_SIZE,
+    ISSUE_PAGE_SIZES,
+    issue_page,
+)
 from keel.web.routes.pages import _calendar_page, _gantt_page
 
 router = APIRouter(prefix="/projects")
@@ -49,9 +54,18 @@ def project_page(
     session: SessionDep,
     error: str | None = None,
     notice: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_ISSUE_PAGE_SIZE,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
-    issues = issue_service.list_issues(session, project.id)
+    counts = issue_service.count_by_status(session, project.id)
+    pager = issue_page(sum(counts.values()), page, size)
+    issues = issue_service.list_issues(
+        session,
+        project.id,
+        limit=pager.page_size,
+        offset=pager.offset,
+    )
     names = {user.id: user.display_name for user in user_service.list_users(session)}
     return get_templates().TemplateResponse(
         request,
@@ -62,10 +76,12 @@ def project_page(
             project=project,
             issues=issues,
             names=names,
-            counts=issue_service.count_by_status(session, project.id),
+            counts=counts,
             statuses=statuses_in_workflow_order(),
             cadences=sprint_cadences_in_menu_order(),
             max_sprint_ahead=MAX_SPRINT_AHEAD,
+            pager=pager,
+            page_sizes=ISSUE_PAGE_SIZES,
             error=error,
             notice=notice,
             can_view_project_access=access_service.holds_project(
