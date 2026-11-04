@@ -49,13 +49,8 @@ def test_the_issue_page_lists_grouped_dependencies(
     assert "Foreign" in page.text
     assert ">Add<" in page.text
     assert 'name="relation"' in page.text
-    assert (
-        "data-keel-autosubmit"
-        not in page.text.split("Dependencies", 1)[1].split(
-            "Delete issue",
-            1,
-        )[0]
-    )
+    dependencies = page.text.split("Dependencies", 1)[1].split("History", 1)[0]
+    assert "data-keel-autosubmit" not in dependencies
 
 
 def test_a_blocks_link_can_be_added_from_the_issue_page(

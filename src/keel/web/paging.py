@@ -1,4 +1,4 @@
-"""One page control for every table that should not render every row."""
+"""One page control for every long list that should not render every row."""
 
 from collections.abc import Sequence
 from dataclasses import dataclass
