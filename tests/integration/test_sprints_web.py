@@ -140,6 +140,38 @@ def test_the_sprints_page_creates_and_lists_a_sprint(
     assert "Plan a sprint" in listing.text
 
 
+def test_the_backlog_pages_oldest_first(
+    client: TestClient,
+    project: Json,
+) -> None:
+    for number in range(1, 8):
+        created = client.post(
+            f"/api/v1/projects/{project['id']}/issues",
+            json={"type": "story", "title": f"Backlog {number}"},
+        )
+        assert created.status_code == 201
+
+    page = client.get("/projects/KEEL/backlog?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Backlog 1" in page.text
+    assert "Backlog 5" in page.text
+    assert "Backlog 6" not in page.text
+    assert 'href="/projects/KEEL/backlog?page=2&amp;size=5"' in page.text
+    assert 'value="5" selected' in page.text
+    assert "Issues per page" in page.text
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in page.text
+
+    later = client.get("/projects/KEEL/backlog?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Backlog 6" in later.text
+    assert "Backlog 7" in later.text
+    assert "Backlog 1" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
+
+
 def test_the_backlog_offers_the_active_sprint_and_not_a_completed_one(
     client: TestClient,
     project: Json,
