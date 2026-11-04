@@ -22,8 +22,8 @@
       </p>
       {% endif %}
 
-      {% for state in states %}
-      <h2>{{ state | label }}</h2>
+      {% for table in tables %}
+      <h2>{{ table.state | label }}</h2>
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
@@ -35,7 +35,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for sprint in grouped[state.value] %}
+          {% for sprint in table.sprints %}
           <tr>
             <td><a href="/projects/{{ project.key }}/sprints/{{ sprint.id }}">{{ sprint.name }}</a></td>
             <td>{{ sprint.goal }}</td>
@@ -48,6 +48,41 @@
         </tbody>
       </table>
       </div>
+      <nav class="keel-pager" aria-label="{{ table.state | label }} pages">
+        <form class="keel-pager__size" method="get" action="/projects/{{ project.key }}/sprints" data-keel-autosubmit>
+          <label for="sprint-size-{{ table.key }}">Sprints per page</label>
+          <select id="sprint-size-{{ table.key }}" name="{{ table.key }}_size">
+            {% for count in page_sizes %}
+            <option value="{{ count }}"{% if count == table.pager.page_size %} selected{% endif %}>{{ count }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" name="{{ table.key }}_page" value="1"/>
+          {% for other in tables if other.key != table.key %}
+          <input type="hidden" name="{{ other.key }}_page" value="{{ other.pager.page }}"/>
+          <input type="hidden" name="{{ other.key }}_size" value="{{ other.pager.page_size }}"/>
+          {% endfor %}
+          <button class="keel-autosubmit__fallback" type="submit">Show</button>
+        </form>
+        <p class="keel-pager__status">
+          {% if table.pager.total %}{{ table.pager.start }}–{{ table.pager.end }} of {{ table.pager.total }}{% else %}0 sprints{% endif %}
+        </p>
+        <p class="keel-pager__moves">
+          {% if table.pager.has_previous %}
+          <a class="keel-action" href="{{ table.first_href }}">First</a>
+          <a class="keel-action" href="{{ table.previous_href }}">Previous</a>
+          {% else %}
+          <span class="keel-action" aria-disabled="true">First</span>
+          <span class="keel-action" aria-disabled="true">Previous</span>
+          {% endif %}
+          {% if table.pager.has_next %}
+          <a class="keel-action" href="{{ table.next_href }}">Next</a>
+          <a class="keel-action" href="{{ table.last_href }}">Last</a>
+          {% else %}
+          <span class="keel-action" aria-disabled="true">Next</span>
+          <span class="keel-action" aria-disabled="true">Last</span>
+          {% endif %}
+        </p>
+      </nav>
       {% endfor %}
 
       <div class="keel-panel">
