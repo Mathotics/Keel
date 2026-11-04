@@ -24,6 +24,42 @@ def test_the_project_list_page_lists_projects(
     assert page.status_code == 200
     assert "KEEL" in page.text
     assert "/projects/KEEL" in page.text
+    assert "Projects per page" in page.text
+    assert "1–1 of 1" in page.text
+
+
+def test_the_project_list_pages_in_key_order(client: TestClient) -> None:
+    for key in ("AA", "AB", "AC", "AD", "AE", "AF", "AG"):
+        created = client.post(
+            "/api/v1/projects",
+            json={"key": key, "name": f"Project {key}"},
+        )
+        assert created.status_code == 201
+
+    page = client.get("/projects?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Project AA" in page.text
+    assert "Project AE" in page.text
+    assert "Project AF" not in page.text
+    assert "Project AG" not in page.text
+    assert 'href="/projects?page=2&amp;size=5"' in page.text
+    assert 'aria-disabled="true">First' in page.text
+    assert 'value="5" selected' in page.text
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in page.text
+
+    later = client.get("/projects?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Project AF" in later.text
+    assert "Project AG" in later.text
+    assert "Project AE" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
+
+    clamped = client.get("/projects?size=5&page=9")
+    assert "Project AG" in clamped.text
+    assert "6–7 of 7" in clamped.text
 
 
 def test_a_project_is_created_from_the_form(client: TestClient) -> None:

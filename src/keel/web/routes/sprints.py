@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
@@ -9,6 +8,7 @@ from keel.db.models import Sprint
 from keel.domain.enums import (
     SprintCadence,
     SprintState,
+    label,
     sprint_states_in_lifecycle_order,
 )
 from keel.domain.errors import NotFoundError
@@ -18,10 +18,11 @@ from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.paging import (
-    DEFAULT_ISSUE_PAGE_SIZE,
-    ISSUE_PAGE_SIZES,
-    PageWindow,
-    issue_page,
+    DEFAULT_PAGE_SIZE,
+    PagerRequest,
+    TablePager,
+    page_rows,
+    table_pagers,
 )
 
 router = APIRouter(prefix="/projects")
@@ -29,28 +30,9 @@ router = APIRouter(prefix="/projects")
 
 @dataclass(frozen=True)
 class _SprintTable:
-    key: str
     state: SprintState
     sprints: Sequence[Sprint]
-    pager: PageWindow
-    first_href: str
-    previous_href: str
-    next_href: str
-    last_href: str
-
-
-def _sprint_href(
-    project_key: str,
-    pagers: dict[str, PageWindow],
-    focus: str,
-    page: int,
-) -> str:
-    """One table moves. The other tables keep the page they are already on."""
-    pairs: list[tuple[str, int]] = []
-    for name, window in pagers.items():
-        pairs.append((f"{name}_page", page if name == focus else window.page))
-        pairs.append((f"{name}_size", window.page_size))
-    return f"/projects/{project_key}/sprints?{urlencode(pairs)}"
+    pager: TablePager
 
 
 @router.get("/{key}/sprints", response_class=HTMLResponse)
@@ -62,11 +44,11 @@ def sprints_page(
     error: str | None = None,
     notice: str | None = None,
     planned_page: int = 1,
-    planned_size: int = DEFAULT_ISSUE_PAGE_SIZE,
+    planned_size: int = DEFAULT_PAGE_SIZE,
     active_page: int = 1,
-    active_size: int = DEFAULT_ISSUE_PAGE_SIZE,
+    active_size: int = DEFAULT_PAGE_SIZE,
     completed_page: int = 1,
-    completed_size: int = DEFAULT_ISSUE_PAGE_SIZE,
+    completed_size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
     found = sprint_service.list_sprints(session, project.id)
@@ -80,13 +62,29 @@ def sprints_page(
         SprintState.ACTIVE.value: (active_page, active_size),
         SprintState.COMPLETED.value: (completed_page, completed_size),
     }
-    pagers = {
-        state.value: issue_page(len(grouped[state.value]), *requested[state.value])
-        for state in states
-    }
+    pagers = table_pagers(
+        f"/projects/{project.key}/sprints",
+        [
+            PagerRequest(
+                label="Sprints per page",
+                field_id=f"sprint-size-{state.value}",
+                aria_label=f"{label(state)} pages",
+                empty="0 sprints",
+                total=len(grouped[state.value]),
+                page=requested[state.value][0],
+                size=requested[state.value][1],
+                key=state.value,
+            )
+            for state in states
+        ],
+    )
     tables = [
-        _sprint_table(project.key, state, grouped[state.value], pagers)
-        for state in states
+        _SprintTable(
+            state=state,
+            sprints=page_rows(grouped[state.value], pager.window),
+            pager=pager,
+        )
+        for state, pager in zip(states, pagers, strict=True)
     ]
     auto_on = project.sprint_cadence is not SprintCadence.OFF
     active = sprint_service.active_sprint(session, project.id) if auto_on else None
@@ -99,7 +97,6 @@ def sprints_page(
             chrome,
             project=project,
             tables=tables,
-            page_sizes=ISSUE_PAGE_SIZES,
             auto_sprint_on=auto_on,
             cadence_label=auto_sprint.cadence_label(project) if auto_on else None,
             sprint_ahead=project.sprint_ahead if auto_on else 0,
@@ -107,27 +104,6 @@ def sprints_page(
             error=error,
             notice=shown_notice,
         ),
-    )
-
-
-def _sprint_table(
-    project_key: str,
-    state: SprintState,
-    rows: Sequence[Sprint],
-    pagers: dict[str, PageWindow],
-) -> _SprintTable:
-    pager = pagers[state.value]
-    return _SprintTable(
-        key=state.value,
-        state=state,
-        sprints=rows[pager.offset : pager.offset + pager.page_size],
-        pager=pager,
-        first_href=_sprint_href(project_key, pagers, state.value, 1),
-        previous_href=_sprint_href(
-            project_key, pagers, state.value, max(pager.page - 1, 1)
-        ),
-        next_href=_sprint_href(project_key, pagers, state.value, pager.page + 1),
-        last_href=_sprint_href(project_key, pagers, state.value, pager.pages),
     )
 
 

@@ -62,37 +62,7 @@
       </table>
       </div>
 
-      <nav class="keel-pager" aria-label="Issue pages">
-        <form class="keel-pager__size" method="get" action="/projects/{{ project.key }}" data-keel-autosubmit>
-          <label for="project-issue-size">Issues per page</label>
-          <select id="project-issue-size" name="size">
-            {% for count in page_sizes %}
-            <option value="{{ count }}"{% if count == pager.page_size %} selected{% endif %}>{{ count }}</option>
-            {% endfor %}
-          </select>
-          <input type="hidden" name="page" value="1"/>
-          <button class="keel-autosubmit__fallback" type="submit">Show</button>
-        </form>
-        <p class="keel-pager__status">
-          {% if pager.total %}{{ pager.start }}–{{ pager.end }} of {{ pager.total }}{% else %}0 issues{% endif %}
-        </p>
-        <p class="keel-pager__moves">
-          {% if pager.has_previous %}
-          <a class="keel-action" href="{{ '/projects/' ~ project.key ~ '?page=1&size=' ~ pager.page_size }}">First</a>
-          <a class="keel-action" href="{{ '/projects/' ~ project.key ~ '?page=' ~ (pager.page - 1) ~ '&size=' ~ pager.page_size }}">Previous</a>
-          {% else %}
-          <span class="keel-action" aria-disabled="true">First</span>
-          <span class="keel-action" aria-disabled="true">Previous</span>
-          {% endif %}
-          {% if pager.has_next %}
-          <a class="keel-action" href="{{ '/projects/' ~ project.key ~ '?page=' ~ (pager.page + 1) ~ '&size=' ~ pager.page_size }}">Next</a>
-          <a class="keel-action" href="{{ '/projects/' ~ project.key ~ '?page=' ~ pager.pages ~ '&size=' ~ pager.page_size }}">Last</a>
-          {% else %}
-          <span class="keel-action" aria-disabled="true">Next</span>
-          <span class="keel-action" aria-disabled="true">Last</span>
-          {% endif %}
-        </p>
-      </nav>
+      {% include "_pager.html" %}
 
       <div class="keel-panel">
         <h2>Project settings</h2>
