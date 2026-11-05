@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from tests.integration.conftest import TEST_PASSWORD
@@ -15,6 +14,8 @@ def test_empty_log_and_admin_menu(client: TestClient) -> None:
     response = client.get("/admin/log")
     assert response.status_code == 200
     assert "No requests yet." in response.text
+    assert "Requests per page" in response.text
+    assert "0 requests" in response.text
     assert ">Log tracker<" in response.text
     header = response.text.split("<header", 1)[1].split("</header>", 1)[0]
     assert header.index("keel-admin") < header.index("keel-help")
@@ -106,19 +107,34 @@ def test_filters_combine(client: TestClient) -> None:
     assert "project KEEL created" not in ada_only
 
 
-def test_pages_move_through_older_rows(
-    client: TestClient,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr("keel.services.request_log.PAGE_SIZE", 1)
+def test_the_log_pages_newest_first_and_keeps_filters(client: TestClient) -> None:
     assert client.get("/projects").status_code == 200
     assert client.get("/users").status_code == 200
-    first = client.get("/admin/log")
-    assert "Older" in first.text
+    first = client.get("/admin/log?size=1")
+    assert "1–1 of 2" in first.text
     assert "/users" in _tbody(first.text)
-    second = client.get("/admin/log?page=2")
-    assert "Newer" in second.text
+    assert "/projects" not in _tbody(first.text)
+    assert 'href="/admin/log?page=2&amp;size=1"' in first.text
+    assert 'aria-disabled="true">First' in first.text
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in first.text
+
+    second = client.get("/admin/log?page=2&size=1")
+    assert "2–2 of 2" in second.text
     assert "/projects" in _tbody(second.text)
+    assert "/users" not in _tbody(second.text)
+    assert 'aria-disabled="true">Next' in second.text
+
+    project = client.post("/api/v1/projects", json={"key": "KEEL", "name": "Keel"})
+    assert project.status_code == 201
+    create_issue(client, project.json()["id"])
+    narrowed = client.get("/admin/log?kind=changes&size=1")
+    assert "KEEL-1 created" in _tbody(narrowed.text)
+    assert "/users" not in _tbody(narrowed.text)
+    assert 'href="/admin/log?page=2&amp;size=1&amp;kind=changes"' in narrowed.text
+    older = client.get("/admin/log?kind=changes&size=1&page=2")
+    assert "project KEEL created" in _tbody(older.text)
+    assert "KEEL-1 created" not in _tbody(older.text)
 
 
 def test_password_change_does_not_store_the_secret(client: TestClient) -> None:

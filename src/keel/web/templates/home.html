@@ -72,12 +72,12 @@
       </div>
       {% endmacro %}
 
-      {% macro inbox_section(key, title, rows, extra) %}
+      {% macro inbox_section(key, title, rows, extra, section_pager) %}
       <div class="keel-home-item" data-keel-home-item="{{ key }}">
       <details class="keel-inbox"{% if key not in collapsed_inbox %} open{% endif %} data-keel-inbox-panel="{{ key }}">
         <summary>
           <h2>{{ title }}</h2>
-          <span class="keel-inbox__count">{{ rows|length }}</span>
+          <span class="keel-inbox__count">{{ section_pager.window.total }}</span>
           <span class="keel-inbox__tools">
             <form class="keel-inbox__move" method="post" action="/web/home/move">
               <input type="hidden" name="item" value="{{ key }}"/>
@@ -99,13 +99,14 @@
           </span>
         </summary>
         {{ inbox_rows(key, rows, extra) }}
+        {% with pager=section_pager %}{% include "_pager.html" %}{% endwith %}
       </details>
       </div>
       {% endmacro %}
 
       <div data-keel-home-root>
-      {% for key, title, rows, extra in home_panels %}
-      {{ inbox_section(key, title, rows, extra) }}
+      {% for key, title, rows, extra, section_pager in home_panels %}
+      {{ inbox_section(key, title, rows, extra, section_pager) }}
       {% endfor %}
       </div>
 

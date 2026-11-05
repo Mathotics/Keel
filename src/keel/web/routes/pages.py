@@ -3,6 +3,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse
 
 from keel.db.models import Project
@@ -40,6 +41,12 @@ from keel.web.home_layout import (
     section_rows,
 )
 from keel.web.inbox import INBOX_COOKIE, SECTIONS, encode_toggle, parse_collapsed
+from keel.web.paging import (
+    DEFAULT_PAGE_SIZE,
+    PagerRequest,
+    page_rows,
+    table_pagers,
+)
 
 router = APIRouter()
 
@@ -81,13 +88,33 @@ def home(
         inbox = home_service.personal_inbox(session, chrome.current_user.id)
     collapsed = parse_collapsed(request.cookies.get(INBOX_COOKIE))
     layout = parse_layout(request.cookies.get(HOME_COOKIE))
-    panels = []
+    visible = []
     for key in layout.order:
         if key in layout.hidden:
             continue
         rows = section_rows(inbox, key)
         if rows:
-            panels.append((key, TITLES[key], rows, EXTRAS[key]))
+            visible.append((key, TITLES[key], rows, EXTRAS[key]))
+    pagers = table_pagers(
+        "/",
+        [
+            PagerRequest(
+                label="Issues per page",
+                field_id=f"home-{key}-size",
+                aria_label=f"{title} pages",
+                empty="0 issues",
+                total=len(rows),
+                page=_query_int(request, f"{key}_page", 1),
+                size=_query_int(request, f"{key}_size", DEFAULT_PAGE_SIZE),
+                key=key,
+            )
+            for key, title, rows, _extra in visible
+        ],
+    )
+    panels = [
+        (key, title, page_rows(rows, pager.window), extra, pager)
+        for (key, title, rows, extra), pager in zip(visible, pagers, strict=True)
+    ]
 
     def inbox_toggle(key: str) -> str:
         return encode_toggle(collapsed, key)
@@ -107,10 +134,30 @@ def home(
             home_hidden=[
                 (key, TITLES[key]) for key in SECTIONS if key in layout.hidden
             ],
-            home_visible=",".join(key for key, _title, _rows, _extra in panels),
+            home_visible=",".join(key for key, _title, _rows, _extra, _pager in panels),
             error=error,
         ),
     )
+
+
+def _query_int(request: Request, name: str, default: int) -> int:
+    """A query integer, or the default when the name is absent."""
+    raw = request.query_params.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise RequestValidationError(
+            [
+                {
+                    "type": "int_parsing",
+                    "loc": ("query", name),
+                    "msg": "Input should be a valid integer",
+                    "input": raw,
+                }
+            ]
+        ) from exc
 
 
 @router.get("/calendar", response_class=HTMLResponse)

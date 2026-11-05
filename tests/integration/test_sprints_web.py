@@ -39,6 +39,45 @@ def test_an_end_before_the_start_returns_to_the_form_with_the_message(
     assert "cannot end before it starts" in client.get(location).text
 
 
+def test_the_sprint_issue_table_pages_in_number_order(
+    client: TestClient,
+    project: Json,
+) -> None:
+    sprint = client.post(
+        f"/api/v1/projects/{project['id']}/sprints",
+        json={"name": "Sprint 1"},
+    ).json()
+    for number in range(1, 8):
+        created = client.post(
+            f"/api/v1/projects/{project['id']}/issues",
+            json={
+                "type": "story",
+                "title": f"Sprint work {number}",
+                "sprint_id": sprint["id"],
+            },
+        )
+        assert created.status_code == 201
+
+    page = client.get(f"/projects/KEEL/sprints/{sprint['id']}?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Sprint work 1" in page.text
+    assert "Sprint work 5" in page.text
+    assert "Sprint work 6" not in page.text
+    assert (
+        f'href="/projects/KEEL/sprints/{sprint["id"]}?page=2&amp;size=5"' in page.text
+    )
+    assert "Issues per page" in page.text
+
+    later = client.get(f"/projects/KEEL/sprints/{sprint['id']}?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Sprint work 6" in later.text
+    assert "Sprint work 7" in later.text
+    assert "Sprint work 1" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
+
+
 def test_saving_an_end_before_the_start_returns_to_the_sprint(
     client: TestClient,
     project: Json,
@@ -67,6 +106,59 @@ def test_saving_an_end_before_the_start_returns_to_the_sprint(
     assert client.get(f"/api/v1/sprints/{sprint['id']}").json()["ends_on"] is None
 
 
+def test_each_sprint_table_turns_its_own_pages(
+    client: TestClient,
+    project: Json,
+) -> None:
+    for day in range(1, 8):
+        created = client.post(
+            f"/api/v1/projects/{project['id']}/sprints",
+            json={"name": f"Plan {day}", "starts_on": f"2026-09-{day:02d}"},
+        )
+        assert created.status_code == 201
+    for day in range(1, 4):
+        done = client.post(
+            f"/api/v1/projects/{project['id']}/sprints",
+            json={"name": f"Done {day}", "starts_on": f"2026-10-{day:02d}"},
+        ).json()
+        assert client.post(f"/api/v1/sprints/{done['id']}/start").status_code == 200
+        assert client.post(f"/api/v1/sprints/{done['id']}/complete").status_code == 200
+
+    page = client.get("/projects/KEEL/sprints?planned_size=5&completed_size=1")
+
+    assert page.status_code == 200
+    assert page.text.count("Sprints per page") == 3
+    assert "Plan 1" in page.text
+    assert "Plan 5" in page.text
+    assert "Plan 6" not in page.text
+    assert "Done 1" in page.text
+    assert "Done 2" not in page.text
+    assert "1–5 of 7" in page.text
+    assert "1–1 of 3" in page.text
+    assert "0 sprints" in page.text
+    assert "planned_page=2" in page.text
+    assert "planned_size=5" in page.text
+    assert "completed_size=1" in page.text
+    assert "active_size=20" in page.text
+    assert 'id="sprint-size-planned"' in page.text
+    assert 'id="sprint-size-active"' in page.text
+    assert 'id="sprint-size-completed"' in page.text
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in page.text
+
+    later = client.get(
+        "/projects/KEEL/sprints"
+        "?planned_size=5&planned_page=2&completed_size=1&completed_page=3"
+    )
+    assert "Plan 6" in later.text
+    assert "Plan 7" in later.text
+    assert "Plan 5" not in later.text
+    assert "Done 3" in later.text
+    assert "Done 1" not in later.text
+    assert "6–7 of 7" in later.text
+    assert "3–3 of 3" in later.text
+
+
 def test_the_sprints_page_creates_and_lists_a_sprint(
     client: TestClient,
     project: Json,
@@ -85,6 +177,38 @@ def test_the_sprints_page_creates_and_lists_a_sprint(
     assert "Sprint 1" in listing.text
     assert "Ship it" in listing.text
     assert "Plan a sprint" in listing.text
+
+
+def test_the_backlog_pages_oldest_first(
+    client: TestClient,
+    project: Json,
+) -> None:
+    for number in range(1, 8):
+        created = client.post(
+            f"/api/v1/projects/{project['id']}/issues",
+            json={"type": "story", "title": f"Backlog {number}"},
+        )
+        assert created.status_code == 201
+
+    page = client.get("/projects/KEEL/backlog?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Backlog 1" in page.text
+    assert "Backlog 5" in page.text
+    assert "Backlog 6" not in page.text
+    assert 'href="/projects/KEEL/backlog?page=2&amp;size=5"' in page.text
+    assert 'value="5" selected' in page.text
+    assert "Issues per page" in page.text
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in page.text
+
+    later = client.get("/projects/KEEL/backlog?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Backlog 6" in later.text
+    assert "Backlog 7" in later.text
+    assert "Backlog 1" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
 
 
 def test_the_backlog_offers_the_active_sprint_and_not_a_completed_one(

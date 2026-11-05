@@ -17,6 +17,7 @@ from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 
 router = APIRouter(prefix="/projects")
 
@@ -30,9 +31,24 @@ def schedules_page(
     tab: str | None = None,
     error: str | None = None,
     notice: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
     found = series_service.list_series(session, project.id)
+    pager = one_pager(
+        f"/projects/{project.key}/schedules",
+        PagerRequest(
+            label="Schedules per page",
+            field_id="schedule-list-size",
+            aria_label="Schedule pages",
+            empty="0 schedules",
+            total=len(found),
+            page=page,
+            size=size,
+        ),
+    )
+    visible = page_rows(found, pager.window)
     return get_templates().TemplateResponse(
         request,
         "schedules.html",
@@ -41,12 +57,15 @@ def schedules_page(
             chrome,
             project=project,
             new_series=tab == "new",
-            series_list=found,
-            summaries={item.id: series_service.cadence_summary(item) for item in found},
+            series_list=visible,
+            summaries={
+                item.id: series_service.cadence_summary(item) for item in visible
+            },
             series_labels={
                 item.id: ", ".join(label_service.names_for_series(session, item.id))
-                for item in found
+                for item in visible
             },
+            pager=pager,
             issue_types=types_in_hierarchy_order(),
             priorities=priorities_in_rank_order(),
             spawn_modes=tuple(SeriesSpawnMode),

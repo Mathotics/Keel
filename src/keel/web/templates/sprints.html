@@ -22,8 +22,8 @@
       </p>
       {% endif %}
 
-      {% for state in states %}
-      <h2>{{ state | label }}</h2>
+      {% for table in tables %}
+      <h2>{{ table.state | label }}</h2>
       <div class="keel-table-scroll">
       <table class="keel-table">
         <thead>
@@ -35,7 +35,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for sprint in grouped[state.value] %}
+          {% for sprint in table.sprints %}
           <tr>
             <td><a href="/projects/{{ project.key }}/sprints/{{ sprint.id }}">{{ sprint.name }}</a></td>
             <td>{{ sprint.goal }}</td>
@@ -48,6 +48,9 @@
         </tbody>
       </table>
       </div>
+      {% with pager=table.pager %}
+      {% include "_pager.html" %}
+      {% endwith %}
       {% endfor %}
 
       <div class="keel-panel">

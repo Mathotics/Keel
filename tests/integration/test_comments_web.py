@@ -35,13 +35,11 @@ def test_the_issue_page_lists_comments(client: TestClient) -> None:
     assert "<strong>decision</strong>" in page.text
     assert "A **decision**" not in page.text.split("Comments", 1)[1]
     assert ">Add comment<" in page.text
-    assert (
-        "data-keel-autosubmit"
-        not in page.text.split("Comments", 1)[1].split(
-            "Delete issue",
-            1,
-        )[0]
-    )
+    form = page.text.split(
+        f'action="/web/issues/{issue["id"]}/comments"',
+        1,
+    )[1].split("</form>", 1)[0]
+    assert "data-keel-autosubmit" not in form
 
 
 def test_a_comment_can_be_added_from_the_issue_page(client: TestClient) -> None:

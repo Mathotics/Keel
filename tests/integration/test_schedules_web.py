@@ -33,12 +33,15 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     page = client.get("/projects/HOME/schedules")
     assert page.status_code == 200
     assert "No repeating series." in page.text
+    assert "Schedules per page" in page.text
+    assert "0 schedules" in page.text
     assert 'href="/projects/HOME/schedules"' in page.text.split("<header", 1)[1]
     assert 'href="/projects/HOME/schedules?tab=new"' in page.text
     assert "Create series" not in page.text
     form = client.get("/projects/HOME/schedules?tab=new")
     assert form.status_code == 200
     assert "Create series" in form.text
+    assert "Schedules per page" not in form.text
     assert "Start offset (days before occurrence)" in form.text
     assert "Due offset (days after occurrence)" in form.text
     assert "Leave start or due blank" in form.text
@@ -77,6 +80,39 @@ def test_the_schedules_page_has_an_empty_state(client: TestClient) -> None:
     assert "Delete" in detail.text
     assert "Stop" not in detail.text
     assert "Save recipe" in detail.text
+
+
+def test_the_schedules_page_pages_in_title_order(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    for letter in "ABCDEFG":
+        created = client.post(
+            f"/web/projects/{project['id']}/schedules",
+            data=_series_payload(title=f"Series {letter}"),
+            follow_redirects=False,
+        )
+        assert created.status_code == 303
+
+    page = client.get("/projects/HOME/schedules?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Series A" in page.text
+    assert "Series E" in page.text
+    assert "Series F" not in page.text
+    assert 'href="/projects/HOME/schedules?page=2&amp;size=5"' in page.text
+    assert 'value="5" selected' in page.text
+    for count in (1, 5, 10, 20, 50, 100):
+        assert f'value="{count}"' in page.text
+
+    later = client.get("/projects/HOME/schedules?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Series F" in later.text
+    assert "Series G" in later.text
+    assert "Series A" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
 
 
 def test_a_series_can_set_priority_for_spawned_copies(client: TestClient) -> None:

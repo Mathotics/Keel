@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
-from sqlalchemy import String, cast, func, literal, or_, select
+from sqlalchemy import Select, String, cast, func, literal, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -105,6 +106,15 @@ def find(
     return _list_matches(session, needle, project_id)
 
 
+def lookup_jump(
+    session: Session,
+    query: str,
+    project_id: int | None = None,
+) -> FindJump | None:
+    """An exact key or unique name, when the find field should leave the list."""
+    return _exact_jump(session, query.strip(), project_id)
+
+
 def _exact_jump(
     session: Session,
     needle: str,
@@ -172,27 +182,160 @@ def _sprints_named(
     return session.scalars(query.order_by(Sprint.id)).all()
 
 
+def match_totals(
+    session: Session,
+    needle: str,
+    project_id: int | None,
+) -> tuple[int, int, int, int]:
+    """How many issues, projects, sprints, and users match, in that order."""
+    pattern = _like_pattern(needle)
+    return (
+        _count(session, _issue_stmt(pattern, project_id)),
+        _count(session, _project_stmt(pattern)),
+        _count(session, _sprint_stmt(pattern, project_id)),
+        _count(session, _user_stmt(pattern)),
+    )
+
+
+def load_issue_hits(
+    session: Session,
+    needle: str,
+    project_id: int | None,
+    *,
+    limit: int,
+    offset: int,
+) -> list[IssueHit]:
+    pattern = _like_pattern(needle)
+    rows = session.execute(
+        _issue_stmt(pattern, project_id)
+        .order_by(Project.key, Issue.number)
+        .offset(offset)
+        .limit(limit),
+    ).all()
+    hits = []
+    for issue, project in rows:
+        hits.append(
+            IssueHit(
+                id=issue.id,
+                key=issue_service.issue_key(issue, project),
+                title=issue.title,
+                type=issue.type,
+                project_key=project.key,
+                snippet=_issue_snippet(session, issue, project, needle),
+            ),
+        )
+    return hits
+
+
+def load_project_hits(
+    session: Session,
+    needle: str,
+    *,
+    limit: int,
+    offset: int,
+) -> list[ProjectHit]:
+    rows = session.scalars(
+        _project_stmt(_like_pattern(needle))
+        .order_by(Project.key)
+        .offset(offset)
+        .limit(limit),
+    ).all()
+    hits = []
+    for project in rows:
+        snippet = None
+        if not _contains(project.key, needle) and not _contains(project.name, needle):
+            snippet = _snippet(project.description, needle)
+        hits.append(
+            ProjectHit(
+                id=project.id, key=project.key, name=project.name, snippet=snippet
+            ),
+        )
+    return hits
+
+
+def load_sprint_hits(
+    session: Session,
+    needle: str,
+    project_id: int | None,
+    *,
+    limit: int,
+    offset: int,
+) -> list[SprintHit]:
+    rows = session.execute(
+        _sprint_stmt(_like_pattern(needle), project_id)
+        .order_by(Project.key, Sprint.id)
+        .offset(offset)
+        .limit(limit),
+    ).all()
+    hits = []
+    for sprint, project in rows:
+        snippet = None
+        if not _contains(sprint.name, needle):
+            snippet = _snippet(sprint.goal, needle)
+        hits.append(
+            SprintHit(
+                id=sprint.id,
+                name=sprint.name,
+                project_id=project.id,
+                project_key=project.key,
+                snippet=snippet,
+            ),
+        )
+    return hits
+
+
+def load_user_hits(
+    session: Session,
+    needle: str,
+    *,
+    limit: int,
+    offset: int,
+) -> list[UserHit]:
+    rows = session.scalars(
+        _user_stmt(_like_pattern(needle))
+        .order_by(User.display_name)
+        .offset(offset)
+        .limit(limit),
+    ).all()
+    return [UserHit(display_name=user.display_name) for user in rows]
+
+
 def _list_matches(
     session: Session,
     needle: str,
     project_id: int | None,
 ) -> FindResults:
-    pattern = _like_pattern(needle)
-    issues, issues_more = _issue_hits(session, needle, pattern, project_id)
-    projects, projects_more = _project_hits(session, needle, pattern)
-    sprints, sprints_more = _sprint_hits(session, needle, pattern, project_id)
-    users, users_more = _user_hits(session, pattern)
+    issues = load_issue_hits(
+        session,
+        needle,
+        project_id,
+        limit=PER_KIND + 1,
+        offset=0,
+    )
+    projects = load_project_hits(session, needle, limit=PER_KIND + 1, offset=0)
+    sprints = load_sprint_hits(
+        session,
+        needle,
+        project_id,
+        limit=PER_KIND + 1,
+        offset=0,
+    )
+    users = load_user_hits(session, needle, limit=PER_KIND + 1, offset=0)
     return FindResults(
         query=needle,
-        issues=issues,
-        issues_more=issues_more,
-        projects=projects,
-        projects_more=projects_more,
-        sprints=sprints,
-        sprints_more=sprints_more,
-        users=users,
-        users_more=users_more,
+        issues=issues[:PER_KIND],
+        issues_more=len(issues) > PER_KIND,
+        projects=projects[:PER_KIND],
+        projects_more=len(projects) > PER_KIND,
+        sprints=sprints[:PER_KIND],
+        sprints_more=len(sprints) > PER_KIND,
+        users=users[:PER_KIND],
+        users_more=len(users) > PER_KIND,
     )
+
+
+def _count(session: Session, stmt: Select[Any]) -> int:
+    return int(session.scalar(select(func.count()).select_from(stmt.subquery())) or 0)
 
 
 def _like_pattern(needle: str) -> str:
@@ -204,12 +347,7 @@ def _issue_key_expr() -> ColumnElement[str]:
     return Project.key.concat(literal("-")).concat(cast(Issue.number, String))
 
 
-def _issue_hits(
-    session: Session,
-    needle: str,
-    pattern: str,
-    project_id: int | None,
-) -> tuple[list[IssueHit], bool]:
+def _issue_stmt(pattern: str, project_id: int | None) -> Select[tuple[Issue, Project]]:
     comment_ids = select(Comment.issue_id).where(
         Comment.body.ilike(pattern, escape="\\"),
     )
@@ -229,23 +367,7 @@ def _issue_hits(
     )
     if project_id is not None:
         stmt = stmt.where(Issue.project_id == project_id)
-    rows = session.execute(
-        stmt.order_by(Project.key, Issue.number).limit(PER_KIND + 1),
-    ).all()
-    more = len(rows) > PER_KIND
-    hits = []
-    for issue, project in rows[:PER_KIND]:
-        hits.append(
-            IssueHit(
-                id=issue.id,
-                key=issue_service.issue_key(issue, project),
-                title=issue.title,
-                type=issue.type,
-                project_key=project.key,
-                snippet=_issue_snippet(session, issue, project, needle),
-            ),
-        )
-    return hits, more
+    return stmt
 
 
 def _issue_snippet(
@@ -276,43 +398,20 @@ def _issue_snippet(
     return None
 
 
-def _project_hits(
-    session: Session,
-    needle: str,
-    pattern: str,
-) -> tuple[list[ProjectHit], bool]:
-    rows = session.scalars(
-        select(Project)
-        .where(
-            or_(
-                Project.key.ilike(pattern, escape="\\"),
-                Project.name.ilike(pattern, escape="\\"),
-                Project.description.ilike(pattern, escape="\\"),
-            ),
-        )
-        .order_by(Project.key)
-        .limit(PER_KIND + 1),
-    ).all()
-    more = len(rows) > PER_KIND
-    hits = []
-    for project in rows[:PER_KIND]:
-        snippet = None
-        if not _contains(project.key, needle) and not _contains(project.name, needle):
-            snippet = _snippet(project.description, needle)
-        hits.append(
-            ProjectHit(
-                id=project.id, key=project.key, name=project.name, snippet=snippet
-            ),
-        )
-    return hits, more
+def _project_stmt(pattern: str) -> Select[tuple[Project]]:
+    return select(Project).where(
+        or_(
+            Project.key.ilike(pattern, escape="\\"),
+            Project.name.ilike(pattern, escape="\\"),
+            Project.description.ilike(pattern, escape="\\"),
+        ),
+    )
 
 
-def _sprint_hits(
-    session: Session,
-    needle: str,
+def _sprint_stmt(
     pattern: str,
     project_id: int | None,
-) -> tuple[list[SprintHit], bool]:
+) -> Select[tuple[Sprint, Project]]:
     stmt = (
         select(Sprint, Project)
         .join(Project, Sprint.project_id == Project.id)
@@ -325,36 +424,11 @@ def _sprint_hits(
     )
     if project_id is not None:
         stmt = stmt.where(Sprint.project_id == project_id)
-    rows = session.execute(
-        stmt.order_by(Project.key, Sprint.id).limit(PER_KIND + 1),
-    ).all()
-    more = len(rows) > PER_KIND
-    hits = []
-    for sprint, project in rows[:PER_KIND]:
-        snippet = None
-        if not _contains(sprint.name, needle):
-            snippet = _snippet(sprint.goal, needle)
-        hits.append(
-            SprintHit(
-                id=sprint.id,
-                name=sprint.name,
-                project_id=project.id,
-                project_key=project.key,
-                snippet=snippet,
-            ),
-        )
-    return hits, more
+    return stmt
 
 
-def _user_hits(session: Session, pattern: str) -> tuple[list[UserHit], bool]:
-    rows = session.scalars(
-        select(User)
-        .where(User.display_name.ilike(pattern, escape="\\"))
-        .order_by(User.display_name)
-        .limit(PER_KIND + 1),
-    ).all()
-    more = len(rows) > PER_KIND
-    return [UserHit(display_name=user.display_name) for user in rows[:PER_KIND]], more
+def _user_stmt(pattern: str) -> Select[tuple[User]]:
+    return select(User).where(User.display_name.ilike(pattern, escape="\\"))
 
 
 def _contains(haystack: str, needle: str) -> bool:

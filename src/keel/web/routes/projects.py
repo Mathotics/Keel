@@ -13,6 +13,7 @@ from keel.services import projects as project_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.filters import FilterRequest, filter_request
+from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 from keel.web.routes.pages import _calendar_page, _gantt_page
 
 router = APIRouter(prefix="/projects")
@@ -24,10 +25,24 @@ def project_list(
     chrome: ChromeDep,
     session: SessionDep,
     error: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
-    projects = access_service.visible_project_ids(
+    visible = access_service.visible_project_ids(
         chrome.access,
         list(project_service.list_projects(session)),
+    )
+    pager = one_pager(
+        "/projects",
+        PagerRequest(
+            label="Projects per page",
+            field_id="project-list-size",
+            aria_label="Project pages",
+            empty="0 projects",
+            total=len(visible),
+            page=page,
+            size=size,
+        ),
     )
     return get_templates().TemplateResponse(
         request,
@@ -35,7 +50,8 @@ def project_list(
         page_context(
             request,
             chrome,
-            projects=projects,
+            projects=page_rows(visible, pager.window),
+            pager=pager,
             error=error,
         ),
     )
@@ -49,9 +65,29 @@ def project_page(
     session: SessionDep,
     error: str | None = None,
     notice: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     project = project_service.get_project_by_key(session, key)
-    issues = issue_service.list_issues(session, project.id)
+    counts = issue_service.count_by_status(session, project.id)
+    pager = one_pager(
+        f"/projects/{project.key}",
+        PagerRequest(
+            label="Issues per page",
+            field_id="project-issue-size",
+            aria_label="Issue pages",
+            empty="0 issues",
+            total=sum(counts.values()),
+            page=page,
+            size=size,
+        ),
+    )
+    issues = issue_service.list_issues(
+        session,
+        project.id,
+        limit=pager.window.page_size,
+        offset=pager.window.offset,
+    )
     names = {user.id: user.display_name for user in user_service.list_users(session)}
     return get_templates().TemplateResponse(
         request,
@@ -62,10 +98,11 @@ def project_page(
             project=project,
             issues=issues,
             names=names,
-            counts=issue_service.count_by_status(session, project.id),
+            counts=counts,
             statuses=statuses_in_workflow_order(),
             cadences=sprint_cadences_in_menu_order(),
             max_sprint_ahead=MAX_SPRINT_AHEAD,
+            pager=pager,
             error=error,
             notice=notice,
             can_view_project_access=access_service.holds_project(
