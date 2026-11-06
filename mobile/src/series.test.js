@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { DELETED, NEEDS_CONNECTION, NONE, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } = require("./series");
+const { DELETED, NEEDS_CONNECTION, NONE, blankItem, blankRecipe, childTypeOf, parentChoices, prepareRecipe, recipeFromSeries, seriesView } = require("./series");
 
 test("offline schedules ask for a connection and an empty list says so", () => {
   const offline = seriesView({ series: null, online: false });
@@ -72,6 +72,19 @@ test("a tree item keeps its own title and must sit under the right parent", () =
     items: [{ ...draft.items[0], type: "subtask" }],
   });
   assert.match(illegal.error, /subtask/);
+  const story = blankItem("", "story");
+  story.key = "federal";
+  story.title = "File federal return";
+  const form = blankItem(story.key, "subtask");
+  form.key = "form";
+  form.title = "Fill out the form";
+  const nested = prepareRecipe({ ...draft, items: [story, form] });
+  assert.equal(nested.body.items[1].type, "subtask");
+  assert.equal(nested.body.items[1].parent_key, "federal");
+  assert.equal(childTypeOf("story"), "subtask");
+  assert.equal(childTypeOf("subtask"), "");
+  const choices = parentChoices([story, form], form, "epic");
+  assert.deepEqual(choices.map((choice) => choice.key), ["federal"]);
 });
 
 test("a saved series fills the recipe and deleting one leaves its issues", () => {

@@ -33,7 +33,7 @@ import { arrangeInbox, blankLayout, hideSection, homeKey, moveSection, parseLayo
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
 import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, sprintOptions, toggleChoice } from "./src/filters";
-import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankItem, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
+import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankItem, blankRecipe, childTypeOf, parentChoices, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { connectionMode, forcedOffline, reachability, reachabilityKnown, setForcedOffline, setReachable, shouldStayOffline, subscribeReachability } from "./src/reach";
@@ -4021,24 +4021,30 @@ function RecipeFields({ draft, onChange, showIdentity, showType, showPeople, sho
       {showItems ? (
         <View>
           <Text style={styles.sectionHeading}>Items under this issue</Text>
-          <Text style={styles.message}>Saving here changes future occurrences. Issues that already exist stay as they are.</Text>
-          {(draft.items || []).map((item, index) => (
+          <Text style={styles.message}>A story can hold subtasks. A subtask is as deep as a schedule goes. Saving here changes future occurrences. Issues that already exist stay as they are.</Text>
+          {(draft.items || []).map((item, index) => {
+            const choices = parentChoices(draft.items, item, draft.type || "story");
+            const child = childTypeOf(item.type);
+            return (
             <View key={item.key || String(index)}>
               <Field label="Item title" value={item.title} onChange={(title) => updateItem(index, { title })} />
               <OptionRow
                 label="Item type"
                 options={[["story", "Story"], ["subtask", "Subtask"]]}
                 value={item.type}
-                onChange={(type) => updateItem(index, { type })}
+                onChange={(type) => {
+                  const next = { ...item, type };
+                  const nextChoices = parentChoices(draft.items, next, draft.type || "story");
+                  const still = nextChoices.some((choice) => choice.key === (item.parentKey || ""));
+                  updateItem(index, still ? { type } : {
+                    type,
+                    parentKey: nextChoices[0] ? nextChoices[0].key : "",
+                  });
+                }}
               />
               <OptionRow
                 label="Parent in the schedule"
-                options={[
-                  ["", "Under the root"],
-                  ...(draft.items || [])
-                    .filter((row) => row.key !== item.key)
-                    .map((row) => [row.key, row.title || "Untitled"]),
-                ]}
+                options={choices.map((choice) => [choice.key, choice.label])}
                 value={item.parentKey || ""}
                 onChange={(parentKey) => updateItem(index, { parentKey })}
               />
@@ -4051,13 +4057,27 @@ function RecipeFields({ draft, onChange, showIdentity, showType, showPeople, sho
               <Field label="Due offset (days after)" value={item.dueOffset} onChange={(dueOffset) => updateItem(index, { dueOffset })} />
               <Field label="Due time" value={item.dueTime} onChange={(dueTime) => updateItem(index, { dueTime })} placeholder="17:00" />
               <TextButton label="Remove item" onPress={() => removeItem(index)} disabled={false} />
+              {child ? (
+                <TextButton
+                  label={`Add ${child}`}
+                  onPress={() => onChange({
+                    items: [...(draft.items || []), blankItem(item.key, child)],
+                  })}
+                  disabled={false}
+                />
+              ) : null}
             </View>
-          ))}
-          <TextButton
-            label="Add item"
-            onPress={() => onChange({ items: [...(draft.items || []), blankItem()] })}
-            disabled={false}
-          />
+            );
+          })}
+          {childTypeOf(draft.type) ? (
+            <TextButton
+              label={`Add ${childTypeOf(draft.type)}`}
+              onPress={() => onChange({
+                items: [...(draft.items || []), blankItem("", childTypeOf(draft.type))],
+              })}
+              disabled={false}
+            />
+          ) : null}
         </View>
       ) : null}
       <OptionRow label="When to create the next copy" options={SPAWNS} value={draft.spawnMode} onChange={(spawnMode) => onChange({ spawnMode })} />

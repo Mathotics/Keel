@@ -12,6 +12,75 @@
   }
   var nextKey = 1;
   var fieldId = 1;
+  var childType = { epic: "story", story: "subtask" };
+  var typeLabel = { epic: "Epic", story: "Story", subtask: "Subtask" };
+
+  function rootType() {
+    var node = document.getElementById("series-type");
+    return node && node.value ? node.value : "story";
+  }
+
+  function expectedParent(type) {
+    if (type === "story") {
+      return "epic";
+    }
+    if (type === "subtask") {
+      return "story";
+    }
+    return "";
+  }
+
+  function descendantsOf(key) {
+    var found = {};
+    found[key] = true;
+    var grew = true;
+    while (grew) {
+      grew = false;
+      items.forEach(function (row) {
+        var rowKey = keyOf(row);
+        if (row.parent_key && found[row.parent_key] && !found[rowKey]) {
+          found[rowKey] = true;
+          grew = true;
+        }
+      });
+    }
+    return found;
+  }
+
+  function legalParents(item) {
+    var expected = expectedParent(item.type);
+    var banned = descendantsOf(keyOf(item));
+    banned[keyOf(item)] = true;
+    var options = [];
+    if (expected && rootType() === expected) {
+      options.push({ value: "", label: "Under the root" });
+    }
+    items.forEach(function (row) {
+      var rowKey = keyOf(row);
+      if (banned[rowKey] || row.type !== expected) {
+        return;
+      }
+      var pad = "";
+      var level = depth(row, 0);
+      while (level > 0) {
+        pad += "· ";
+        level -= 1;
+      }
+      options.push({ value: rowKey, label: pad + (row.title || "Untitled") });
+    });
+    return options;
+  }
+
+  function keepLegalParent(item) {
+    var options = legalParents(item);
+    var current = item.parent_key || "";
+    var still = options.some(function (option) {
+      return option.value === current;
+    });
+    if (!still) {
+      item.parent_key = options.length ? options[0].value || null : null;
+    }
+  }
 
   function keyOf(item) {
     return item.key || (item.id ? "id:" + item.id : "");
@@ -91,7 +160,8 @@
       var type = select(config.types || [], item.type || "story");
       type.addEventListener("change", function () {
         item.type = type.value;
-        write();
+        keepLegalParent(item);
+        render();
       });
       var priority = select(config.priorities || [], item.priority || "p4");
       priority.addEventListener("change", function () {
@@ -115,13 +185,7 @@
         item.assignee_id = assignee.value ? Number(assignee.value) : null;
         write();
       });
-      var parents = [{ value: "", label: "Under the root" }].concat(
-        items.filter(function (row) {
-          return keyOf(row) !== keyOf(item);
-        }).map(function (row) {
-          return { value: keyOf(row), label: row.title || "Untitled" };
-        }),
-      );
+      var parents = legalParents(item);
       var parent = select(parents, item.parent_key || "");
       parent.addEventListener("change", function () {
         item.parent_key = parent.value || null;
@@ -192,34 +256,67 @@
         item.due_minute_of_day = value;
       })));
       card.appendChild(remove);
+      var nested = childType[item.type];
+      if (nested) {
+        var addNested = document.createElement("button");
+        addNested.type = "button";
+        addNested.textContent = "Add " + typeLabel[nested].toLowerCase();
+        addNested.addEventListener("click", function () {
+          addChild(keyOf(item), item.type);
+        });
+        card.appendChild(addNested);
+      }
       root.appendChild(card);
       void index;
     });
+    var add = document.querySelector("[data-series-items-add]");
+    var rootChild = childType[rootType()];
+    if (add) {
+      add.hidden = !rootChild;
+      add.textContent = rootChild ? "Add " + typeLabel[rootChild].toLowerCase() : "Add item";
+    }
     write();
+  }
+
+  function addChild(parentKey, parentType) {
+    var type = childType[parentType];
+    if (!type) {
+      return;
+    }
+    items.push({
+      key: "new:" + nextKey++,
+      parent_key: parentKey || null,
+      title: "",
+      description: "",
+      type: type,
+      priority: "p4",
+      labels: [],
+      assignee_id: null,
+      start_offset_days: null,
+      start_minute_of_day: null,
+      due_offset_days: null,
+      due_minute_of_day: null,
+    });
+    render();
+    var cards = root.querySelectorAll(".keel-series-item");
+    var last = cards[cards.length - 1];
+    var title = last ? last.querySelector("input[type=text]") : null;
+    if (title) {
+      title.focus();
+    }
   }
 
   var add = document.querySelector("[data-series-items-add]");
   if (add) {
     add.addEventListener("click", function () {
-      items.push({
-        key: "new:" + nextKey++,
-        parent_key: null,
-        title: "",
-        description: "",
-        type: "story",
-        priority: "p4",
-        labels: [],
-        assignee_id: null,
-        start_offset_days: null,
-        start_minute_of_day: null,
-        due_offset_days: null,
-        due_minute_of_day: null,
-      });
+      addChild(null, rootType());
+    });
+  }
+  var rootTypeSelect = document.getElementById("series-type");
+  if (rootTypeSelect) {
+    rootTypeSelect.addEventListener("change", function () {
+      items.forEach(keepLegalParent);
       render();
-      var titles = root.querySelectorAll("input[type=text]");
-      if (titles.length) {
-        titles[titles.length - 1].focus();
-      }
     });
   }
   render();

@@ -49,14 +49,63 @@ const MONTHS = [
   "December",
 ];
 
-function blankItem() {
+const CHILD_TYPE = { epic: "story", story: "subtask" };
+
+function childTypeOf(parentType) {
+  return CHILD_TYPE[parentType] || "";
+}
+
+function expectedParentType(type) {
+  if (type === "story") {
+    return "epic";
+  }
+  if (type === "subtask") {
+    return "story";
+  }
+  return "";
+}
+
+function itemIsUnder(items, row, ancestorKey) {
+  const byKey = new Map((items || []).map((item) => [item.key, item]));
+  let key = row.parentKey || "";
+  const seen = new Set();
+  while (key && !seen.has(key)) {
+    if (key === ancestorKey) {
+      return true;
+    }
+    seen.add(key);
+    const parent = byKey.get(key);
+    key = parent ? parent.parentKey || "" : "";
+  }
+  return false;
+}
+
+function parentChoices(items, item, rootType) {
+  const expected = expectedParentType(item.type);
+  const choices = [];
+  if (expected && rootType === expected) {
+    choices.push({ key: "", label: "Under the root" });
+  }
+  for (const row of items || []) {
+    if (!row.key || row.key === item.key || row.type !== expected) {
+      continue;
+    }
+    if (itemIsUnder(items, row, item.key)) {
+      continue;
+    }
+    choices.push({ key: row.key, label: row.title || "Untitled" });
+  }
+  return choices;
+}
+
+function blankItem(parentKey = "", type = "story") {
   return {
     key: `new:${Date.now()}:${Math.random().toString(16).slice(2)}`,
     id: null,
-    parentKey: "",
+    parentKey: parentKey || "",
     title: "",
     description: "",
-    type: "story",
+    type: type || "story",
     priority: "p4",
     labels: "",
     assignee: "",
@@ -463,6 +512,8 @@ module.exports = {
   WEEKDAYS,
   blankItem,
   blankRecipe,
+  childTypeOf,
+  parentChoices,
   prepareRecipe,
   recipeFromSeries,
   seriesView,
