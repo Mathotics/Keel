@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{% if project %}{{ project.key }} board{% else %}Board{% endif %}{% endblock %}
+{% block body_class %}keel-page-board{% endblock %}
 {% block scripts %}
     {{ super() }}
     <script src="/assets/js/board.js" defer></script>
@@ -71,7 +72,7 @@
 
       {% include "_filters.html" %}
 
-      <div data-keel-board-root>
+      <div class="keel-board-scroll" data-keel-board-root>
         <p class="keel-error" data-keel-board-error hidden></p>
         {% if separate_by_sprint %}
           {% if board_lanes %}

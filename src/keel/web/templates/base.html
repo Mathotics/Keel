@@ -16,7 +16,7 @@
     <script src="/assets/js/submit-once.js" defer></script>
     {% endblock %}
   </head>
-  <body>
+  <body class="{% block body_class %}{% endblock %}">
     <header class="keel-topbar">
       <a class="keel-topbar__home" href="/" aria-label="Keel home">
         <img src="/assets/small_icon.png" alt=""/>
