@@ -33,6 +33,61 @@ def test_a_new_issue_shows_empty_history(client: TestClient) -> None:
     assert "No history yet." in _history(page.text)
 
 
+def test_history_and_comments_turn_their_own_pages(client: TestClient) -> None:
+    issue = _issue(client, _project(client))
+    for number in range(1, 8):
+        renamed = client.patch(
+            f"/api/v1/issues/{issue['id']}",
+            json={"title": f"Step {number}"},
+        )
+        assert renamed.status_code == 200
+        noted = client.post(
+            f"/api/v1/issues/{issue['id']}/comments",
+            json={"body": f"Note {number}"},
+        )
+        assert noted.status_code == 201
+
+    page = client.get(
+        "/issues/KEEL-1",
+        params={"history_size": 5, "comments_size": 1},
+    )
+
+    assert page.status_code == 200
+    history = _history(page.text)
+    comments = page.text.split("Comments", 1)[1].split("Delete issue", 1)[0]
+    assert "1–5 of 7" in history
+    assert "Something → Step 1" in history
+    assert "Step 4 → Step 5" in history
+    assert "Step 5 → Step 6" not in history
+    assert "Changes per page" in history
+    assert "history_page=2" in history
+    assert "comments_size=1" in history
+    assert ">7</span>" in _summary(page.text, "history")
+    assert "Note 1" in comments
+    assert "Note 2" not in comments
+    assert "1–1 of 7" in comments
+    assert "Comments per page" in comments
+    assert ">7</span>" in _summary(page.text, "comments")
+
+    later = client.get(
+        "/issues/KEEL-1",
+        params={"history_size": 5, "history_page": 2, "comments_size": 1},
+    )
+    history_later = _history(later.text)
+    comments_later = later.text.split("Comments", 1)[1].split("Delete issue", 1)[0]
+    assert "Step 5 → Step 6" in history_later
+    assert "Step 6 → Step 7" in history_later
+    assert "Something → Step 1" not in history_later
+    assert "Note 1" in comments_later
+    assert "Note 2" not in comments_later
+    assert 'aria-disabled="true">Next' in history_later
+
+
+def _summary(html: str, key: str) -> str:
+    marker = f'data-keel-issue-panel="{key}"'
+    return html.split(marker, 1)[1].split("</summary>", 1)[0]
+
+
 def test_a_status_change_appears_above_comments(client: TestClient) -> None:
     issue = _issue(client, _project(client))
     response = client.post(

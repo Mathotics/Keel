@@ -265,6 +265,19 @@ def test_priority_can_be_set_and_filtered(session: Session, project: Project) ->
     assert [issue.id for issue in found] == [blocker]
 
 
+def test_list_issues_returns_one_page_in_number_order(
+    session: Session,
+    project: Project,
+) -> None:
+    for title in ("One", "Two", "Three"):
+        make(session, project, title=title)
+
+    page = issue_service.list_issues(session, project.id, limit=1, offset=1)
+
+    assert [issue.number for issue in page] == [2]
+    assert [issue.title for issue in page] == ["Two"]
+
+
 def test_cancelling_a_parent_leaves_children_unchanged(
     session: Session,
     project: Project,

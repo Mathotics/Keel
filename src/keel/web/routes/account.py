@@ -12,6 +12,7 @@ from keel.services.auth import SESSION_MAX_AGE, LoginRefused
 from keel.services.identity import SESSION_COOKIE, TOKEN_FLASH_COOKIE
 from keel.version import package_version
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 
 router = APIRouter()
 SEE_OTHER = 303
@@ -130,10 +131,25 @@ def profile_page(
     chrome: ChromeDep,
     error: str | None = None,
     notice: str | None = None,
+    page: int = 1,
+    size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     user = chrome.current_user
     assert user is not None
     fresh = user_service.get_user(session, user.id)
+    found = auth_service.list_tokens(session, fresh.id)
+    pager = one_pager(
+        "/profile",
+        PagerRequest(
+            label="Tokens per page",
+            field_id="profile-token-size",
+            aria_label="Token pages",
+            empty="0 tokens",
+            total=len(found),
+            page=page,
+            size=size,
+        ),
+    )
     new_token = request.cookies.get(TOKEN_FLASH_COOKIE)
     response = get_templates().TemplateResponse(
         request,
@@ -142,7 +158,8 @@ def profile_page(
             request,
             chrome,
             profile=fresh,
-            tokens=auth_service.list_tokens(session, fresh.id),
+            tokens=page_rows(found, pager.window),
+            pager=pager,
             new_token=new_token,
             error=error,
             notice=notice,

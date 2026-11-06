@@ -62,6 +62,8 @@
       </table>
       </div>
 
+      {% include "_pager.html" %}
+
       <div class="keel-panel">
         <h2>Project settings</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/projects/{{ project.id }}/update">

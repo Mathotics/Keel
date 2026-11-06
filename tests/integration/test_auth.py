@@ -100,6 +100,32 @@ def _full_token(html: str) -> str:
     return match.group(0)
 
 
+def test_the_profile_pages_tokens_oldest_first(client: TestClient) -> None:
+    for letter in "ABCDEFG":
+        created = client.post(
+            "/api/v1/profile/tokens",
+            json={"label": f"Token {letter}"},
+        )
+        assert created.status_code == 201
+
+    page = client.get("/profile?size=5")
+
+    assert page.status_code == 200
+    assert "1–5 of 7" in page.text
+    assert "Token A" in page.text
+    assert "Token E" in page.text
+    assert "Token F" not in page.text
+    assert 'href="/profile?page=2&amp;size=5"' in page.text
+    assert "Tokens per page" in page.text
+
+    later = client.get("/profile?size=5&page=2")
+    assert "6–7 of 7" in later.text
+    assert "Token F" in later.text
+    assert "Token G" in later.text
+    assert "Token A" not in later.text
+    assert 'aria-disabled="true">Next' in later.text
+
+
 def test_an_api_token_acts_as_that_person(client: TestClient) -> None:
     created = client.post(
         "/api/v1/profile/tokens",

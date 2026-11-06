@@ -615,15 +615,16 @@
       </form>
       {% endcall %}
 
-      {% call issue_panel('history', 'History', history|length) %}
+      {% call issue_panel('history', 'History', history_pager.window.total) %}
       {% for event in history %}
       <p class="keel-history__line">{{ event.created_at | when }}, {{ event.actor_name }} — {{ event.field }} {{ event.from_value }} → {{ event.to_value }}</p>
       {% else %}
       <p class="keel-empty">No history yet.</p>
       {% endfor %}
+      {% with pager=history_pager %}{% include "_pager.html" %}{% endwith %}
       {% endcall %}
 
-      {% call issue_panel('comments', 'Comments', comments|length) %}
+      {% call issue_panel('comments', 'Comments', comments_pager.window.total) %}
       {% for comment in comments %}
       <article class="keel-comment">
         <p class="keel-comment__meta">{{ comment.author_name }} · {{ comment.created_at | when }}</p>
@@ -636,6 +637,7 @@
       {% else %}
       <p class="keel-empty">No comments yet.</p>
       {% endfor %}
+      {% with pager=comments_pager %}{% include "_pager.html" %}{% endwith %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
         <p>
           <label for="issue-comment">Comment</label>

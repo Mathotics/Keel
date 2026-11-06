@@ -71,7 +71,6 @@ def test_parse_query_applies_spans_and_rejects_junk() -> None:
         kind="changes",
         result="nope",
         path=" /api ",
-        page="2",
         start="2020-01-01",
         today=today,
     )
@@ -82,7 +81,6 @@ def test_parse_query_applies_spans_and_rejects_junk() -> None:
     assert query.changes_only is True
     assert query.result == "all"
     assert query.path == "/api"
-    assert query.page == 2
     assert query.narrowed is True
 
     today_query = parse_query(span="today", today=today)
@@ -95,9 +93,8 @@ def test_parse_query_applies_spans_and_rejects_junk() -> None:
     assert custom.start == date(2026, 10, 1)
     assert custom.end == date(2026, 10, 2)
     assert custom.span == ""
-    assert parse_query(person="0", page="nope", result="failed").user_id is None
-    assert parse_query(person="0", page="nope", result="failed").page == 1
-    assert parse_query(person="0", page="nope", result="failed").result == "failed"
+    assert parse_query(person="0", result="failed").user_id is None
+    assert parse_query(person="0", result="failed").result == "failed"
     assert parse_query().narrowed is False
 
 

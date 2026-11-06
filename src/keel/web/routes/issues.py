@@ -32,6 +32,12 @@ from keel.web.issue_panels import (
     encode_toggle,
     parse_collapsed,
 )
+from keel.web.paging import (
+    DEFAULT_PAGE_SIZE,
+    PagerRequest,
+    page_rows,
+    table_pagers,
+)
 
 router = APIRouter(prefix="/issues")
 
@@ -44,9 +50,41 @@ def issue_page(
     session: SessionDep,
     error: str | None = None,
     repeat: str | None = None,
+    history_page: int = 1,
+    history_size: int = DEFAULT_PAGE_SIZE,
+    comments_page: int = 1,
+    comments_size: int = DEFAULT_PAGE_SIZE,
 ) -> HTMLResponse:
     issue = issue_service.get_issue_by_key(session, key)
     project = project_service.get_project(session, issue.project_id)
+    issue_key = issue_service.issue_key(issue, project)
+    found_history = history_service.list_history(session, issue.id)
+    found_comments = _comment_views(session, issue.id)
+    history_pager, comments_pager = table_pagers(
+        f"/issues/{issue_key}",
+        (
+            PagerRequest(
+                label="Changes per page",
+                field_id="history-size",
+                aria_label="History pages",
+                empty="0 changes",
+                total=len(found_history),
+                page=history_page,
+                size=history_size,
+                key="history",
+            ),
+            PagerRequest(
+                label="Comments per page",
+                field_id="comment-size",
+                aria_label="Comment pages",
+                empty="0 comments",
+                total=len(found_comments),
+                page=comments_page,
+                size=comments_size,
+                key="comments",
+            ),
+        ),
+    )
     series = None
     series_item = None
     if issue.series_id is not None:
@@ -66,13 +104,15 @@ def issue_page(
             chrome,
             project=project,
             issue=issue,
-            issue_key=issue_service.issue_key(issue, project),
+            issue_key=issue_key,
             children=issue_service.list_children(session, issue.id),
             issue_labels=label_service.labels_for_issue(session, issue.id),
             label_catalog=label_service.list_labels(session),
             dependencies=dependency_service.list_for_issue(session, issue.id),
-            comments=_comment_views(session, issue.id),
-            history=history_service.list_history(session, issue.id),
+            comments=page_rows(found_comments, comments_pager.window),
+            comments_pager=comments_pager,
+            history=page_rows(found_history, history_pager.window),
+            history_pager=history_pager,
             rollup=issue_service.issue_rollup(session, issue.id),
             parent_label=lookup_service.parent_field_value(
                 session,

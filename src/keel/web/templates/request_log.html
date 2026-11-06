@@ -40,6 +40,7 @@
           Path contains
           <input name="path" type="text" value="{{ query.path }}" maxlength="200"/>
         </label>
+        <input type="hidden" name="size" value="{{ pager.window.page_size }}"/>
         <button class="keel-primary" type="submit">Apply</button>
         <a class="keel-button" href="/admin/log">Reset</a>
       </form>
@@ -78,10 +79,5 @@
         </tbody>
       </table>
       </div>
-      {% if has_newer or has_older %}
-      <p class="keel-form-actions">
-        {% if has_newer %}<a href="{{ newer_href }}">Newer</a>{% endif %}
-        {% if has_older %}<a href="{{ older_href }}">Older</a>{% endif %}
-      </p>
-      {% endif %}
+      {% include "_pager.html" %}
 {% endblock %}

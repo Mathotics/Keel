@@ -105,6 +105,9 @@ def list_issues(
     session: Session,
     project_id: int | None = None,
     filters: IssueFilters | None = None,
+    *,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> Sequence[Issue]:
     query = select(Issue)
     if project_id is not None:
@@ -115,6 +118,10 @@ def list_issues(
             Issue.number,
         )
     query = _apply_filters(query, filters or IssueFilters())
+    if offset:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
     return session.scalars(query).all()
 
 
