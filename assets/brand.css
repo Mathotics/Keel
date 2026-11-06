@@ -1003,6 +1003,16 @@ body {
   opacity: 0.8;
 }
 
+.keel-series-item {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.75rem 0.25rem;
+  border-left: 3px solid var(--keel-blue);
+}
+
+.keel-series-item p {
+  margin: 0 0 0.75rem;
+}
+
 .keel-error {
   margin: 0 0 1rem;
   padding: 0.5rem 0.75rem;

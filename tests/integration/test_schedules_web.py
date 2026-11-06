@@ -359,7 +359,10 @@ def test_an_issue_can_become_a_series_and_show_on_the_board(
     detail = client.get(f"/issues/{issue['key']}")
     assert "Edit series" in detail.text
     assert "Make this repeating" not in detail.text
-    assert "Delete this issue to skip this cycle" in detail.text
+    assert (
+        "Deleting this issue removes this occurrence and its scheduled items."
+        in detail.text
+    )
     assert "Pay bills" in detail.text
     assert 'href="/issues/' in detail.text and "?repeat=1" in detail.text
     assert not _overlay_is_open(detail.text)
@@ -528,6 +531,40 @@ def test_the_issue_recipe_stays_in_an_overlay(client: TestClient) -> None:
     again = client.get(scoped.headers["location"])
     assert _overlay_is_open(again.text)
     assert "keel-error" in again.text.split('id="issue-repeat-overlay"', 1)[1]
+
+
+def test_the_schedule_form_saves_items_under_the_root(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    form = client.get("/projects/HOME/schedules?tab=new")
+    assert "Items under this issue" in form.text
+    assert 'name="items_json"' in form.text
+    created = client.post(
+        f"/web/projects/{project['id']}/schedules",
+        data=_series_payload(
+            title="File taxes",
+            type="epic",
+            freq="yearly",
+            starts_on="2026-04-15",
+            month="4",
+            month_day="15",
+            items_json=(
+                '[{"key":"federal","title":"File federal return","type":"story",'
+                '"parent_key":null,"description":"","priority":"p4","labels":[]}]'
+            ),
+        ),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    issues = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    root = next(item for item in issues if item["title"] == "File taxes")
+    child = next(item for item in issues if item["title"] == "File federal return")
+    assert child["parent_id"] == root["id"]
+    detail = client.get(created.headers["location"])
+    assert detail.status_code == 200
+    assert "File federal return" in detail.text
 
 
 def test_overlay_script_opens_without_a_framework(client: TestClient) -> None:

@@ -1,7 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { DELETED, NEEDS_CONNECTION, NONE, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } = require("./series");
+const { DELETED, NEEDS_CONNECTION, NONE, blankItem, blankRecipe, childTypeOf, parentChoices, prepareRecipe, recipeFromSeries, seriesView } = require("./series");
 
 test("offline schedules ask for a connection and an empty list says so", () => {
   const offline = seriesView({ series: null, online: false });
@@ -38,6 +38,53 @@ test("a recipe needs a title and a start, and a blank date pair stays unset", ()
   assert.equal(prepared.body.ends_on, null);
   assert.equal(prepared.body.start_offset_days, null);
   assert.match(prepareRecipe({ ...blankRecipe(), title: "Backup", startsOn: "2026-10-14", startTime: "09:00" }).error, /both a day offset/);
+});
+
+test("a tree item keeps its own title and must sit under the right parent", () => {
+  const draft = {
+    ...blankRecipe(),
+    title: "File taxes",
+    type: "epic",
+    startsOn: "2026-04-15",
+    freq: "yearly",
+    items: [
+      {
+        key: "federal",
+        title: "File federal return",
+        type: "story",
+        parentKey: "",
+        description: "",
+        priority: "p4",
+        labels: "",
+        assignee: "",
+        startOffset: "",
+        startTime: "",
+        dueOffset: "",
+        dueTime: "",
+      },
+    ],
+  };
+  const prepared = prepareRecipe(draft);
+  assert.equal(prepared.body.items[0].title, "File federal return");
+  assert.equal(prepared.body.items[0].parent_key, null);
+  const illegal = prepareRecipe({
+    ...draft,
+    items: [{ ...draft.items[0], type: "subtask" }],
+  });
+  assert.match(illegal.error, /subtask/);
+  const story = blankItem("", "story");
+  story.key = "federal";
+  story.title = "File federal return";
+  const form = blankItem(story.key, "subtask");
+  form.key = "form";
+  form.title = "Fill out the form";
+  const nested = prepareRecipe({ ...draft, items: [story, form] });
+  assert.equal(nested.body.items[1].type, "subtask");
+  assert.equal(nested.body.items[1].parent_key, "federal");
+  assert.equal(childTypeOf("story"), "subtask");
+  assert.equal(childTypeOf("subtask"), "");
+  const choices = parentChoices([story, form], form, "epic");
+  assert.deepEqual(choices.map((choice) => choice.key), ["federal"]);
 });
 
 test("a saved series fills the recipe and deleting one leaves its issues", () => {

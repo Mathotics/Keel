@@ -180,6 +180,7 @@ def create_issue(
     earned_value_cents: int | None = None,
     actual_cost_cents: int | None = None,
     series_id: int | None = None,
+    series_item_id: int | None = None,
     occurrence_on: date | None = None,
     labels: Sequence[str] | str = (),
     client_key: str | None = None,
@@ -219,6 +220,7 @@ def create_issue(
         earned_value_cents=earned_value_cents,
         actual_cost_cents=actual_cost_cents,
         series_id=series_id,
+        series_item_id=series_item_id,
         occurrence_on=occurrence_on,
         client_key=key,
     )
@@ -497,6 +499,15 @@ def update_issue(
 
 def delete_issue(session: Session, issue_id: int) -> None:
     issue = get_issue(session, issue_id)
+    if (
+        issue.series_id is not None
+        and issue.occurrence_on is not None
+        and issue.series_item_id is None
+    ):
+        from keel.services import series as series_service
+
+        series_service.delete_occurrence(session, issue)
+        return
     children = list_children(session, issue.id)
     if children:
         raise IssueHasChildrenError(
@@ -506,9 +517,10 @@ def delete_issue(session: Session, issue_id: int) -> None:
         )
     series_id = issue.series_id
     occurrence_on = issue.occurrence_on
+    is_root = issue.series_item_id is None
     session.delete(issue)
     session.flush()
-    if series_id is not None and occurrence_on is not None:
+    if series_id is not None and occurrence_on is not None and is_root:
         from keel.services import series as series_service
 
         series_service.after_issue_deleted(session, series_id, occurrence_on)

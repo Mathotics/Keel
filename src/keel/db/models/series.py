@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -159,3 +160,73 @@ class SeriesSkip(Base):
     )
     occurrence_on: Mapped[date] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+
+class SeriesItem(Base):
+    """One child recipe on a schedule. The series row itself is the root."""
+
+    __tablename__ = "series_items"
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="ck_series_items_position"),
+        CheckConstraint(
+            "(start_offset_days is null and start_minute_of_day is null) "
+            "or (start_offset_days is not null and start_minute_of_day is not null "
+            "and start_offset_days >= 0 "
+            "and start_minute_of_day >= 0 and start_minute_of_day < 1440)",
+            name="ck_series_items_start_minute_of_day",
+        ),
+        CheckConstraint(
+            "(due_offset_days is null and due_minute_of_day is null) "
+            "or (due_offset_days is not null and due_minute_of_day is not null "
+            "and due_offset_days >= 0 "
+            "and due_minute_of_day >= 0 and due_minute_of_day < 1440)",
+            name="ck_series_items_due_minute_of_day",
+        ),
+        CheckConstraint(
+            "start_offset_days is null or due_offset_days is null or ("
+            "(-start_offset_days * 1440 + start_minute_of_day) "
+            "<= (due_offset_days * 1440 + due_minute_of_day))",
+            name="ck_series_items_start_not_after_due",
+        ),
+        Index("ix_series_items_series_id", "series_id"),
+        Index("ix_series_items_parent_item_id", "parent_item_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    series_id: Mapped[int] = mapped_column(
+        ForeignKey("series.id", ondelete="CASCADE"),
+    )
+    parent_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("series_items.id", ondelete="CASCADE"),
+        default=None,
+    )
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    title: Mapped[str] = mapped_column(String(300))
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    type: Mapped[IssueType] = mapped_column(
+        _enum_column(IssueType, "ck_series_items_type"),
+    )
+    priority: Mapped[IssuePriority] = mapped_column(
+        _enum_column(IssuePriority, "ck_series_items_priority"),
+        default=INITIAL_PRIORITY,
+        server_default=INITIAL_PRIORITY.value,
+    )
+    assignee_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        default=None,
+    )
+    start_offset_days: Mapped[int | None] = mapped_column(Integer, default=None)
+    start_minute_of_day: Mapped[int | None] = mapped_column(Integer, default=None)
+    due_offset_days: Mapped[int | None] = mapped_column(Integer, default=None)
+    due_minute_of_day: Mapped[int | None] = mapped_column(Integer, default=None)
+    removed: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="0",
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=utc_now,
+        onupdate=utc_now,
+    )

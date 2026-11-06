@@ -202,3 +202,43 @@ def test_an_occurrence_edit_can_cover_one_copy_or_the_series(
         json={"scope": "this", "title": "Gone"},
     )
     assert missing.status_code == 404
+
+
+def test_the_series_api_spawns_a_tree(client: TestClient) -> None:
+    project = client.post(
+        "/api/v1/projects",
+        json={"key": "HOME", "name": "Home"},
+    ).json()
+    created = client.post(
+        f"/api/v1/projects/{project['id']}/series",
+        json={
+            "title": "File taxes",
+            "type": "epic",
+            "spawn_mode": "calendar",
+            "sprint_basis": "due_on",
+            "freq": "yearly",
+            "starts_on": "2026-04-15",
+            "month": 4,
+            "month_day": 15,
+            "look_ahead_n": 1,
+            "items": [
+                {
+                    "key": "federal",
+                    "title": "File federal return",
+                    "type": "story",
+                    "parent_key": None,
+                },
+            ],
+        },
+    )
+    assert created.status_code == 201
+    body = created.json()
+    assert body["items"][0]["title"] == "File federal return"
+    issues = client.get(f"/api/v1/projects/{project['id']}/issues").json()
+    root = next(item for item in issues if item["title"] == "File taxes")
+    child = next(item for item in issues if item["title"] == "File federal return")
+    assert child["parent_id"] == root["id"]
+    assert child["series_id"] == body["id"]
+    assert child["series_item_id"] == body["items"][0]["id"]
+    assert child["series_item_title"] == "File federal return"
+    assert root["series_item_id"] is None

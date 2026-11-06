@@ -49,6 +49,93 @@ const MONTHS = [
   "December",
 ];
 
+const CHILD_TYPE = { epic: "story", story: "subtask" };
+
+function childTypeOf(parentType) {
+  return CHILD_TYPE[parentType] || "";
+}
+
+function expectedParentType(type) {
+  if (type === "story") {
+    return "epic";
+  }
+  if (type === "subtask") {
+    return "story";
+  }
+  return "";
+}
+
+function itemIsUnder(items, row, ancestorKey) {
+  const byKey = new Map((items || []).map((item) => [item.key, item]));
+  let key = row.parentKey || "";
+  const seen = new Set();
+  while (key && !seen.has(key)) {
+    if (key === ancestorKey) {
+      return true;
+    }
+    seen.add(key);
+    const parent = byKey.get(key);
+    key = parent ? parent.parentKey || "" : "";
+  }
+  return false;
+}
+
+function parentChoices(items, item, rootType) {
+  const expected = expectedParentType(item.type);
+  const choices = [];
+  if (expected && rootType === expected) {
+    choices.push({ key: "", label: "Under the root" });
+  }
+  for (const row of items || []) {
+    if (!row.key || row.key === item.key || row.type !== expected) {
+      continue;
+    }
+    if (itemIsUnder(items, row, item.key)) {
+      continue;
+    }
+    choices.push({ key: row.key, label: row.title || "Untitled" });
+  }
+  return choices;
+}
+
+function blankItem(parentKey = "", type = "story") {
+  return {
+    key: `new:${Date.now()}:${Math.random().toString(16).slice(2)}`,
+    id: null,
+    parentKey: parentKey || "",
+    title: "",
+    description: "",
+    type: type || "story",
+    priority: "p4",
+    labels: "",
+    assignee: "",
+    assigneeId: null,
+    startOffset: "",
+    startTime: "",
+    dueOffset: "",
+    dueTime: "",
+  };
+}
+
+function itemsFromSeries(series) {
+  return (series.items || []).map((item) => ({
+    key: `id:${item.id}`,
+    id: item.id,
+    parentKey: item.parent_item_id ? `id:${item.parent_item_id}` : "",
+    title: item.title || "",
+    description: item.description || "",
+    type: item.type || "story",
+    priority: item.priority || "p4",
+    labels: (item.labels || []).join(", "),
+    assignee: "",
+    assigneeId: item.assignee_id || null,
+    startOffset: item.start_offset_days == null ? "" : String(item.start_offset_days),
+    startTime: clockText(item.start_minute_of_day),
+    dueOffset: item.due_offset_days == null ? "" : String(item.due_offset_days),
+    dueTime: clockText(item.due_minute_of_day),
+  }));
+}
+
 function blankRecipe() {
   return {
     title: "",
@@ -125,6 +212,7 @@ function recipeFromSeries(series, extras = {}) {
     occurrenceCount: series.occurrence_count ? String(series.occurrence_count) : "",
     parentKey: extras.parentKey || "",
     assignee: extras.assignee || "",
+    items: itemsFromSeries(series),
   };
 }
 
@@ -316,7 +404,78 @@ function prepareRecipe(draft, options = {}) {
     body.title = title;
     body.type = draft.type || "story";
   }
+  if (Array.isArray(draft.items)) {
+    const preparedItems = prepareItems(draft.items, body.type || draft.type || "story");
+    if (preparedItems.error) {
+      return preparedItems;
+    }
+    body.items = preparedItems.items;
+  }
   return { body };
+}
+
+function prepareItems(items, rootType) {
+  const prepared = [];
+  for (const item of items) {
+    const title = String(item.title || "").trim();
+    if (!title) {
+      return { error: "Each item needs a title." };
+    }
+    const start = side(optionalOffset(item.startOffset), optionalClock(item.startTime));
+    if (start.error) {
+      return start;
+    }
+    const due = side(optionalOffset(item.dueOffset), optionalClock(item.dueTime));
+    if (due.error) {
+      return due;
+    }
+    if (
+      start.offset != null
+      && start.clock != null
+      && due.offset != null
+      && due.clock != null
+      && -start.offset * 1440 + start.clock > due.offset * 1440 + due.clock
+    ) {
+      return { error: "Start cannot be after due." };
+    }
+    const labels = labelsOf(item.labels);
+    if (labels.error) {
+      return labels;
+    }
+    const parentKey = String(item.parentKey || "");
+    let parentType = rootType;
+    if (parentKey) {
+      const parent = items.find((row) => row.key === parentKey);
+      if (!parent) {
+        return { error: "Choose a parent in this schedule." };
+      }
+      parentType = parent.type || "story";
+    }
+    const expected = item.type === "story" ? "epic" : item.type === "subtask" ? "story" : null;
+    if (!expected) {
+      return { error: "An epic never has a parent." };
+    }
+    if (parentType !== expected) {
+      return { error: `A ${item.type} may only sit under a ${expected}.` };
+    }
+    prepared.push({
+      id: item.id || null,
+      key: item.key,
+      parent_key: parentKey || null,
+      title,
+      description: String(item.description || ""),
+      type: item.type || "story",
+      priority: item.priority || "p4",
+      labels: labels.value,
+      assignee: String(item.assignee || "").trim(),
+      assignee_id: item.assigneeId || null,
+      start_offset_days: start.offset,
+      start_minute_of_day: start.clock,
+      due_offset_days: due.offset,
+      due_minute_of_day: due.clock,
+    });
+  }
+  return { items: prepared };
 }
 
 function seriesView({ series, online }) {
@@ -351,7 +510,10 @@ module.exports = {
   SCOPES,
   SPAWNS,
   WEEKDAYS,
+  blankItem,
   blankRecipe,
+  childTypeOf,
+  parentChoices,
   prepareRecipe,
   recipeFromSeries,
   seriesView,

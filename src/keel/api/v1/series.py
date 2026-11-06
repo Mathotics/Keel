@@ -5,10 +5,19 @@ from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Series
 from keel.domain.enums import SeriesState
 from keel.domain.errors import InvalidSeriesError
-from keel.schemas.series import OccurrenceEdit, SeriesCreate, SeriesRead, SeriesUpdate
+from keel.schemas.series import (
+    OccurrenceEdit,
+    SeriesCreate,
+    SeriesItemRead,
+    SeriesItemWrite,
+    SeriesRead,
+    SeriesUpdate,
+)
 from keel.services import history as history_service
 from keel.services import labels as label_service
 from keel.services import series as series_service
+from keel.services import series_tree
+from keel.services.series_tree import ItemDraft
 
 router = APIRouter(tags=["series"])
 
@@ -59,6 +68,7 @@ def create_series(
         reporter_id=None if acting_user is None else acting_user.id,
         seed_issue_id=payload.seed_issue_id,
         labels=payload.labels if "labels" in payload.model_fields_set else None,
+        items=_drafts(payload.items) if payload.items else None,
     )
     return _read(session, series)
 
@@ -110,12 +120,15 @@ def update_series(
         "parent_id",
         "assignee_id",
         "labels",
+        "items",
     ):
         if name in fields:
             kwargs[name] = getattr(payload, name)
         # explicit null is a clear
     if "labels" in kwargs and kwargs["labels"] is None:
         kwargs["labels"] = []
+    if "items" in kwargs:
+        kwargs["items"] = _drafts(payload.items or [])
     series = series_service.update_series(session, series_id, **kwargs)  # type: ignore[arg-type]
     if payload.state is not None:
         series = series_service.set_state(session, series_id, payload.state)
@@ -170,6 +183,10 @@ def edit_occurrence(
     ):
         if name in supplied:
             kwargs[name] = getattr(payload, name)
+    if "item_action" in supplied:
+        kwargs["item_action"] = payload.item_action
+    if "item" in supplied and payload.item is not None:
+        kwargs["item"] = _drafts([payload.item])[0]
     if "weekdays" in supplied:
         kwargs["weekdays"] = tuple(payload.weekdays or ())
     actor_name = (
@@ -198,4 +215,48 @@ def _read(session: Session, series: Series) -> SeriesRead:
     return SeriesRead.of(
         series,
         label_service.names_for_series(session, series.id),
+        _item_reads(session, series.id),
     )
+
+
+def _drafts(items: list[SeriesItemWrite]) -> list[ItemDraft]:
+    return [
+        ItemDraft(
+            title=item.title,
+            type=item.type,
+            description=item.description,
+            priority=item.priority,
+            assignee_id=item.assignee_id,
+            labels=tuple(item.labels),
+            start_offset_days=item.start_offset_days,
+            start_minute_of_day=item.start_minute_of_day,
+            due_offset_days=item.due_offset_days,
+            due_minute_of_day=item.due_minute_of_day,
+            item_id=item.id,
+            key=item.key,
+            parent_key=item.parent_key,
+        )
+        for item in items
+    ]
+
+
+def _item_reads(session: Session, series_id: int) -> list[SeriesItemRead]:
+    rows = series_tree.active_items(session, series_id)
+    labels = label_service.names_for_series_items(session, [item.id for item in rows])
+    return [
+        SeriesItemRead(
+            id=item.id,
+            parent_item_id=item.parent_item_id,
+            title=item.title,
+            description=item.description,
+            type=item.type,
+            priority=item.priority,
+            assignee_id=item.assignee_id,
+            labels=labels.get(item.id, []),
+            start_offset_days=item.start_offset_days,
+            start_minute_of_day=item.start_minute_of_day,
+            due_offset_days=item.due_offset_days,
+            due_minute_of_day=item.due_minute_of_day,
+        )
+        for item in rows
+    ]

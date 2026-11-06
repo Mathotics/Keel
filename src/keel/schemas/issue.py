@@ -122,6 +122,8 @@ class IssueRead(BaseModel):
     start_at: datetime | None
     due_at: datetime | None
     series_id: int | None = None
+    series_item_id: int | None = None
+    series_item_title: str | None = None
     occurrence_on: date | None = None
     former_series_title: str | None = None
     former_series_cadence: str | None = None
@@ -139,6 +141,7 @@ class IssueRead(BaseModel):
         unresolved_blockers: int = 0,
         rollup: Rollup | None = None,
         labels: Sequence[str] = (),
+        series_item_title: str | None = None,
     ) -> "IssueRead":
         return cls(
             id=issue.id,
@@ -164,6 +167,8 @@ class IssueRead(BaseModel):
             start_at=issue.start_at,
             due_at=issue.due_at,
             series_id=issue.series_id,
+            series_item_id=issue.series_item_id,
+            series_item_title=series_item_title,
             occurrence_on=issue.occurrence_on,
             former_series_title=issue.former_series_title,
             former_series_cadence=issue.former_series_cadence,
@@ -181,14 +186,21 @@ class IssueRead(BaseModel):
         project: Project,
         blocker_counts: Mapping[int, int],
         labels: Mapping[int, Sequence[str]] | None = None,
+        series_item_titles: Mapping[int, str] | None = None,
     ) -> list["IssueRead"]:
         names = labels or {}
+        titles = series_item_titles or {}
         return [
             cls.of(
                 issue,
                 project,
                 blocker_counts.get(issue.id, 0),
                 labels=names.get(issue.id, ()),
+                series_item_title=(
+                    None
+                    if issue.series_item_id is None
+                    else titles.get(issue.series_item_id)
+                ),
             )
             for issue in issues
         ]

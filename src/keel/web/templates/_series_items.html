@@ -1,0 +1,9 @@
+        <fieldset>
+          <legend>Items under this issue</legend>
+          <p class="keel-note">Each item has its own title, type, description, priority, labels, assignee, and dates. A story can hold subtasks. A subtask is as deep as a schedule goes. Cadence stays on the schedule. Saving here changes future occurrences. Issues that already exist stay as they are.</p>
+          <div data-series-items></div>
+          <p><button type="button" data-series-items-add>Add story</button></p>
+          <input type="hidden" name="items_json" value="{{ items_json }}" data-series-items-json/>
+        </fieldset>
+        <script type="application/json" id="series-items-config">{{ items_config | tojson }}</script>
+        <script src="/assets/js/series-items.js" defer></script>

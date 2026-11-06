@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Issue, Series, SeriesSkip, Sprint
+from keel.db.models import Issue, Series, SeriesItem, SeriesSkip, Sprint
 from keel.domain.enums import (
     CLOSED_STATUSES,
     INITIAL_PRIORITY,
@@ -38,7 +38,9 @@ from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import labels as label_service
 from keel.services import projects as project_service
+from keel.services import series_tree
 from keel.services import sprints as sprint_service
+from keel.services.series_tree import ItemDraft
 
 MAX_TITLE_LENGTH = 300
 UNSET = object()
@@ -117,6 +119,7 @@ def create_series(
     due_offset_days: int | None = 0,
     due_minute_of_day: int | None = 0,
     labels: Sequence[str] | None = None,
+    items: Sequence[ItemDraft] | None = None,
     today: date | None = None,
 ) -> Series:
     project = project_service.get_project(session, project_id)
@@ -179,6 +182,22 @@ def create_series(
         )
     if seed_issue_id is not None:
         _attach_seed(session, series, seed_issue_id, today)
+    if items:
+        series_tree.replace_items(session, series, items)
+        if seed_issue_id is not None:
+            seed = issue_service.get_issue(session, seed_issue_id)
+            if seed.occurrence_on is not None:
+                _spawn_children(
+                    session,
+                    series,
+                    seed.occurrence_on,
+                    seed,
+                    _open_windows(session, series.project_id),
+                )
+    elif seed_issue_id is not None:
+        seed = issue_service.get_issue(session, seed_issue_id)
+        if seed.occurrence_on is not None:
+            series_tree.seed_descendants(session, series, seed, seed.occurrence_on)
     _check_offsets(series)
     advance_series(session, series.id, today)
     return series
@@ -211,6 +230,7 @@ def update_series(
     due_offset_days: int | None | object = UNSET,
     due_minute_of_day: int | None | object = UNSET,
     labels: Sequence[str] | None = None,
+    items: Sequence[ItemDraft] | object = UNSET,
     rewrite_from: date | None = None,
     today: date | None = None,
 ) -> Series:
@@ -255,6 +275,8 @@ def update_series(
     _assign_due(series, due_offset_days, due_minute_of_day)
     if labels is not None:
         label_service.set_series_labels(session, series.id, labels)
+    if items is not UNSET:
+        series_tree.replace_items(session, series, items)  # type: ignore[arg-type]
     _check_offsets(series)
     occurrence_dates(recurrence_of(series), series.starts_on)
     session.flush()
@@ -309,6 +331,8 @@ def apply_occurrence_edit(
     start_at: datetime | None | object = UNSET,
     due_at: datetime | None | object = UNSET,
     labels: Sequence[str] | None = None,
+    item_action: str | None = None,
+    item: ItemDraft | None = None,
     today: date | None = None,
     actor_name: str | None = None,
 ) -> Issue:
@@ -316,6 +340,21 @@ def apply_occurrence_edit(
     if issue.series_id is None:
         raise InvalidSeriesError("This issue is not part of a series.")
     series = get_series(session, issue.series_id)
+    if item_action == "add":
+        if item is None:
+            raise InvalidSeriesError("An added item needs a title.")
+        _add_tree_item(
+            session,
+            issue,
+            series,
+            scope,
+            item,
+            actor_name=actor_name,
+        )
+        return issue
+    if item_action == "remove":
+        _remove_tree_item(session, issue, series, scope)
+        return issue
     if scope is EditScope.THIS:
         _update_one_issue(
             session,
@@ -332,6 +371,39 @@ def apply_occurrence_edit(
             actor_name=actor_name,
         )
         return issue
+    if issue.series_item_id is not None:
+        return _apply_item_edit(
+            session,
+            issue,
+            series,
+            scope,
+            title=title,
+            description=description,
+            type=type,
+            priority=priority,
+            assignee_id=assignee_id,
+            spawn_mode=spawn_mode,
+            sprint_basis=sprint_basis,
+            look_ahead_n=look_ahead_n,
+            freq=freq,
+            interval=interval,
+            weekdays=weekdays,
+            month_day=month_day,
+            nth_week=nth_week,
+            month=month,
+            starts_on=starts_on,
+            ends_on=ends_on,
+            occurrence_count=occurrence_count,
+            start_offset_days=start_offset_days,
+            start_minute_of_day=start_minute_of_day,
+            due_offset_days=due_offset_days,
+            due_minute_of_day=due_minute_of_day,
+            start_at=start_at,
+            due_at=due_at,
+            labels=labels,
+            today=today,
+            actor_name=actor_name,
+        )
     if start_at is not UNSET or due_at is not UNSET:
         start_offset_days, start_minute_of_day, due_offset_days, due_minute_of_day = (
             _offsets_from_datetimes(issue, start_at, due_at)
@@ -367,6 +439,8 @@ def apply_occurrence_edit(
         today=today,
     )
     for copy in _copies(session, series.id):
+        if copy.series_item_id != issue.series_item_id:
+            continue
         if scope is EditScope.FUTURE and (
             cutoff is None or copy.occurrence_on is None or copy.occurrence_on < cutoff
         ):
@@ -460,7 +534,7 @@ def _spawn_after_closed(
     open_copies = [
         issue
         for issue in _copies(session, series.id)
-        if issue.status not in CLOSED_STATUSES
+        if issue.series_item_id is None and issue.status not in CLOSED_STATUSES
     ]
     if open_copies:
         return
@@ -501,7 +575,9 @@ def _spawn_calendar(
     open_unscheduled = sum(
         1
         for issue in _copies(session, series.id)
-        if issue.sprint_id is None and issue.status not in CLOSED_STATUSES
+        if issue.series_item_id is None
+        and issue.sprint_id is None
+        and issue.status not in CLOSED_STATUSES
     )
     slots = max(0, series.look_ahead_n - open_unscheduled)
     chosen = with_window + without[:slots]
@@ -541,6 +617,7 @@ def _spawn_one(
             names,
             actor_name=history_service.SYSTEM_ACTOR,
         )
+    _spawn_children(session, series, occurrence_on, issue, windows)
     return issue
 
 
@@ -554,7 +631,10 @@ def _claim_previews(
             continue
         if issue.status in CLOSED_STATUSES:
             continue
-        sprint = _overlapping(windows, _claim_day(series, issue))
+        day = _claim_day(session, series, issue)
+        if day is None:
+            continue
+        sprint = _overlapping(windows, day)
         if sprint is not None:
             from keel.services import history as history_service
 
@@ -604,7 +684,7 @@ def _existing_dates(session: Session, series_id: int) -> set[date]:
     return {
         issue.occurrence_on
         for issue in _copies(session, series_id)
-        if issue.occurrence_on is not None
+        if issue.series_item_id is None and issue.occurrence_on is not None
     }
 
 
@@ -744,7 +824,7 @@ def _sync_copy_dates(
     from_on: date | None,
 ) -> None:
     for copy in _copies(session, series.id):
-        if copy.occurrence_on is None:
+        if copy.series_item_id is not None or copy.occurrence_on is None:
             continue
         if from_on is not None and copy.occurrence_on < from_on:
             continue
@@ -772,9 +852,14 @@ def _placement_day(series: Series, occurrence_on: date) -> date:
     return occurrence_on
 
 
-def _claim_day(series: Series, issue: Issue) -> date:
+def _claim_day(session: Session, series: Series, issue: Issue) -> date | None:
     if issue.occurrence_on is None:
         return date.today()
+    if issue.series_item_id is not None:
+        item = session.get(SeriesItem, issue.series_item_id)
+        if item is None or item.removed:
+            return None
+        return _item_placement(series, item, issue.occurrence_on)
     if series.sprint_basis is SeriesSprintBasis.START_ON:
         if issue.start_at is not None:
             return issue.start_at.date()
@@ -878,6 +963,7 @@ def _retire_series(session: Session, series: Series) -> None:
     for issue in _copies(session, series.id):
         issue.former_series_title = series.title
         issue.former_series_cadence = summary
+        issue.series_item_id = None
         issue.series_id = None
     session.delete(series)
     session.flush()
@@ -894,3 +980,434 @@ def _look_ahead(value: int) -> int:
     if value < 1:
         raise InvalidSeriesError("Look-ahead must be at least 1.")
     return value
+
+
+def delete_occurrence(session: Session, issue: Issue) -> None:
+    """Remove one occurrence's whole tree and skip that date."""
+    if issue.series_id is None or issue.occurrence_on is None:
+        raise InvalidSeriesError("This issue is not part of a series.")
+    members = [
+        copy
+        for copy in _copies(session, issue.series_id)
+        if copy.occurrence_on == issue.occurrence_on and copy.id != issue.id
+    ]
+    _delete_members(session, members)
+    children = issue_service.list_children(session, issue.id)
+    if children:
+        from keel.domain.errors import IssueHasChildrenError
+
+        raise IssueHasChildrenError(
+            "Move or delete this issue's children first.",
+            issue_id=issue.id,
+            children=len(children),
+        )
+    series_id = issue.series_id
+    occurrence_on = issue.occurrence_on
+    session.delete(issue)
+    session.flush()
+    after_issue_deleted(session, series_id, occurrence_on)
+
+
+def _spawn_children(
+    session: Session,
+    series: Series,
+    occurrence_on: date,
+    root: Issue,
+    windows: Sequence[Sprint],
+) -> None:
+    spawned: dict[int, Issue] = {}
+    for item in series_tree.active_items(session, series.id):
+        parent: Issue
+        if item.parent_item_id is None:
+            parent = root
+        else:
+            found = spawned.get(item.parent_item_id)
+            if found is None:
+                raise InvalidSeriesError("The schedule tree could not be read.")
+            parent = found
+        spawned[item.id] = _spawn_item(
+            session,
+            series,
+            item,
+            occurrence_on,
+            parent,
+            windows,
+        )
+
+
+def _spawn_item(
+    session: Session,
+    series: Series,
+    item: SeriesItem,
+    occurrence_on: date,
+    parent: Issue,
+    windows: Sequence[Sprint],
+) -> Issue:
+    start_at, due_at = _item_window(item, occurrence_on)
+    day = _item_placement(series, item, occurrence_on)
+    sprint = None if day is None else _overlapping(windows, day)
+    issue = issue_service.create_issue(
+        session,
+        series.project_id,
+        type=item.type,
+        title=item.title,
+        description=item.description,
+        priority=item.priority,
+        parent_id=parent.id,
+        reporter_id=series.reporter_id,
+        assignee_id=item.assignee_id,
+        start_at=start_at,
+        due_at=due_at,
+        sprint_id=None if sprint is None else sprint.id,
+        series_id=series.id,
+        series_item_id=item.id,
+        occurrence_on=occurrence_on,
+    )
+    names = label_service.names_for_series_item(session, item.id)
+    if names:
+        label_service.set_issue_labels(
+            session,
+            issue.id,
+            names,
+            actor_name=history_service.SYSTEM_ACTOR,
+        )
+    return issue
+
+
+def _item_window(
+    item: SeriesItem,
+    occurrence_on: date,
+) -> tuple[datetime | None, datetime | None]:
+    return (
+        recipe_start_at(
+            occurrence_on,
+            item.start_offset_days,
+            item.start_minute_of_day,
+        ),
+        recipe_due_at(
+            occurrence_on,
+            item.due_offset_days,
+            item.due_minute_of_day,
+        ),
+    )
+
+
+def _item_placement(
+    series: Series,
+    item: SeriesItem,
+    occurrence_on: date,
+) -> date | None:
+    start_at, due_at = _item_window(item, occurrence_on)
+    if series.sprint_basis is SeriesSprintBasis.CREATED_ON:
+        return occurrence_on
+    if series.sprint_basis is SeriesSprintBasis.START_ON:
+        return None if start_at is None else start_at.date()
+    return None if due_at is None else due_at.date()
+
+
+def _add_tree_item(
+    session: Session,
+    issue: Issue,
+    series: Series,
+    scope: EditScope,
+    draft: ItemDraft,
+    *,
+    actor_name: str | None,
+) -> None:
+    if scope is EditScope.THIS:
+        series_tree.require_child(draft.type, issue.type)
+    else:
+        parent_type = series.type
+        if issue.series_item_id is not None:
+            parent = session.get(SeriesItem, issue.series_item_id)
+            if parent is not None:
+                parent_type = parent.type
+        series_tree.require_child(draft.type, parent_type)
+    if scope is EditScope.THIS:
+        occurrence = issue.occurrence_on or date.today()
+        start_days, start_minute = complete_offset_pair(
+            draft.start_offset_days,
+            draft.start_minute_of_day,
+        )
+        due_days, due_minute = complete_offset_pair(
+            draft.due_offset_days,
+            draft.due_minute_of_day,
+        )
+        check_recipe_window(start_days, start_minute, due_days, due_minute)
+        start_at = recipe_start_at(occurrence, start_days, start_minute)
+        due_at = recipe_due_at(occurrence, due_days, due_minute)
+        created = issue_service.create_issue(
+            session,
+            series.project_id,
+            type=draft.type,
+            title=draft.title,
+            description=draft.description,
+            priority=draft.priority,
+            parent_id=issue.id,
+            reporter_id=series.reporter_id,
+            assignee_id=draft.assignee_id,
+            start_at=start_at,
+            due_at=due_at,
+        )
+        if draft.labels:
+            label_service.set_issue_labels(
+                session,
+                created.id,
+                draft.labels,
+                actor_name=actor_name,
+            )
+        return
+    start_days, start_minute = complete_offset_pair(
+        draft.start_offset_days,
+        draft.start_minute_of_day,
+    )
+    due_days, due_minute = complete_offset_pair(
+        draft.due_offset_days,
+        draft.due_minute_of_day,
+    )
+    check_recipe_window(start_days, start_minute, due_days, due_minute)
+    item = SeriesItem(
+        series_id=series.id,
+        parent_item_id=issue.series_item_id,
+        position=_next_position(session, series.id, issue.series_item_id),
+        title=_clean_title(draft.title),
+        description=draft.description.strip(),
+        type=draft.type,
+        priority=draft.priority,
+        assignee_id=draft.assignee_id,
+        start_offset_days=start_days,
+        start_minute_of_day=start_minute,
+        due_offset_days=due_days,
+        due_minute_of_day=due_minute,
+    )
+    session.add(item)
+    session.flush()
+    if draft.labels:
+        label_service.set_series_item_labels(session, item.id, draft.labels)
+    windows = _open_windows(session, series.project_id)
+    cutoff = issue.occurrence_on
+    for copy in _copies(session, series.id):
+        if copy.series_item_id != issue.series_item_id:
+            continue
+        if copy.occurrence_on is None or copy.status in CLOSED_STATUSES:
+            continue
+        if scope is EditScope.FUTURE and (
+            cutoff is None or copy.occurrence_on < cutoff
+        ):
+            continue
+        _spawn_item(session, series, item, copy.occurrence_on, copy, windows)
+
+
+def _remove_tree_item(
+    session: Session,
+    issue: Issue,
+    series: Series,
+    scope: EditScope,
+) -> None:
+    if issue.series_item_id is None:
+        raise InvalidSeriesError(
+            "The root stays with the schedule. Delete the schedule to end it.",
+        )
+    if scope is EditScope.THIS:
+        issue_service.delete_issue(session, issue.id)
+        return
+    item = session.get(SeriesItem, issue.series_item_id)
+    if item is None or item.removed:
+        raise InvalidSeriesError("That schedule item is gone.")
+    ids = series_tree.descendant_ids(session, item)
+    for row in session.scalars(select(SeriesItem).where(SeriesItem.id.in_(ids))).all():
+        row.removed = True
+    cutoff = issue.occurrence_on
+    doomed = []
+    for copy in _copies(session, series.id):
+        if copy.series_item_id not in ids or copy.status in CLOSED_STATUSES:
+            continue
+        if scope is EditScope.FUTURE and (
+            cutoff is None or copy.occurrence_on is None or copy.occurrence_on < cutoff
+        ):
+            continue
+        doomed.append(copy)
+    _delete_members(session, doomed)
+
+
+def _apply_item_edit(
+    session: Session,
+    issue: Issue,
+    series: Series,
+    scope: EditScope,
+    *,
+    title: str | None,
+    description: str | None,
+    type: IssueType | None,
+    priority: IssuePriority | None,
+    assignee_id: int | None | object,
+    spawn_mode: SeriesSpawnMode | None,
+    sprint_basis: SeriesSprintBasis | None,
+    look_ahead_n: int | None,
+    freq: RecurrenceFreq | None,
+    interval: int | None,
+    weekdays: tuple[int, ...] | None,
+    month_day: int | None | object,
+    nth_week: int | None | object,
+    month: int | None | object,
+    starts_on: date | None,
+    ends_on: date | None | object,
+    occurrence_count: int | None | object,
+    start_offset_days: int | None | object,
+    start_minute_of_day: int | None | object,
+    due_offset_days: int | None | object,
+    due_minute_of_day: int | None | object,
+    start_at: datetime | None | object,
+    due_at: datetime | None | object,
+    labels: Sequence[str] | None,
+    today: date | None,
+    actor_name: str | None,
+) -> Issue:
+    item = session.get(SeriesItem, issue.series_item_id)
+    if item is None or item.removed:
+        raise InvalidSeriesError("That schedule item is gone.")
+    if start_at is not UNSET or due_at is not UNSET:
+        start_offset_days, start_minute_of_day, due_offset_days, due_minute_of_day = (
+            _offsets_from_datetimes(issue, start_at, due_at)
+        )
+    if title is not None:
+        item.title = _clean_title(title)
+    if description is not None:
+        item.description = description.strip()
+    if type is not None and type is not item.type:
+        parent_type = series.type
+        if item.parent_item_id is not None:
+            parent = session.get(SeriesItem, item.parent_item_id)
+            if parent is None:
+                raise InvalidSeriesError("Choose a parent in this schedule.")
+            parent_type = parent.type
+        series_tree.require_child(type, parent_type)
+        child_types = [
+            row.type
+            for row in series_tree.active_items(session, series.id)
+            if row.parent_item_id == item.id
+        ]
+        series_tree.assert_children_of(type, child_types)
+        item.type = type
+    if priority is not None:
+        item.priority = priority
+    if assignee_id is not UNSET:
+        item.assignee_id = assignee_id  # type: ignore[assignment]
+    _assign_item_start(item, start_offset_days, start_minute_of_day)
+    _assign_item_due(item, due_offset_days, due_minute_of_day)
+    check_recipe_window(
+        item.start_offset_days,
+        item.start_minute_of_day,
+        item.due_offset_days,
+        item.due_minute_of_day,
+    )
+    if labels is not None:
+        label_service.set_series_item_labels(session, item.id, labels)
+    cutoff = issue.occurrence_on
+    update_series(
+        session,
+        series.id,
+        spawn_mode=spawn_mode,
+        sprint_basis=sprint_basis,
+        look_ahead_n=look_ahead_n,
+        freq=freq,
+        interval=interval,
+        weekdays=weekdays,
+        month_day=month_day,
+        nth_week=nth_week,
+        month=month,
+        starts_on=starts_on,
+        ends_on=ends_on,
+        occurrence_count=occurrence_count,
+        rewrite_from=cutoff if scope is EditScope.FUTURE else None,
+        today=today,
+    )
+    for copy in _copies(session, series.id):
+        if copy.series_item_id != item.id:
+            continue
+        if scope is EditScope.FUTURE and (
+            cutoff is None or copy.occurrence_on is None or copy.occurrence_on < cutoff
+        ):
+            continue
+        if copy.status in CLOSED_STATUSES:
+            continue
+        _update_one_issue(
+            session,
+            copy,
+            title=title,
+            description=description,
+            type=type,
+            priority=priority,
+            assignee_id=assignee_id,
+            parent_id=UNSET,
+            labels=labels,
+            actor_name=actor_name,
+        )
+        if copy.occurrence_on is not None:
+            copy_start, copy_due = _item_window(item, copy.occurrence_on)
+            issue_service.update_issue(
+                session,
+                copy.id,
+                start_at=copy_start,
+                due_at=copy_due,
+                actor_name=actor_name,
+            )
+    return issue
+
+
+def _assign_item_start(
+    item: SeriesItem,
+    offset_days: int | None | object,
+    minute_of_day: int | None | object,
+) -> None:
+    if offset_days is UNSET and minute_of_day is UNSET:
+        return
+    item.start_offset_days, item.start_minute_of_day = complete_offset_pair(
+        _merged_offset(offset_days, item.start_offset_days),
+        _merged_offset(minute_of_day, item.start_minute_of_day),
+    )
+
+
+def _assign_item_due(
+    item: SeriesItem,
+    offset_days: int | None | object,
+    minute_of_day: int | None | object,
+) -> None:
+    if offset_days is UNSET and minute_of_day is UNSET:
+        return
+    item.due_offset_days, item.due_minute_of_day = complete_offset_pair(
+        _merged_offset(offset_days, item.due_offset_days),
+        _merged_offset(minute_of_day, item.due_minute_of_day),
+    )
+
+
+def _next_position(
+    session: Session,
+    series_id: int,
+    parent_item_id: int | None,
+) -> int:
+    siblings = [
+        item.position
+        for item in series_tree.active_items(session, series_id)
+        if item.parent_item_id == parent_item_id
+    ]
+    if not siblings:
+        return 0
+    return max(siblings) + 1
+
+
+def _delete_members(session: Session, members: Sequence[Issue]) -> None:
+    remaining = list(members)
+    while remaining:
+        leaves = [
+            item
+            for item in remaining
+            if all(other.parent_id != item.id for other in remaining)
+        ]
+        if not leaves:
+            raise InvalidSeriesError("This occurrence could not be removed.")
+        gone = {item.id for item in leaves}
+        for leaf in leaves:
+            session.delete(leaf)
+        session.flush()
+        remaining = [item for item in remaining if item.id not in gone]

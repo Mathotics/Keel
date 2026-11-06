@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from keel.db.models import IssueLabel, Label, SeriesLabel
+from keel.db.models import IssueLabel, Label, SeriesItemLabel, SeriesLabel
 from keel.domain.labels import normalize_label_name, parse_label_names
 from keel.services import history as history_service
 from keel.services import issues as issue_service
@@ -52,6 +52,56 @@ def names_for_series(session: Session, series_id: int) -> list[str]:
         .order_by(Label.name),
     ).all()
     return list(rows)
+
+
+def names_for_series_item(session: Session, series_item_id: int) -> list[str]:
+    rows = session.scalars(
+        select(Label.name)
+        .join(SeriesItemLabel, SeriesItemLabel.label_id == Label.id)
+        .where(SeriesItemLabel.series_item_id == series_item_id)
+        .order_by(Label.name),
+    ).all()
+    return list(rows)
+
+
+def names_for_series_items(
+    session: Session,
+    series_item_ids: Sequence[int],
+) -> dict[int, list[str]]:
+    found: dict[int, list[str]] = {item_id: [] for item_id in series_item_ids}
+    if not series_item_ids:
+        return found
+    rows = session.execute(
+        select(SeriesItemLabel.series_item_id, Label.name)
+        .join(Label, Label.id == SeriesItemLabel.label_id)
+        .where(SeriesItemLabel.series_item_id.in_(series_item_ids))
+        .order_by(Label.name),
+    ).all()
+    for series_item_id, name in rows:
+        found[series_item_id].append(name)
+    return found
+
+
+def set_series_item_labels(
+    session: Session,
+    series_item_id: int,
+    values: Sequence[str] | str,
+) -> list[str]:
+    wanted = tuple(sorted(parse_label_names(values)))
+    current = tuple(names_for_series_item(session, series_item_id))
+    if wanted == current:
+        return list(current)
+    session.execute(
+        delete(SeriesItemLabel).where(
+            SeriesItemLabel.series_item_id == series_item_id,
+        ),
+    )
+    session.flush()
+    for name in wanted:
+        label = _get_or_create(session, name)
+        session.add(SeriesItemLabel(series_item_id=series_item_id, label_id=label.id))
+    session.flush()
+    return list(wanted)
 
 
 def set_series_labels(

@@ -73,12 +73,20 @@ class Issue(Base):
         Index("ix_issues_parent_id", "parent_id"),
         Index("ix_issues_sprint_id", "sprint_id"),
         Index("ix_issues_series_id", "series_id"),
+        Index("ix_issues_series_item_id", "series_item_id"),
         Index(
-            "uq_issues_series_occurrence",
+            "uq_issues_series_root_occurrence",
             "series_id",
             "occurrence_on",
             unique=True,
-            sqlite_where=text("series_id is not null"),
+            sqlite_where=text("series_id is not null and series_item_id is null"),
+        ),
+        Index(
+            "uq_issues_series_item_occurrence",
+            "series_item_id",
+            "occurrence_on",
+            unique=True,
+            sqlite_where=text("series_item_id is not null"),
         ),
         UniqueConstraint("client_key", name="uq_issues_client_key"),
     )
@@ -139,6 +147,10 @@ class Issue(Base):
         default=None,
     )
     occurrence_on: Mapped[date | None] = mapped_column(Date, default=None)
+    series_item_id: Mapped[int | None] = mapped_column(
+        ForeignKey("series_items.id", ondelete="SET NULL"),
+        default=None,
+    )
     former_series_title: Mapped[str | None] = mapped_column(String(300), default=None)
     former_series_cadence: Mapped[str | None] = mapped_column(
         String(300),

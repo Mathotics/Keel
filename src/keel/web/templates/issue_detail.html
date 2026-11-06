@@ -296,10 +296,14 @@
       {% if series %}
       <section class="keel-repeat">
         <p class="keel-lede">
-          This issue is occurrence {{ issue.occurrence_on }} of
+          This issue is
+          {% if series_item %}{{ series_item.title }} in{% else %}the root of{% endif %}
           <a href="/projects/{{ project.key }}/schedules/{{ series.id }}">{{ series.title }}</a>
           ({{ series_summary }}). {{ series.spawn_mode | label }}.
-          Recipe changes ask which copies to update. Delete this issue to skip this cycle.
+          Recipe changes ask which copies to update.
+          {% if series_item %}Deleting this issue removes it from this occurrence only.
+          {% else %}Deleting this issue removes this occurrence and its scheduled items.
+          {% endif %}
         </p>
         <p class="keel-actions">
           <a class="keel-button" href="/issues/{{ issue_key }}?repeat=1" data-keel-overlay-open>Edit series</a>
@@ -335,14 +339,102 @@
           {% endif %}
           {% if series %}
           <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series">
-            {% with prefix="series", recipe=series, include_apply=true, include_identity=true, include_type=false, include_people=false, look_ahead_label="Look-ahead N" %}
+            {% with prefix="series", recipe=recipe, include_apply=true, include_identity=true, include_type=false, include_people=false, look_ahead_label="Look-ahead N" %}
             {% include "_series_recipe.html" %}
             {% endwith %}
+            <p class="keel-note">This occurrence changes only this copy and does not come back. This and all future, and the entire series, change the recipe and open copies. Closed copies stay as they are.</p>
             <p class="keel-form-actions">
               <button class="keel-primary" type="submit">Save series</button>
               <a class="keel-button" href="/issues/{{ issue_key }}" data-keel-overlay-close>Cancel</a>
             </p>
           </form>
+          {% if child_type %}
+          <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series-item">
+            <fieldset>
+              <legend>Add an item under this issue</legend>
+              <p class="keel-note">This occurrence adds it only here. This and all future, and the entire series, add a repeating item. Closed copies stay as they are.</p>
+              <div class="keel-fields">
+                <p>
+                  <label for="item-scope">Apply to</label>
+                  <select id="item-scope" name="scope">
+                    {% for value in edit_scopes %}
+                    <option value="{{ value.value }}">{{ value | label }}</option>
+                    {% endfor %}
+                  </select>
+                </p>
+                <p>
+                  <label for="item-type">Type</label>
+                  <select id="item-type" name="type">
+                    <option value="{{ child_type.value }}" selected>{{ child_type | label }}</option>
+                  </select>
+                </p>
+                <p class="keel-fields__full">
+                  <label for="item-title">Title</label>
+                  <input id="item-title" name="title" type="text" maxlength="300" required/>
+                </p>
+                <p class="keel-fields__full">
+                  <label for="item-description">Default description</label>
+                  <textarea id="item-description" name="description" rows="3"></textarea>
+                </p>
+                <p>
+                  <label for="item-priority">Priority</label>
+                  <select id="item-priority" name="priority">
+                    {% for value in priorities %}
+                    <option value="{{ value.value }}"{% if value.value == "p4" %} selected{% endif %}>{{ value | label }}</option>
+                    {% endfor %}
+                  </select>
+                </p>
+                <p>
+                  <label for="item-labels">Labels</label>
+                  <input id="item-labels" name="labels" type="text" maxlength="300"/>
+                </p>
+                <p>
+                  <label for="item-assignee">Assignee</label>
+                  <select id="item-assignee" name="assignee_id">
+                    <option value="">Unassigned</option>
+                    {% for person in users %}
+                    <option value="{{ person.id }}">{{ person.display_name }}</option>
+                    {% endfor %}
+                  </select>
+                </p>
+                <p>
+                  <label for="item-start-offset">Start offset (days before)</label>
+                  <input id="item-start-offset" name="start_offset_days" type="number" min="0"/>
+                </p>
+                <p>
+                  <label for="item-start-time">Start time</label>
+                  <input id="item-start-time" name="start_time" type="time"/>
+                </p>
+                <p>
+                  <label for="item-due-offset">Due offset (days after)</label>
+                  <input id="item-due-offset" name="due_offset_days" type="number" min="0"/>
+                </p>
+                <p>
+                  <label for="item-due-time">Due time</label>
+                  <input id="item-due-time" name="due_time" type="time"/>
+                </p>
+              </div>
+            </fieldset>
+            <p class="keel-form-actions"><button type="submit">Add item</button></p>
+          </form>
+          {% endif %}
+          {% if series_item %}
+          <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/series-item/remove">
+            <fieldset>
+              <legend>Remove this item</legend>
+              <p class="keel-note">This occurrence removes it only here. This and all future, and the entire series, take it off the recipe and off open copies. Closed copies stay as they are.</p>
+              <p>
+                <label for="remove-scope">Apply to</label>
+                <select id="remove-scope" name="scope">
+                  {% for value in edit_scopes %}
+                  <option value="{{ value.value }}">{{ value | label }}</option>
+                  {% endfor %}
+                </select>
+              </p>
+            </fieldset>
+            <p class="keel-form-actions"><button type="submit">Remove item</button></p>
+          </form>
+          {% endif %}
           {% else %}
           <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/repeat">
             {% with prefix="repeat", recipe=none, look_ahead_label="Look-ahead N" %}
@@ -556,7 +648,7 @@
       {% endcall %}
 
       <form class="keel-form keel-form--danger" method="post" action="/web/issues/{{ issue.id }}/delete"
-            onsubmit="return confirm('Delete {{ issue_key }}?{% if series %} This occurrence will not come back.{% endif %}');">
+            onsubmit="return confirm('Delete {{ issue_key }}?{% if series and series_item %} This item is removed from this occurrence only.{% elif series %} This occurrence and its scheduled items will not come back.{% endif %}');">
         <button type="submit">Delete issue</button>
       </form>
 {% endblock %}

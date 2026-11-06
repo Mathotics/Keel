@@ -33,7 +33,7 @@ import { arrangeInbox, blankLayout, hideSection, homeKey, moveSection, parseLayo
 import { inboxView } from "./src/inbox";
 import { findView } from "./src/find";
 import { blankFilter, filterMenus, labelOptions, peopleOptions, projectOptions, sprintOptions, toggleChoice } from "./src/filters";
-import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankRecipe, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
+import { BASES, DELETE_BODY, DELETE_TITLE, DELETED, FREQS, MONTHS, PRIORITIES, SCOPES, SPAWNS, WEEKDAYS, blankItem, blankRecipe, childTypeOf, parentChoices, prepareRecipe, recipeFromSeries, seriesView } from "./src/series";
 import { completionNotice, NEEDS_CONNECTION, planningView, prepareSprint, prepareSprintUpdate, sprintDetail } from "./src/planning";
 import { healthUrl, isConnected, parseOrigin } from "./src/origin";
 import { connectionMode, forcedOffline, reachability, reachabilityKnown, setForcedOffline, setReachable, shouldStayOffline, subscribeReachability } from "./src/reach";
@@ -1576,11 +1576,30 @@ export default function App() {
         }
       }
       const person = (library.people || []).find((item) => item.id === series.assignee_id);
+      const draft = recipeFromSeries(series, {
+        parentKey,
+        assignee: person ? person.display_name : "",
+      });
+      draft.items = (draft.items || []).map((item) => {
+        const owner = (library.people || []).find((row) => row.id === item.assigneeId);
+        return owner ? { ...item, assignee: owner.display_name } : item;
+      });
+      if (issue && issue.seriesItemId) {
+        const match = draft.items.find((item) => item.id === issue.seriesItemId);
+        if (match) {
+          draft.title = match.title;
+          draft.description = match.description;
+          draft.type = match.type;
+          draft.priority = match.priority;
+          draft.labels = match.labels;
+          draft.startOffset = match.startOffset;
+          draft.startTime = match.startTime;
+          draft.dueOffset = match.dueOffset;
+          draft.dueTime = match.dueTime;
+        }
+      }
       setRecipe({
-        ...recipeFromSeries(series, {
-          parentKey,
-          assignee: person ? person.display_name : "",
-        }),
+        ...draft,
         keepParent,
         keepAssignee: Boolean(series.assignee_id) && !person,
       });
@@ -1659,17 +1678,93 @@ export default function App() {
     return { assigneeId, parentId };
   }
 
-  async function saveRecipe() {
+  async function personId(name) {
+    const assignee = String(name || "").trim();
+    if (!assignee) {
+      return { id: null };
+    }
+    let people = library.people || [];
+    if (!people.length) {
+      people = await read(account.origin, account.token, "/api/v1/users");
+    }
+    const found = (people || []).find(
+      (person) => String(person.display_name || "").toLowerCase() === assignee.toLowerCase(),
+    );
+    if (!found) {
+      return { error: "Choose an assignee." };
+    }
+    return { id: found.id };
+  }
+
+  async function saveRecipe(action) {
+    if (action === "add" || action === "remove") {
+      try {
+        if (action === "remove") {
+          const projectId = recipeIssue.projectId;
+          await send(account.origin, account.token, "POST", `/api/v1/issues/${recipeIssue.id}/series`, {
+            scope: recipeScope,
+            item_action: "remove",
+          });
+          await openSchedules(projectId);
+          setScheduleNotice("Item removed from the schedule.");
+          return null;
+        } else {
+          const child = { epic: "story", story: "subtask" }[recipeIssue.type];
+          const title = String((recipe && recipe.addTitle) || "").trim();
+          if (!child) {
+            return "This issue cannot have a child.";
+          }
+          if (!title) {
+            return "Each item needs a title.";
+          }
+          await send(account.origin, account.token, "POST", `/api/v1/issues/${recipeIssue.id}/series`, {
+            scope: recipeScope,
+            item_action: "add",
+            item: {
+              title,
+              type: child,
+              description: "",
+              priority: "p4",
+              labels: [],
+            },
+          });
+        }
+        setIssueId(recipeIssue.id);
+        setPhase("issue");
+        return null;
+      } catch (err) {
+        if (err.status === 401) {
+          await clearAccount();
+          setTone("error");
+          setMessage("Sign in.");
+          return null;
+        }
+        return err.message || FAILED;
+      }
+    }
     const prepared = prepareRecipe(recipe, { requireTitle: recipeMode !== "repeat" });
     if (prepared.error) {
       return prepared.error;
     }
     try {
       const body = { ...prepared.body };
+      if (Array.isArray(body.items)) {
+        for (const item of body.items) {
+          if (item.assignee) {
+            const owner = await personId(item.assignee);
+            if (owner.error) {
+              return owner.error;
+            }
+            item.assignee_id = owner.id;
+          }
+          delete item.assignee;
+        }
+      }
       if (recipeMode === "repeat") {
         if (!String(recipe.labels || "").trim()) {
           delete body.labels;
         }
+        delete body.items;
         await send(account.origin, account.token, "POST", `/api/v1/projects/${recipeIssue.projectId}/series`, {
           ...body,
           title: recipeIssue.title,
@@ -1686,6 +1781,7 @@ export default function App() {
       }
       if (recipeMode === "occurrence") {
         delete body.type;
+        delete body.items;
         await send(account.origin, account.token, "POST", `/api/v1/issues/${recipeIssue.id}/series`, {
           scope: recipeScope,
           ...body,
@@ -2797,6 +2893,8 @@ export default function App() {
             setPhase("projects");
           }}
           onSave={saveRecipe}
+          canAdd={Boolean(recipeIssue && recipeIssue.type && recipeIssue.type !== "subtask")}
+          canRemove={Boolean(recipeIssue && recipeIssue.seriesItemId)}
           onScope={setRecipeScope}
           onSettings={() => {
             listPhase.current = "schedule";
@@ -3873,7 +3971,26 @@ function OptionRow({ label, options, value, onChange }) {
   );
 }
 
-function RecipeFields({ draft, onChange, showIdentity, showType, showPeople, showScope, scope, onScope }) {
+function RecipeFields({ draft, onChange, showIdentity, showType, showPeople, showScope, showItems, scope, onScope }) {
+  function updateItem(index, patch) {
+    onChange({
+      items: (draft.items || []).map((item, itemIndex) => (
+        itemIndex === index ? { ...item, ...patch } : item
+      )),
+    });
+  }
+  function removeItem(index) {
+    const removed = (draft.items || [])[index];
+    onChange({
+      items: (draft.items || [])
+        .filter((_, itemIndex) => itemIndex !== index)
+        .map((item) => (
+          removed && item.parentKey === removed.key
+            ? { ...item, parentKey: removed.parentKey || "" }
+            : item
+        )),
+    });
+  }
   return (
     <View>
       {showScope ? (
@@ -3899,6 +4016,68 @@ function RecipeFields({ draft, onChange, showIdentity, showType, showPeople, sho
         <View>
           <Field label="Assignee" value={draft.assignee} onChange={(assignee) => onChange({ assignee })} placeholder="Unassigned" />
           <Field label="Parent" value={draft.parentKey} onChange={(parentKey) => onChange({ parentKey })} placeholder="KEEL-12" />
+        </View>
+      ) : null}
+      {showItems ? (
+        <View>
+          <Text style={styles.sectionHeading}>Items under this issue</Text>
+          <Text style={styles.message}>A story can hold subtasks. A subtask is as deep as a schedule goes. Saving here changes future occurrences. Issues that already exist stay as they are.</Text>
+          {(draft.items || []).map((item, index) => {
+            const choices = parentChoices(draft.items, item, draft.type || "story");
+            const child = childTypeOf(item.type);
+            return (
+            <View key={item.key || String(index)}>
+              <Field label="Item title" value={item.title} onChange={(title) => updateItem(index, { title })} />
+              <OptionRow
+                label="Item type"
+                options={[["story", "Story"], ["subtask", "Subtask"]]}
+                value={item.type}
+                onChange={(type) => {
+                  const next = { ...item, type };
+                  const nextChoices = parentChoices(draft.items, next, draft.type || "story");
+                  const still = nextChoices.some((choice) => choice.key === (item.parentKey || ""));
+                  updateItem(index, still ? { type } : {
+                    type,
+                    parentKey: nextChoices[0] ? nextChoices[0].key : "",
+                  });
+                }}
+              />
+              <OptionRow
+                label="Parent in the schedule"
+                options={choices.map((choice) => [choice.key, choice.label])}
+                value={item.parentKey || ""}
+                onChange={(parentKey) => updateItem(index, { parentKey })}
+              />
+              <Field label="Item description" value={item.description} onChange={(description) => updateItem(index, { description })} />
+              <OptionRow label="Item priority" options={PRIORITIES} value={item.priority} onChange={(priority) => updateItem(index, { priority })} />
+              <Field label="Item labels" value={item.labels} onChange={(labels) => updateItem(index, { labels })} />
+              <Field label="Item assignee" value={item.assignee} onChange={(assignee) => updateItem(index, { assignee, assigneeId: null })} placeholder="Unassigned" />
+              <Field label="Start offset (days before)" value={item.startOffset} onChange={(startOffset) => updateItem(index, { startOffset })} />
+              <Field label="Start time" value={item.startTime} onChange={(startTime) => updateItem(index, { startTime })} placeholder="09:00" />
+              <Field label="Due offset (days after)" value={item.dueOffset} onChange={(dueOffset) => updateItem(index, { dueOffset })} />
+              <Field label="Due time" value={item.dueTime} onChange={(dueTime) => updateItem(index, { dueTime })} placeholder="17:00" />
+              <TextButton label="Remove item" onPress={() => removeItem(index)} disabled={false} />
+              {child ? (
+                <TextButton
+                  label={`Add ${child}`}
+                  onPress={() => onChange({
+                    items: [...(draft.items || []), blankItem(item.key, child)],
+                  })}
+                  disabled={false}
+                />
+              ) : null}
+            </View>
+            );
+          })}
+          {childTypeOf(draft.type) ? (
+            <TextButton
+              label={`Add ${childTypeOf(draft.type)}`}
+              onPress={() => onChange({
+                items: [...(draft.items || []), blankItem("", childTypeOf(draft.type))],
+              })}
+              disabled={false}
+            />
+          ) : null}
         </View>
       ) : null}
       <OptionRow label="When to create the next copy" options={SPAWNS} value={draft.spawnMode} onChange={(spawnMode) => onChange({ spawnMode })} />
@@ -4013,7 +4192,7 @@ function Schedules({
         <View style={styles.project}>
           <Text style={styles.projectName}>New series</Text>
           {formError ? <Text style={styles.error}>{formError}</Text> : null}
-          <RecipeFields draft={recipe} onChange={onChange} showIdentity showType showPeople />
+          <RecipeFields draft={recipe} onChange={onChange} showIdentity showType showPeople showItems />
           <PrimaryButton
             label="Create series"
             disabled={busy}
@@ -4036,6 +4215,8 @@ function SeriesScreen({
   scope,
   busy,
   error,
+  canAdd,
+  canRemove,
   onChange,
   onScope,
   onSave,
@@ -4084,8 +4265,23 @@ function SeriesScreen({
           showIdentity={mode !== "repeat"}
           showType={mode === "create" || mode === "edit"}
           showPeople={mode === "create" || mode === "edit"}
+          showItems={mode === "create" || mode === "edit"}
           showScope={mode === "occurrence"}
         />
+      ) : null}
+      {mode === "occurrence" && recipe ? (
+        <View>
+          <Text style={styles.message}>This occurrence changes only this copy and does not come back. This and all future, and the entire series, change the recipe and open copies. Closed copies stay as they are.</Text>
+          {canAdd ? (
+            <View>
+              <Field label="New item title" value={recipe.addTitle || ""} onChange={(addTitle) => onChange({ addTitle })} />
+              <TextButton label="Add item under this issue" onPress={() => onSave("add")} disabled={busy} />
+            </View>
+          ) : null}
+          {canRemove ? (
+            <TextButton label="Remove this item" onPress={() => onSave("remove")} disabled={busy} />
+          ) : null}
+        </View>
       ) : null}
       {ready ? (
       <PrimaryButton
@@ -5752,6 +5948,11 @@ function IssueDetail({
                 disabled={addingChild}
               />
             </View>
+          ) : null}
+          {page.seriesId ? (
+            <Text style={styles.message}>
+              {page.seriesItem ? `${page.seriesItem} in this schedule.` : "Root of this schedule."}
+            </Text>
           ) : null}
           {page.formerSeries ? (
             <Text style={styles.message}>Was part of {page.formerSeries}.</Text>
