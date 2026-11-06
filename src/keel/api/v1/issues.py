@@ -13,9 +13,17 @@ from keel.services import history as history_service
 from keel.services import issues as issue_service
 from keel.services import labels as label_service
 from keel.services import projects as project_service
+from keel.services import series_tree
 from keel.services.issues import IssueFilters
 
 router = APIRouter(tags=["issues"])
+
+
+def _item_title(session: Session, issue: Issue) -> str | None:
+    if issue.series_item_id is None:
+        return None
+    found = series_tree.item_titles(session, [issue.series_item_id])
+    return found.get(issue.series_item_id)
 
 
 def _read(session: Session, issue: Issue) -> IssueRead:
@@ -27,6 +35,7 @@ def _read(session: Session, issue: Issue) -> IssueRead:
         counts.get(issue.id, 0),
         issue_service.issue_rollup(session, issue.id),
         labels=label_service.names_for_issue(session, issue.id),
+        series_item_title=_item_title(session, issue),
     )
 
 
@@ -40,7 +49,11 @@ def _reads(
         [issue.id for issue in issues],
     )
     labels = label_service.names_for_issues(session, [issue.id for issue in issues])
-    return IssueRead.many(issues, project, counts, labels)
+    titles = series_tree.item_titles(
+        session,
+        [issue.series_item_id for issue in issues if issue.series_item_id is not None],
+    )
+    return IssueRead.many(issues, project, counts, labels, titles)
 
 
 @router.get("/projects/{project_id}/issues", response_model=list[IssueRead])

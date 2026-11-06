@@ -29,6 +29,20 @@ class IssueLabel(Base):
     )
 
 
+class SeriesItemLabel(Base):
+    __tablename__ = "series_item_labels"
+    __table_args__ = (Index("ix_series_item_labels_label_id", "label_id"),)
+
+    series_item_id: Mapped[int] = mapped_column(
+        ForeignKey("series_items.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    label_id: Mapped[int] = mapped_column(
+        ForeignKey("labels.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
 class SeriesLabel(Base):
     __tablename__ = "series_labels"
     __table_args__ = (Index("ix_series_labels_label_id", "label_id"),)

@@ -405,6 +405,8 @@ function issuePage({
     key: issue.key,
     projectId: issue.project_id,
     seriesId: issue.series_id || null,
+    seriesItemId: issue.series_item_id || null,
+    seriesItem: issue.series_item_title || "",
     formerSeries: issue.former_series_title || "",
     descriptionText: issue.description || "",
     definitionOfDoneText: issue.definition_of_done || "",

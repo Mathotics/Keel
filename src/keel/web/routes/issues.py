@@ -1,3 +1,5 @@
+from types import SimpleNamespace
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -21,6 +23,7 @@ from keel.services import labels as label_service
 from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
+from keel.services import series_tree
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
@@ -45,8 +48,11 @@ def issue_page(
     issue = issue_service.get_issue_by_key(session, key)
     project = project_service.get_project(session, issue.project_id)
     series = None
+    series_item = None
     if issue.series_id is not None:
         series = series_service.attached_series(session, issue)
+        if series is not None and issue.series_item_id is not None:
+            series_item = series_tree.get_item(session, issue.series_item_id)
     collapsed = parse_collapsed(request.cookies.get(ISSUE_PANELS_COOKIE))
 
     def issue_panel_toggle(key: str) -> str:
@@ -88,10 +94,16 @@ def issue_page(
                 current_id=issue.sprint_id,
             ),
             series=series,
+            series_item=series_item,
+            recipe=_recipe_view(series, series_item),
             recipe_labels=(
                 ""
                 if series is None
-                else ", ".join(label_service.names_for_series(session, series.id))
+                else ", ".join(
+                    label_service.names_for_series_item(session, series_item.id)
+                    if series_item is not None
+                    else label_service.names_for_series(session, series.id)
+                )
             ),
             series_summary=(
                 None if series is None else series_service.cadence_summary(series)
@@ -100,6 +112,7 @@ def issue_page(
             sprint_bases=tuple(SeriesSprintBasis),
             freqs=tuple(RecurrenceFreq),
             edit_scopes=tuple(EditScope),
+            users=user_service.list_users(session),
             weekdays=list(enumerate(WEEKDAY_NAMES)),
             months=list(enumerate(MONTH_NAMES, start=1)),
             selected_weekdays=(
@@ -118,6 +131,34 @@ def issue_page(
 def edit_issue_page(key: str) -> RedirectResponse:
     """Editing happens on the issue page; keep old /edit URLs working."""
     return RedirectResponse(url=f"/issues/{key}", status_code=303)
+
+
+def _recipe_view(series: object, item: object) -> object:
+    if series is None or item is None:
+        return series
+    return SimpleNamespace(
+        title=item.title,  # type: ignore[attr-defined]
+        description=item.description,  # type: ignore[attr-defined]
+        type=item.type,  # type: ignore[attr-defined]
+        priority=item.priority,  # type: ignore[attr-defined]
+        spawn_mode=series.spawn_mode,  # type: ignore[attr-defined]
+        sprint_basis=series.sprint_basis,  # type: ignore[attr-defined]
+        look_ahead_n=series.look_ahead_n,  # type: ignore[attr-defined]
+        freq=series.freq,  # type: ignore[attr-defined]
+        interval=series.interval,  # type: ignore[attr-defined]
+        weekdays=series.weekdays,  # type: ignore[attr-defined]
+        month_day=series.month_day,  # type: ignore[attr-defined]
+        nth_week=series.nth_week,  # type: ignore[attr-defined]
+        month=series.month,  # type: ignore[attr-defined]
+        starts_on=series.starts_on,  # type: ignore[attr-defined]
+        ends_on=series.ends_on,  # type: ignore[attr-defined]
+        occurrence_count=series.occurrence_count,  # type: ignore[attr-defined]
+        start_offset_days=item.start_offset_days,  # type: ignore[attr-defined]
+        start_minute_of_day=item.start_minute_of_day,  # type: ignore[attr-defined]
+        due_offset_days=item.due_offset_days,  # type: ignore[attr-defined]
+        due_minute_of_day=item.due_minute_of_day,  # type: ignore[attr-defined]
+        state=series.state,  # type: ignore[attr-defined]
+    )
 
 
 def _comment_views(session: Session, issue_id: int) -> list[dict[str, object]]:

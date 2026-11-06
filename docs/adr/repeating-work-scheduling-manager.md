@@ -1,11 +1,13 @@
 # ADR 021: Repeating work via Scheduling Manager
 
-* **Status:** Accepted, amended by [ADR 024](ADR-024.md) and [ADR 028](ADR-028.md)
+* **Status:** Accepted, amended by [ADR 024](ADR-024.md), [ADR 028](ADR-028.md), and [Structured scheduled issues](structured-scheduled-issues.md)
 * **Date:** 2026-09-15
 
 > **Amended 2026-09-14.** The issue-page recipe is no longer an always-open panel. **Make this repeating** and **Edit series** open the same form in a same-page overlay ([ADR 024](ADR-024.md)). Schedules pages are unchanged.
 
 > **Amended 2026-09-15.** Stop is replaced by Delete of the recipe ([ADR 028](ADR-028.md)). Spawned issues remain.
+
+> **Amended 2026-11-04.** A schedule may spawn a tree of issues on each occurrence. That behavior is [Structured scheduled issues](structured-scheduled-issues.md). The out-of-scope line below records the earlier limit. Deleting the root issue of an occurrence removes that occurrence’s scheduled tree and skips the date. Deleting one child issue removes only that item from the occurrence.
 
 ## Background
 
@@ -44,7 +46,7 @@ Keel has no way to express repeating work. If the same issue were reset to To Do
 - Changing Auto-sprint ([ADR 019](auto-sprint-cadence.md) already shipped) or Cancelled ([ADR 020](cancelled-status.md) already shipped).
 - Email, push, or other reminders; extra overdue chrome beyond the existing due date.
 - “Delete entire series” mass-deletion of all spawned issues.
-- Rotating assignees, reminder windows, or spawning a tree of children from one tick.
+- Rotating assignees or reminder windows. Spawning a tree of children from one tick was out of scope here; [Structured scheduled issues](structured-scheduled-issues.md) specifies it.
 - Backfilling occurrences for sprint intervals auto-sprint skipped during downtime.
 
 ### Deliverables

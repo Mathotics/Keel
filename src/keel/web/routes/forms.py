@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -43,6 +44,7 @@ from keel.services import projects as project_service
 from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
+from keel.services.series_tree import ItemDraft
 from keel.web.board_lanes import (
     COLLAPSED_COOKIE,
     COOKIE_MAX_AGE,
@@ -1452,6 +1454,7 @@ def create_schedule(
     assignee_id: Annotated[str, Form()] = "",
     assignee_query: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
+    items_json: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     project = project_service.get_project(session, project_id)
     form_tab = f"/projects/{project.key}/schedules?tab=new"
@@ -1488,6 +1491,7 @@ def create_schedule(
             ),
             assignee_id=_posted_user(session, assignee_id, assignee_query),
             labels=parse_label_names(labels),
+            items=_posted_items(items_json),
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
@@ -1528,6 +1532,7 @@ def update_schedule(
     assignee_id: Annotated[str, Form()] = "",
     assignee_query: Annotated[str, Form()] = "",
     labels: Annotated[str, Form()] = "",
+    items_json: Annotated[str, Form()] = "",
 ) -> RedirectResponse:
     series = series_service.get_series(session, series_id)
     project = project_service.get_project(session, series.project_id)
@@ -1565,6 +1570,11 @@ def update_schedule(
             ),
             assignee_id=_posted_user(session, assignee_id, assignee_query),
             labels=parse_label_names(labels),
+            items=(
+                series_service.UNSET
+                if (parsed_items := _posted_items(items_json)) is None
+                else parsed_items
+            ),
         )
     except DomainError as exc:
         session.rollback()
@@ -1722,6 +1732,76 @@ def update_issue_series(
     return _back(here)
 
 
+@router.post("/issues/{issue_id}/series-item")
+def add_series_item(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    scope: Annotated[EditScope, Form()] = EditScope.FUTURE,
+    title: Annotated[str, Form()] = "",
+    type: Annotated[IssueType, Form()] = IssueType.STORY,
+    description: Annotated[str, Form()] = "",
+    priority: Annotated[IssuePriority, Form()] = INITIAL_PRIORITY,
+    labels: Annotated[str, Form()] = "",
+    assignee_id: Annotated[str, Form()] = "",
+    start_offset_days: Annotated[str, Form()] = "",
+    start_time: Annotated[str, Form()] = "",
+    due_offset_days: Annotated[str, Form()] = "",
+    due_time: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    assignee = assignee_id.strip()
+    try:
+        series_service.apply_occurrence_edit(
+            session,
+            issue_id,
+            scope,
+            item_action="add",
+            item=ItemDraft(
+                title=title,
+                type=type,
+                description=description,
+                priority=priority,
+                assignee_id=int(assignee) if assignee else None,
+                labels=parse_label_names(labels),
+                start_offset_days=_optional_offset(start_offset_days),
+                start_minute_of_day=_optional_clock(start_time),
+                due_offset_days=_optional_offset(due_offset_days),
+                due_minute_of_day=_optional_clock(due_time),
+            ),
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(f"{here}?repeat=1", exc.message)
+    except ValueError:
+        session.rollback()
+        return _back(f"{here}?repeat=1", "Choose an assignee.")
+    return _back(here)
+
+
+@router.post("/issues/{issue_id}/series-item/remove")
+def remove_series_item(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    scope: Annotated[EditScope, Form()] = EditScope.FUTURE,
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        series_service.apply_occurrence_edit(
+            session,
+            issue_id,
+            scope,
+            item_action="remove",
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(f"{here}?repeat=1", exc.message)
+    return _back(here)
+
+
 def _schedule_state(
     session: SessionDep,
     series_id: int,
@@ -1736,6 +1816,61 @@ def _schedule_state(
         session.rollback()
         return _back(here, exc.message)
     return _back(here)
+
+
+def _posted_items(raw: str) -> list[ItemDraft] | None:
+    from keel.domain.errors import InvalidSeriesError
+
+    text = raw.strip()
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise InvalidSeriesError("Schedule items could not be read.") from exc
+    if not isinstance(data, list):
+        raise InvalidSeriesError("Schedule items could not be read.")
+    drafts: list[ItemDraft] = []
+    for row in data:
+        if not isinstance(row, dict):
+            raise InvalidSeriesError("Schedule items could not be read.")
+        try:
+            kind = IssueType(str(row.get("type") or ""))
+            priority = IssuePriority(str(row.get("priority") or INITIAL_PRIORITY.value))
+        except ValueError as exc:
+            raise InvalidSeriesError("Schedule items could not be read.") from exc
+        raw_id = row.get("id")
+        raw_assignee = row.get("assignee_id")
+        drafts.append(
+            ItemDraft(
+                title=str(row.get("title") or ""),
+                type=kind,
+                description=str(row.get("description") or ""),
+                priority=priority,
+                assignee_id=raw_assignee if isinstance(raw_assignee, int) else None,
+                labels=parse_label_names(row.get("labels") or []),
+                start_offset_days=_json_offset(row.get("start_offset_days")),
+                start_minute_of_day=_json_offset(row.get("start_minute_of_day")),
+                due_offset_days=_json_offset(row.get("due_offset_days")),
+                due_minute_of_day=_json_offset(row.get("due_minute_of_day")),
+                item_id=raw_id if isinstance(raw_id, int) else None,
+                key=str(row.get("key") or ""),
+                parent_key=(
+                    str(row.get("parent_key")) if row.get("parent_key") else None
+                ),
+            ),
+        )
+    return drafts
+
+
+def _json_offset(value: object) -> int | None:
+    from keel.domain.errors import InvalidSeriesError
+
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise InvalidSeriesError("Day offset could not be read.")
+    return value
 
 
 def _weekdays(raw: list[str] | str | None) -> tuple[int, ...]:

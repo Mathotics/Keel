@@ -41,6 +41,7 @@ class SeriesCreate(BaseModel):
     assignee_id: int | None = None
     seed_issue_id: int | None = None
     labels: list[str] = Field(default_factory=list)
+    items: list["SeriesItemWrite"] = Field(default_factory=list)
 
 
 class SeriesUpdate(BaseModel):
@@ -70,6 +71,7 @@ class SeriesUpdate(BaseModel):
     assignee_id: int | None = None
     labels: list[str] | None = None
     state: SeriesState | None = None
+    items: list["SeriesItemWrite"] | None = None
 
 
 class OccurrenceEdit(BaseModel):
@@ -96,6 +98,39 @@ class OccurrenceEdit(BaseModel):
     due_offset_days: int | None = Field(default=None, ge=0)
     due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
     labels: list[str] | None = None
+    item_action: str | None = None
+    item: "SeriesItemWrite | None" = None
+
+
+class SeriesItemWrite(BaseModel):
+    id: int | None = None
+    key: str = ""
+    parent_key: str | None = None
+    title: str = Field(min_length=1, max_length=300)
+    description: str = ""
+    type: IssueType
+    priority: IssuePriority = INITIAL_PRIORITY
+    assignee_id: int | None = None
+    labels: list[str] = Field(default_factory=list)
+    start_offset_days: int | None = Field(default=None, ge=0)
+    start_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
+    due_offset_days: int | None = Field(default=None, ge=0)
+    due_minute_of_day: int | None = Field(default=None, ge=0, lt=1440)
+
+
+class SeriesItemRead(BaseModel):
+    id: int
+    parent_item_id: int | None
+    title: str
+    description: str
+    type: IssueType
+    priority: IssuePriority
+    assignee_id: int | None
+    labels: list[str]
+    start_offset_days: int | None
+    start_minute_of_day: int | None
+    due_offset_days: int | None
+    due_minute_of_day: int | None
 
 
 class SeriesRead(BaseModel):
@@ -129,9 +164,15 @@ class SeriesRead(BaseModel):
     reporter_id: int | None
     labels: list[str]
     cadence_summary: str
+    items: list[SeriesItemRead] = Field(default_factory=list)
 
     @classmethod
-    def of(cls, series: Series, labels: list[str] | None = None) -> "SeriesRead":
+    def of(
+        cls,
+        series: Series,
+        labels: list[str] | None = None,
+        items: list[SeriesItemRead] | None = None,
+    ) -> "SeriesRead":
         return cls(
             id=series.id,
             project_id=series.project_id,
@@ -161,4 +202,5 @@ class SeriesRead(BaseModel):
             reporter_id=series.reporter_id,
             labels=list(labels or ()),
             cadence_summary=cadence_summary(series),
+            items=list(items or ()),
         )

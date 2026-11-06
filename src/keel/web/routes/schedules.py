@@ -1,11 +1,19 @@
+import json
+from collections.abc import Sequence
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
+from keel.db.models import User
 from keel.domain.enums import (
+    IssuePriority,
+    IssueType,
     RecurrenceFreq,
     SeriesSpawnMode,
     SeriesSprintBasis,
     SeriesState,
+    label,
     priorities_in_rank_order,
     types_in_hierarchy_order,
 )
@@ -15,10 +23,51 @@ from keel.services import labels as label_service
 from keel.services import lookup as lookup_service
 from keel.services import projects as project_service
 from keel.services import series as series_service
+from keel.services import series_tree
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 
 router = APIRouter(prefix="/projects")
+
+
+def _items_json(session: Session, series_id: int) -> str:
+    rows = series_tree.active_items(session, series_id)
+    labels = label_service.names_for_series_items(session, [item.id for item in rows])
+    payload = [
+        {
+            "id": item.id,
+            "key": f"id:{item.id}",
+            "parent_key": (
+                None if item.parent_item_id is None else f"id:{item.parent_item_id}"
+            ),
+            "title": item.title,
+            "description": item.description,
+            "type": item.type.value,
+            "priority": item.priority.value,
+            "labels": labels.get(item.id, []),
+            "assignee_id": item.assignee_id,
+            "start_offset_days": item.start_offset_days,
+            "start_minute_of_day": item.start_minute_of_day,
+            "due_offset_days": item.due_offset_days,
+            "due_minute_of_day": item.due_minute_of_day,
+        }
+        for item in rows
+    ]
+    return json.dumps(payload)
+
+
+def _items_config(
+    issue_types: Sequence[IssueType],
+    priorities: Sequence[IssuePriority],
+    users: Sequence[User],
+) -> dict[str, object]:
+    return {
+        "types": [{"value": item.value, "label": label(item)} for item in issue_types],
+        "priorities": [
+            {"value": item.value, "label": label(item)} for item in priorities
+        ],
+        "users": [{"id": person.id, "name": person.display_name} for person in users],
+    }
 
 
 @router.get("/{key}/schedules", response_class=HTMLResponse)
@@ -57,6 +106,12 @@ def schedules_page(
             parent_label="",
             assignee_label="",
             users=user_service.list_users(session),
+            items_json="[]",
+            items_config=_items_config(
+                types_in_hierarchy_order(),
+                priorities_in_rank_order(),
+                user_service.list_users(session),
+            ),
             error=error,
             notice=notice,
         ),
@@ -107,6 +162,12 @@ def schedule_detail_page(
                 series.assignee_id,
             ),
             users=user_service.list_users(session),
+            items_json=_items_json(session, series.id),
+            items_config=_items_config(
+                types_in_hierarchy_order(),
+                priorities_in_rank_order(),
+                user_service.list_users(session),
+            ),
             error=error,
             notice=notice,
         ),

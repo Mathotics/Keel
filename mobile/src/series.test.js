@@ -40,6 +40,40 @@ test("a recipe needs a title and a start, and a blank date pair stays unset", ()
   assert.match(prepareRecipe({ ...blankRecipe(), title: "Backup", startsOn: "2026-10-14", startTime: "09:00" }).error, /both a day offset/);
 });
 
+test("a tree item keeps its own title and must sit under the right parent", () => {
+  const draft = {
+    ...blankRecipe(),
+    title: "File taxes",
+    type: "epic",
+    startsOn: "2026-04-15",
+    freq: "yearly",
+    items: [
+      {
+        key: "federal",
+        title: "File federal return",
+        type: "story",
+        parentKey: "",
+        description: "",
+        priority: "p4",
+        labels: "",
+        assignee: "",
+        startOffset: "",
+        startTime: "",
+        dueOffset: "",
+        dueTime: "",
+      },
+    ],
+  };
+  const prepared = prepareRecipe(draft);
+  assert.equal(prepared.body.items[0].title, "File federal return");
+  assert.equal(prepared.body.items[0].parent_key, null);
+  const illegal = prepareRecipe({
+    ...draft,
+    items: [{ ...draft.items[0], type: "subtask" }],
+  });
+  assert.match(illegal.error, /subtask/);
+});
+
 test("a saved series fills the recipe and deleting one leaves its issues", () => {
   const draft = recipeFromSeries({
     title: "Backup",

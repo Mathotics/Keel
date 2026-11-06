@@ -35,6 +35,7 @@
           {% with prefix="series", recipe=series, include_identity=true, include_type=true, include_people=true, look_ahead_label="Look-ahead N when no sprint overlaps" %}
           {% include "_series_recipe.html" %}
           {% endwith %}
+          {% include "_series_items.html" %}
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Save recipe</button></p>
         </form>
       </div>
