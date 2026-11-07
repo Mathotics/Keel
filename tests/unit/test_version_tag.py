@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from packaging.version import Version
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -134,14 +133,16 @@ def test_scm_version_keeps_tag_numbers_and_uses_the_short_hash(tmp_path: Path) -
     root = _repo(tmp_path / "repo")
     _git(root, "tag", "v1.4.8")
     short = _git(root, "rev-parse", "--short", "HEAD")
-    assert version_tag.scm_version(root) == str(Version(f"1.4.8+{short}"))
+    # packaging.version.Version drops a leading zero from an all-digit local
+    # segment, so 0631373 would become 631373. The version keeps git's hash.
+    assert version_tag.scm_version(root) == f"1.4.8+{short}"
 
     (root / "f").write_text("b\n", encoding="utf-8")
     _git(root, "add", "f")
     _git(root, "commit", "-m", "b")
     ahead_short = _git(root, "rev-parse", "--short", "HEAD")
     ahead = version_tag.scm_version(root)
-    assert ahead == str(Version(f"1.4.8+{ahead_short}"))
+    assert ahead == f"1.4.8+{ahead_short}"
     assert version_tag.closest_version_tag(root) == "v1.4.8"
 
     (root / "f").write_text("dirty\n", encoding="utf-8")
