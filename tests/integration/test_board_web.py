@@ -864,6 +864,24 @@ def test_a_status_move_keeps_a_collapsed_sprint(
     assert "In Progress" in page.text
 
 
+def test_board_columns_fill_the_row(client: TestClient) -> None:
+    css = client.get("/assets/brand.css").text
+    board = css.split(".keel-board {", 1)[1].split("}", 1)[0]
+    assert "align-items: stretch" in board
+    assert "align-items: flex-start" not in board
+    assert "overflow-x" not in board
+    column = css.split(".keel-board__column {", 1)[1].split("}", 1)[0]
+    assert "flex-direction: column" in column
+    cards = css.split(".keel-board__cards {", 1)[1].split("}", 1)[0]
+    assert "flex: 1 1 auto" in cards
+    heading = css.split(".keel-board__heading {", 1)[1].split("}", 1)[0]
+    assert "position: sticky" in heading
+    assert "top: 0" in heading
+    page = client.get("/board")
+    assert 'class="keel-page-board"' in page.text
+    assert 'class="keel-board-scroll"' in page.text
+
+
 def test_board_script_persists_a_sprint_disclosure(client: TestClient) -> None:
     script = client.get("/assets/js/board.js")
     assert "/web/board-lanes" in script.text
