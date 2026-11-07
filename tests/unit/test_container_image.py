@@ -13,7 +13,9 @@ def test_image_installs_the_tree_keel_paths_reads() -> None:
     assert "COPY src ./src" in dockerfile
     assert "COPY migrations ./migrations" in dockerfile
     assert "COPY assets ./assets" in dockerfile
-    assert "COPY pyproject.toml README.md LICENSE ./" in dockerfile
+    assert "COPY pyproject.toml README.md LICENSE keel_scm_backend.py ./" in dockerfile
+    assert "KEEL_SCM_VERSION" in dockerfile
+    assert "SETUPTOOLS_SCM_PRETEND_VERSION" in dockerfile
     assert "pip install --no-cache-dir -e ." in dockerfile
     assert "USER keel" in dockerfile
     assert "VOLUME /data" in dockerfile

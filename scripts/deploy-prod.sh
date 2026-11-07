@@ -53,6 +53,39 @@ install_prod() {
   "${py}" -m pip install -e "${PROD_ROOT}"
 }
 
+fetch_version_tags() {
+  if [[ -n "${GITHUB_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" ]]; then
+    local header
+    header="$(github_basic_extraheader)"
+    git_fetch -c "http.https://github.com/.extraheader=${header}" \
+      "https://github.com/${GITHUB_REPOSITORY}.git" \
+      "+refs/tags/*:refs/tags/*" || true
+  fi
+  git_fetch origin "+refs/tags/*:refs/tags/*" || true
+}
+
+# A merged pull request publishes its version tag in parallel with CI.
+# Installing before that tag exists would bake the previous numbers.
+wait_for_version_tag() {
+  local i status
+  for ((i = 1; i <= 60; i++)); do
+    fetch_version_tags
+    if python3 scripts/version_tag.py tag-on-head; then
+      log "Version tag is on ${GITHUB_SHA}"
+      return 0
+    fi
+    status=0
+    python3 scripts/version_tag.py needs-tag || status=$?
+    if [[ "${status}" -eq 1 ]]; then
+      log "This commit does not need a new version tag"
+      return 0
+    fi
+    log "Waiting for the version tag on ${GITHUB_SHA}"
+    sleep 5
+  done
+  return 1
+}
+
 # GitHub git-over-HTTPS wants Basic x-access-token (as actions/checkout does),
 # not Bearer. An empty credential helper plus GIT_TERMINAL_PROMPT=0 stops the
 # Pi from prompting for a username and failing with "No such device or address".
@@ -194,6 +227,10 @@ main() {
 
   if ! fetch_and_reset; then
     die "git update to ${GITHUB_SHA} failed; checkout unchanged"
+  fi
+
+  if ! wait_for_version_tag; then
+    die "version tag was not published for ${GITHUB_SHA}"
   fi
 
   if ! install_prod; then

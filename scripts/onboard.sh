@@ -81,6 +81,9 @@ fi
 echo "Upgrading pip..."
 "${VENV_PY}" -m pip install --upgrade pip setuptools wheel
 
+echo "Fetching version tags..."
+git fetch --tags --force || echo "warning: could not fetch version tags"
+
 echo "Installing package and development dependencies..."
 "${VENV_PY}" -m pip install -e ".[dev]"
 

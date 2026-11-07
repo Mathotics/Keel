@@ -1,15 +1,16 @@
 ---
-description: Package version lives only in pyproject.toml; never hardcode it.
+description: Package version comes from git tags; never hardcode it.
 alwaysApply: true
 ---
 
 # Version source of truth
 
-The Keel version number is defined **only** in `pyproject.toml` under `[project].version`.
+The Keel version's major, minor, and patch come from git tags (`vMAJOR.MINOR.PATCH`). The build is the short commit hash. The visible form is `MAJOR.MINOR.PATCH+<short hash>`.
 
-- Read it at runtime with `keel.version.package_version()` (installed distribution metadata).
-- Do not write the version as a string in Python, HTML, tests, ADRs, or README.
+- Read it at runtime with `keel.version.package_version()` (installed distribution metadata filled from git by `setuptools-scm`).
+- Do not write the version as a string in `pyproject.toml`, Python, HTML, tests, ADRs, or README.
+- `.github/initial-version` is the only seed, and only for publishing the first tag when the repository has none.
 - Tests must assert against `package_version()`, not a copied version number.
-- After changing `pyproject.toml` version, reinstall (`pip install -e ".[dev]"`) so metadata updates.
+- After a new git tag, reinstall (`pip install -e ".[dev]"`) so metadata updates.
 
-See `docs/version.md` and ADR 002.
+See `docs/version.md` and `docs/adr/version-from-git-tags.md`. The footer display remains ADR 002.

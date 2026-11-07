@@ -410,7 +410,7 @@ Keel is proprietary. The [license](#license) requires prior written permission f
 1. Fork [github.com/Mathotics/Keel](https://github.com/Mathotics/Keel).
 2. Create a feature branch from `main`.
 3. Run the onboard script for your system so the virtual environment, dev tools, and pre-commit hooks are installed.
-4. Make the change. Keep the package version only in `pyproject.toml`. Read it in code with `keel.version.package_version()`.
+4. Make the change. Take the package version from git tags. Read it in code with `keel.version.package_version()`. Do not copy the version into source. See [package version](docs/version.md).
 5. Run the full check:
 
 ```powershell

@@ -16,18 +16,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# The host computed this with setuptools-scm. The image build has no git history.
+ARG KEEL_SCM_VERSION
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${KEEL_SCM_VERSION}
+
 RUN groupadd --system keel \
     && useradd --system --gid keel --home-dir /home/keel --create-home keel \
     && mkdir -p /data \
     && chown keel:keel /data
 
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE keel_scm_backend.py ./
 COPY src ./src
 COPY migrations ./migrations
 COPY assets ./assets
 COPY deploy/docker-entrypoint.sh /usr/local/bin/keel-docker-entrypoint
 
-RUN pip install --no-cache-dir -e . \
+RUN test -n "$SETUPTOOLS_SCM_PRETEND_VERSION" \
+    && pip install --no-cache-dir -e . \
     && sed -i 's/\r$//' /usr/local/bin/keel-docker-entrypoint \
     && chmod 755 /usr/local/bin/keel-docker-entrypoint
 

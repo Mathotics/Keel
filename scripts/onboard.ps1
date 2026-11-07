@@ -94,6 +94,12 @@ if (Test-Path ".venv\Scripts\python.exe") {
 Write-Host "Upgrading pip..."
 & $VenvPy -m pip install --upgrade pip setuptools wheel
 
+Write-Host "Fetching version tags..."
+git fetch --tags --force
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "warning: could not fetch version tags"
+}
+
 Write-Host "Installing package and development dependencies..."
 & $VenvPy -m pip install -e '.[dev]'
 
