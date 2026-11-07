@@ -60,7 +60,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 * **Filter the board.** A user restricts the board to chosen issue types, to a chosen assignee including unassigned, and to a chosen sprint including unscheduled.
 * **Separate the board by sprint.** A user stacks a row of columns per sprint so cards sit with the sprint they belong to. The board opens this way by default; the user can turn it off to see one shared row of columns. On the master board those rows are named with the project key, and dropping a card onto another project's row is refused.
 * **Fold a sprint row.** A user minimizes a sprint on the board, or removes it until they add it back. The heading and how many cards it holds stay visible while it is only minimized. This browser remembers the choice. One shared row of columns still shows every card the filters allow ([Collapsible board sprint lanes](../adr/collapsible-board-sprint-lanes.md)).
-* **Advance an issue.** A user moves a card from one column to the next, which changes the issue's status.
+* **Advance an issue.** A user moves a card from one column to the next, which changes the issue's status. Columns in a row reach the bottom of the tallest column, so a card low in one column can drop on a shorter column without scrolling up. Scrolling the cards leaves each column's status heading in view ([Board columns fill the row](../adr/board-columns-fill-the-row.md)).
 
 ## Ticket dependencies
 
