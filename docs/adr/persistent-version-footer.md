@@ -1,7 +1,9 @@
 # ADR 002: Persistent version footer
 
-* **Status:** Accepted, amended by [ADR 018](phone-layout.md)
-* **Date:** 2026-09-08
+* **Status:** Accepted, amended by [ADR 018](phone-layout.md) and [Version from git tags](version-from-git-tags.md)
+* **Date:** 2026-11-06
+
+> **Amended 2026-11-06.** Git tags are the version source of truth. This record no longer keeps the version number in `pyproject.toml`. The footer still shows `Keel` plus the running version. See [Version from git tags](version-from-git-tags.md).
 
 > **Amended 2026-09-08.** On a phone-narrow viewport the footer sits at the end of the page instead of staying pinned to the bottom of the window, so it does not cover the board or forms. Wide viewports keep this record’s pinned footer. See [ADR 018](phone-layout.md).
 
@@ -18,7 +20,7 @@ People using the web UI need a persistent footer with the product version on the
 - Give every Keel HTML page a footer that stays at the bottom of the viewport while the page scrolls.
 - Show the app version on the bottom right as `Keel` plus the version number.
 - Use the existing brand color scheme (no new palette).
-- Define the version only in `pyproject.toml` and read it everywhere else from package metadata.
+- Take the version from git tags and read it everywhere else from package metadata. See [Version from git tags](version-from-git-tags.md).
 
 ## Scope and Deliverables
 
@@ -28,7 +30,7 @@ People using the web UI need a persistent footer with the product version on the
 - Version text on the **bottom right** only; left side empty.
 - Visual treatment from the recorded scheme: brand-blue bar, white version text.
 - Layout so page content is not hidden under the footer.
-- Single source of truth for the version number: `[project].version` in `pyproject.toml`.
+- Single source of truth for the version number: git tags, as in [Version from git tags](version-from-git-tags.md).
 
 ### Out-of-Scope
 
@@ -50,7 +52,7 @@ People using the web UI need a persistent footer with the product version on the
 * **Must** display it as `Keel` followed by the running app version from package metadata.
 * **Must** use the existing brand tokens (blue bar, white type), not new colors.
 * **Must** keep the last lines of page content readable (not covered by the footer).
-* **Must** treat `pyproject.toml` `[project].version` as the only written version number.
+* **Must** take the written version from git tags, as in [Version from git tags](version-from-git-tags.md).
 * **May** match the top bar’s height and padding so the shell feels like one frame.
 * **Must Not** add other footer labels, links, or left-side content in this version.
 * **Must Not** require the footer on Swagger, ReDoc, or JSON-only URLs.
@@ -59,9 +61,9 @@ People using the web UI need a persistent footer with the product version on the
 
 ## Consequences
 
-* **Good:** Version is always findable; header and footer read as one branded shell; bumping version is a single edit.
+* **Good:** Version is always findable; header and footer read as one branded shell.
 * **Bad:** `/docs` and `/redoc` still have no Keel chrome, so the footer version is missing there.
-* **Risk:** A sticky top and bottom bar reduces the visible content height. Editable installs must be refreshed after a version bump or metadata can lag `pyproject.toml`.
+* **Risk:** A sticky top and bottom bar reduces the visible content height. Editable installs must be refreshed after a new git tag or metadata can lag that tag.
 
 ## System Design
 
@@ -98,6 +100,7 @@ stateDiagram-v2
 ## Supporting Documentation
 
 * [Package version (single source of truth)](../version.md)
+* [Version from git tags](version-from-git-tags.md)
 * [ADR 001: Persistent top menu bar](persistent-top-menu-bar.md)
 * [ADR 018: Phone layout of the existing site](phone-layout.md)
 * [Brand colors from logos.png](../brand-colors.md)

@@ -1,10 +1,11 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["setuptools>=69", "setuptools-scm==10.3.4", "wheel"]
+build-backend = "keel_scm_backend"
+backend-path = ["."]
 
 [project]
 name = "keel"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Self-hosted issue tracker for multiple owners and collaborators"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -39,10 +40,15 @@ dev = [
     "pytest-cov==6.2.1",
     "pip-audit==2.10.1",
     "bandit==1.9.4",
+    "setuptools-scm==10.3.4",
 ]
 
 [project.scripts]
 keel = "keel.cli:main"
+
+[tool.setuptools_scm]
+version_scheme = "only-version"
+local_scheme = "no-local-version"
 
 [tool.setuptools.package-dir]
 "" = "src"

@@ -1,0 +1,31 @@
+name: Version labels
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  version-labels:
+    name: Version labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure bump labels
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create bump:major --color B60205 --description "Increment the major version" || true
+          gh label create bump:minor --color FBCA04 --description "Increment the minor version" || true
+          gh label create bump:patch --color 0E8A16 --description "Increment the patch version" || true
+      - name: Check bump labels
+        env:
+          PR_LABELS: ${{ toJson(github.event.pull_request.labels) }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: python scripts/version_tag.py check-labels

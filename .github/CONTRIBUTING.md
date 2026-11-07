@@ -44,7 +44,7 @@ Branch from `main` and name the branch after the Keel key, for example `KEEL-45`
 
 A few rules hold across the codebase:
 
-- **Version number.** `[project].version` in [`pyproject.toml`](../pyproject.toml) is the only place the version is written. Read it at runtime through `keel.version.package_version()`; never copy the literal into Python, templates, tests, or docs. See [package version](../docs/version.md) and [ADR 002](../docs/adr/persistent-version-footer.md).
+- **Version number.** Git tags are the only stored copy. Read the running version through `keel.version.package_version()`; never copy the literal into `pyproject.toml`, Python, templates, tests, or docs. See [package version](../docs/version.md), [Version from git tags](../docs/adr/version-from-git-tags.md), and [ADR 002](../docs/adr/persistent-version-footer.md).
 - **Schema changes.** After editing a model, generate the migration with `keel db revision -m "describe the change"` and read the generated file before committing it.
 - **Secrets.** `.env`, API tokens, database files, and signing keystores stay out of git. They are in [`.gitignore`](../.gitignore) for a reason.
 - **Behavior decisions.** A change that settles how Keel behaves belongs in an ADR under [`docs/adr/`](../docs/adr/) alongside the code, and the architecture and design documents it affects should move with it.

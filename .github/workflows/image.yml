@@ -5,14 +5,32 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Wait for the version tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: python scripts/version_tag.py wait-for-tag
+      - uses: ./.github/actions/version-history
+      - name: Resolve the version
+        run: |
+          python -m pip install "setuptools-scm==10.3.4"
+          python scripts/version_tag.py describe > version.txt
       - name: Build the container image
-        run: docker build -t keel:ci .
+        run: docker build --build-arg KEEL_SCM_VERSION="$(tr -d '\r\n' < version.txt)" -t keel:ci .
       - name: Serve and check /health
         run: |
           docker run -d --name keel -p 8000:8000 keel:ci

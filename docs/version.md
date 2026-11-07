@@ -1,9 +1,13 @@
 # Package version
 
-The **only** place the Keel version number is written is `[project].version` in [`pyproject.toml`](../pyproject.toml).
+Git tags are the only stored copy of the Keel version. A tag `vMAJOR.MINOR.PATCH` holds the three numbers. The build is the short commit hash of that commit. The visible version is `MAJOR.MINOR.PATCH+<short hash>`.
 
-Runtime and UI code must read it from installed package metadata (`importlib.metadata.version("keel")` via `keel.version.package_version`). Do not copy the version into `__init__.py`, FastAPI constructors, HTML, tests, or docs as a literal.
+`setuptools-scm` reads git and fills the installed package metadata. Runtime and UI code read that metadata with `keel.version.package_version()`. Do not write the version into `pyproject.toml`, Python, HTML, tests, or docs as a literal.
 
-After you bump `pyproject.toml`, reinstall the editable package (`pip install -e ".[dev]"`) so metadata matches.
+A pull request merged to the default branch publishes the next tag. The Version labels check rejects that pull request when more than one of `bump:major`, `bump:minor`, and `bump:patch` is set. No bump label means a minor bump. Pull requests into other branches are not checked and do not publish a tag. A direct push does not publish a tag.
 
-See [ADR 002](adr/persistent-version-footer.md).
+When no version tag exists yet, that merge publishes the release named in [`.github/initial-version`](../.github/initial-version) and does not bump. Fetch tags before installing (`git fetch --tags`). After a new tag is on the clone, reinstall the editable package (`pip install -e ".[dev]"`) so metadata matches.
+
+See [Version from git tags](adr/version-from-git-tags.md).
+
+The web footer still shows `Keel` plus that version. See [Persistent version footer](adr/persistent-version-footer.md).

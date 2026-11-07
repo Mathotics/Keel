@@ -1,0 +1,8 @@
+name: Seed version tag
+description: Create a local version tag when this clone has none yet.
+runs:
+  using: composite
+  steps:
+    - name: Seed a local version tag
+      shell: bash
+      run: python scripts/version_tag.py ensure-local
