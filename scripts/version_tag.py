@@ -1,8 +1,9 @@
 """Publish and read Keel versions from git tags.
 
-Major, minor, and patch come from the closest ``vMAJOR.MINOR.PATCH`` tag.
-The build is the short commit hash. ``.github/initial-version`` is read only
-when the repository has no such tag yet.
+Major, minor, and patch come from the closest ``vMAJOR.MINOR.PATCH`` tag
+reachable from this commit. The build is the short commit hash.
+``.github/initial-version`` supplies those three numbers when no such tag
+is reachable.
 """
 
 from __future__ import annotations
@@ -163,25 +164,39 @@ def local_hash(version: object) -> str:
 
 
 def scm_version(root: Path | None = None) -> str:
-    """Version string setuptools-scm produces for this checkout."""
+    """Version string for this checkout.
+
+    The closest reachable version tag supplies the three numbers. A checkout
+    whose history does not contain one uses ``.github/initial-version``.
+    The local part is always this commit's short hash.
+    """
+    root = root or ROOT
+    short = git(root, "rev-parse", "--short", "HEAD").stdout.strip()
+    version: object
+    if closest_version_tag(root) is None:
+        version = f"{load_initial(root)}+{short}"
+    else:
+        version = _version_from_scm(root)
+    if not isinstance(version, str) or not PEP440_LOCAL.match(version):
+        raise SystemExit(
+            "The reachable version tag did not produce MAJOR.MINOR.PATCH+<short hash>."
+        )
+    return version
+
+
+def _version_from_scm(root: Path) -> object:
     import warnings
 
     import setuptools_scm
 
-    root = root or ROOT
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=".*tag_regex.*")
-        version = setuptools_scm.get_version(
+        return setuptools_scm.get_version(
             root=root,
             version_scheme="only-version",
             local_scheme=local_hash,
             tag_regex=TAG_REGEX,
         )
-    if not isinstance(version, str) or not PEP440_LOCAL.match(version):
-        raise SystemExit(
-            "No vMAJOR.MINOR.PATCH tag is reachable. Fetch tags with git fetch --tags."
-        )
-    return version
 
 
 def merged_pull_request(
@@ -282,7 +297,11 @@ def ensure_local(root: Path | None = None) -> None:
     root = root or ROOT
     if closest_version_tag(root) is not None:
         return
-    _create_tag(root, f"v{load_initial(root)}", push=False)
+    tag = f"v{load_initial(root)}"
+    existing = git(root, "rev-parse", "--verify", f"refs/tags/{tag}", check=False)
+    if existing.returncode == 0:
+        return
+    _create_tag(root, tag, push=False)
 
 
 def publish(root: Path | None = None) -> None:
