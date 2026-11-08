@@ -161,7 +161,7 @@ def test_scm_version_uses_the_seed_when_the_repository_has_no_tag(
     root = _repo(tmp_path / "untagged")
     _seed(root, "4.5.6")
     short = _git(root, "rev-parse", "--short", "HEAD")
-    assert version_tag.scm_version(root) == str(Version(f"4.5.6+{short}"))
+    assert version_tag.scm_version(root) == f"4.5.6+{short}"
     assert _git(root, "tag", "--list") == ""
 
 
@@ -179,7 +179,7 @@ def test_scm_version_uses_the_seed_when_the_only_tag_is_not_an_ancestor(
     _git(root, "checkout", "--detach", parent)
     short = _git(root, "rev-parse", "--short", "HEAD")
     assert version_tag.closest_version_tag(root) is None
-    assert version_tag.scm_version(root) == str(Version(f"1.0.0+{short}"))
+    assert version_tag.scm_version(root) == f"1.0.0+{short}"
     version_tag.ensure_local(root)
     assert _git(root, "rev-parse", "v1.0.0") == tagged
     assert version_tag.tag_on_head(root) is False
