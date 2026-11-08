@@ -149,6 +149,42 @@ def test_scm_version_keeps_tag_numbers_and_uses_the_short_hash(tmp_path: Path) -
     assert version_tag.scm_version(root) == ahead
 
 
+def _seed(root: Path, version: str) -> None:
+    github = root / ".github"
+    github.mkdir()
+    (github / "initial-version").write_text(f"{version}\n", encoding="utf-8")
+
+
+def test_scm_version_uses_the_seed_when_the_repository_has_no_tag(
+    tmp_path: Path,
+) -> None:
+    root = _repo(tmp_path / "untagged")
+    _seed(root, "4.5.6")
+    short = _git(root, "rev-parse", "--short", "HEAD")
+    assert version_tag.scm_version(root) == f"4.5.6+{short}"
+    assert _git(root, "tag", "--list") == ""
+
+
+def test_scm_version_uses_the_seed_when_the_only_tag_is_not_an_ancestor(
+    tmp_path: Path,
+) -> None:
+    root = _repo(tmp_path / "before-tag")
+    _seed(root, "1.0.0")
+    parent = _git(root, "rev-parse", "HEAD")
+    (root / "f").write_text("b\n", encoding="utf-8")
+    _git(root, "add", "f")
+    _git(root, "commit", "-m", "b")
+    tagged = _git(root, "rev-parse", "HEAD")
+    _git(root, "tag", "v1.0.0")
+    _git(root, "checkout", "--detach", parent)
+    short = _git(root, "rev-parse", "--short", "HEAD")
+    assert version_tag.closest_version_tag(root) is None
+    assert version_tag.scm_version(root) == f"1.0.0+{short}"
+    version_tag.ensure_local(root)
+    assert _git(root, "rev-parse", "v1.0.0") == tagged
+    assert version_tag.tag_on_head(root) is False
+
+
 def test_ensure_local_tags_the_seed_once(tmp_path: Path) -> None:
     root = _repo(tmp_path / "repo")
     seed = root / ".github"
