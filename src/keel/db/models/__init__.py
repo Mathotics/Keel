@@ -16,6 +16,7 @@ from keel.db.models.dependency import Dependency
 from keel.db.models.issue import Issue
 from keel.db.models.issue_history import IssueHistory
 from keel.db.models.label import IssueLabel, Label, SeriesItemLabel, SeriesLabel
+from keel.db.models.notice import Notice, NotificationPreference
 from keel.db.models.password_reset import PasswordResetToken
 from keel.db.models.project import Project
 from keel.db.models.request_log import RequestLog
@@ -41,6 +42,8 @@ __all__ = [
     "IssueHistory",
     "IssueLabel",
     "Label",
+    "Notice",
+    "NotificationPreference",
     "PasswordResetToken",
     "Project",
     "RequestLog",

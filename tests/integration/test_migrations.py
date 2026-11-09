@@ -167,6 +167,33 @@ def test_issue_migrations_include_due_at(migrated: KeelSettings) -> None:
     assert "p4" in str(series_priority["default"])
 
 
+def test_notification_tables_come_from_migrations(migrated: KeelSettings) -> None:
+    engine = create_db_engine(migrated.resolved_database_url())
+    try:
+        notices = {column["name"] for column in inspect(engine).get_columns("notices")}
+        preferences = {
+            column["name"]
+            for column in inspect(engine).get_columns("notification_preferences")
+        }
+    finally:
+        engine.dispose()
+    assert notices == {
+        "id",
+        "recipient_id",
+        "type",
+        "actor_id",
+        "actor_name",
+        "issue_id",
+        "issue_key",
+        "issue_title",
+        "body",
+        "read_at",
+        "created_at",
+        "deliver_at",
+    }
+    assert preferences == {"id", "user_id", "type", "email", "phone", "bell"}
+
+
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:
     for _ in range(2):
         with TestClient(create_app(migrated)) as client:

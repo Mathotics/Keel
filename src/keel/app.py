@@ -16,6 +16,7 @@ from keel.api.errors import register_error_handlers
 from keel.db.engine import create_db_engine, create_session_factory
 from keel.paths import asset_path, assets_dir
 from keel.services import auto_sprint
+from keel.services import notifications as notification_service
 from keel.services.access import ensure_global_roles
 from keel.services.users import ensure_default_user
 from keel.settings import KeelSettings, get_settings
@@ -64,6 +65,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
             )
             ensure_global_roles(session)
             auto_sprint.advance_all(session)
+            notification_service.purge_expired(session, settings)
             session.commit()
 
         async def poll() -> None:
@@ -72,6 +74,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
                 try:
                     with session_factory() as session:
                         auto_sprint.advance_all(session)
+                        notification_service.purge_expired(session, settings)
                         session.commit()
                 except asyncio.CancelledError:
                     raise

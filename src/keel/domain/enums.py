@@ -28,6 +28,18 @@ class IssueStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+class NotificationType(StrEnum):
+    """Events a person can subscribe to. Declaration order is the preference grid."""
+
+    COMMENT_ON_CREATED = "comment_on_created"
+    COMMENT_ON_ASSIGNED = "comment_on_assigned"
+    ASSIGNED = "assigned"
+    UPDATE_ON_CREATED = "update_on_created"
+    UPDATE_ON_ASSIGNED = "update_on_assigned"
+    DELETE_ON_CREATED = "delete_on_created"
+    DELETE_ON_ASSIGNED = "delete_on_assigned"
+
+
 class SprintState(StrEnum):
     """Declaration order is the only allowed lifecycle."""
 
