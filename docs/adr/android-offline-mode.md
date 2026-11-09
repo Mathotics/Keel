@@ -1,7 +1,9 @@
 # Android app offline mode
 
 * **Status:** Accepted
-* **Date:** 2026-10-19
+* **Date:** 2026-11-09
+
+> **Amendment (2026-11-09).** KEEL-106. A project already saved on the phone can gain a new schedule while the phone cannot reach the server. That create waits in the same queue and uploads with `POST /api/v1/projects/{id}/series`. The row shows “Not on the server yet” until the server accepts it. Listing schedules that have never been loaded, and editing, pausing, or deleting a schedule already on the server, still need a connection.
 
 ## Background
 
@@ -24,11 +26,12 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 
 * The offline rule for the Android app, including the local copy, the waiting queue, conflict choice, project settings, and sign-out.
 * The issues of each enabled project, including the backlog and issues in any sprint.
+* Creating a schedule for a project the phone has already saved, including while the phone cannot reach the server.
 
 ### Out-of-Scope
 
 * Building the cache, the queue, or issue screens in this pass.
-* Saving sprint plans, schedules, and account settings. Those screens still need a connection when that data has never been loaded.
+* Saving sprint plans and account settings. Those screens still need a connection when that data has never been loaded. Listing schedules that have never been loaded, and changing or deleting a schedule already on the server, still need a connection.
 * A new server sync API. The phone uses the existing JSON API.
 * Changing the website.
 
@@ -44,8 +47,9 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 * **Must** let every later action on a saved issue work offline. The phone stores those actions in order and uploads them when it reconnects.
 * **Must** open a screen from the saved copy without waiting on the network. A refresh updates that screen after it is already showing. Pull to refresh is the action that waits on the server.
 * **Must** let the user lock the phone into offline mode from the connection mark. While that lock is on, a reachable server must not refresh or upload. Pressing the mark again clears the lock and tries the server. If that try fails, the phone stays in ordinary offline mode and goes online on its own when a later probe succeeds.
-* **Must** require a connection for the first sign-in, and for any screen whose data is not saved (sprint plans, schedules, and a project that has never refreshed).
-* **Must** show “Not on the server yet” on each issue that is waiting, including an issue waiting on a conflict choice.
+* **Must** require a connection for the first sign-in, and for any screen whose data is not saved (sprint plans, a schedule list that has never been loaded, and a project that has never refreshed).
+* **Must** let the user create a schedule for a saved project with no connection. The phone stores that create and uploads it through the existing series route when it reconnects.
+* **Must** show “Not on the server yet” on each issue that is waiting, including an issue waiting on a conflict choice, and on each schedule waiting to be created.
 * **Must** upload issues that do not disagree with the server. When both sides changed an issue, leave that issue unsynced until the user picks the phone’s version or the server’s version. The user may leave the choice and keep using the app.
 * **Must** ask before signing out while changes are waiting. Confirming signs out and keeps those changes for the next sign-in of the same user. Cancelling stays signed in.
 * **Must** keep one account’s waiting changes private from another account on the same phone.
@@ -57,7 +61,7 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 ## Consequences
 
 * **Good:** Later screens share one offline behavior. The Pi stays the source of truth. No new server endpoint is required.
-* **Bad:** Until a project has refreshed once, that project’s issues are unavailable offline. Sprint plans and schedules stay unavailable until they have been loaded. A postponed conflict stays on the phone until the user chooses.
+* **Bad:** Until a project has refreshed once, that project’s issues are unavailable offline. Sprint plans stay unavailable until they have been loaded. A schedule list that has never been loaded stays unavailable, though a new schedule can still be filed. A postponed conflict stays on the phone until the user chooses.
 * **Risk:** A long wait between edits can make the two copies hard to compare. Dropping a project, or signing in as someone else, must not send the wrong queue.
 
 ## Assumptions
@@ -74,7 +78,7 @@ Later screens will be useless away from home, or off Tailscale, if each one assu
 
 ### Technical Stack and Architecture
 
-The phone keeps its own copy of the issues in each enabled project, plus the people, labels, and active-sprint identity needed to act on those issues. A full issue page, including comments, is kept after that issue has been opened. Waiting actions are an ordered queue tied to the signed-in user. On reconnect the phone replays that queue through the existing `/api/v1` issue routes. A conflict is a waiting edit whose server copy changed after the phone saved its base. Choosing the phone sends the phone’s current issue. Choosing the server discards the phone’s waiting edits for that issue and shows the server copy. If the server copy is gone, the choice is to recreate the issue or discard the phone’s copy. This pass adds no code and no dependency. The implementation that follows this rule chooses the on-phone store then.
+The phone keeps its own copy of the issues in each enabled project, plus the people, labels, and active-sprint identity needed to act on those issues. A new schedule for one of those projects is kept with that copy and replayed as a series create. A full issue page, including comments, is kept after that issue has been opened. Waiting actions are an ordered queue tied to the signed-in user. On reconnect the phone replays that queue through the existing `/api/v1` issue routes. A conflict is a waiting edit whose server copy changed after the phone saved its base. Choosing the phone sends the phone’s current issue. Choosing the server discards the phone’s waiting edits for that issue and shows the server copy. If the server copy is gone, the choice is to recreate the issue or discard the phone’s copy. This pass adds no code and no dependency. The implementation that follows this rule chooses the on-phone store then.
 
 ### UML Diagrams
 

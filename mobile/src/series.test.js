@@ -1,20 +1,56 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { DELETED, NEEDS_CONNECTION, NONE, blankItem, blankRecipe, childTypeOf, parentChoices, prepareRecipe, recipeFromSeries, seriesView } = require("./series");
+const { CREATE_OFFLINE, DELETED, NEEDS_CONNECTION, NONE, SAVED_SCHEDULES, blankItem, blankRecipe, cadenceSummary, childTypeOf, parentChoices, prepareRecipe, recipeFromSeries, seriesView } = require("./series");
 
 test("offline schedules ask for a connection and an empty list says so", () => {
   const offline = seriesView({ series: null, online: false });
   assert.equal(offline.banner, NEEDS_CONNECTION);
+  assert.equal(offline.canCreate, false);
   assert.equal(offline.rows.length, 0);
   const empty = seriesView({ series: [], online: true });
   assert.equal(empty.empty, NONE);
+  assert.equal(empty.canCreate, true);
   const listed = seriesView({
     series: [{ id: 4, title: "Backup", cadence_summary: "Weekly", state: "paused", type: "story" }],
     online: true,
   });
   assert.equal(listed.rows[0].stateLabel, "Paused");
   assert.equal(listed.rows[0].summary, "Weekly");
+});
+
+test("a saved project can start a series before the list has loaded", () => {
+  const waiting = seriesView({ series: [], online: false, known: false });
+  assert.match(waiting.banner, new RegExp(NEEDS_CONNECTION));
+  assert.match(waiting.banner, new RegExp(CREATE_OFFLINE));
+  assert.equal(waiting.canCreate, true);
+  const known = seriesView({ series: [], online: false, known: true });
+  assert.equal(known.banner, SAVED_SCHEDULES);
+  assert.equal(known.empty, NONE);
+  const drafted = seriesView({
+    series: [{ id: -1, title: "Oil", cadence_summary: "Weekly on Mon", state: "active", type: "story", pending: true }],
+    online: false,
+    known: false,
+  });
+  assert.equal(drafted.rows[0].pending, true);
+  assert.equal(drafted.canCreate, true);
+  const merged = seriesView({
+    series: [{ id: 4, title: "Backup", cadence_summary: "Weekly", state: "active", type: "story" }],
+    saved: [{ id: -1, title: "Oil", cadence_summary: "Daily", state: "active", type: "story", pending: true }],
+    online: true,
+  });
+  assert.deepEqual(merged.rows.map((row) => row.id), [4, -1]);
+});
+
+test("a weekly recipe summarizes the same way as the server", () => {
+  assert.equal(
+    cadenceSummary({ freq: "weekly", interval: 1, weekdays: [0, 2], starts_on: "2026-10-14" }),
+    "Weekly on Mon, Wed",
+  );
+  assert.equal(
+    cadenceSummary({ freq: "weekly", interval: 1, weekdays: [0, 2], starts_on: "2026-10-14", occurrence_count: 4 }),
+    "Weekly on Mon, Wed, 4 times",
+  );
 });
 
 test("a recipe needs a title and a start, and a blank date pair stays unset", () => {

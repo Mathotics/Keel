@@ -54,13 +54,18 @@ import {
   forgetProject,
   enableProject,
   findIssue,
+  findSeries,
   hasWaiting,
   queueComment,
   queueCreate,
   queueDelete,
   queueRecreate,
   queueRemoveComment,
+  queueSeries,
   queueUpdate,
+  rememberSeries,
+  savedSeries,
+  seriesKnown,
   presentQueue,
   conflictView,
   rememberDetail,
@@ -1385,6 +1390,11 @@ export default function App() {
         currentAccount.token,
         `/api/v1/projects/${project.id}/series`,
       );
+      const latest = libraryRef.current && libraryRef.current.projects && libraryRef.current.projects[project.id]
+        ? libraryRef.current
+        : currentLibrary;
+      const remembered = rememberSeries(latest, project.id, series || []);
+      await persistLibrary(currentAccount.userId, remembered);
       setRemoteSeries(series || []);
       setScheduleLink("online");
       setWorkError("");
@@ -1417,11 +1427,17 @@ export default function App() {
     }
     try {
       const loaded = await openLibrary({ force: pull });
+      const projects = enabledProjects(loaded.store);
+      const requested = projectId || scheduleProjectId;
+      const project = projects.find((item) => item.id === requested) || projects[0] || null;
+      if (project) {
+        setScheduleProjectId(project.id);
+      }
       if (loaded.offline) {
         setScheduleLink("offline");
         return;
       }
-      await refreshSchedules(account, loaded.store, projectId || scheduleProjectId);
+      await refreshSchedules(account, loaded.store, project ? project.id : null);
     } catch (err) {
       if (err.status === 401) {
         await clearAccount();
@@ -1554,9 +1570,17 @@ export default function App() {
   async function showSchedule(seriesId, issue) {
     listPhase.current = issue ? listPhase.current : "schedules";
     setPhase("schedule");
-    setRecipeMode(issue ? "occurrence" : "edit");
     setRecipeIssue(issue || null);
     setRecipeScope("series");
+    if (Number(seriesId) < 0) {
+      const record = findSeries(library, seriesId);
+      setRecipeMode("pending");
+      setOpenSeries(record ? record.raw : null);
+      setRecipe(record ? recipeFromSeries(record.raw) : null);
+      setWorkError(record ? "" : "That schedule is not on this phone.");
+      return;
+    }
+    setRecipeMode(issue ? "occurrence" : "edit");
     setOpenSeries(null);
     setRecipe(null);
     setRefreshing(true);
@@ -1637,12 +1661,12 @@ export default function App() {
     }));
   }
 
-  async function resolvedEnds(draft) {
+  async function resolvedEnds(draft, offline) {
     let assigneeId = null;
     const assignee = String(draft.assignee || "").trim();
     if (assignee && !draft.keepAssignee) {
       let people = library.people || [];
-      if (!people.length) {
+      if (!people.length && !offline) {
         people = await read(account.origin, account.token, "/api/v1/users");
       }
       const found = (people || []).find(
@@ -1657,6 +1681,9 @@ export default function App() {
     const parentKey = String(draft.parentKey || "").trim();
     if (parentKey && !draft.keepParent) {
       let parent = savedIssueId(library, parentKey);
+      if (!parent && offline) {
+        return { error: "Choose a parent issue." };
+      }
       if (!parent) {
         const parts = issueKeyParts(parentKey);
         if (!parts) {
@@ -1678,13 +1705,13 @@ export default function App() {
     return { assigneeId, parentId };
   }
 
-  async function personId(name) {
+  async function personId(name, offline) {
     const assignee = String(name || "").trim();
     if (!assignee) {
       return { id: null };
     }
     let people = library.people || [];
-    if (!people.length) {
+    if (!people.length && !offline) {
       people = await read(account.origin, account.token, "/api/v1/users");
     }
     const found = (people || []).find(
@@ -1694,6 +1721,28 @@ export default function App() {
       return { error: "Choose an assignee." };
     }
     return { id: found.id };
+  }
+
+  async function fileSeriesOffline(body, projectId, returnToIssue) {
+    const filed = queueSeries(libraryRef.current, projectId, body);
+    if (filed.error) {
+      return filed.error;
+    }
+    await persistLibrary(account.userId, filed.store);
+    setScheduleProjectId(projectId);
+    scheduleSync(account, filed.store);
+    if (returnToIssue && recipeIssue) {
+      setIssueId(recipeIssue.id);
+      setPhase("issue");
+      return null;
+    }
+    setRecipe(blankRecipe());
+    setRecipeMode("create");
+    setRecipeIssue(null);
+    setOpenSeries(null);
+    setScheduleNotice(NOT_ON_SERVER);
+    setPhase("schedules");
+    return null;
   }
 
   async function saveRecipe(action) {
@@ -1746,12 +1795,16 @@ export default function App() {
     if (prepared.error) {
       return prepared.error;
     }
+    const offlineFile = knownOffline() && (recipeMode === "create" || recipeMode === "repeat");
+    let body = { ...prepared.body };
+    let readyToFile = false;
+    let fileProjectId = scheduleProjectId;
+    let returnToIssue = false;
     try {
-      const body = { ...prepared.body };
       if (Array.isArray(body.items)) {
         for (const item of body.items) {
           if (item.assignee) {
-            const owner = await personId(item.assignee);
+            const owner = await personId(item.assignee, offlineFile);
             if (owner.error) {
               return owner.error;
             }
@@ -1761,11 +1814,14 @@ export default function App() {
         }
       }
       if (recipeMode === "repeat") {
+        if (Number(recipeIssue && recipeIssue.id) < 0) {
+          return "This issue is not on the server yet.";
+        }
         if (!String(recipe.labels || "").trim()) {
           delete body.labels;
         }
         delete body.items;
-        await send(account.origin, account.token, "POST", `/api/v1/projects/${recipeIssue.projectId}/series`, {
+        body = {
           ...body,
           title: recipeIssue.title,
           description: recipeIssue.descriptionText || "",
@@ -1774,7 +1830,14 @@ export default function App() {
           parent_id: recipeIssue.parentId,
           assignee_id: recipeIssue.assigneeId,
           seed_issue_id: recipeIssue.id,
-        });
+        };
+        fileProjectId = recipeIssue.projectId;
+        returnToIssue = true;
+        if (offlineFile) {
+          return fileSeriesOffline(body, fileProjectId, true);
+        }
+        readyToFile = true;
+        await send(account.origin, account.token, "POST", `/api/v1/projects/${recipeIssue.projectId}/series`, body);
         setIssueId(recipeIssue.id);
         setPhase("issue");
         return null;
@@ -1790,7 +1853,7 @@ export default function App() {
         setPhase("issue");
         return null;
       }
-      const ends = await resolvedEnds(recipe);
+      const ends = await resolvedEnds(recipe, offlineFile);
       if (ends.error) {
         return ends.error;
       }
@@ -1806,6 +1869,10 @@ export default function App() {
         setWorkError("");
         return null;
       }
+      if (offlineFile) {
+        return fileSeriesOffline(body, scheduleProjectId, false);
+      }
+      readyToFile = true;
       const created = await send(
         account.origin,
         account.token,
@@ -1821,6 +1888,9 @@ export default function App() {
         setTone("error");
         setMessage("Sign in.");
         return null;
+      }
+      if (readyToFile && !err.status) {
+        return fileSeriesOffline(body, fileProjectId, returnToIssue);
       }
       if (err.status === 404 && recipeMode === "occurrence") {
         return "Editing one occurrence from the phone is not available on this server yet.";
@@ -2851,8 +2921,10 @@ export default function App() {
           recipe={recipe}
           refreshing={refreshing}
           view={seriesView({
-            series: remoteSeries,
+            series: scheduleLink === "online" ? remoteSeries : savedSeries(library, scheduleProjectId),
+            saved: savedSeries(library, scheduleProjectId) || [],
             online: scheduleLink === "online",
+            known: seriesKnown(library, scheduleProjectId),
           })}
         />
       ) : null}
@@ -4156,7 +4228,7 @@ function Schedules({
   onSignOut,
 }) {
   const [formError, setFormError] = useState("");
-  const online = view && !view.banner;
+  const showCreate = Boolean(view && view.canCreate && projectId);
   return (
     <ScrollView
       contentContainerStyle={styles.workContent}
@@ -4185,10 +4257,12 @@ function Schedules({
               <Text style={styles.issueKey}>{row.title}</Text>
               <Text style={styles.issueTitle}>{row.summary}</Text>
               <Text style={styles.issueStatus}>{row.typeLabel} · {row.stateLabel}</Text>
+              {row.pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
+              {row.error ? <Text style={styles.error}>{row.error}</Text> : null}
             </Pressable>
           ))
         : null}
-      {online && projectId ? (
+      {showCreate ? (
         <View style={styles.project}>
           <Text style={styles.projectName}>New series</Text>
           {formError ? <Text style={styles.error}>{formError}</Text> : null}
@@ -4234,7 +4308,8 @@ function SeriesScreen({
   onSignOut,
 }) {
   const [formError, setFormError] = useState("");
-  const ready = mode === "repeat" || series;
+  const pending = mode === "pending";
+  const ready = mode === "repeat" || pending || series;
   const title = mode === "repeat" ? "Make this repeating" : mode === "occurrence" ? "Edit series" : (series && series.title) || "Schedule";
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
@@ -4243,6 +4318,7 @@ function SeriesScreen({
       {series ? (
         <Text style={styles.message}>{series.cadence_summary}. {series.state === "paused" ? "Paused" : "Active"}.</Text>
       ) : null}
+      {pending ? <Text style={styles.pending}>{NOT_ON_SERVER}</Text> : null}
       {mode === "edit" && series ? (
         <View style={styles.toolbarActions}>
           <TextButton
@@ -4256,7 +4332,7 @@ function SeriesScreen({
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {formError ? <Text style={styles.error}>{formError}</Text> : null}
       {ready ? null : <ActivityIndicator color="#0068B0" />}
-      {ready && recipe ? (
+      {ready && recipe && !pending ? (
         <RecipeFields
           draft={recipe}
           onChange={onChange}
@@ -4283,7 +4359,7 @@ function SeriesScreen({
           ) : null}
         </View>
       ) : null}
-      {ready ? (
+      {ready && !pending ? (
       <PrimaryButton
         label={mode === "repeat" ? "Make this repeating" : "Save recipe"}
         disabled={busy}

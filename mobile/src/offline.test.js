@@ -20,8 +20,11 @@ const {
   queueDelete,
   queueRecreate,
   queueRemoveComment,
+  queueSeries,
   queueUpdate,
   presentQueue,
+  rememberSeries,
+  savedSeries,
   workView,
 } = require("./offline");
 const { uploadQueue } = require("./sync");
@@ -674,4 +677,92 @@ test("removing a queue item that is already gone reports that", () => {
   const dropped = dropQueueItem(store, "missing");
   assert.equal(dropped.error, "That change is no longer waiting.");
   assert.equal(dropped.store, store);
+});
+
+function seriesBody(title) {
+  return {
+    title,
+    description: "",
+    type: "story",
+    priority: "p4",
+    spawn_mode: "calendar",
+    sprint_basis: "due_on",
+    freq: "weekly",
+    interval: 1,
+    weekdays: [0, 2],
+    starts_on: "2026-10-14",
+    look_ahead_n: 1,
+    labels: ["hull"],
+  };
+}
+
+test("a new schedule waits on the phone and uploads when the server answers", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const missing = queueSeries(store, 9, seriesBody("Backup"));
+  assert.equal(missing.error, "Choose a saved project.");
+  const blocked = queueSeries(store, 3, { ...seriesBody("Backup"), parent_id: -2 });
+  assert.match(blocked.error, /parent/);
+  const filed = queueSeries(store, 3, seriesBody("Backup"));
+  assert.equal(filed.error, null);
+  assert.equal(filed.store.queue[0].method, "POST");
+  assert.equal(filed.store.queue[0].path, "/api/v1/projects/3/series");
+  assert.equal(savedSeries(filed.store, 3)[0].pending, true);
+  assert.equal(savedSeries(filed.store, 3)[0].cadence_summary, "Weekly on Mon, Wed");
+  assert.equal(presentQueue(filed.store)[0].action, "Create schedule");
+  assert.match(presentQueue(filed.store)[0].detail, /Backup/);
+
+  store = rememberSeries(filed.store, 3, [
+    { id: 4, title: "Oil", cadence_summary: "Daily", state: "active", type: "story" },
+  ]);
+  assert.equal(savedSeries(store, 3).length, 2);
+  store = applyRefresh(store, [snapshot()], { people: [], labels: [] });
+  assert.equal(savedSeries(store, 3).some((item) => item.pending), true);
+
+  const rejected = new Error("Title is already used.");
+  rejected.status = 422;
+  const held = await uploadQueue(store, {
+    async read() {
+      throw new Error("a schedule is not an issue");
+    },
+    async send() {
+      throw rejected;
+    },
+  });
+  assert.equal(held.queue.length, 1);
+  assert.match(savedSeries(held, 3).find((item) => item.pending).error, /Title/);
+
+  const uploaded = await uploadQueue(held, {
+    async read() {
+      throw new Error("a schedule is not an issue");
+    },
+    async send(method, path, body) {
+      assert.equal(method, "POST");
+      assert.equal(path, "/api/v1/projects/3/series");
+      assert.equal(body.title, "Backup");
+      return {
+        id: 11,
+        project_id: 3,
+        title: "Backup",
+        type: "story",
+        state: "active",
+        cadence_summary: "Weekly on Mon, Wed",
+        labels: ["hull"],
+      };
+    },
+  });
+  assert.equal(uploaded.queue.length, 0);
+  const saved = savedSeries(uploaded, 3).find((item) => item.id === 11);
+  assert.equal(saved.pending, false);
+  assert.equal(savedSeries(uploaded, 3).some((item) => item.id < 0), false);
+
+  const again = queueSeries(uploaded, 3, seriesBody("Paint"));
+  const dropped = dropQueueItem(again.store, again.store.queue[0].id);
+  assert.equal(dropped.error, null);
+  assert.equal(dropped.store.queue.length, 0);
+  assert.equal(savedSeries(dropped.store, 3).some((item) => item.title === "Paint"), false);
+
+  const waiting = queueSeries(dropped.store, 3, seriesBody("Paint"));
+  const turnedOff = dropProject(waiting.store, 3);
+  assert.equal(hasWaiting(turnedOff, 3), false);
+  assert.equal(savedSeries(turnedOff, 3), null);
 });
