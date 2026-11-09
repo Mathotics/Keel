@@ -1,4 +1,5 @@
 const { commentView, formatMinutes, formatMoney, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
+const { cadenceSummary } = require("./series");
 const { statusLabel } = require("./work");
 
 const NOT_ON_SERVER = "Not on the server yet.";
@@ -295,6 +296,8 @@ function dropProject(store, projectId) {
   project.saved = false;
   project.sprint = null;
   project.issues = {};
+  project.series = {};
+  project.seriesLoaded = false;
   return next;
 }
 
@@ -330,11 +333,41 @@ function markError(store, issueId, message) {
   return next;
 }
 
+function markSeriesError(store, projectId, seriesId, message) {
+  const next = clone(store);
+  const project = next.projects[projectId];
+  const record = project && project.series && project.series[seriesId];
+  if (!record) {
+    return next;
+  }
+  record.error = message;
+  record.pending = true;
+  return next;
+}
+
 function noteUploaded(store, item, saved) {
   const next = clone(store);
   next.queue = next.queue.filter((entry) => entry.id !== item.id);
   if (item.kind === "delete") {
     return discardIssue(next, item.issueId);
+  }
+  if (item.kind === "series") {
+    const project = next.projects[item.projectId];
+    if (project) {
+      if (!project.series) {
+        project.series = {};
+      }
+      delete project.series[item.seriesId];
+      if (saved && saved.id != null) {
+        project.series[saved.id] = {
+          id: saved.id,
+          pending: false,
+          error: null,
+          raw: saved,
+        };
+      }
+    }
+    return next;
   }
   const issue = findIssue(next, item.issueId);
   if (item.kind === "create" && saved && issue) {
@@ -573,6 +606,182 @@ function queueCreate(store, draft) {
     force: true,
   });
   return { store: next, error: null, issueId: localId };
+}
+
+function findSeries(store, seriesId) {
+  for (const project of Object.values(store.projects || {})) {
+    if (project.series && project.series[seriesId]) {
+      return project.series[seriesId];
+    }
+  }
+  return null;
+}
+
+function localSeriesId(store) {
+  let lowest = 0;
+  for (const project of Object.values(store.projects || {})) {
+    for (const id of Object.keys(project.series || {})) {
+      lowest = Math.min(lowest, Number(id));
+    }
+  }
+  return lowest - 1;
+}
+
+function seriesPostBody(body) {
+  const items = (body.items || []).map((item) => {
+    const copy = { ...item };
+    delete copy.assignee;
+    return copy;
+  });
+  const posted = {
+    title: String(body.title || "").trim(),
+    description: body.description || "",
+    type: body.type || "story",
+    priority: body.priority || "p4",
+    spawn_mode: body.spawn_mode || "calendar",
+    sprint_basis: body.sprint_basis || "due_on",
+    freq: body.freq || "weekly",
+    starts_on: body.starts_on,
+    interval: body.interval || 1,
+    weekdays: body.weekdays || [],
+    month_day: body.month_day ?? null,
+    nth_week: body.nth_week ?? null,
+    month: body.month ?? null,
+    ends_on: body.ends_on ?? null,
+    occurrence_count: body.occurrence_count ?? null,
+    look_ahead_n: body.look_ahead_n || 1,
+    start_offset_days: body.start_offset_days ?? null,
+    start_minute_of_day: body.start_minute_of_day ?? null,
+    due_offset_days: body.due_offset_days ?? null,
+    due_minute_of_day: body.due_minute_of_day ?? null,
+    parent_id: body.parent_id ?? null,
+    assignee_id: body.assignee_id ?? null,
+    labels: body.labels || [],
+    items,
+  };
+  if (body.seed_issue_id != null) {
+    posted.seed_issue_id = body.seed_issue_id;
+  }
+  return posted;
+}
+
+function rawFromSeriesBody(id, projectId, body) {
+  return {
+    id,
+    project_id: projectId,
+    title: body.title,
+    description: body.description,
+    type: body.type,
+    priority: body.priority,
+    labels: body.labels,
+    spawn_mode: body.spawn_mode,
+    sprint_basis: body.sprint_basis,
+    freq: body.freq,
+    interval: body.interval,
+    weekdays: (body.weekdays || []).join(","),
+    month_day: body.month_day,
+    nth_week: body.nth_week,
+    month: body.month,
+    starts_on: body.starts_on,
+    ends_on: body.ends_on,
+    occurrence_count: body.occurrence_count,
+    look_ahead_n: body.look_ahead_n,
+    start_offset_days: body.start_offset_days,
+    start_minute_of_day: body.start_minute_of_day,
+    due_offset_days: body.due_offset_days,
+    due_minute_of_day: body.due_minute_of_day,
+    parent_id: body.parent_id,
+    assignee_id: body.assignee_id,
+    state: "active",
+    cadence_summary: cadenceSummary(body),
+    items: body.items || [],
+  };
+}
+
+function queueSeries(store, projectId, body) {
+  const next = clone(store);
+  const project = next.projects[projectId];
+  if (!project || !project.enabled) {
+    return { store: next, error: "Choose a saved project." };
+  }
+  const posted = seriesPostBody(body || {});
+  if (!posted.title) {
+    return { store: next, error: "A series needs a title." };
+  }
+  if (Number(posted.parent_id) < 0) {
+    return { store: next, error: "That parent is not on the server yet." };
+  }
+  if (Number(posted.seed_issue_id) < 0) {
+    return { store: next, error: "This issue is not on the server yet." };
+  }
+  const localId = localSeriesId(next);
+  if (!project.series) {
+    project.series = {};
+  }
+  project.series[localId] = {
+    id: localId,
+    pending: true,
+    error: null,
+    raw: rawFromSeriesBody(localId, project.id, posted),
+  };
+  next.queue.push({
+    id: `series-${localId}`,
+    kind: "series",
+    seriesId: localId,
+    projectId: project.id,
+    method: "POST",
+    path: `/api/v1/projects/${project.id}/series`,
+    body: posted,
+    baseUpdatedAt: null,
+    force: true,
+  });
+  return { store: next, error: null, seriesId: localId };
+}
+
+function rememberSeries(store, projectId, list) {
+  const next = clone(store);
+  const project = next.projects[projectId];
+  if (!project || !project.enabled) {
+    return next;
+  }
+  const kept = {};
+  for (const prior of Object.values(project.series || {})) {
+    if (prior.pending || Number(prior.id) < 0) {
+      kept[prior.id] = prior;
+    }
+  }
+  for (const series of list || []) {
+    if (!kept[series.id]) {
+      kept[series.id] = {
+        id: series.id,
+        pending: false,
+        error: null,
+        raw: series,
+      };
+    }
+  }
+  project.series = kept;
+  project.seriesLoaded = true;
+  return next;
+}
+
+function savedSeries(store, projectId) {
+  const project = store.projects && store.projects[projectId];
+  if (!project || !project.enabled) {
+    return null;
+  }
+  return Object.values(project.series || {})
+    .map((record) => ({
+      ...record.raw,
+      pending: Boolean(record.pending),
+      error: record.error || "",
+    }))
+    .sort((left, right) => String(left.title || "").localeCompare(String(right.title || "")));
+}
+
+function seriesKnown(store, projectId) {
+  const project = store.projects && store.projects[projectId];
+  return Boolean(project && project.seriesLoaded);
 }
 
 function waitingToDelete(store, issueId) {
@@ -843,6 +1052,7 @@ const QUEUE_ACTION = {
   delete: "Delete",
   comment: "Comment",
   uncomment: "Remove comment",
+  series: "Create schedule",
 };
 
 const QUEUE_FIELD = {
@@ -935,6 +1145,10 @@ function queueValue(store, key, value, currency) {
 }
 
 function queueDetail(store, item) {
+  if (item.kind === "series") {
+    const body = item.body || {};
+    return [body.title, body.starts_on].filter(Boolean).join(" · ");
+  }
   if (item.kind === "comment") {
     return item.body && item.body.body ? item.body.body : "";
   }
@@ -1076,6 +1290,15 @@ function dropQueueItem(store, itemId) {
   if (!item) {
     return { store, error: "That change is no longer waiting." };
   }
+  if (item.kind === "series") {
+    const next = clone(store);
+    next.queue = next.queue.filter((entry) => entry.id !== item.id);
+    const project = next.projects[item.projectId];
+    if (project && project.series) {
+      delete project.series[item.seriesId];
+    }
+    return { store: next, error: null };
+  }
   if (item.kind === "create") {
     const issue = findIssue(store, item.issueId);
     const project = issue && store.projects[issue.projectId];
@@ -1129,6 +1352,20 @@ function dropQueueItem(store, itemId) {
 
 function presentQueue(store) {
   return (store.queue || []).map((item) => {
+    if (item.kind === "series") {
+      const record = findSeries(store, item.seriesId);
+      return {
+        id: item.id,
+        issueId: null,
+        project: queueProjectName(store, item.projectId),
+        issue: (record && record.raw && record.raw.title) || (item.body && item.body.title) || "Schedule",
+        action: QUEUE_ACTION.series,
+        detail: queueDetail(store, item),
+        held: false,
+        conflict: null,
+        error: (record && record.error) || "",
+      };
+    }
     const issue = findIssue(store, item.issueId);
     return {
       id: item.id,
@@ -1159,9 +1396,11 @@ module.exports = {
   enableProject,
   enqueue,
   findIssue,
+  findSeries,
   hasWaiting,
   markConflict,
   markError,
+  markSeriesError,
   noteUploaded,
   presentQueue,
   queueComment,
@@ -1169,8 +1408,12 @@ module.exports = {
   queueDelete,
   queueRecreate,
   queueRemoveComment,
+  queueSeries,
   queueUpdate,
   rememberDetail,
+  rememberSeries,
+  savedSeries,
+  seriesKnown,
   renameProject,
   storeKey,
   workView,

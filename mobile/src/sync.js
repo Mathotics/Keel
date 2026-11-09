@@ -1,4 +1,4 @@
-const { findIssue, markConflict, markError, noteUploaded } = require("./offline");
+const { findIssue, markConflict, markError, markSeriesError, noteUploaded } = require("./offline");
 
 function restoreComment(store, item) {
   if (!item.comment) {
@@ -24,7 +24,21 @@ async function uploadQueue(store, client) {
     if (!item) {
       continue;
     }
-    if (held.has(item.issueId) || held.has(original.issueId)) {
+    const holdKey = item.kind === "series" ? `series:${item.seriesId}` : item.issueId;
+    if (held.has(holdKey)) {
+      continue;
+    }
+    if (item.kind === "series") {
+      try {
+        const saved = await client.send(item.method, item.path, item.body);
+        current = noteUploaded(current, item, saved);
+      } catch (error) {
+        if (error.status === 0) {
+          throw error;
+        }
+        current = markSeriesError(current, item.projectId, item.seriesId, error.message);
+        held.add(holdKey);
+      }
       continue;
     }
     const record = current.projects[item.projectId]

@@ -1,4 +1,6 @@
 const NEEDS_CONNECTION = "Repeating schedules need a connection.";
+const CREATE_OFFLINE = "A new series stays on this phone until it uploads.";
+const SAVED_SCHEDULES = "Showing saved schedules.";
 const NONE = "No repeating series.";
 const DELETE_TITLE = "Delete this schedule?";
 const DELETE_BODY = "Existing issues remain. This cannot be undone.";
@@ -478,22 +480,114 @@ function prepareItems(items, rootType) {
   return { items: prepared };
 }
 
-function seriesView({ series, online }) {
-  if (!online) {
-    return { banner: NEEDS_CONNECTION, empty: "", rows: [] };
+const WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function weekdayIndex(iso) {
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+  if (!matched) {
+    return 0;
   }
-  const rows = (series || []).map((item) => ({
+  const date = new Date(Date.UTC(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3])));
+  return (date.getUTCDay() + 6) % 7;
+}
+
+function ordinal(value) {
+  if (value === 1) {
+    return "1st";
+  }
+  if (value === 2) {
+    return "2nd";
+  }
+  if (value === 3) {
+    return "3rd";
+  }
+  return `${value}th`;
+}
+
+function cadenceSummary(body) {
+  const interval = Number(body && body.interval) || 1;
+  const freq = (body && body.freq) || "weekly";
+  const startsOn = body && body.starts_on;
+  let base;
+  if (freq === "daily") {
+    base = interval === 1 ? "Daily" : `Every ${interval} days`;
+  } else if (freq === "weekly") {
+    const days = body && body.weekdays && body.weekdays.length
+      ? body.weekdays
+      : [weekdayIndex(startsOn)];
+    const names = days.map((day) => WEEKDAY_NAMES[day]).filter(Boolean).join(", ");
+    base = interval === 1 ? `Weekly on ${names}` : `Every ${interval} weeks on ${names}`;
+  } else if (freq === "monthly") {
+    if (body && body.nth_week != null && body.nth_week !== "") {
+      const day = (body.weekdays && body.weekdays.length ? body.weekdays : [weekdayIndex(startsOn)])[0];
+      const rank = Number(body.nth_week) < 0 ? "last" : ordinal(Number(body.nth_week));
+      const unit = interval === 1
+        ? `the ${rank} ${WEEKDAY_NAMES[day]}`
+        : `every ${interval} months on the ${rank} ${WEEKDAY_NAMES[day]}`;
+      base = interval > 1 ? unit : `Monthly on ${unit}`;
+    } else {
+      const day = (body && body.month_day) || Number(String(startsOn || "").slice(8, 10)) || 1;
+      base = interval === 1 ? `Monthly on day ${day}` : `Every ${interval} months on day ${day}`;
+    }
+  } else {
+    const month = (body && body.month) || Number(String(startsOn || "").slice(5, 7)) || 1;
+    const day = (body && body.month_day) || Number(String(startsOn || "").slice(8, 10)) || 1;
+    const stamp = `${Math.min(day, 28)} ${MONTH_ABBR[month - 1] || ""}`.trim();
+    base = interval === 1 ? `Yearly on ${stamp}` : `Every ${interval} years on ${stamp}`;
+  }
+  if (body && body.ends_on) {
+    return `${base} until ${body.ends_on}`;
+  }
+  if (body && body.occurrence_count) {
+    return `${base}, ${body.occurrence_count} times`;
+  }
+  return base;
+}
+
+function seriesRows(series) {
+  return (series || []).map((item) => ({
     id: item.id,
     title: item.title,
     summary: item.cadence_summary || "",
     state: item.state,
     stateLabel: STATE_LABELS[item.state] || item.state,
     typeLabel: TYPE_LABELS[item.type] || item.type,
+    pending: Boolean(item.pending),
+    error: item.error || "",
   }));
+}
+
+function seriesView({ series, saved, online, known }) {
+  const pending = (saved || []).filter((item) => item.pending || Number(item.id) < 0);
+  if (!online) {
+    if (!Array.isArray(series)) {
+      return { banner: NEEDS_CONNECTION, empty: "", rows: [], canCreate: false };
+    }
+    if (!known && !series.length) {
+      return {
+        banner: `${NEEDS_CONNECTION} ${CREATE_OFFLINE}`,
+        empty: "",
+        rows: [],
+        canCreate: true,
+      };
+    }
+    const rows = seriesRows(series);
+    return {
+      banner: rows.some((row) => row.pending) ? CREATE_OFFLINE : SAVED_SCHEDULES,
+      empty: rows.length ? "" : NONE,
+      rows,
+      canCreate: true,
+    };
+  }
+  const listed = series || [];
+  const ids = new Set(listed.map((item) => item.id));
+  const rows = seriesRows(listed.concat(pending.filter((item) => !ids.has(item.id))));
   return {
     banner: "",
     empty: rows.length ? "" : NONE,
     rows,
+    canCreate: true,
   };
 }
 
@@ -504,14 +598,17 @@ module.exports = {
   DELETED,
   FREQS,
   MONTHS,
+  CREATE_OFFLINE,
   NEEDS_CONNECTION,
   NONE,
+  SAVED_SCHEDULES,
   PRIORITIES,
   SCOPES,
   SPAWNS,
   WEEKDAYS,
   blankItem,
   blankRecipe,
+  cadenceSummary,
   childTypeOf,
   parentChoices,
   prepareRecipe,
