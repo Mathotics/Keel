@@ -140,7 +140,7 @@ _LABELS = {
     EditScope.SERIES: "Entire series",
     NotificationType.COMMENT_ON_CREATED: "Comment on an issue you created",
     NotificationType.COMMENT_ON_ASSIGNED: "Comment on an issue assigned to you",
-    NotificationType.ASSIGNED: "Assigned to you",
+    NotificationType.ASSIGNED: "Someone assigns an issue to you",
     NotificationType.UPDATE_ON_CREATED: "Update to an issue you created",
     NotificationType.UPDATE_ON_ASSIGNED: "Update to an issue assigned to you",
     NotificationType.DELETE_ON_CREATED: "Deletion of an issue you created",

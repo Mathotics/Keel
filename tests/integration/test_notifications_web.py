@@ -49,8 +49,10 @@ def test_an_empty_inbox_has_no_dot_and_says_so(client: TestClient) -> None:
     assert "There are no notifications." in page.text
     assert "hidden" in _dot(page.text)
     bell = _bell(page.text)
-    assert "Notifications" in bell
-    assert not any(character.isdigit() for character in bell)
+    assert 'aria-label="Notifications"' in bell
+    assert ">Notifications<" not in bell
+    assert "<svg" in bell
+    assert not any(character.isdigit() for character in _dot(page.text))
     assert 'src="/assets/js/bell.js"' in page.text
     script = client.get("/assets/js/bell.js")
     assert script.status_code == 200
@@ -267,6 +269,7 @@ def test_the_profile_grid_saves_any_combination_of_channels(
 ) -> None:
     page = client.get("/profile")
     assert "Comment on an issue you created" in page.text
+    assert "Someone assigns an issue to you" in page.text
     assert "Phone alert is saved here." in page.text
     assert _checked(page.text, "bell", "assigned")
     assert not _checked(page.text, "email", "assigned")
@@ -304,3 +307,60 @@ def test_the_profile_grid_saves_any_combination_of_channels(
     assert "Choose every notification type." in refused.text
     kept = client.get("/api/v1/notifications/preferences").json()
     assert next(item for item in kept if item["type"] == "assigned") == assigned
+
+
+def test_another_persons_field_edit_notifies_the_reporter(
+    client: TestClient,
+    app: FastAPI,
+) -> None:
+    me = client.get("/api/v1/profile").json()
+    with app.state.session_factory() as session:
+        ada = user_service.create_user(session, "Ada")
+        user_service.set_password(session, ada, "tester-password")
+        project = project_service.create_project(session, "KEEL", "Keel")
+        issue = issue_service.create_issue(
+            session,
+            project.id,
+            type=IssueType.STORY,
+            title="Hull",
+            reporter_id=me["id"],
+            assignee_id=me["id"],
+        )
+        issue_id = issue.id
+        session.commit()
+
+    with TestClient(app) as ada_client:
+        signed = ada_client.post(
+            "/login",
+            data={"username": "Ada", "password": "tester-password"},
+            follow_redirects=False,
+        )
+        assert signed.status_code == 303
+        priority = ada_client.post(
+            f"/web/issues/{issue_id}/priority",
+            data={"priority": "p1"},
+            follow_redirects=False,
+        )
+        assert priority.status_code == 303
+        description = ada_client.post(
+            f"/web/issues/{issue_id}/description",
+            data={"description": "Plating"},
+            follow_redirects=False,
+        )
+        assert description.status_code == 303
+        status = ada_client.patch(
+            f"/api/v1/issues/{issue_id}",
+            json={"status": "in_progress"},
+        )
+        assert status.status_code == 200
+
+    notices = client.get("/api/v1/notifications").json()
+    assert len(notices) == 1
+    notice = notices[0]
+    assert notice["actor_name"] == "Ada"
+    assert "priority:" in notice["body"]
+    assert "description:" in notice["body"]
+    assert "status:" in notice["body"]
+    page = client.get("/notifications")
+    assert "Plating" in page.text
+    assert "hidden" not in _dot(page.text)

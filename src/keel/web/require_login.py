@@ -4,7 +4,13 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from keel.services.identity import SESSION_COOKIE, finish_lookup, resolve_current_user
+from keel.services.identity import (
+    SESSION_COOKIE,
+    bind_acting_user,
+    finish_lookup,
+    reset_acting_user,
+    resolve_current_user,
+)
 
 _PUBLIC_PATHS = frozenset(
     {
@@ -41,17 +47,24 @@ class RequireLogin:
                 session_cookie=request.cookies.get(SESSION_COOKIE),
                 touch=False,
             )
+            # Copy the id and name before the lookup session closes. A sync
+            # route runs in a worker thread that cannot see a context var set
+            # inside that worker, so the bind has to happen on this task.
+            token = bind_acting_user(user)
             signed_in = user is not None
             finish_lookup(session)
-        if signed_in:
-            await self.app(scope, receive, send)
-            return
-        response: Response
-        if _wants_json(scope["path"]):
-            response = JSONResponse({"detail": "Sign in."}, status_code=401)
-        else:
-            response = RedirectResponse(_login_location(scope), status_code=303)
-        await response(scope, receive, send)
+        try:
+            if signed_in:
+                await self.app(scope, receive, send)
+                return
+            response: Response
+            if _wants_json(scope["path"]):
+                response = JSONResponse({"detail": "Sign in."}, status_code=401)
+            else:
+                response = RedirectResponse(_login_location(scope), status_code=303)
+            await response(scope, receive, send)
+        finally:
+            reset_acting_user(token)
 
 
 def _is_public(path: str) -> bool:
