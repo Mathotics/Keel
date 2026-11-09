@@ -200,15 +200,25 @@ def complete_sprint(
     dest_id = None if destination is None else destination.id
     who = actor_name if actor_name is not None else history_service.current_actor_name()
     for issue in unfinished:
+        old_sprint = history_service.sprint_label(session, issue.sprint_id)
+        new_sprint = history_service.sprint_label(session, dest_id)
         history_service.record(
             session,
             issue.id,
             field=history_service.FIELD_SPRINT,
-            from_value=history_service.sprint_label(session, issue.sprint_id),
-            to_value=history_service.sprint_label(session, dest_id),
+            from_value=old_sprint,
+            to_value=new_sprint,
             actor_name=who,
         )
         issue.sprint_id = dest_id
+        from keel.services import notifications as notification_service
+
+        notification_service.record_update(
+            session,
+            issue,
+            [f"{history_service.FIELD_SPRINT}: {old_sprint} → {new_sprint}"],
+            actor_name=who,
+        )
     sprint.state = SprintState.COMPLETED
     sprint.completed_at = utc_now()
     session.flush()

@@ -47,9 +47,14 @@ class Notice(Base):
     issue_key: Mapped[str] = mapped_column(String(32))
     issue_title: Mapped[str] = mapped_column(String(300))
     body: Mapped[str] = mapped_column(Text, default="", server_default="")
+    email: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    phone: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    bell: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     read_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    changed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     deliver_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    phone_sent_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
 
 class NotificationPreference(Base):

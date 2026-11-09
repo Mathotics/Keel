@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Notice, NotificationPreference
+from keel.db.models import Issue, Notice, NotificationPreference
 from keel.db.models.user import utc_now
 from keel.domain.enums import NotificationType
 from keel.domain.errors import (
@@ -20,7 +20,9 @@ from keel.domain.errors import (
     NotFoundError,
 )
 from keel.services import users as user_service
-from keel.settings import KeelSettings
+from keel.services.history import SYSTEM_ACTOR
+from keel.services.identity import acting_user_id
+from keel.settings import KeelSettings, get_settings
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,9 @@ def add_notice(
     body: str = "",
     deliver_at: datetime | None = None,
     created_at: datetime | None = None,
+    email: bool = False,
+    phone: bool = False,
+    bell: bool = True,
 ) -> Notice:
     """Store one inbox row. Callers decide who should receive it."""
     user_service.get_user(session, recipient_id)
@@ -60,6 +65,7 @@ def add_notice(
         raise InvalidNotificationError("An issue key is at most 32 characters.")
     if len(title) > 300:
         raise InvalidNotificationError("An issue title is at most 300 characters.")
+    moment = _stored(created_at if created_at is not None else utc_now())
     notice = Notice(
         recipient_id=recipient_id,
         notice_type=notice_type.value,
@@ -69,7 +75,11 @@ def add_notice(
         issue_key=key,
         issue_title=title,
         body=body,
-        created_at=_stored(created_at if created_at is not None else utc_now()),
+        email=email,
+        phone=phone,
+        bell=bell,
+        created_at=moment,
+        changed_at=moment,
         deliver_at=None if deliver_at is None else _stored(deliver_at),
     )
     session.add(notice)
@@ -196,6 +206,144 @@ def replace_preferences(
     return effective_preferences(session, user_id)
 
 
+_UPDATE_TYPES = (
+    NotificationType.UPDATE_ON_CREATED.value,
+    NotificationType.UPDATE_ON_ASSIGNED.value,
+)
+
+
+def record_comment(
+    session: Session,
+    issue: Issue,
+    body: str,
+    *,
+    actor_id: int | None,
+    now: datetime | None = None,
+) -> None:
+    """One comment notice for the reporter and the assignee, skipping the author."""
+    if actor_id is None:
+        return
+    _fan_out(
+        session,
+        issue,
+        NotificationType.COMMENT_ON_CREATED,
+        NotificationType.COMMENT_ON_ASSIGNED,
+        body,
+        actor_id=actor_id,
+        now=now if now is not None else utc_now(),
+        immediate=True,
+    )
+
+
+def record_assignment(
+    session: Session,
+    issue: Issue,
+    *,
+    actor_id: int | None,
+    now: datetime | None = None,
+) -> None:
+    """Tell the new assignee. Unassign and self-assign stay quiet."""
+    if actor_id is None:
+        return
+    if issue.assignee_id is None or issue.assignee_id == actor_id:
+        return
+    moment = now if now is not None else utc_now()
+    _deliver(
+        session,
+        issue,
+        issue.assignee_id,
+        [NotificationType.ASSIGNED],
+        "Assigned to you.",
+        actor_id=actor_id,
+        now=moment,
+        immediate=True,
+    )
+
+
+def record_update(
+    session: Session,
+    issue: Issue,
+    lines: Sequence[str],
+    *,
+    actor_name: str | None = None,
+    actor_id: int | None = None,
+    now: datetime | None = None,
+    settings: KeelSettings | None = None,
+) -> None:
+    """One update notice per person. Later edits in the quiet period grow it."""
+    if actor_name == SYSTEM_ACTOR or not lines:
+        return
+    actor = actor_id if actor_id is not None else acting_user_id()
+    if actor is None:
+        return
+    _fan_out(
+        session,
+        issue,
+        NotificationType.UPDATE_ON_CREATED,
+        NotificationType.UPDATE_ON_ASSIGNED,
+        "\n".join(lines),
+        actor_id=actor,
+        now=now if now is not None else utc_now(),
+        immediate=False,
+        settings=settings,
+        grow=True,
+    )
+
+
+def record_delete(
+    session: Session,
+    issue: Issue,
+    *,
+    actor_id: int | None = None,
+    now: datetime | None = None,
+) -> None:
+    """Snapshot the key and title, then tell the reporter and the assignee."""
+    actor = actor_id if actor_id is not None else acting_user_id()
+    if actor is None:
+        return
+    _fan_out(
+        session,
+        issue,
+        NotificationType.DELETE_ON_CREATED,
+        NotificationType.DELETE_ON_ASSIGNED,
+        "This issue was deleted.",
+        actor_id=actor,
+        now=now if now is not None else utc_now(),
+        immediate=True,
+    )
+
+
+def dispatch_due_phone(
+    session: Session,
+    *,
+    now: datetime | None = None,
+) -> int:
+    """Hand due phone alerts to the delivery port. The port does not send yet."""
+    moment = now if now is not None else utc_now()
+    sent = 0
+    pending = session.scalars(
+        select(Notice).where(
+            Notice.phone.is_(True),
+            Notice.phone_sent_at.is_(None),
+            Notice.deliver_at.is_not(None),
+        ),
+    ).all()
+    for notice in pending:
+        due = notice.deliver_at
+        if due is None or _aware(due) > _aware(moment):
+            continue
+        if _try_phone(notice):
+            notice.phone_sent_at = _stored(moment)
+            sent += 1
+    session.flush()
+    return sent
+
+
+def deliver_phone_alert(_notice: Notice) -> None:
+    """The push slice replaces this. It returns without sending."""
+    return None
+
+
 def purge_expired(
     session: Session,
     settings: KeelSettings,
@@ -231,6 +379,199 @@ def expires_at(notice: Notice, settings: KeelSettings) -> datetime | None:
     if not deadlines:
         return None
     return min(deadlines)
+
+
+def _fan_out(
+    session: Session,
+    issue: Issue,
+    created_type: NotificationType,
+    assigned_type: NotificationType,
+    body: str,
+    *,
+    actor_id: int,
+    now: datetime,
+    immediate: bool,
+    settings: KeelSettings | None = None,
+    grow: bool = False,
+) -> None:
+    people: dict[int, list[NotificationType]] = {}
+    if issue.reporter_id is not None and issue.reporter_id != actor_id:
+        people.setdefault(issue.reporter_id, []).append(created_type)
+    if issue.assignee_id is not None and issue.assignee_id != actor_id:
+        people.setdefault(issue.assignee_id, []).append(assigned_type)
+    for user_id, types in people.items():
+        _deliver(
+            session,
+            issue,
+            user_id,
+            types,
+            body,
+            actor_id=actor_id,
+            now=now,
+            immediate=immediate,
+            settings=settings,
+            grow=grow,
+        )
+
+
+def _deliver(
+    session: Session,
+    issue: Issue,
+    recipient_id: int,
+    types: Sequence[NotificationType],
+    body: str,
+    *,
+    actor_id: int,
+    now: datetime,
+    immediate: bool,
+    settings: KeelSettings | None = None,
+    grow: bool = False,
+) -> None:
+    channels = _union(session, recipient_id, types)
+    if channels is None:
+        return
+    moment = _stored(now)
+    due = _due(moment, immediate=immediate, channels=channels, settings=settings)
+    notice: Notice | None = None
+    if grow:
+        notice = _open_update(
+            session,
+            recipient_id,
+            actor_id,
+            issue.id,
+            moment,
+            _quiet_minutes(settings),
+        )
+    if notice is None:
+        key, title = _snapshot(session, issue)
+        actor = user_service.get_user(session, actor_id)
+        notice = add_notice(
+            session,
+            recipient_id=recipient_id,
+            notice_type=types[0],
+            actor_id=actor_id,
+            actor_name=actor.display_name,
+            issue_id=issue.id,
+            issue_key=key,
+            issue_title=title,
+            body=body,
+            deliver_at=due,
+            created_at=moment,
+            email=channels.email,
+            phone=channels.phone,
+            bell=channels.bell,
+        )
+    else:
+        notice.body = _merge_lines(notice.body, body)
+        notice.changed_at = moment
+        notice.email = channels.email
+        notice.phone = channels.phone
+        notice.bell = channels.bell
+        notice.deliver_at = due
+        notice.issue_title = issue.title
+        session.flush()
+    _send_if_due(session, notice, moment)
+
+
+def _union(
+    session: Session,
+    user_id: int,
+    types: Sequence[NotificationType],
+) -> PreferenceChoice | None:
+    email = False
+    phone = False
+    bell = False
+    for notice_type in types:
+        choice = channels_for(session, user_id, notice_type)
+        email = email or choice.email
+        phone = phone or choice.phone
+        bell = bell or choice.bell
+    if not email and not phone and not bell:
+        return None
+    return PreferenceChoice(type=types[0], email=email, phone=phone, bell=bell)
+
+
+def _due(
+    moment: datetime,
+    *,
+    immediate: bool,
+    channels: PreferenceChoice,
+    settings: KeelSettings | None,
+) -> datetime | None:
+    if not channels.email and not channels.phone:
+        return None
+    if immediate:
+        return moment
+    return moment + timedelta(minutes=_quiet_minutes(settings))
+
+
+def _quiet_minutes(settings: KeelSettings | None) -> int:
+    chosen = settings if settings is not None else get_settings()
+    return max(chosen.notification_update_quiet_minutes, 0)
+
+
+def _open_update(
+    session: Session,
+    recipient_id: int,
+    actor_id: int,
+    issue_id: int,
+    moment: datetime,
+    quiet_minutes: int,
+) -> Notice | None:
+    if quiet_minutes <= 0:
+        return None
+    cutoff = moment - timedelta(minutes=quiet_minutes)
+    return session.scalars(
+        select(Notice)
+        .where(
+            Notice.recipient_id == recipient_id,
+            Notice.actor_id == actor_id,
+            Notice.issue_id == issue_id,
+            Notice.notice_type.in_(_UPDATE_TYPES),
+            Notice.changed_at >= cutoff,
+        )
+        .order_by(Notice.id.desc()),
+    ).first()
+
+
+def _send_if_due(session: Session, notice: Notice, moment: datetime) -> None:
+    due = notice.deliver_at
+    if not notice.phone or notice.phone_sent_at is not None or due is None:
+        return
+    if _aware(due) > _aware(moment):
+        return
+    if _try_phone(notice):
+        notice.phone_sent_at = moment
+        session.flush()
+
+
+def _try_phone(notice: Notice) -> bool:
+    try:
+        deliver_phone_alert(notice)
+    except Exception:
+        return False
+    return True
+
+
+def _merge_lines(current: str, extra: str) -> str:
+    lines: dict[str, str] = {}
+    order: list[str] = []
+    for line in (*current.splitlines(), *extra.splitlines()):
+        if not line:
+            continue
+        field = line.split(":", 1)[0]
+        if field not in lines:
+            order.append(field)
+        lines[field] = line
+    return "\n".join(lines[field] for field in order)
+
+
+def _snapshot(session: Session, issue: Issue) -> tuple[str, str]:
+    from keel.services import issues as issue_service
+    from keel.services import projects as project_service
+
+    project = project_service.get_project(session, issue.project_id)
+    return issue_service.issue_key(issue, project), issue.title
 
 
 def _owned(session: Session, recipient_id: int, notice_id: int) -> Notice:

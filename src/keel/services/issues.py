@@ -238,6 +238,16 @@ def create_issue(
             issue.id,
             wanted_labels,
             record_history=False,
+            notify=False,
+        )
+    if issue.assignee_id is not None:
+        from keel.services import notifications as notification_service
+        from keel.services.identity import acting_user_id
+
+        notification_service.record_assignment(
+            session,
+            issue,
+            actor_id=acting_user_id(),
         )
     return issue
 
@@ -271,16 +281,26 @@ def update_issue(
 
     issue = get_issue(session, issue_id)
     who = actor_name if actor_name is not None else history_service.current_actor_name()
+    changed_lines: list[str] = []
+    assigned_to: int | None = None
 
-    if type is not None and type is not issue.type:
-        check_children(type, [child.type for child in list_children(session, issue.id)])
+    def _note(field: str, before: str, after: str) -> None:
         history_service.record(
             session,
             issue.id,
-            field=history_service.FIELD_TYPE,
-            from_value=history_service.type_label(issue.type),
-            to_value=history_service.type_label(type),
+            field=field,
+            from_value=before,
+            to_value=after,
             actor_name=who,
+        )
+        changed_lines.append(f"{field}: {before} → {after}")
+
+    if type is not None and type is not issue.type:
+        check_children(type, [child.type for child in list_children(session, issue.id)])
+        _note(
+            history_service.FIELD_TYPE,
+            history_service.type_label(issue.type),
+            history_service.type_label(type),
         )
         issue.type = type
         _assign_parent(session, issue, issue.parent_id)
@@ -288,83 +308,54 @@ def update_issue(
     if title is not None:
         cleaned_title = _clean_title(title)
         if cleaned_title != issue.title:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_TITLE,
-                from_value=issue.title,
-                to_value=cleaned_title,
-                actor_name=who,
-            )
+            _note(history_service.FIELD_TITLE, issue.title, cleaned_title)
             issue.title = cleaned_title
     if description is not None:
         cleaned_description = description.strip()
         if cleaned_description != issue.description:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_DESCRIPTION,
-                from_value=history_service.text_label(issue.description),
-                to_value=history_service.text_label(cleaned_description),
-                actor_name=who,
+            _note(
+                history_service.FIELD_DESCRIPTION,
+                history_service.text_label(issue.description),
+                history_service.text_label(cleaned_description),
             )
             issue.description = cleaned_description
     if definition_of_done is not None:
         cleaned_done = definition_of_done.strip()
         if cleaned_done != issue.definition_of_done:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_DEFINITION_OF_DONE,
-                from_value=history_service.text_label(issue.definition_of_done),
-                to_value=history_service.text_label(cleaned_done),
-                actor_name=who,
+            _note(
+                history_service.FIELD_DEFINITION_OF_DONE,
+                history_service.text_label(issue.definition_of_done),
+                history_service.text_label(cleaned_done),
             )
             issue.definition_of_done = cleaned_done
     if location is not None:
         cleaned_location = _clean_location(location)
         if cleaned_location != issue.location:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_LOCATION,
-                from_value=history_service.text_label(issue.location),
-                to_value=history_service.text_label(cleaned_location),
-                actor_name=who,
+            _note(
+                history_service.FIELD_LOCATION,
+                history_service.text_label(issue.location),
+                history_service.text_label(cleaned_location),
             )
             issue.location = cleaned_location
     if status is not None and status is not issue.status:
-        history_service.record(
-            session,
-            issue.id,
-            field=history_service.FIELD_STATUS,
-            from_value=history_service.status_label(issue.status),
-            to_value=history_service.status_label(status),
-            actor_name=who,
+        _note(
+            history_service.FIELD_STATUS,
+            history_service.status_label(issue.status),
+            history_service.status_label(status),
         )
         issue.status = status
     if priority is not None and priority is not issue.priority:
-        history_service.record(
-            session,
-            issue.id,
-            field=history_service.FIELD_PRIORITY,
-            from_value=history_service.priority_label(issue.priority),
-            to_value=history_service.priority_label(priority),
-            actor_name=who,
+        _note(
+            history_service.FIELD_PRIORITY,
+            history_service.priority_label(issue.priority),
+            history_service.priority_label(priority),
         )
         issue.priority = priority
     if parent_id is not UNSET and parent_id != issue.parent_id:
         old_parent = history_service.parent_label(session, issue.parent_id)
         new_parent = history_service.parent_label(session, parent_id)  # type: ignore[arg-type]
         _assign_parent(session, issue, parent_id)  # type: ignore[arg-type]
-        history_service.record(
-            session,
-            issue.id,
-            field=history_service.FIELD_PARENT,
-            from_value=old_parent,
-            to_value=new_parent,
-            actor_name=who,
-        )
+        _note(history_service.FIELD_PARENT, old_parent, new_parent)
     if assignee_id is not UNSET and assignee_id != issue.assignee_id:
         history_service.record(
             session,
@@ -375,16 +366,15 @@ def update_issue(
             actor_name=who,
         )
         issue.assignee_id = assignee_id  # type: ignore[assignment]
+        if isinstance(assignee_id, int):
+            assigned_to = assignee_id
     if start_at is not UNSET:
         issue.start_at = start_at  # type: ignore[assignment]
     if due_at is not UNSET and due_at != issue.due_at:
-        history_service.record(
-            session,
-            issue.id,
-            field=history_service.FIELD_DUE,
-            from_value=history_service.due_label(issue.due_at),
-            to_value=history_service.due_label(due_at),  # type: ignore[arg-type]
-            actor_name=who,
+        _note(
+            history_service.FIELD_DUE,
+            history_service.due_label(issue.due_at),
+            history_service.due_label(due_at),  # type: ignore[arg-type]
         )
         issue.due_at = due_at  # type: ignore[assignment]
     check_start_due_window(issue.start_at, issue.due_at)
@@ -392,109 +382,120 @@ def update_issue(
         old_sprint = history_service.sprint_label(session, issue.sprint_id)
         new_sprint = history_service.sprint_label(session, sprint_id)  # type: ignore[arg-type]
         _assign_sprint(session, issue, sprint_id)  # type: ignore[arg-type]
-        history_service.record(
-            session,
-            issue.id,
-            field=history_service.FIELD_SPRINT,
-            from_value=old_sprint,
-            to_value=new_sprint,
-            actor_name=who,
-        )
+        _note(history_service.FIELD_SPRINT, old_sprint, new_sprint)
     if estimate_minutes is not UNSET:
         _check_minutes(estimate_minutes)  # type: ignore[arg-type]
         if estimate_minutes != issue.estimate_minutes:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_ESTIMATE,
-                from_value=history_service.effort_label(issue.estimate_minutes),
-                to_value=history_service.effort_label(estimate_minutes),  # type: ignore[arg-type]
-                actor_name=who,
+            _note(
+                history_service.FIELD_ESTIMATE,
+                history_service.effort_label(issue.estimate_minutes),
+                history_service.effort_label(estimate_minutes),  # type: ignore[arg-type]
             )
             issue.estimate_minutes = estimate_minutes  # type: ignore[assignment]
     if remaining_minutes is not UNSET:
         _check_minutes(remaining_minutes)  # type: ignore[arg-type]
         if remaining_minutes != issue.remaining_minutes:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_REMAINING,
-                from_value=history_service.effort_label(issue.remaining_minutes),
-                to_value=history_service.effort_label(remaining_minutes),  # type: ignore[arg-type]
-                actor_name=who,
+            _note(
+                history_service.FIELD_REMAINING,
+                history_service.effort_label(issue.remaining_minutes),
+                history_service.effort_label(remaining_minutes),  # type: ignore[arg-type]
             )
             issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
     cost_currency = project_service.get_project(session, issue.project_id).currency
     if planned_value_cents is not UNSET:
         _check_cents(planned_value_cents)  # type: ignore[arg-type]
         if planned_value_cents != issue.planned_value_cents:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_PLANNED_VALUE,
-                from_value=history_service.cost_label(
-                    issue.planned_value_cents,
-                    cost_currency,
-                ),
-                to_value=history_service.cost_label(
+            _note(
+                history_service.FIELD_PLANNED_VALUE,
+                history_service.cost_label(issue.planned_value_cents, cost_currency),
+                history_service.cost_label(
                     planned_value_cents,  # type: ignore[arg-type]
                     cost_currency,
                 ),
-                actor_name=who,
             )
             issue.planned_value_cents = planned_value_cents  # type: ignore[assignment]
     if earned_value_cents is not UNSET:
         _check_cents(earned_value_cents)  # type: ignore[arg-type]
         if earned_value_cents != issue.earned_value_cents:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_EARNED_VALUE,
-                from_value=history_service.cost_label(
-                    issue.earned_value_cents,
-                    cost_currency,
-                ),
-                to_value=history_service.cost_label(
+            _note(
+                history_service.FIELD_EARNED_VALUE,
+                history_service.cost_label(issue.earned_value_cents, cost_currency),
+                history_service.cost_label(
                     earned_value_cents,  # type: ignore[arg-type]
                     cost_currency,
                 ),
-                actor_name=who,
             )
             issue.earned_value_cents = earned_value_cents  # type: ignore[assignment]
     if actual_cost_cents is not UNSET:
         _check_cents(actual_cost_cents)  # type: ignore[arg-type]
         if actual_cost_cents != issue.actual_cost_cents:
-            history_service.record(
-                session,
-                issue.id,
-                field=history_service.FIELD_ACTUAL_COST,
-                from_value=history_service.cost_label(
-                    issue.actual_cost_cents,
-                    cost_currency,
-                ),
-                to_value=history_service.cost_label(
+            _note(
+                history_service.FIELD_ACTUAL_COST,
+                history_service.cost_label(issue.actual_cost_cents, cost_currency),
+                history_service.cost_label(
                     actual_cost_cents,  # type: ignore[arg-type]
                     cost_currency,
                 ),
-                actor_name=who,
             )
             issue.actual_cost_cents = actual_cost_cents  # type: ignore[assignment]
     if labels is not UNSET:
         from keel.services import labels as label_service
 
+        before_labels = label_service.names_for_issue(session, issue.id)
         label_service.set_issue_labels(
             session,
             issue.id,
             labels,  # type: ignore[arg-type]
             actor_name=who,
+            notify=False,
         )
+        after_labels = label_service.names_for_issue(session, issue.id)
+        if before_labels != after_labels:
+            changed_lines.append(
+                f"{history_service.FIELD_LABELS}: "
+                f"{history_service.labels_label(before_labels)} → "
+                f"{history_service.labels_label(after_labels)}",
+            )
 
     session.flush()
     if status is not None:
         from keel.services import series as series_service
 
         series_service.on_occurrence_closed(session, issue)
+    _publish_issue_edit(session, issue, who, changed_lines, assigned_to)
     return issue
+
+
+def notify_issue_deleted(session: Session, issue: Issue) -> None:
+    from keel.services import notifications as notification_service
+
+    notification_service.record_delete(session, issue)
+
+
+def _publish_issue_edit(
+    session: Session,
+    issue: Issue,
+    actor_name: str,
+    lines: list[str],
+    assigned_to: int | None,
+) -> None:
+    from keel.services import notifications as notification_service
+    from keel.services.history import SYSTEM_ACTOR
+    from keel.services.identity import acting_user_id
+
+    if actor_name == SYSTEM_ACTOR:
+        return
+    actor_id = acting_user_id()
+    if lines:
+        notification_service.record_update(
+            session,
+            issue,
+            lines,
+            actor_name=actor_name,
+            actor_id=actor_id,
+        )
+    if assigned_to is not None:
+        notification_service.record_assignment(session, issue, actor_id=actor_id)
 
 
 def delete_issue(session: Session, issue_id: int) -> None:
@@ -518,6 +519,7 @@ def delete_issue(session: Session, issue_id: int) -> None:
     series_id = issue.series_id
     occurrence_on = issue.occurrence_on
     is_root = issue.series_item_id is None
+    notify_issue_deleted(session, issue)
     session.delete(issue)
     session.flush()
     if series_id is not None and occurrence_on is not None and is_root:

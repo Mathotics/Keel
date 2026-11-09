@@ -1003,6 +1003,7 @@ def delete_occurrence(session: Session, issue: Issue) -> None:
         )
     series_id = issue.series_id
     occurrence_on = issue.occurrence_on
+    issue_service.notify_issue_deleted(session, issue)
     session.delete(issue)
     session.flush()
     after_issue_deleted(session, series_id, occurrence_on)
@@ -1408,6 +1409,7 @@ def _delete_members(session: Session, members: Sequence[Issue]) -> None:
             raise InvalidSeriesError("This occurrence could not be removed.")
         gone = {item.id for item in leaves}
         for leaf in leaves:
+            issue_service.notify_issue_deleted(session, leaf)
             session.delete(leaf)
         session.flush()
         remaining = [item for item in remaining if item.id not in gone]

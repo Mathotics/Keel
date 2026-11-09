@@ -130,8 +130,9 @@ def set_issue_labels(
     *,
     actor_name: str | None = None,
     record_history: bool = True,
+    notify: bool = True,
 ) -> list[str]:
-    issue_service.get_issue(session, issue_id)
+    issue = issue_service.get_issue(session, issue_id)
     wanted = tuple(sorted(parse_label_names(values)))
     current = tuple(names_for_issue(session, issue_id))
     if wanted == current:
@@ -151,6 +152,19 @@ def set_issue_labels(
         label = _get_or_create(session, name)
         session.add(IssueLabel(issue_id=issue_id, label_id=label.id))
     session.flush()
+    if notify and record_history:
+        from keel.services import notifications as notification_service
+
+        notification_service.record_update(
+            session,
+            issue,
+            [
+                f"{history_service.FIELD_LABELS}: "
+                f"{history_service.labels_label(current)} → "
+                f"{history_service.labels_label(wanted)}",
+            ],
+            actor_name=actor_name,
+        )
     return list(wanted)
 
 

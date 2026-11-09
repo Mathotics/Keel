@@ -41,6 +41,11 @@ def create_comment(
     )
     session.add(comment)
     session.flush()
+    from keel.services import notifications as notification_service
+    from keel.services.identity import acting_user_id
+
+    author = author_id if author_id is not None else acting_user_id()
+    notification_service.record_comment(session, issue, comment.body, actor_id=author)
     return comment
 
 
