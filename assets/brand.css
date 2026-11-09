@@ -228,6 +228,48 @@ body {
   gap: 0.35rem;
 }
 
+.keel-bell__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  background: var(--keel-blue);
+  flex: 0 0 auto;
+}
+
+.keel-notice {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--keel-sheet);
+  border-radius: 0.25rem;
+}
+
+.keel-notice--unread {
+  border-color: var(--keel-blue);
+  background: color-mix(in srgb, var(--keel-blue) 10%, var(--keel-white));
+}
+
+.keel-notice__open {
+  font: inherit;
+  font-weight: 650;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--keel-blue-deep);
+  cursor: pointer;
+  text-align: left;
+}
+
+.keel-notice__open:hover,
+.keel-notice__open:focus-visible {
+  text-decoration: underline;
+}
+
+.keel-notice__body {
+  white-space: pre-wrap;
+}
+
 /* The Menu control is for a phone-narrow viewport. A wide window keeps the
    section links, Help, and the account on the bar, so this toggle stays out
    of the layout and out of the tab order. */
@@ -2511,10 +2553,16 @@ select.keel-type-select[data-type] {
     width: 100%;
   }
 
+  .keel-bell {
+    display: flex;
+    min-width: 0;
+    justify-content: center;
+  }
+
   .keel-account {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-column: 2 / -1;
+    grid-column: 1 / -1;
     gap: 0.35rem;
     min-width: 0;
   }

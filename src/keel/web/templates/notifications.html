@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block main %}
+      <h1>Notifications</h1>
+      {% if error %}
+      <p class="keel-error" role="alert">{{ error }}</p>
+      {% endif %}
+      {% if notices %}
+      <div class="keel-notices">
+        {% for notice in notices %}
+        <article class="keel-notice{% if not notice.read_at %} keel-notice--unread{% endif %}">
+          <form method="post" action="/web/notifications/{{ notice.id }}/open">
+            <button class="keel-notice__open" type="submit">{{ notice.issue_key }} {{ notice.issue_title }}</button>
+          </form>
+          <p class="keel-muted">{{ notice.actor_name }} · {{ notice.created_at|when }}</p>
+          {% if notice.body %}
+          <p class="keel-notice__body">{{ notice.body }}</p>
+          {% endif %}
+          <form class="keel-form keel-form--inline keel-form--danger" method="post" action="/web/notifications/{{ notice.id }}/delete">
+            <button type="submit">Delete</button>
+          </form>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="keel-empty">There are no notifications.</p>
+      {% endif %}
+{% endblock %}

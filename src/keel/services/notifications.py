@@ -91,6 +91,19 @@ def add_notice(
     return notice
 
 
+def has_unread(session: Session, recipient_id: int) -> bool:
+    """Whether this person's inbox has a notice they have not opened."""
+    notice_id = session.scalar(
+        select(Notice.id)
+        .where(
+            Notice.recipient_id == recipient_id,
+            Notice.read_at.is_(None),
+        )
+        .limit(1),
+    )
+    return notice_id is not None
+
+
 def list_notices(session: Session, recipient_id: int) -> Sequence[Notice]:
     """Newest first for one person."""
     user_service.get_user(session, recipient_id)

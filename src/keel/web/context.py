@@ -15,6 +15,7 @@ from keel.domain.enums import INITIAL_PRIORITY, label
 from keel.domain.money import format_money_display, format_money_edit, format_ratio
 from keel.domain.schedule import format_clock
 from keel.paths import copyright_notice, templates_dir
+from keel.services import notifications as notification_service
 from keel.services import users as user_service
 from keel.services.access import Access, load_access
 from keel.services.auto_sprint import get_session
@@ -118,6 +119,7 @@ class Chrome:
     users: Sequence[User]
     current_user: User | None
     access: Access
+    unread: bool
 
 
 def _current_user(request: Request, session: Session) -> User | None:
@@ -146,6 +148,11 @@ def get_chrome(
         users=user_service.list_users(session),
         current_user=current,
         access=load_access(session, current.id if current is not None else None),
+        unread=(
+            notification_service.has_unread(session, current.id)
+            if current is not None
+            else False
+        ),
     )
 
 
@@ -165,6 +172,7 @@ def page_context(request: Request, chrome: Chrome, **extra: Any) -> dict[str, An
         "users": chrome.users,
         "current_user": chrome.current_user,
         "access": chrome.access,
+        "unread_notices": chrome.unread,
         "nav_items": nav_items,
         "nav_keys": ",".join(item.key for item in nav_items),
         **extra,

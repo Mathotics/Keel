@@ -14,6 +14,7 @@
     <script src="/assets/js/filters.js" defer></script>
     <script src="/assets/js/nav.js" defer></script>
     <script src="/assets/js/submit-once.js" defer></script>
+    <script src="/assets/js/bell.js" defer></script>
     {% endblock %}
   </head>
   <body class="{% block body_class %}{% endblock %}">
@@ -50,6 +51,12 @@
         <button class="keel-topbar__control keel-find__fallback" type="submit">Find</button>
       </form>
       <div class="keel-topbar__right">
+        {% if current_user %}
+        <a class="keel-topbar__control keel-bell" href="/notifications" aria-label="{% if unread_notices %}Notifications, unread{% else %}Notifications{% endif %}">
+          Notifications
+          <span class="keel-bell__dot" data-keel-bell-dot{% if not unread_notices %} hidden{% endif %}></span>
+        </a>
+        {% endif %}
         {% if access.allows('display_admin_menu') or access.allows('view_users') %}
         <details class="keel-admin">
           <summary class="keel-topbar__control">Admin</summary>

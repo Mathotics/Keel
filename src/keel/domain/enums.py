@@ -138,6 +138,13 @@ _LABELS = {
     EditScope.THIS: "This occurrence",
     EditScope.FUTURE: "This and all future",
     EditScope.SERIES: "Entire series",
+    NotificationType.COMMENT_ON_CREATED: "Comment on an issue you created",
+    NotificationType.COMMENT_ON_ASSIGNED: "Comment on an issue assigned to you",
+    NotificationType.ASSIGNED: "Assigned to you",
+    NotificationType.UPDATE_ON_CREATED: "Update to an issue you created",
+    NotificationType.UPDATE_ON_ASSIGNED: "Update to an issue assigned to you",
+    NotificationType.DELETE_ON_CREATED: "Deletion of an issue you created",
+    NotificationType.DELETE_ON_ASSIGNED: "Deletion of an issue assigned to you",
 }
 
 Labeled = (
@@ -152,6 +159,7 @@ Labeled = (
     | SeriesSprintBasis
     | RecurrenceFreq
     | EditScope
+    | NotificationType
 )
 
 
