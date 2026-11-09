@@ -1,9 +1,10 @@
-"""Inbox storage and preference defaults.
+"""Inbox storage, preference defaults, and notification email.
 
-This module records and expires notices. It does not watch issue changes,
-send email, or deliver a phone alert.
+Phone delivery stays a no-op until the push slice. A mail or phone failure
+leaves the inbox row in place.
 """
 
+import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -19,10 +20,13 @@ from keel.domain.errors import (
     InvalidNotificationPreferenceError,
     NotFoundError,
 )
+from keel.services import mail
 from keel.services import users as user_service
 from keel.services.history import SYSTEM_ACTOR
 from keel.services.identity import acting_user_id
 from keel.settings import KeelSettings, get_settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -210,6 +214,14 @@ _UPDATE_TYPES = (
     NotificationType.UPDATE_ON_CREATED.value,
     NotificationType.UPDATE_ON_ASSIGNED.value,
 )
+_COMMENT_TYPES = (
+    NotificationType.COMMENT_ON_CREATED.value,
+    NotificationType.COMMENT_ON_ASSIGNED.value,
+)
+_DELETE_TYPES = (
+    NotificationType.DELETE_ON_CREATED.value,
+    NotificationType.DELETE_ON_ASSIGNED.value,
+)
 
 
 def record_comment(
@@ -311,6 +323,32 @@ def record_delete(
         now=now if now is not None else utc_now(),
         immediate=True,
     )
+
+
+def dispatch_due_email(
+    session: Session,
+    *,
+    now: datetime | None = None,
+) -> int:
+    """Send email whose stored due time has passed. A miss stays for later."""
+    moment = _stored(now if now is not None else utc_now())
+    sent = 0
+    pending = session.scalars(
+        select(Notice).where(
+            Notice.email.is_(True),
+            Notice.email_sent_at.is_(None),
+            Notice.deliver_at.is_not(None),
+        ),
+    ).all()
+    for notice in pending:
+        due = notice.deliver_at
+        if due is None or _aware(due) > _aware(moment):
+            continue
+        if _try_email(session, notice):
+            notice.email_sent_at = moment
+            sent += 1
+    session.flush()
+    return sent
 
 
 def dispatch_due_phone(
@@ -469,6 +507,9 @@ def _deliver(
         notice.bell = channels.bell
         notice.deliver_at = due
         notice.issue_title = issue.title
+        # The due time moved, so an earlier send is not the full list.
+        notice.email_sent_at = None
+        notice.phone_sent_at = None
         session.flush()
     _send_if_due(session, notice, moment)
 
@@ -536,13 +577,51 @@ def _open_update(
 
 def _send_if_due(session: Session, notice: Notice, moment: datetime) -> None:
     due = notice.deliver_at
-    if not notice.phone or notice.phone_sent_at is not None or due is None:
+    if due is None or _aware(due) > _aware(moment):
         return
-    if _aware(due) > _aware(moment):
-        return
-    if _try_phone(notice):
+    changed = False
+    if notice.email and notice.email_sent_at is None and _try_email(session, notice):
+        notice.email_sent_at = moment
+        changed = True
+    if notice.phone and notice.phone_sent_at is None and _try_phone(notice):
         notice.phone_sent_at = moment
+        changed = True
+    if changed:
         session.flush()
+
+
+def _try_email(session: Session, notice: Notice) -> bool:
+    try:
+        return _deliver_email(session, notice)
+    except Exception:
+        logger.exception("Notification email for notice %s was not sent.", notice.id)
+        return False
+
+
+def _deliver_email(session: Session, notice: Notice) -> bool:
+    address = user_service.get_user(session, notice.recipient_id).email.strip()
+    if not address:
+        return False
+    subject, body = _email_message(notice)
+    return mail.send(address, subject, body)
+
+
+def _email_message(notice: Notice) -> tuple[str, str]:
+    key = notice.issue_key
+    actor = notice.actor_name
+    kind = notice.notice_type
+    if kind == NotificationType.ASSIGNED.value:
+        subject = f"Assigned to you: {key}"
+    elif kind in _DELETE_TYPES:
+        subject = f"{actor} deleted {key}"
+    elif kind in _COMMENT_TYPES:
+        subject = f"{actor} commented on {key}"
+    else:
+        subject = f"{actor} updated {key}"
+    heading = f"{key} {notice.issue_title}".strip()
+    text = notice.body.strip()
+    body = f"{heading}\n\n{text}\n" if text else f"{heading}\n"
+    return subject, body
 
 
 def _try_phone(notice: Notice) -> bool:

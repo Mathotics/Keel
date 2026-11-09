@@ -22,7 +22,7 @@ def _settings(**overrides: object) -> SimpleNamespace:
 
 def test_unconfigured_mail_does_not_raise(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mail, "get_settings", lambda: _settings(smtp_host=""))
-    mail.send("ada@example.com", "Hello", "Body")
+    assert mail.send("ada@example.com", "Hello", "Body") is False
 
 
 def test_send_hands_the_message_to_smtp(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -31,7 +31,7 @@ def test_send_hands_the_message_to_smtp(monkeypatch: pytest.MonkeyPatch) -> None
     smtp = MagicMock(return_value=client)
     monkeypatch.setattr(mail, "get_settings", lambda: _settings())
     monkeypatch.setattr(smtplib, "SMTP", smtp)
-    mail.send("ada@example.com", "Hello", "Body")
+    assert mail.send("ada@example.com", "Hello", "Body") is True
     smtp.assert_called_once_with("mail.local", 587, timeout=15)
     client.starttls.assert_called_once_with()
     client.login.assert_called_once_with("keel", "secret")
@@ -44,4 +44,4 @@ def test_send_hands_the_message_to_smtp(monkeypatch: pytest.MonkeyPatch) -> None
 def test_a_failed_handoff_does_not_raise(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mail, "get_settings", lambda: _settings(smtp_username=""))
     monkeypatch.setattr(smtplib, "SMTP", MagicMock(side_effect=OSError("down")))
-    mail.send("ada@example.com", "Hello", "Body")
+    assert mail.send("ada@example.com", "Hello", "Body") is False

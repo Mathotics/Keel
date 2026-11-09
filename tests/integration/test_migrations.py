@@ -194,6 +194,7 @@ def test_notification_tables_come_from_migrations(migrated: KeelSettings) -> Non
         "created_at",
         "changed_at",
         "deliver_at",
+        "email_sent_at",
         "phone_sent_at",
     }
     assert preferences == {"id", "user_id", "type", "email", "phone", "bell"}

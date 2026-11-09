@@ -65,6 +65,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
             )
             ensure_global_roles(session)
             auto_sprint.advance_all(session)
+            notification_service.dispatch_due_email(session)
             notification_service.dispatch_due_phone(session)
             notification_service.purge_expired(session, settings)
             session.commit()
@@ -75,6 +76,7 @@ def create_app(settings: KeelSettings | None = None) -> FastAPI:
                 try:
                     with session_factory() as session:
                         auto_sprint.advance_all(session)
+                        notification_service.dispatch_due_email(session)
                         notification_service.dispatch_due_phone(session)
                         notification_service.purge_expired(session, settings)
                         session.commit()

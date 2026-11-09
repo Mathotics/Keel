@@ -54,6 +54,7 @@ class Notice(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     changed_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     deliver_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
+    email_sent_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
     phone_sent_at: Mapped[datetime | None] = mapped_column(DateTime, default=None)
 
 
