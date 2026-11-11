@@ -70,9 +70,9 @@ People learn about comments, assignment, edits, and deletions only by opening th
 * **Must** delete a notice at the earlier of read-time plus the read retention and issued-time plus the issued retention. Defaults are 3 days and 14 days, via `KEEL_NOTIFICATION_READ_RETENTION_DAYS` and `KEEL_NOTIFICATION_ISSUED_RETENTION_DAYS`. `0` turns that one cap off.
 * **May** let the person delete a notice sooner from the page.
 * **Must** keep the issue key and title on the notice, so a deleted issue stays readable and has no link.
-* **Must** mark only the opened notice read, and clear the unread dot on the web and on Android together.
-* **Must** show a dot on the bell when any notice is unread, and no count. At zero unread, the bell has no dot.
-* **Must** list notices newest first. Unread ones look different. An empty page says there are no notifications. Opening one goes to the issue when it still exists.
+* **Must** mark every notice read when the person views the notifications page. Deleting a notice is separate and is not required to clear the dot. The web and Android share that unread state.
+* **Must** show a dot on the bell only when any notice is unread, and no count. At zero unread, the bell has no dot.
+* **Must** list notices newest first. An empty page says there are no notifications. Opening one goes to the issue when it still exists.
 * **Must** put the web bell in the top bar, immediately left of Admin when Admin is shown, and immediately left of Help otherwise.
 * **Must** put the Android bell between the connection mark and the profile initials in `AppBar`.
 * **Must** put the preference grid on the web profile and on the Android account screen.

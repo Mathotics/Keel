@@ -85,7 +85,7 @@ def test_the_bell_sits_left_of_help_when_admin_is_hidden(app: FastAPI) -> None:
     assert right.index("keel-bell") < right.index(">Help<")
 
 
-def test_the_page_lists_newest_unread_notices_first(
+def test_viewing_the_page_marks_notices_read_without_deleting_them(
     client: TestClient,
     app: FastAPI,
 ) -> None:
@@ -136,15 +136,26 @@ def test_the_page_lists_newest_unread_notices_first(
         )
         session.commit()
 
+    home = client.get("/")
+    assert "hidden" not in _dot(home.text)
+    listed = client.get("/api/v1/notifications").json()
+    assert listed
+    assert all(item["read_at"] is None for item in listed)
+    assert "hidden" not in _dot(client.get("/").text)
+
     page = client.get("/notifications")
     assert "There are no notifications." not in page.text
     assert "Private" not in page.text
     assert page.text.index("Newer deck") < page.text.index("Older hull")
-    assert _unread(page.text, "Newer deck")
-    assert _unread(page.text, "Older hull")
+    assert not _unread(page.text, "Newer deck")
+    assert not _unread(page.text, "Older hull")
     assert "First" in page.text
     assert "Second" in page.text
-    assert "hidden" not in _dot(page.text)
+    assert "hidden" in _dot(page.text)
+    assert "hidden" in _dot(client.get("/").text)
+    kept = client.get("/api/v1/notifications").json()
+    assert {item["issue_title"] for item in kept} == {"Newer deck", "Older hull"}
+    assert all(item["read_at"] is not None for item in kept)
 
 
 def test_opening_one_marks_only_that_notice_and_opens_the_issue(
@@ -173,7 +184,7 @@ def test_opening_one_marks_only_that_notice_and_opens_the_issue(
             body="Read me",
             created_at=datetime(2026, 11, 8, tzinfo=UTC),
         )
-        kept = notification_service.add_notice(
+        notification_service.add_notice(
             session,
             recipient_id=me["id"],
             notice_type=NotificationType.UPDATE_ON_CREATED,
@@ -186,7 +197,6 @@ def test_opening_one_marks_only_that_notice_and_opens_the_issue(
         )
         session.commit()
         opened_id = opened.id
-        kept_id = kept.id
 
     response = client.post(
         f"/web/notifications/{opened_id}/open",
@@ -197,16 +207,14 @@ def test_opening_one_marks_only_that_notice_and_opens_the_issue(
     landed = client.get(response.headers["location"])
     assert landed.status_code == 200
     assert "Hull" in landed.text
+    assert "hidden" not in _dot(landed.text)
 
     page = client.get("/notifications")
-    assert not _unread(page.text, "Opened")
-    assert _unread(page.text, "Still unread")
-    assert "hidden" not in _dot(page.text)
-
-    client.post(f"/web/notifications/{kept_id}/open")
-    cleared = client.get("/notifications")
-    assert "keel-notice--unread" not in cleared.text
-    assert "hidden" in _dot(cleared.text)
+    assert "Opened" in page.text
+    assert "Still unread" in page.text
+    assert "keel-notice--unread" not in page.text
+    assert "hidden" in _dot(page.text)
+    assert "hidden" in _dot(client.get("/").text)
 
     missing = client.post("/web/notifications/999999/open")
     assert "That notification does not exist." in missing.text
@@ -363,4 +371,4 @@ def test_another_persons_field_edit_notifies_the_reporter(
     assert "status:" in notice["body"]
     page = client.get("/notifications")
     assert "Plating" in page.text
-    assert "hidden" not in _dot(page.text)
+    assert "hidden" in _dot(page.text)

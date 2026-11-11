@@ -262,6 +262,10 @@ body {
   box-shadow: 0 0 0 1.5px var(--keel-white);
 }
 
+.keel-bell__dot[hidden] {
+  display: none;
+}
+
 .keel-notice {
   margin: 0 0 0.75rem;
   padding: 0.75rem 1rem;

@@ -144,6 +144,8 @@ def get_chrome(
     session: Annotated[Session, Depends(get_request_session)],
 ) -> Chrome:
     current = _current_user(request, session)
+    if current is not None and request.url.path == "/notifications":
+        notification_service.mark_all_read(session, current.id)
     return Chrome(
         users=user_service.list_users(session),
         current_user=current,

@@ -123,6 +123,24 @@ def mark_read(session: Session, recipient_id: int, notice_id: int) -> Notice:
     return notice
 
 
+def mark_all_read(session: Session, recipient_id: int) -> int:
+    """Stamp every unread notice. Viewing the panel does this; deleting does not."""
+    user_service.get_user(session, recipient_id)
+    pending = session.scalars(
+        select(Notice).where(
+            Notice.recipient_id == recipient_id,
+            Notice.read_at.is_(None),
+        ),
+    ).all()
+    if not pending:
+        return 0
+    moment = _stored(utc_now())
+    for notice in pending:
+        notice.read_at = moment
+    session.flush()
+    return len(pending)
+
+
 def delete_notice(session: Session, recipient_id: int, notice_id: int) -> None:
     notice = _owned(session, recipient_id, notice_id)
     session.delete(notice)
