@@ -342,7 +342,17 @@ def test_a_phone_failure_does_not_fail_the_save(
     assert notices[0].phone_sent_at is None
 
 
-def test_a_due_phone_alert_is_attempted_without_sending(session: Session) -> None:
+def test_a_due_phone_alert_waits_until_a_provider_is_configured(
+    session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from keel.services import phone as phone_service
+
+    monkeypatch.setattr(
+        phone_service,
+        "get_settings",
+        lambda: KeelSettings(_env_file=None),
+    )
     project = _project(session)
     ada = _user(session, "Ada")
     bea = _user(session, "Bea")
@@ -374,9 +384,9 @@ def test_a_due_phone_alert_is_attempted_without_sending(session: Session) -> Non
         deliver_at=now + timedelta(minutes=5),
         created_at=now,
     )
-    assert notification_service.dispatch_due_phone(session, now=now) == 1
+    assert notification_service.dispatch_due_phone(session, now=now) == 0
     due = session.get(Notice, waiting.id)
     sent = notification_service.list_notices(session, ada)
     assert due is not None
     assert due.phone_sent_at is None
-    assert any(notice.phone_sent_at is not None for notice in sent)
+    assert all(notice.phone_sent_at is None for notice in sent)

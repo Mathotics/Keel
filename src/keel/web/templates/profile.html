@@ -46,7 +46,10 @@
       </div>
       <div class="keel-panel">
         <h2>Notifications</h2>
-        <p class="keel-note">Phone alert is saved here. The Android notification is sent in a later update.</p>
+        <p class="keel-note">Phone alert is saved here. {{ phone_delivery }}</p>
+        {% if phone_subscribe_url %}
+        <p class="keel-note"><a href="{{ phone_subscribe_url }}">{{ phone_subscribe_url }}</a></p>
+        {% endif %}
         <form class="keel-form" method="post" action="/web/profile/notifications">
           <div class="keel-table-scroll">
             <table class="keel-table">

@@ -18,6 +18,7 @@ from keel.db.models.issue_history import IssueHistory
 from keel.db.models.label import IssueLabel, Label, SeriesItemLabel, SeriesLabel
 from keel.db.models.notice import Notice, NotificationPreference
 from keel.db.models.password_reset import PasswordResetToken
+from keel.db.models.phone_device import PhoneDevice, PhoneTopic
 from keel.db.models.project import Project
 from keel.db.models.request_log import RequestLog
 from keel.db.models.series import Series, SeriesItem, SeriesSkip
@@ -45,6 +46,8 @@ __all__ = [
     "Notice",
     "NotificationPreference",
     "PasswordResetToken",
+    "PhoneDevice",
+    "PhoneTopic",
     "Project",
     "RequestLog",
     "Series",

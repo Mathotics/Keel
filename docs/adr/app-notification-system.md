@@ -1,7 +1,7 @@
 # App notification system
 
 * **Status:** Accepted
-* **Date:** 2026-11-09
+* **Date:** 2026-11-11
 
 ## Background
 
@@ -21,7 +21,7 @@ People learn about comments, assignment, edits, and deletions only by opening th
 * Let each person choose email, phone alert, and the bell independently for each of those types.
 * Show one inbox on the website and in the Android app, with the same unread dot.
 * Send email through the SMTP settings that already exist.
-* Define the phone alert so a later slice can deliver it while the app is closed. Firebase versus ntfy stays undecided.
+* Deliver a phone alert while the Android app is closed. The owner turns on either Firebase or ntfy in server settings.
 * Cap how long notices stay on the server, with those limits in server settings.
 
 ## Scope and Deliverables
@@ -36,12 +36,12 @@ People learn about comments, assignment, edits, and deletions only by opening th
 * A bell with an unread dot, and a notifications page, on the web and on Android.
 * Preference screens on the web profile and the Android account screen.
 * Email for types that have email on.
-* A phone-alert delivery function that does nothing until the push slice.
+* Phone delivery through one configured provider: Firebase Cloud Messaging or ntfy.
 
 ### Out-of-Scope
 
-* Choosing Firebase Cloud Messaging or ntfy. That is its own slice.
-* Sending a phone alert before that slice. The preference can still be saved.
+* Sending through both providers at once. Empty `KEEL_PUSH_PROVIDER` sends nothing.
+* A phone alert when that channel is off for the event type.
 * iPhone, browser operating-system notifications, watchers, @mentions, digests, and chat integrations.
 * Notices for your own change, for comment edits or comment deletions, or for unassign.
 * An assignee change also counting as an "issue updated" notice. Assignment has its own type, and only the new assignee is notified.
@@ -57,7 +57,7 @@ People learn about comments, assignment, edits, and deletions only by opening th
   * KEEL-162 sends notification email.
   * KEEL-163 shows the bell, the page, and the preferences on the website.
   * KEEL-164 shows the bell, the page, and the preferences in the Android app.
-  * KEEL-165 delivers Android phone alerts after the push provider is chosen.
+  * KEEL-165 delivers Android phone alerts through Firebase or ntfy, chosen in settings.
 
 ## Technical Requirements
 
@@ -77,12 +77,12 @@ People learn about comments, assignment, edits, and deletions only by opening th
 * **Must** put the Android bell between the connection mark and the profile initials in `AppBar`.
 * **Must** put the preference grid on the web profile and on the Android account screen.
 * **Must** send email with the existing SMTP helper. If SMTP is unset or the send fails, the issue save still succeeds and the in-app notice remains.
-* **Must** call one phone-delivery function that no-ops until the push slice. A skipped phone alert does not fail the issue save.
+* **Must** send a phone alert through the one provider named by `KEEL_PUSH_PROVIDER`. `fcm` uses Firebase and the phones that registered a token. `ntfy` publishes to that person's secret topic. An empty provider, a missing credential, or a failed send leaves the notice unstamped and does not fail the issue save.
 * **Must** refresh the dot when a page or screen opens, and about every 30 seconds while the site or app is open.
 * **May** cache the list on the phone for offline display. The server copy wins when the phone is online again.
 * **Must** cover preference defaults, who is notified, bundling, and retention with service tests; the bell, page, and profile grid with web tests; and the dot and list with mobile tests.
 * **Must Not** notify the actor, watchers, or people who only commented.
-* **Must Not** add a push provider in the slices that build the inbox.
+* **Must Not** send a phone alert through a provider the owner did not select.
 * **Must Not** keep unread notices past the issued retention when that cap is on.
 
 ## Consequences
@@ -91,9 +91,9 @@ People learn about comments, assignment, edits, and deletions only by opening th
 * **Good:** Field-by-field web saves become one notice and one email.
 * **Good:** Old notices leave the Pi on a schedule, and both caps are server settings. `0` disables a cap, the same rule the request log already uses.
 * **Bad:** Update email and phone alerts wait for the quiet period. The bell updates on the first save.
-* **Bad:** Checking phone alert stores that choice. No Android system notification is sent until the later push slice. The checkbox is on the preference screen so the choice is already there when that slice ships.
+* **Bad:** Firebase reaches the phone on any internet connection and needs a Firebase project, a service-account file on the server, and `google-services.json` in the locally built APK. ntfy needs no Google account. Its alert arrives only while the phone can reach the Pi, and the ntfy app shows it.
 * **Risk:** A server restart during the quiet period must not drop the pending email or phone alert. The due time is stored on the notice. The lifespan loop sends notices whose due time has passed after the process is back, the same loop that rolls sprints forward.
-* **Risk:** A phone alert away from home needs a push service the phone can reach. That choice is a later slice, so the alert is specified here and delivered then.
+* **Risk:** A phone alert away from home needs Firebase, or Tailscale so the phone can reach ntfy on the Pi. The ntfy topic is the secret. The server token, when set, stays on the server.
 
 ## System Design
 
@@ -108,10 +108,13 @@ Settings, on `KeelSettings` and `.env`:
 * `KEEL_NOTIFICATION_READ_RETENTION_DAYS` (default 3)
 * `KEEL_NOTIFICATION_ISSUED_RETENTION_DAYS` (default 14)
 * `KEEL_NOTIFICATION_UPDATE_QUIET_MINUTES` (default 5)
+* `KEEL_PUSH_PROVIDER` (empty, `fcm`, or `ntfy`)
+* `KEEL_FCM_CREDENTIALS_FILE` (service-account JSON path, used when the provider is `fcm`)
+* `KEEL_NTFY_BASE_URL` and optional `KEEL_NTFY_TOKEN` (used when the provider is `ntfy`)
 
 The lifespan loop in `src/keel/app.py` sends due alerts and purges expired notices.
 
-Phone delivery is one function that returns without sending. The push slice replaces that function and leaves the notice row and the preferences as they are.
+Phone delivery reads the provider at send time. Firebase posts one message per registered device token. ntfy posts once to the person's topic. The notice row and the preferences stay as they are.
 
 ### UML Diagrams
 

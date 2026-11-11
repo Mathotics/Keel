@@ -17,3 +17,4 @@ htmlcov/
 *.db
 .local/
 *.keystore
+mobile/google-services.json

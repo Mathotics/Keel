@@ -34,3 +34,16 @@ class PreferenceReplace(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     preferences: list[PreferenceRead] = Field(min_length=7, max_length=7)
+
+
+class PhoneSetupRead(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    provider: str
+    subscribe_url: str | None = None
+
+
+class PhoneTokenWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(min_length=1, max_length=512)

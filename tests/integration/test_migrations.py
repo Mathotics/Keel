@@ -175,6 +175,12 @@ def test_notification_tables_come_from_migrations(migrated: KeelSettings) -> Non
             column["name"]
             for column in inspect(engine).get_columns("notification_preferences")
         }
+        devices = {
+            column["name"] for column in inspect(engine).get_columns("phone_devices")
+        }
+        topics = {
+            column["name"] for column in inspect(engine).get_columns("phone_topics")
+        }
     finally:
         engine.dispose()
     assert notices == {
@@ -198,6 +204,8 @@ def test_notification_tables_come_from_migrations(migrated: KeelSettings) -> Non
         "phone_sent_at",
     }
     assert preferences == {"id", "user_id", "type", "email", "phone", "bell"}
+    assert devices == {"id", "user_id", "token", "created_at", "updated_at"}
+    assert topics == {"user_id", "topic"}
 
 
 def test_seeding_is_idempotent_across_restarts(migrated: KeelSettings) -> None:

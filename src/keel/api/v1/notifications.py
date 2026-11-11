@@ -4,8 +4,15 @@ from keel.api.v1.deps import ActingUserDep, SessionDep
 from keel.db.models import Notice
 from keel.domain.enums import NotificationType
 from keel.domain.errors import NotFoundError
-from keel.schemas.notification import NoticeRead, PreferenceRead, PreferenceReplace
+from keel.schemas.notification import (
+    NoticeRead,
+    PhoneSetupRead,
+    PhoneTokenWrite,
+    PreferenceRead,
+    PreferenceReplace,
+)
 from keel.services import notifications as notification_service
+from keel.services import phone as phone_service
 from keel.services.notifications import PreferenceChoice
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -77,6 +84,32 @@ def replace_preferences(
         ],
     )
     return [_preference(choice) for choice in choices]
+
+
+@router.get("/phone", response_model=PhoneSetupRead)
+def read_phone(session: SessionDep, acting: ActingUserDep) -> PhoneSetupRead:
+    provider, url = phone_service.setup(session, _user(acting))
+    return PhoneSetupRead(provider=provider, subscribe_url=url)
+
+
+@router.put("/phone/token", status_code=status.HTTP_204_NO_CONTENT)
+def save_phone_token(
+    payload: PhoneTokenWrite,
+    session: SessionDep,
+    acting: ActingUserDep,
+) -> Response:
+    phone_service.register_token(session, _user(acting), payload.token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/phone/token", status_code=status.HTTP_204_NO_CONTENT)
+def delete_phone_token(
+    payload: PhoneTokenWrite,
+    session: SessionDep,
+    acting: ActingUserDep,
+) -> Response:
+    phone_service.forget_token(session, _user(acting), payload.token)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{notice_id}/read", response_model=NoticeRead)

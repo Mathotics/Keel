@@ -85,10 +85,16 @@ Settings come from the environment and from a `.env` file in the directory where
 | `KEEL_SMTP_PASSWORD` | unset | Password for that login |
 | `KEEL_SMTP_FROM` | unset | From address that service will send as. Required, with the host, before a message is handed off |
 | `KEEL_SMTP_STARTTLS` | `true` | Start TLS before login |
+| `KEEL_PUSH_PROVIDER` | unset | `fcm` or `ntfy`. Unset sends no phone alert. Only the selected provider is used |
+| `KEEL_FCM_CREDENTIALS_FILE` | unset | Path to a Firebase service-account JSON file. Required when the provider is `fcm` |
+| `KEEL_NTFY_BASE_URL` | unset | ntfy server, such as `http://127.0.0.1:8090`. Required when the provider is `ntfy` |
+| `KEEL_NTFY_TOKEN` | unset | Bearer token ntfy requires for publishing, when the server is locked down |
 
 `KEEL_DEFAULT_USER` wins over `KEEL_SEED_SIGN_IN`. A database that already has people is left as it is.
 
 Password reset and username lookup hand each message to an SMTP server, then that server delivers it. On the production Pi that server is Postfix on the same machine: Keel connects to `127.0.0.1` port 25, and Postfix sends the message on to the recipient's mail server. Leave `KEEL_SMTP_HOST` or `KEEL_SMTP_FROM` unset and the pages still show their notice, but nothing is sent. The reset link is the address the person used to reach Keel, so that address has to be one they can open from the device that reads the mail. The Pi steps are under [Deploy](#deploy).
+
+Phone alerts use the same notices as email. Set `KEEL_PUSH_PROVIDER` to `fcm` or `ntfy`, restart Keel, and turn Phone alert on for the event types you want. Firebase needs the service-account file on the server and `mobile/google-services.json` in the next APK build. The phone registers itself the next time Keel opens. ntfy needs the base URL. The profile page and the Android account screen show the topic to subscribe to in the ntfy app. A failed send leaves the in-app notice and does not undo the issue save.
 
 ## Usage
 

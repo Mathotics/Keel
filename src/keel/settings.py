@@ -35,6 +35,11 @@ class KeelSettings(BaseSettings):
     notification_issued_retention_days: int = Field(default=14, ge=0)
     # 0 sends an update email and phone alert at the end of the request.
     notification_update_quiet_minutes: int = Field(default=5, ge=0)
+    # Empty sends no phone alert. "fcm" or "ntfy" uses only that provider.
+    push_provider: str = ""
+    fcm_credentials_file: str = ""
+    ntfy_base_url: str = ""
+    ntfy_token: str = ""
 
     def resolved_database_url(self) -> str:
         """The configured URL, or a SQLite file in the user data directory."""

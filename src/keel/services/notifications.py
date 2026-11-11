@@ -1,7 +1,6 @@
-"""Inbox storage, preference defaults, and notification email.
+"""Inbox storage, preference defaults, and notification delivery.
 
-Phone delivery stays a no-op until the push slice. A mail or phone failure
-leaves the inbox row in place.
+A mail or phone failure leaves the inbox row in place.
 """
 
 import logging
@@ -387,7 +386,7 @@ def dispatch_due_phone(
     *,
     now: datetime | None = None,
 ) -> int:
-    """Hand due phone alerts to the delivery port. The port does not send yet."""
+    """Send due phone alerts. A miss leaves the stamp empty so the next loop retries."""
     moment = now if now is not None else utc_now()
     sent = 0
     pending = session.scalars(
@@ -401,16 +400,18 @@ def dispatch_due_phone(
         due = notice.deliver_at
         if due is None or _aware(due) > _aware(moment):
             continue
-        if _try_phone(notice):
+        if _try_phone(session, notice):
             notice.phone_sent_at = _stored(moment)
             sent += 1
     session.flush()
     return sent
 
 
-def deliver_phone_alert(_notice: Notice) -> None:
-    """The push slice replaces this. It returns without sending."""
-    return None
+def deliver_phone_alert(session: Session, notice: Notice) -> bool:
+    """Hand one notice to the configured phone provider."""
+    from keel.services import phone as phone_service
+
+    return phone_service.deliver(session, notice)
 
 
 def purge_expired(
@@ -614,7 +615,7 @@ def _send_if_due(session: Session, notice: Notice, moment: datetime) -> None:
     if notice.email and notice.email_sent_at is None and _try_email(session, notice):
         notice.email_sent_at = moment
         changed = True
-    if notice.phone and notice.phone_sent_at is None and _try_phone(notice):
+    if notice.phone and notice.phone_sent_at is None and _try_phone(session, notice):
         notice.phone_sent_at = moment
         changed = True
     if changed:
@@ -655,12 +656,12 @@ def _email_message(notice: Notice) -> tuple[str, str]:
     return subject, body
 
 
-def _try_phone(notice: Notice) -> bool:
+def _try_phone(session: Session, notice: Notice) -> bool:
     try:
-        deliver_phone_alert(notice)
+        return deliver_phone_alert(session, notice)
     except Exception:
+        logger.exception("Phone alert for notice %s was not sent.", notice.id)
         return False
-    return True
 
 
 def _merge_lines(current: str, extra: str) -> str:

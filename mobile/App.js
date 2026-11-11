@@ -11,6 +11,7 @@ import {
   Modal,
   PanResponder,
   Platform,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -41,6 +42,7 @@ import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
 import { PHONE_NOTE, appBarSlots, bellState, mergeInbox, noticeCacheKey, noticeList, openNotice, preferenceBody, preferenceRows, togglePreference, viewedNotices, withoutNotice } from "./src/notifications";
+import { phoneDelivery, phoneSetup, pushIsFresh, pushIssueId } from "./src/phone";
 import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS, foldedStories } from "./src/work";
 import {
@@ -163,6 +165,7 @@ export default function App() {
   const [accountLink, setAccountLink] = useState("loading");
   const [notices, setNotices] = useState([]);
   const [noticeError, setNoticeError] = useState("");
+  const [phoneAlert, setPhoneAlert] = useState(phoneSetup(null));
   const [settingsProjectId, setSettingsProjectId] = useState(null);
   const [settingsProject, setSettingsProject] = useState(null);
   const [settingsLink, setSettingsLink] = useState("loading");
@@ -204,6 +207,7 @@ export default function App() {
   const [homeLayout, setHomeLayout] = useState(null);
   const accountRef = useRef(null);
   const phaseRef = useRef("booting");
+  const openedPushRef = useRef(false);
   const libraryRef = useRef(emptyStore());
   const libraryGen = useRef(0);
   const librarySyncedAt = useRef(0);
@@ -673,9 +677,58 @@ export default function App() {
     return loadNotices(person);
   }
 
+  async function registerPhone(person) {
+    let Notifications;
+    try {
+      Notifications = require("expo-notifications");
+    } catch {
+      return;
+    }
+    try {
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("keel-alerts", {
+          name: "Alerts",
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+      }
+      const permission = await Notifications.requestPermissionsAsync();
+      if (!permission || permission.status !== "granted") {
+        return;
+      }
+      const device = await Notifications.getDevicePushTokenAsync();
+      const token = device && device.data ? String(device.data) : "";
+      if (!token) {
+        return;
+      }
+      await send(person.origin, person.token, "PUT", "/api/v1/notifications/phone/token", { token });
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+    }
+  }
+
+  async function refreshPhone(person) {
+    if (knownOffline()) {
+      return;
+    }
+    try {
+      const setup = phoneSetup(await read(person.origin, person.token, "/api/v1/notifications/phone"));
+      setPhoneAlert(setup);
+      if (setup.mode === "fcm") {
+        await registerPhone(person);
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+    }
+  }
+
   useEffect(() => {
     if (!account) {
       setNotices([]);
+      setPhoneAlert(phoneSetup(null));
       return undefined;
     }
     let stopped = false;
@@ -685,6 +738,7 @@ export default function App() {
         if (stopped) {
           return;
         }
+        await refreshPhone(account);
         if (phaseRef.current === "notifications") {
           await markNoticesRead(account, list);
         }
@@ -701,6 +755,53 @@ export default function App() {
     return () => {
       stopped = true;
       clearInterval(timer);
+    };
+  }, [account]);
+
+  useEffect(() => {
+    if (!account) {
+      return undefined;
+    }
+    let Notifications;
+    try {
+      Notifications = require("expo-notifications");
+    } catch {
+      return undefined;
+    }
+    function openIssue(response) {
+      const issueId = pushIssueId(response);
+      if (!issueId) {
+        return;
+      }
+      setIssueId(issueId);
+      setPhase("issue");
+    }
+    let subscription;
+    try {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+      subscription = Notifications.addNotificationResponseReceivedListener(openIssue);
+      if (!openedPushRef.current) {
+        openedPushRef.current = true;
+        Notifications.getLastNotificationResponseAsync().then((response) => {
+          if (pushIsFresh(response, Date.now())) {
+            openIssue(response);
+          }
+        }).catch(() => {});
+      }
+    } catch {
+      return undefined;
+    }
+    return () => {
+      if (subscription && subscription.remove) {
+        subscription.remove();
+      }
     };
   }, [account]);
 
@@ -3559,6 +3660,7 @@ export default function App() {
           onSavePreferences={savePreferences}
           onSaveProfile={saveProfile}
           onSignOut={onSignOut}
+          phoneAlert={phoneAlert}
         />
       ) : null}
       {phase === "settings" && account ? (
@@ -6795,6 +6897,7 @@ function AccountScreen({
   onSavePreferences,
   onRevoke,
   onSignOut,
+  phoneAlert,
 }) {
   const profile = view && view.profile;
   const [displayName, setDisplayName] = useState(profile ? profile.display_name : "");
@@ -6851,7 +6954,10 @@ function AccountScreen({
             }}
           />
           <Text style={styles.sectionHeading}>Notifications</Text>
-          <Text style={styles.message}>{PHONE_NOTE}</Text>
+          <Text style={styles.message}>{PHONE_NOTE} {phoneDelivery(phoneAlert)}</Text>
+          {phoneAlert && phoneAlert.subscribeUrl ? (
+            <TextButton label="Open in ntfy" onPress={() => Linking.openURL(phoneAlert.subscribeUrl)} />
+          ) : null}
           {preferences.map((row) => (
             <View key={row.type} style={styles.issue}>
               <Text style={styles.choiceText}>{row.label}</Text>

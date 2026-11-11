@@ -101,7 +101,7 @@ test("the preference grid keeps any combination and names each event", () => {
   assert.equal(body.preferences.length, 7);
   assert.equal(body.preferences[0].phone, true);
   assert.equal(body.preferences[2].email, true);
-  assert.match(PHONE_NOTE, /Android notification is sent in a later update/);
+  assert.equal(PHONE_NOTE, "Phone alert is saved here.");
 });
 
 test("an offline list stays until the server copy replaces it", () => {

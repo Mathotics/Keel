@@ -3,6 +3,7 @@ from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from sqlalchemy.orm import Session
 
 from keel.domain.enums import NotificationType
 from keel.domain.errors import (
@@ -13,6 +14,7 @@ from keel.domain.errors import (
 from keel.paths import copyright_notice
 from keel.services import auth as auth_service
 from keel.services import notifications as notification_service
+from keel.services import phone as phone_service
 from keel.services import users as user_service
 from keel.services.auth import SESSION_MAX_AGE, LoginRefused
 from keel.services.identity import SESSION_COOKIE, TOKEN_FLASH_COOKIE
@@ -23,6 +25,14 @@ from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_row
 
 router = APIRouter()
 SEE_OTHER = 303
+
+
+def _phone_context(session: Session, user_id: int) -> dict[str, str | None]:
+    provider, url = phone_service.setup(session, user_id)
+    return {
+        "phone_delivery": phone_service.describe(provider, url),
+        "phone_subscribe_url": url,
+    }
 
 
 def safe_next(value: str | None) -> str:
@@ -174,6 +184,7 @@ def profile_page(
                 session,
                 fresh.id,
             ),
+            **_phone_context(session, fresh.id),
         ),
     )
     if new_token:

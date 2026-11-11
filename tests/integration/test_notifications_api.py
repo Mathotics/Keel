@@ -1,9 +1,12 @@
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from keel.domain.enums import NotificationType
 from keel.services import notifications as notification_service
+from keel.services import phone as phone_service
 from keel.services import users as user_service
+from keel.settings import KeelSettings
 
 
 def _grid(
@@ -109,3 +112,47 @@ def test_anonymous_notification_routes_require_sign_in(
 ) -> None:
     assert anonymous_client.get("/api/v1/notifications").status_code == 401
     assert anonymous_client.get("/api/v1/notifications/preferences").status_code == 401
+    assert anonymous_client.get("/api/v1/notifications/phone").status_code == 401
+
+
+def test_the_phone_registers_for_the_configured_provider(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        phone_service,
+        "get_settings",
+        lambda: KeelSettings(
+            _env_file=None,
+            push_provider="ntfy",
+            ntfy_base_url="http://ntfy.local",
+        ),
+    )
+    quiet = client.get("/api/v1/notifications/phone")
+    assert quiet.status_code == 200
+    assert quiet.json()["provider"] == "ntfy"
+    assert quiet.json()["subscribe_url"].startswith("http://ntfy.local/")
+
+    monkeypatch.setattr(
+        phone_service,
+        "get_settings",
+        lambda: KeelSettings(_env_file=None, push_provider="fcm"),
+    )
+    firebase = client.get("/api/v1/notifications/phone")
+    assert firebase.json() == {"provider": "fcm", "subscribe_url": None}
+    saved = client.put(
+        "/api/v1/notifications/phone/token",
+        json={"token": "phone-a"},
+    )
+    assert saved.status_code == 204
+    again = client.put(
+        "/api/v1/notifications/phone/token",
+        json={"token": "phone-a"},
+    )
+    assert again.status_code == 204
+    removed = client.request(
+        "DELETE",
+        "/api/v1/notifications/phone/token",
+        json={"token": "phone-a"},
+    )
+    assert removed.status_code == 204

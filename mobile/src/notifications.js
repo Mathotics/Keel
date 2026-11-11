@@ -1,5 +1,5 @@
 const EMPTY = "There are no notifications.";
-const PHONE_NOTE = "Phone alert is saved here. The Android notification is sent in a later update.";
+const PHONE_NOTE = "Phone alert is saved here.";
 
 const TYPES = [
   ["comment_on_created", "Comment on an issue you created"],
