@@ -438,7 +438,7 @@ How Keel is shaped is written down under `docs/`. Start with the architecture pa
 
 | Area | Documents |
 | --- | --- |
-| Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md) |
+| Architecture | [Context](docs/architecture/context.md), [use cases](docs/architecture/use-cases.md), [domain model](docs/architecture/domain-model.md), [capabilities](docs/architecture/capabilities.md), [v1 scope](docs/architecture/v1-scope.md), [glossary](docs/architecture/glossary.md), [data dictionary](docs/architecture/data-dictionary.md) |
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [roles](docs/design/rbac-catalog.md), [implementation plan](docs/design/implementation-plan.md) |
 | Decisions | [ADRs](docs/adr/), including [production deploy](docs/adr/ADR-026.md), [password login](docs/adr/password-login.md), and [Docker container](docs/adr/docker-container.md) |
 | Process | [Contributing](.github/CONTRIBUTING.md) — ticket to deploy, for the owner and invited collaborators |
