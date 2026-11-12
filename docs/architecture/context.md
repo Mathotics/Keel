@@ -62,4 +62,5 @@ Keel is an existing repository, and these committed constraints are respected ra
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
 * [Glossary](glossary.md)
+* [Data dictionary](data-dictionary.md)
 * [Module layout](../design/module-layout.md)
