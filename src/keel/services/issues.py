@@ -780,14 +780,22 @@ def _flush_new_issue(
     reporter_id: int | None,
 ) -> Issue:
     """Inserts the issue. A key collision returns the issue that won the race."""
-    session.add(issue)
+    # The counter flush has to land before the savepoint. begin_nested() flushes
+    # pending objects first, and a unique failure there rolls back the request.
+    session.flush()
     if client_key is None:
+        session.add(issue)
         session.flush()
         return issue
     try:
         with session.begin_nested():
+            session.add(issue)
             session.flush()
     except IntegrityError:
+        # The failed insert stays pending. Drop it before the lookup, or the
+        # request commit flushes it again and files a second issue.
+        if issue in session:
+            session.expunge(issue)
         found = _resubmitted_issue(session, client_key, project_id, reporter_id)
         if found is None:
             raise
