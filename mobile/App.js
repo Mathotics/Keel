@@ -63,6 +63,7 @@ import {
   queueRemoveComment,
   queueSeries,
   queueUpdate,
+  newClientKey,
   rememberSeries,
   savedSeries,
   seriesKnown,
@@ -70,6 +71,7 @@ import {
   conflictView,
   rememberDetail,
   renameProject,
+  retainUpload,
   storeKey,
   workView,
 } from "./src/offline";
@@ -205,6 +207,7 @@ export default function App() {
   const libraryGen = useRef(0);
   const librarySyncedAt = useRef(0);
   const syncTail = useRef(Promise.resolve());
+  const refreshGate = useRef(Promise.resolve());
   const probeRef = useRef(() => {});
   const lockRef = useRef(ON_LAUNCH);
   const deviceLockRef = useRef(false);
@@ -645,7 +648,24 @@ export default function App() {
     useSavedCopy();
   }
 
+  async function keepUploadedLibrary(currentAccount, userId, before, uploaded) {
+    const kept = retainUpload(libraryRef.current, before, uploaded);
+    const owner = currentAccount && currentAccount.userId
+      ? String(currentAccount.userId)
+      : String(userId || "");
+    await persistLibrary(owner, kept);
+    return kept;
+  }
+
   async function refreshLibrary(currentAccount, currentStore, options) {
+    const run = refreshGate.current.catch(() => {}).then(() =>
+      refreshLibraryNow(currentAccount, libraryRef.current || currentStore, options),
+    );
+    refreshGate.current = run;
+    return run;
+  }
+
+  async function refreshLibraryNow(currentAccount, currentStore, options) {
     if (forcedOffline()) {
       return currentStore;
     }
@@ -664,7 +684,7 @@ export default function App() {
     };
     const result = await pullLibrary(currentStore, client);
     if (started !== libraryGen.current) {
-      return libraryRef.current;
+      return keepUploadedLibrary(currentAccount, result.userId, currentStore, result.store);
     }
     let nextStore = result.store;
     const projects = Object.values(nextStore.projects || {}).filter((project) => project.enabled);
@@ -691,7 +711,7 @@ export default function App() {
       }
     }
     if (started !== libraryGen.current) {
-      return libraryRef.current;
+      return keepUploadedLibrary(currentAccount, result.userId, currentStore, nextStore);
     }
     const userId = String(result.userId);
     if (userId !== currentAccount.userId) {
@@ -3540,6 +3560,8 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const filing = useRef(false);
+  const filed = useRef(false);
+  const clientKey = useRef(newClientKey());
 
   useEffect(() => {
     setParentIssue(null);
@@ -3627,10 +3649,12 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   }
 
   async function file() {
-    if (filing.current) {
+    if (filing.current || filed.current) {
       return;
     }
     filing.current = true;
+    setSubmitting(true);
+    let accepted = false;
     try {
       if (!project || lookupDirty(projectCommitted, projectQuery)) {
         setError(LOOKUP_PROJECT);
@@ -3670,14 +3694,18 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         setError(prepared.error);
         return;
       }
-      setSubmitting(true);
-      const failure = await onFile(prepared.draft);
+      const failure = await onFile({ ...prepared.draft, client_key: clientKey.current });
       if (failure) {
         setError(failure);
+        return;
       }
+      accepted = true;
+      filed.current = true;
     } finally {
-      filing.current = false;
-      setSubmitting(false);
+      if (!accepted) {
+        filing.current = false;
+        setSubmitting(false);
+      }
     }
   }
 
@@ -5643,6 +5671,8 @@ function IssueDetail({
   const [childTitle, setChildTitle] = useState("");
   const [addingChild, setAddingChild] = useState(false);
   const addingChildLock = useRef(false);
+  const childKey = useRef(newClientKey());
+  const childSentTitle = useRef("");
   const [commentBody, setCommentBody] = useState("");
   const [relation, setRelation] = useState("blocks");
   const [linkKey, setLinkKey] = useState("");
@@ -5660,10 +5690,18 @@ function IssueDetail({
   useEffect(() => {
     setEditing(false);
     setChildTitle("");
+    childSentTitle.current = "";
+    childKey.current = newClientKey();
     setCommentBody("");
     setRelation("blocks");
     setLinkKey("");
   }, [currentId]);
+
+  useEffect(() => {
+    if (!childTitle.trim()) {
+      childSentTitle.current = "";
+    }
+  }, [childTitle]);
 
   useEffect(() => {
     if (!saved || !saved.page) {
@@ -5768,7 +5806,8 @@ function IssueDetail({
   }
 
   async function addChild() {
-    if (addingChildLock.current) {
+    const titleNow = childTitle.trim();
+    if (addingChildLock.current || (titleNow && titleNow === childSentTitle.current)) {
       return;
     }
     addingChildLock.current = true;
@@ -5798,11 +5837,13 @@ function IssueDetail({
         return;
       }
       setAddingChild(true);
-      const failure = await onAddChild(prepared.draft);
+      const failure = await onAddChild({ ...prepared.draft, client_key: childKey.current });
       if (failure) {
         setError(failure);
         return;
       }
+      childSentTitle.current = titleNow;
+      childKey.current = newClientKey();
       setChildTitle("");
       setError("");
     } finally {

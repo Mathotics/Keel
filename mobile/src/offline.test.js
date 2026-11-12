@@ -15,6 +15,7 @@ const {
   enqueue,
   hasWaiting,
   markConflict,
+  noteUploaded,
   queueComment,
   queueCreate,
   queueDelete,
@@ -23,6 +24,7 @@ const {
   queueSeries,
   queueUpdate,
   presentQueue,
+  retainUpload,
   rememberSeries,
   savedSeries,
   workView,
@@ -269,6 +271,72 @@ test("moving off the active sprint waits for a connection", () => {
   assert.equal(allowed.error, null);
   assert.equal(allowed.store.projects[3].issues[9].raw.sprint_id, 8);
   assert.equal(allowed.store.projects[3].issues[9].page.sprintName, "Next");
+});
+
+test("a second submit with the same client key updates the waiting create", () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const key = "a".repeat(32);
+  const first = queueCreate(store, { projectId: 3, title: "Paint", type: "story", client_key: key });
+  const second = queueCreate(first.store, {
+    projectId: 3,
+    title: "Paint the hull",
+    type: "story",
+    description: "Again",
+    client_key: key,
+  });
+  assert.equal(second.error, null);
+  assert.equal(second.issueId, first.issueId);
+  assert.equal(second.store.queue.length, 1);
+  assert.equal(second.store.queue[0].body.client_key, key);
+  assert.equal(second.store.queue[0].body.title, "Paint the hull");
+  assert.equal(second.store.queue[0].body.description, "Again");
+  assert.equal(second.store.projects[3].issues[first.issueId].raw.title, "Paint the hull");
+});
+
+test("filing an issue again reuses the key from the first create", () => {
+  const store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store.projects[3].issues[9].raw.client_key = "b".repeat(32);
+  const again = queueRecreate(store, 9);
+  assert.equal(again.queue[0].body.client_key, "b".repeat(32));
+});
+
+test("a finished upload is kept when a newer edit arrived during the request", () => {
+  const before = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const filed = queueCreate(before, {
+    projectId: 3,
+    title: "Paint",
+    type: "story",
+    client_key: "c".repeat(32),
+  });
+  const uploaded = noteUploaded(filed.store, filed.store.queue[0], {
+    id: 20,
+    key: "KEEL-20",
+    project_id: 3,
+    title: "Paint",
+    type: "story",
+    status: "todo",
+    priority: "p4",
+    assignee_id: null,
+    reporter_id: 2,
+    labels: [],
+    parent_id: null,
+    sprint_id: 7,
+    description: "",
+    estimate_minutes: null,
+    remaining_minutes: null,
+    start_at: null,
+    due_at: null,
+    created_at: "2026-10-14T17:00:00",
+    updated_at: "2026-10-14T17:00:00",
+    rollup: null,
+  });
+  const during = queueUpdate(filed.store, 9, { title: "Boat" }, { online: true });
+  const kept = retainUpload(during.store, filed.store, uploaded);
+  assert.equal(kept.queue.some((item) => item.kind === "create"), false);
+  assert.equal(kept.projects[3].issues[20].raw.client_key, "c".repeat(32));
+  assert.equal(kept.projects[3].issues[20].raw.title, "Paint");
+  assert.equal(kept.projects[3].issues[9].raw.title, "Boat");
+  assert.equal(kept.queue[0].body.title, "Boat");
 });
 
 test("each create keeps its own client key", () => {

@@ -74,6 +74,7 @@ test("a new issue waits on the phone without a key", async () => {
   assert.equal(filed.store.queue[0].kind, "create");
   assert.equal(filed.store.queue[0].method, "POST");
 
+  const key = filed.store.queue[0].body.client_key;
   const uploaded = await uploadQueue(filed.store, {
     async read() {
       throw new Error("a new issue is not on the server");
@@ -107,6 +108,7 @@ test("a new issue waits on the phone without a key", async () => {
   assert.equal(saved.key, "KEEL-20");
   assert.equal(saved.pending, false);
   assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[20].raw.client_key, key);
 });
 
 const savedIssue = {
