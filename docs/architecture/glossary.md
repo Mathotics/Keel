@@ -1,6 +1,6 @@
 # Glossary
 
-Domain terms used across the Keel architecture documents, so later docs share one vocabulary. Relationships between these terms are shown in the [domain model](domain-model.md).
+Short definitions of the domain terms used across the Keel architecture documents, so later docs share one vocabulary. Relationships and behavior for each term are in the [data dictionary](data-dictionary.md). The entities are drawn in the [domain model](domain-model.md).
 
 * **Backlog** — the list of a project's issues that have no sprint assigned and are not closed (*Done* or *Cancelled*), in creation order. A view over the issue pool, not a separate entity, and not manually ordered ([ADR 013](../adr/planning-realization.md)).
 * **Blocked** — a workflow status a person sets by hand. Keel never applies it automatically, since dependency-driven status changes are out of scope ([ADR 006](../adr/ticket-dependencies.md)); unresolved blockers surface as a marker instead.
@@ -43,4 +43,5 @@ Domain terms used across the Keel architecture documents, so later docs share on
 * [Domain model](domain-model.md)
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
+* [Data dictionary](data-dictionary.md)
 * [Data model](../design/data-model.md)

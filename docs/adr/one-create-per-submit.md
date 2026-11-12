@@ -26,7 +26,7 @@ A second submit can leave the browser or the phone before the first response arr
 * A nullable `client_key` on an issue, unique when set.
 * The Create form and the Add child form each carry a fresh key and ignore a second submit in the browser.
 * The JSON create body accepts the same key.
-* The phone queue stores one key per create and sends it on every retry, and a second tap does not queue a second create.
+* The phone queue stores one key per create and sends it on every retry. The create screen keeps that key until the screen leaves, so a second tap files the same issue instead of another one.
 * A repeated key for the same project and reporter returns the issue the first call filed.
 
 ### Out-of-Scope
@@ -49,7 +49,7 @@ A second submit can leave the browser or the phone before the first response arr
 * **Must** return the existing issue when a create repeats a key for the same project and the same reporter, and **Must Not** apply the second payload, burn another issue number, or insert a second row.
 * **Must** refuse a key that already belongs to a different project or reporter with `issue.duplicate_submit`, and **Must Not** return that other issue.
 * **Must** put a new key on the Create form and on Add child, and **Must** keep both forms working without JavaScript. The script **May** ignore a second submit; the key is what makes the repeat safe.
-* **Must** send a stable key from the phone for one queued create, including a retry of that same queue item, and **Must** ignore a second tap while that create is still being filed.
+* **Must** send a stable key from the phone for one queued create, including a retry of that same queue item and a second tap on the same create screen, and **Must** ignore a second tap while that create is still being filed.
 * **Must Not** require a key. Two creates without one still file two issues, even when the titles match.
 * **Must Not** copy a key onto a series occurrence.
 
@@ -65,7 +65,7 @@ A second submit can leave the browser or the phone before the first response arr
 
 ### Technical Stack and Architecture
 
-`create_issue` is the only insert. It trims the key, returns the earlier issue when the project and reporter match, and otherwise inserts with the key set. The insert runs in a savepoint so a unique collision rolls back that insert alone and the read is tried again. The web forms generate the key with `new_client_key` on each render. `assets/js/submit-once.js` sets `data-keel-once` and ignores a second `submit` on `[data-keel-submit-once]`. The phone generates a 32-character hex key once per queued create and puts it on the JSON body. The button guard is a ref set before the first await, so a second tap does not queue another create.
+`create_issue` is the only insert. It trims the key, returns the earlier issue when the project and reporter match, and otherwise inserts with the key set. The insert runs in a savepoint so a unique collision rolls back that insert alone and the read is tried again. The web forms generate the key with `new_client_key` on each render. `assets/js/submit-once.js` sets `data-keel-once` and ignores a second `submit` on `[data-keel-submit-once]`. The phone generates a 32-character hex key once for a create screen and puts that same key on every submit from that screen, including a second tap and a retry of the queued item. The button guard stays down after the issue is accepted, so the tap that lands after the first write does not file another issue.
 
 ### UML Diagrams
 

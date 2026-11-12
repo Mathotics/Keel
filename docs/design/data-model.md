@@ -385,6 +385,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 * [Series recipe priority](../adr/series-recipe-priority.md)
 * [Series recipe labels](../adr/series-recipe-labels.md)
 * [Domain model](../architecture/domain-model.md)
+* [Data dictionary](../architecture/data-dictionary.md)
 * [API reference](api.md)
 * [Module layout](module-layout.md)
 * [One create per submit](../adr/one-create-per-submit.md)

@@ -2,7 +2,7 @@
 
 A conceptual entity–relationship model for Keel v1. It names the domain entities, their meaningful attributes in domain terms, and how they relate. It is deliberately **conceptual**: no tables, columns, data types, keys, or indexes. The physical realization is documented separately in the [data model](../design/data-model.md).
 
-Terms are defined in the [glossary](glossary.md). The modeling decisions behind this diagram are recorded in [ADR 003](../adr/unified-issue-model.md), [ADR 004](../adr/shared-fixed-workflow.md), [ADR 005](../adr/boards-sprints-and-backlog.md), and [ADR 006](../adr/ticket-dependencies.md). Their implementation-level realization is recorded in [ADR 012](../adr/issue-realization.md), [ADR 013](../adr/planning-realization.md), [ADR 014](../adr/cross-project-dependencies.md), and [ADR 030](../adr/ADR-030.md).
+Terms are defined in the [glossary](glossary.md). How each term relates to the others, and how it behaves, is in the [data dictionary](data-dictionary.md). The modeling decisions behind this diagram are recorded in [ADR 003](../adr/unified-issue-model.md), [ADR 004](../adr/shared-fixed-workflow.md), [ADR 005](../adr/boards-sprints-and-backlog.md), and [ADR 006](../adr/ticket-dependencies.md). Their implementation-level realization is recorded in [ADR 012](../adr/issue-realization.md), [ADR 013](../adr/planning-realization.md), [ADR 014](../adr/cross-project-dependencies.md), and [ADR 030](../adr/ADR-030.md).
 
 ## Entity–relationship diagram
 
@@ -130,4 +130,5 @@ Every entity above must be **durably stored** so that projects, issues, sprints,
 * [Capabilities](capabilities.md)
 * [v1 scope](v1-scope.md)
 * [Glossary](glossary.md)
+* [Data dictionary](data-dictionary.md)
 * [Data model (physical schema)](../design/data-model.md)

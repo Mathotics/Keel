@@ -1,9 +1,10 @@
 from datetime import date, datetime
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from keel.db.models import Project
+from keel.db.models import Issue, Project
 from keel.domain.enums import (
     INITIAL_PRIORITY,
     INITIAL_STATUS,
@@ -100,6 +101,36 @@ def test_a_repeated_client_key_returns_the_first_issue(
     assert second.description == ""
     nxt = issue_service.get_issue(session, make(session, project, title="Next"))
     assert nxt.number == 2
+
+
+def test_a_key_collision_returns_the_issue_that_won(
+    session: Session,
+    project: Project,
+) -> None:
+    key = "c" * 32
+    first = issue_service.create_issue(
+        session,
+        project.id,
+        type=IssueType.STORY,
+        title="Once",
+        client_key=key,
+    )
+    session.flush()
+    rival = Issue(
+        project_id=project.id,
+        number=project_service.next_issue_number(session, project),
+        type=IssueType.STORY,
+        title="Twice",
+        description="ignored",
+        client_key=key,
+    )
+    found = issue_service._flush_new_issue(session, rival, key, project.id, None)
+    session.commit()
+
+    assert found.id == first.id
+    assert found.title == "Once"
+    rows = session.scalars(select(Issue).where(Issue.client_key == key)).all()
+    assert len(rows) == 1
 
 
 def test_the_same_title_without_a_key_files_two_issues(

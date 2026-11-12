@@ -16,6 +16,38 @@ function newClientKey() {
   return key;
 }
 
+function providedClientKey(value) {
+  const cleaned = String(value || "").trim();
+  if (/^[A-Za-z0-9_-]{16,64}$/.test(cleaned)) {
+    return cleaned;
+  }
+  return null;
+}
+
+function issueCreateBody(raw, clientKey) {
+  return {
+    type: raw.type,
+    title: raw.title,
+    description: raw.description || "",
+    definition_of_done: raw.definition_of_done || "",
+    ...(raw.location ? { location: raw.location } : {}),
+    status: raw.status,
+    priority: raw.priority,
+    parent_id: raw.parent_id || null,
+    sprint_id: raw.sprint_id || null,
+    assignee_id: raw.assignee_id || null,
+    estimate_minutes: raw.estimate_minutes ?? null,
+    remaining_minutes: raw.remaining_minutes ?? null,
+    planned_value_cents: raw.planned_value_cents ?? null,
+    earned_value_cents: raw.earned_value_cents ?? null,
+    actual_cost_cents: raw.actual_cost_cents ?? null,
+    start_at: raw.start_at || null,
+    due_at: raw.due_at || null,
+    labels: raw.labels || [],
+    client_key: clientKey,
+  };
+}
+
 function emptyStore() {
   return { projects: {}, people: [], labels: [], queue: [] };
 }
@@ -120,6 +152,9 @@ function applyRefresh(store, snapshots, extras) {
           snapshot.sprint,
           record.currency,
         );
+        if (prior && prior.raw && prior.raw.client_key) {
+          fresh.raw.client_key = prior.raw.client_key;
+        }
         if (prior && prior.page && prior.page.comments) {
           fresh.page.comments = prior.page.comments.filter((comment) => !comment.pending);
         }
@@ -231,6 +266,13 @@ function queueRecreate(store, issueId) {
     return next;
   }
   const raw = issue.raw;
+  const waiting = (store.queue || []).find(
+    (item) => item.issueId === issueId && item.kind === "create" && item.body,
+  );
+  const clientKey = providedClientKey(raw.client_key)
+    || providedClientKey(waiting && waiting.body.client_key)
+    || newClientKey();
+  raw.client_key = clientKey;
   next.queue = next.queue.filter((item) => item.issueId !== issueId);
   next.queue.push({
     id: `create-${issueId}`,
@@ -239,26 +281,7 @@ function queueRecreate(store, issueId) {
     projectId: issue.projectId,
     method: "POST",
     path: `/api/v1/projects/${issue.projectId}/issues`,
-    body: {
-      type: raw.type,
-      title: raw.title,
-      description: raw.description || "",
-      definition_of_done: raw.definition_of_done || "",
-      ...(raw.location ? { location: raw.location } : {}),
-      status: raw.status,
-      priority: raw.priority,
-      assignee_id: raw.assignee_id,
-      sprint_id: raw.sprint_id,
-      estimate_minutes: raw.estimate_minutes,
-      remaining_minutes: raw.remaining_minutes,
-      planned_value_cents: raw.planned_value_cents ?? null,
-      earned_value_cents: raw.earned_value_cents ?? null,
-      actual_cost_cents: raw.actual_cost_cents ?? null,
-      start_at: raw.start_at,
-      due_at: raw.due_at,
-      labels: raw.labels || [],
-      client_key: newClientKey(),
-    },
+    body: issueCreateBody(raw, clientKey),
     baseUpdatedAt: null,
     force: true,
   });
@@ -374,25 +397,28 @@ function noteUploaded(store, item, saved) {
     const project = next.projects[issue.projectId];
     const comments = (issue.page && issue.page.comments) || [];
     delete project.issues[item.issueId];
+    const filed = item.body && item.body.client_key
+      ? { ...saved, client_key: item.body.client_key }
+      : saved;
     const created = freshIssue(
       issue.projectId,
-      saved,
-      [saved],
+      filed,
+      [filed],
       next.people,
       project.sprint,
       project.currency,
     );
     created.page.comments = comments;
-    project.issues[saved.id] = created;
+    project.issues[filed.id] = created;
     for (const entry of next.queue) {
       if (entry.issueId === item.issueId) {
-        entry.issueId = saved.id;
+        entry.issueId = filed.id;
         if (entry.kind === "comment") {
-          entry.path = `/api/v1/issues/${saved.id}/comments`;
+          entry.path = `/api/v1/issues/${filed.id}/comments`;
         }
       }
     }
-    created.pending = next.queue.some((entry) => entry.issueId === saved.id);
+    created.pending = next.queue.some((entry) => entry.issueId === filed.id);
     return next;
   }
   if (item.kind === "comment" || item.kind === "uncomment") {
@@ -465,6 +491,9 @@ function absorbIssues(store, projectId, issues) {
       continue;
     }
     const fresh = freshIssue(record.id, issue, list, next.people, record.sprint, record.currency);
+    if (prior && prior.raw && prior.raw.client_key) {
+      fresh.raw.client_key = prior.raw.client_key;
+    }
     if (issue.completed_at) {
       fresh.raw.completedOn = issue.completed_at;
     }
@@ -507,6 +536,41 @@ function rememberDetail(store, issueId, raw, page) {
   return next;
 }
 
+function retainUpload(latest, before, uploaded) {
+  const next = clone(latest);
+  const stillQueued = new Set((uploaded.queue || []).map((item) => item.id));
+  const finished = (before.queue || []).filter(
+    (item) => item.kind === "create" && !stillQueued.has(item.id),
+  );
+  for (const item of finished) {
+    const key = item.body && item.body.client_key;
+    next.queue = (next.queue || []).filter((entry) => {
+      if (entry.id === item.id) {
+        return false;
+      }
+      return !(key && entry.kind === "create" && entry.body && entry.body.client_key === key);
+    });
+    const project = uploaded.projects && uploaded.projects[item.projectId];
+    const home = next.projects && next.projects[item.projectId];
+    if (!project || !home) {
+      continue;
+    }
+    const created = Object.values(project.issues || {}).find(
+      (issue) => key && issue.raw && issue.raw.client_key === key && Number(issue.id) > 0,
+    );
+    if (!created) {
+      continue;
+    }
+    if (home.issues[item.issueId]) {
+      delete home.issues[item.issueId];
+    }
+    if (!home.issues[created.id]) {
+      home.issues[created.id] = created;
+    }
+  }
+  return next;
+}
+
 function localIssueId(store) {
   let lowest = 0;
   for (const project of Object.values(store.projects || {})) {
@@ -515,6 +579,57 @@ function localIssueId(store) {
     }
   }
   return lowest - 1;
+}
+
+function reuseQueuedCreate(store, pending, draft, clientKey) {
+  const next = clone(store);
+  const queued = next.queue.find((item) => item.id === pending.id);
+  const issue = findIssue(next, pending.issueId);
+  const project = next.projects[draft.projectId];
+  if (!queued || !issue || !project || !project.enabled) {
+    return { store, error: "Choose a saved project." };
+  }
+  if (issue.projectId !== draft.projectId) {
+    const from = next.projects[issue.projectId];
+    if (from && from.issues) {
+      delete from.issues[issue.id];
+    }
+    issue.projectId = draft.projectId;
+    project.issues[issue.id] = issue;
+  }
+  Object.assign(issue.raw, {
+    project_id: draft.projectId,
+    title: (draft.title || "").trim(),
+    type: draft.type || "story",
+    description: draft.description || "",
+    definition_of_done: draft.definition_of_done || "",
+    location: draft.location || "",
+    status: draft.status || "todo",
+    priority: draft.priority || "p4",
+    parent_id: draft.parent_id || null,
+    sprint_id: draft.sprint_id || null,
+    assignee_id: draft.assignee_id || null,
+    estimate_minutes: draft.estimate_minutes ?? null,
+    remaining_minutes: draft.remaining_minutes ?? null,
+    planned_value_cents: draft.planned_value_cents ?? null,
+    earned_value_cents: draft.earned_value_cents ?? null,
+    actual_cost_cents: draft.actual_cost_cents ?? null,
+    start_at: draft.start_at || null,
+    due_at: draft.due_at || null,
+    labels: draft.labels || [],
+    client_key: clientKey,
+    updated_at: new Date().toISOString(),
+  });
+  if (issue.page) {
+    issue.page.title = issue.raw.title;
+    issue.page.key = issue.page.key || "";
+  }
+  queued.projectId = draft.projectId;
+  queued.path = `/api/v1/projects/${draft.projectId}/issues`;
+  queued.body = issueCreateBody(issue.raw, clientKey);
+  issue.pending = true;
+  issue.error = null;
+  return { store: next, error: null, issueId: issue.id };
 }
 
 function queueCreate(store, draft) {
@@ -526,6 +641,19 @@ function queueCreate(store, draft) {
   const title = (draft.title || "").trim();
   if (!title) {
     return { store: next, error: "Enter a title." };
+  }
+  const clientKey = providedClientKey(draft.client_key) || newClientKey();
+  const parentWaiting = draft.parent_id && (store.queue || []).some(
+    (item) => item.issueId === draft.parent_id && item.kind === "delete",
+  );
+  if (parentWaiting) {
+    return { store, error: "This issue is waiting to be deleted." };
+  }
+  const pending = (store.queue || []).find(
+    (item) => item.kind === "create" && item.body && item.body.client_key === clientKey,
+  );
+  if (pending) {
+    return reuseQueuedCreate(store, pending, draft, clientKey);
   }
   const localId = localIssueId(next);
   const raw = {
@@ -551,14 +679,12 @@ function queueCreate(store, draft) {
     start_at: draft.start_at || null,
     due_at: draft.due_at || null,
     labels: draft.labels || [],
+    client_key: clientKey,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     rollup: null,
   };
   const record = freshIssue(project.id, raw, Object.values(project.issues).map((item) => item.raw).concat(raw), next.people, project.sprint, project.currency);
-  if (raw.parent_id && next.queue.some((item) => item.issueId === raw.parent_id && item.kind === "delete")) {
-    return { store, error: "This issue is waiting to be deleted." };
-  }
   record.pending = true;
   project.issues[localId] = record;
   const parent = raw.parent_id ? findIssue(next, raw.parent_id) : null;
@@ -581,27 +707,7 @@ function queueCreate(store, draft) {
     projectId: project.id,
     method: "POST",
     path: `/api/v1/projects/${project.id}/issues`,
-    body: {
-      type: raw.type,
-      title: raw.title,
-      description: raw.description,
-      definition_of_done: raw.definition_of_done,
-      ...(raw.location ? { location: raw.location } : {}),
-      status: raw.status,
-      priority: raw.priority,
-      parent_id: raw.parent_id,
-      sprint_id: raw.sprint_id,
-      assignee_id: raw.assignee_id,
-      estimate_minutes: raw.estimate_minutes,
-      remaining_minutes: raw.remaining_minutes,
-      planned_value_cents: raw.planned_value_cents,
-      earned_value_cents: raw.earned_value_cents,
-      actual_cost_cents: raw.actual_cost_cents,
-      start_at: raw.start_at,
-      due_at: raw.due_at,
-      labels: raw.labels,
-      client_key: newClientKey(),
-    },
+    body: issueCreateBody(raw, clientKey),
     baseUpdatedAt: null,
     force: true,
   });
@@ -1401,6 +1507,7 @@ module.exports = {
   markConflict,
   markError,
   markSeriesError,
+  newClientKey,
   noteUploaded,
   presentQueue,
   queueComment,
@@ -1410,6 +1517,7 @@ module.exports = {
   queueRemoveComment,
   queueSeries,
   queueUpdate,
+  retainUpload,
   rememberDetail,
   rememberSeries,
   savedSeries,
