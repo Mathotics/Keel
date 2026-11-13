@@ -593,6 +593,137 @@ test("a conflict with no saved-field difference says the copies still match", ()
   assert.deepEqual(diff.changes, []);
 });
 
+test("an update is dropped when the saved fields already match the server", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat", status: "in_progress" }, { online: false }).store;
+  const server = {
+    ...snapshot().issues[0],
+    title: "Boat",
+    status: "in_progress",
+    description: null,
+    updated_at: "2026-10-04T00:00:00",
+  };
+  let sent = false;
+  const uploaded = await uploadQueue(store, {
+    async read() {
+      return server;
+    },
+    async send() {
+      sent = true;
+      return server;
+    },
+  });
+  assert.equal(sent, false);
+  assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[9].conflict, null);
+  assert.equal(uploaded.projects[3].issues[9].pending, false);
+  assert.equal(uploaded.projects[3].issues[9].raw.title, "Boat");
+  assert.equal(uploaded.projects[3].issues[9].raw.status, "in_progress");
+  assert.equal(uploaded.projects[3].issues[9].baseUpdatedAt, "2026-10-04T00:00:00");
+  assert.equal(uploaded.projects[3].issues[9].page.title, "Boat");
+});
+
+test("a matching update already marked as a conflict is dropped without asking", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  const server = { ...snapshot().issues[0], title: "Boat", updated_at: "2026-10-04T00:00:00" };
+  store = markConflict(store, 9, { kind: "changed", server });
+  const uploaded = await uploadQueue(store, {
+    async read() {
+      throw new Error("the server copy is already saved on the conflict");
+    },
+    async send() {
+      throw new Error("should not upload");
+    },
+  });
+  assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[9].conflict, null);
+  assert.equal(uploaded.projects[3].issues[9].pending, false);
+  assert.equal(uploaded.projects[3].issues[9].raw.title, "Boat");
+  assert.equal(uploaded.projects[3].issues[9].baseUpdatedAt, "2026-10-04T00:00:00");
+});
+
+test("a comment queued ahead of a matching update still uploads", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const added = queueComment(store, 9, "Hello", "Cursor");
+  store = queueUpdate(added.store, 9, { title: "Boat" }, { online: false }).store;
+  const server = { ...snapshot().issues[0], title: "Boat", updated_at: "2026-10-04T00:00:00" };
+  store = markConflict(store, 9, { kind: "changed", server });
+  const uploaded = await uploadQueue(store, {
+    async read() {
+      throw new Error("the server copy is already saved on the conflict");
+    },
+    async send(method, path, body) {
+      assert.equal(method, "POST");
+      assert.equal(path, "/api/v1/issues/9/comments");
+      assert.equal(body.body, "Hello");
+      return { id: 4, author_id: 4, body: "Hello", created_at: "2026-10-05T00:00:00" };
+    },
+  });
+  assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[9].conflict, null);
+  assert.equal(uploaded.projects[3].issues[9].pending, false);
+  assert.equal(uploaded.projects[3].issues[9].page.comments[0].body, "Hello");
+});
+
+test("a matching update is dropped and a waiting comment still uploads", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  const added = queueComment(store, 9, "Hello", "Cursor");
+  const server = { ...snapshot().issues[0], title: "Boat", updated_at: "2026-10-04T00:00:00" };
+  const uploaded = await uploadQueue(added.store, {
+    async read() {
+      return server;
+    },
+    async send(method, path, body) {
+      assert.equal(method, "POST");
+      assert.equal(path, "/api/v1/issues/9/comments");
+      assert.equal(body.body, "Hello");
+      return { id: 4, author_id: 4, body: "Hello", created_at: "2026-10-05T00:00:00" };
+    },
+  });
+  assert.equal(uploaded.queue.length, 0);
+  assert.equal(uploaded.projects[3].issues[9].conflict, null);
+  assert.equal(uploaded.projects[3].issues[9].pending, false);
+  assert.equal(uploaded.projects[3].issues[9].raw.title, "Boat");
+  assert.equal(uploaded.projects[3].issues[9].page.comments.length, 1);
+  assert.equal(uploaded.projects[3].issues[9].page.comments[0].body, "Hello");
+});
+
+test("a delete still waits when the server timestamp moved and the fields match", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  const removed = queueDelete(store, 9);
+  const held = await uploadQueue(removed.store, {
+    async read() {
+      return { ...snapshot().issues[0], updated_at: "2026-10-04T00:00:00" };
+    },
+    async send() {
+      throw new Error("should not delete");
+    },
+  });
+  assert.equal(held.projects[3].issues[9].conflict.kind, "changed");
+  assert.equal(held.queue.length, 1);
+  assert.equal(held.queue[0].kind, "delete");
+});
+
+test("an update that differs from the server still waits", async () => {
+  let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
+  store = queueUpdate(store, 9, { title: "Boat" }, { online: false }).store;
+  const held = await uploadQueue(store, {
+    async read() {
+      return { ...snapshot().issues[0], title: "Hull", updated_at: "2026-10-04T00:00:00" };
+    },
+    async send() {
+      throw new Error("should not upload");
+    },
+  });
+  assert.equal(held.projects[3].issues[9].conflict.kind, "changed");
+  assert.equal(held.projects[3].issues[9].raw.title, "Boat");
+  assert.equal(held.queue.length, 1);
+  const diff = conflictView(held, held.projects[3].issues[9]);
+  assert.deepEqual(diff.changes.map((change) => change.field), ["Title"]);
+});
+
 test("unknown sprints stay distinct in a conflict", () => {
   let store = applyRefresh(emptyStore(), [snapshot()], { people: [], labels: [] });
   store = queueUpdate(store, 9, { sprint_id: 8 }, { online: true, sprint: { id: 8, name: "Next" } }).store;

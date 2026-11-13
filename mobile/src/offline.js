@@ -1358,6 +1358,71 @@ function conflictFieldValue(store, issue, key, value) {
   return shown === "Cleared" ? "None" : shown;
 }
 
+function savedFieldChanges(store, issue, server) {
+  const phone = (issue && issue.raw) || {};
+  const remote = server || {};
+  const changes = [];
+  for (const [key, label] of CONFLICT_FIELDS) {
+    const phoneText = conflictFieldValue(store, issue, key, phone[key]);
+    const serverText = conflictFieldValue(store, issue, key, remote[key]);
+    if (phoneText === serverText) {
+      continue;
+    }
+    changes.push({ field: label, phone: phoneText, server: serverText });
+  }
+  return changes;
+}
+
+function requestAlreadyOnServer(store, issue, server, body) {
+  if (!issue || !server || savedFieldChanges(store, issue, server).length) {
+    return false;
+  }
+  const payload = body && typeof body === "object" ? body : {};
+  for (const key of Object.keys(payload)) {
+    const phoneText = conflictFieldValue(store, issue, key, payload[key]);
+    const serverText = conflictFieldValue(store, issue, key, server[key]);
+    if (phoneText !== serverText) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// The phone and the server already show the same saved fields. Sending the
+// update would not change the ticket, so drop that request and keep the server
+// copy (including its newer timestamp).
+function acceptUnchangedServer(store, item, serverIssue) {
+  const issue = findIssue(store, item && item.issueId);
+  if (!issue || !serverIssue || !item) {
+    return null;
+  }
+  if (item.kind !== "update" && item.kind !== "patch") {
+    return null;
+  }
+  if (!requestAlreadyOnServer(store, issue, serverIssue, item.body)) {
+    return null;
+  }
+  const next = clone(store);
+  const record = findIssue(next, item.issueId);
+  const clientKey = record.raw && record.raw.client_key;
+  next.queue = next.queue.filter((entry) => entry.id !== item.id);
+  record.raw = { ...record.raw, ...serverIssue };
+  if (clientKey && record.raw.client_key == null) {
+    record.raw.client_key = clientKey;
+  }
+  record.baseUpdatedAt = serverIssue.updated_at;
+  const project = next.projects[record.projectId];
+  if (record.page) {
+    rewritePage(record, project, next.people, {}, {});
+  }
+  record.conflict = null;
+  record.pending = next.queue.some((entry) => entry.issueId === item.issueId);
+  if (!record.pending) {
+    record.error = null;
+  }
+  return next;
+}
+
 function conflictView(store, issue) {
   if (!issue || !issue.conflict) {
     return null;
@@ -1365,18 +1430,7 @@ function conflictView(store, issue) {
   if (issue.conflict.kind === "deleted" || !issue.conflict.server) {
     return { kind: "deleted", changes: [] };
   }
-  const phone = issue.raw || {};
-  const server = issue.conflict.server || {};
-  const changes = [];
-  for (const [key, label] of CONFLICT_FIELDS) {
-    const phoneText = conflictFieldValue(store, issue, key, phone[key]);
-    const serverText = conflictFieldValue(store, issue, key, server[key]);
-    if (phoneText === serverText) {
-      continue;
-    }
-    changes.push({ field: label, phone: phoneText, server: serverText });
-  }
-  return { kind: "changed", changes };
+  return { kind: "changed", changes: savedFieldChanges(store, issue, issue.conflict.server) };
 }
 
 function finishQueueEdit(issue, queue) {
@@ -1490,6 +1544,7 @@ function presentQueue(store) {
 module.exports = {
   NOT_ON_SERVER,
   absorbIssues,
+  acceptUnchangedServer,
   applyRefresh,
   choosePhone,
   chooseServer,

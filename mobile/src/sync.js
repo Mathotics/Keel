@@ -1,4 +1,11 @@
-const { findIssue, markConflict, markError, markSeriesError, noteUploaded } = require("./offline");
+const {
+  acceptUnchangedServer,
+  findIssue,
+  markConflict,
+  markError,
+  markSeriesError,
+  noteUploaded,
+} = require("./offline");
 
 function restoreComment(store, item) {
   if (!item.comment) {
@@ -44,8 +51,24 @@ async function uploadQueue(store, client) {
     const record = current.projects[item.projectId]
       && current.projects[item.projectId].issues[item.issueId];
     if (record && record.conflict) {
-      held.add(item.issueId);
-      continue;
+      let released = null;
+      if (record.conflict.kind === "changed" && record.conflict.server) {
+        const update = (current.queue || []).find(
+          (entry) =>
+            entry.issueId === item.issueId && (entry.kind === "update" || entry.kind === "patch"),
+        );
+        if (update) {
+          released = acceptUnchangedServer(current, update, record.conflict.server);
+        }
+      }
+      if (!released) {
+        held.add(item.issueId);
+        continue;
+      }
+      current = released;
+      if (!(current.queue || []).some((entry) => entry.id === item.id)) {
+        continue;
+      }
     }
     if (item.kind !== "create" && item.kind !== "comment" && item.kind !== "uncomment") {
       let server;
@@ -68,6 +91,11 @@ async function uploadQueue(store, client) {
         continue;
       }
       if (!item.force && server.updated_at !== item.baseUpdatedAt) {
+        const released = acceptUnchangedServer(current, item, server);
+        if (released) {
+          current = released;
+          continue;
+        }
         current = markConflict(current, item.issueId, { kind: "changed", server });
         held.add(item.issueId);
         continue;
