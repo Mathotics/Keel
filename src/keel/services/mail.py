@@ -7,16 +7,16 @@ from keel.settings import get_settings
 logger = logging.getLogger(__name__)
 
 
-def send(to: str, subject: str, body: str) -> None:
+def send(to: str, subject: str, body: str) -> bool:
     """Hand a plain-text message to SMTP.
 
-    When the host or From address is unset, or the handoff fails, this returns
-    without raising. Callers still show the same notice either way.
+    Returns whether the server accepted it. When the host or From address is
+    unset, or the handoff fails, this returns false without raising.
     """
     settings = get_settings()
     if not settings.smtp_host.strip() or not settings.smtp_from.strip():
         logger.info("Mail is not configured; nothing was sent to %s.", to)
-        return
+        return False
     message = EmailMessage()
     message["From"] = settings.smtp_from.strip()
     message["To"] = to
@@ -33,3 +33,5 @@ def send(to: str, subject: str, body: str) -> None:
             client.send_message(message)
     except OSError:
         logger.exception("Mail to %s was not handed off.", to)
+        return False
+    return True

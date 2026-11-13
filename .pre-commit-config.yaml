@@ -40,6 +40,7 @@ repos:
           - httpx2==2.16.0
           - pytest==8.4.1
           - argon2-cffi==25.1.0
+          - cryptography==50.0.1
         args: [src, tests]
         pass_filenames: false
   - repo: local

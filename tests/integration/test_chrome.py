@@ -88,12 +88,13 @@ def test_create_stands_out_in_the_recorded_palette(client: TestClient) -> None:
 
 
 def test_section_links_sit_beside_the_logo(client: TestClient) -> None:
-    """Home, sections, Find, Help, then the picker, left to right."""
+    """Home, sections, Find, the bell, Help, then the picker, left to right."""
     header = client.get("/").text.split("<header", 1)[1].split("</header>", 1)[0]
     assert (
         header.index("keel-topbar__home")
         < header.index("keel-topbar__nav")
         < header.index("keel-find")
+        < header.index("keel-bell")
         < header.index("keel-admin")
         < header.index("keel-help")
         < header.index("keel-account")
@@ -150,7 +151,8 @@ def test_help_discloses_fastapi_docs_without_javascript(client: TestClient) -> N
     ]
     assert "target=" not in license_tag
     assert (
-        right.index("keel-admin")
+        right.index("keel-bell")
+        < right.index("keel-admin")
         < right.index("keel-help")
         < right.index("keel-account")
     )

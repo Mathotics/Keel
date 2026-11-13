@@ -9,6 +9,7 @@ from keel.api.v1 import (
     issues,
     labels,
     login,
+    notifications,
     profile,
     projects,
     recovery,
@@ -23,6 +24,7 @@ router.include_router(recovery.router)
 router.include_router(users.router)
 router.include_router(access.router)
 router.include_router(profile.router)
+router.include_router(notifications.router)
 router.include_router(projects.router)
 router.include_router(issues.router)
 router.include_router(labels.router)

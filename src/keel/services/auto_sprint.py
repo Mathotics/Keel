@@ -185,8 +185,14 @@ def _rollover(
     active: Sprint,
     today: date,
 ) -> Sprint:
+    from keel.services.history import SYSTEM_ACTOR
+
     _prepare_next(session, project, today, closed_end=active.ends_on)
-    result = sprint_service.complete_sprint(session, active.id)
+    result = sprint_service.complete_sprint(
+        session,
+        active.id,
+        actor_name=SYSTEM_ACTOR,
+    )
     opened = _start_prepared(session, project, today)
     _note_rollover(project, result, opened)
     return opened

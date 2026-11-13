@@ -3,19 +3,36 @@ from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from sqlalchemy.orm import Session
 
-from keel.domain.errors import DomainError, NotFoundError
+from keel.domain.enums import NotificationType
+from keel.domain.errors import (
+    DomainError,
+    InvalidNotificationPreferenceError,
+    NotFoundError,
+)
 from keel.paths import copyright_notice
 from keel.services import auth as auth_service
+from keel.services import notifications as notification_service
+from keel.services import phone as phone_service
 from keel.services import users as user_service
 from keel.services.auth import SESSION_MAX_AGE, LoginRefused
 from keel.services.identity import SESSION_COOKIE, TOKEN_FLASH_COOKIE
+from keel.services.notifications import PreferenceChoice
 from keel.version import package_version
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 
 router = APIRouter()
 SEE_OTHER = 303
+
+
+def _phone_context(session: Session, user_id: int) -> dict[str, str | None]:
+    provider, url = phone_service.setup(session, user_id)
+    return {
+        "phone_delivery": phone_service.describe(provider, url),
+        "phone_subscribe_url": url,
+    }
 
 
 def safe_next(value: str | None) -> str:
@@ -163,6 +180,11 @@ def profile_page(
             new_token=new_token,
             error=error,
             notice=notice,
+            notification_preferences=notification_service.effective_preferences(
+                session,
+                fresh.id,
+            ),
+            **_phone_context(session, fresh.id),
         ),
     )
     if new_token:
@@ -204,6 +226,56 @@ def update_profile(
         session.rollback()
         return _profile(exc.message)
     return _profile(notice="Profile updated.")
+
+
+@router.post("/web/profile/notifications")
+def update_notification_preferences(
+    session: SessionDep,
+    chrome: ChromeDep,
+    notice_type: Annotated[list[str] | None, Form()] = None,
+    email: Annotated[list[str] | None, Form()] = None,
+    phone: Annotated[list[str] | None, Form()] = None,
+    bell: Annotated[list[str] | None, Form()] = None,
+) -> RedirectResponse:
+    user = chrome.current_user
+    assert user is not None
+    try:
+        choices = _posted_preferences(
+            notice_type or [],
+            email or [],
+            phone or [],
+            bell or [],
+        )
+        notification_service.replace_preferences(session, user.id, choices)
+    except InvalidNotificationPreferenceError as exc:
+        session.rollback()
+        return _profile(exc.message)
+    return _profile(notice="Notification preferences saved.")
+
+
+def _posted_preferences(
+    posted: list[str],
+    emails: list[str],
+    phones: list[str],
+    bells: list[str],
+) -> list[PreferenceChoice]:
+    try:
+        chosen = [NotificationType(item) for item in posted]
+    except ValueError:
+        raise InvalidNotificationPreferenceError(
+            "Choose every notification type.",
+        ) from None
+    if chosen != list(NotificationType):
+        raise InvalidNotificationPreferenceError("Choose every notification type.")
+    return [
+        PreferenceChoice(
+            type=item,
+            email=item.value in emails,
+            phone=item.value in phones,
+            bell=item.value in bells,
+        )
+        for item in NotificationType
+    ]
 
 
 @router.post("/web/profile/password")

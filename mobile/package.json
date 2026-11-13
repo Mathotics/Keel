@@ -8,6 +8,7 @@
     "expo-build-properties": "~57.0.22",
     "expo-device": "~57.0.2",
     "expo-local-authentication": "~57.0.3",
+    "expo-notifications": "~57.0.25",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
@@ -18,7 +19,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "node --test src/origin.test.js src/lock.test.js src/password.test.js src/work.test.js src/issue.test.js src/offline.test.js src/create.test.js src/inbox.test.js src/home.test.js src/board.test.js src/backlog.test.js src/planning.test.js src/find.test.js src/calendar.test.js src/gantt.test.js src/series.test.js src/filters.test.js src/project.test.js src/account.test.js src/lookup.test.js src/when.test.js src/license.test.js src/reach.test.js src/swipe.test.js"
+    "test": "node --test src/origin.test.js src/lock.test.js src/password.test.js src/work.test.js src/issue.test.js src/offline.test.js src/create.test.js src/inbox.test.js src/home.test.js src/board.test.js src/backlog.test.js src/planning.test.js src/find.test.js src/calendar.test.js src/gantt.test.js src/series.test.js src/filters.test.js src/project.test.js src/account.test.js src/notifications.test.js src/phone.test.js src/lookup.test.js src/when.test.js src/license.test.js src/reach.test.js src/swipe.test.js"
   },
   "private": true
 }

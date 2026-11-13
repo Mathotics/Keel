@@ -148,6 +148,16 @@ class InvalidCommentError(DomainError):
     status_code = 422
 
 
+class InvalidNotificationError(DomainError):
+    code = "notification.invalid"
+    status_code = 422
+
+
+class InvalidNotificationPreferenceError(DomainError):
+    code = "notification.invalid_preference"
+    status_code = 422
+
+
 class InvalidParentTypeError(DomainError):
     code = "issue.invalid_parent_type"
 

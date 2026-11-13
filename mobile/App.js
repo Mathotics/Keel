@@ -11,6 +11,7 @@ import {
   Modal,
   PanResponder,
   Platform,
+  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -40,6 +41,8 @@ import { connectionMode, forcedOffline, reachability, reachabilityKnown, setForc
 import { ALWAYS, ON_LAUNCH, ON_RESUME, shouldUnlock } from "./src/lock";
 import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
+import { PHONE_NOTE, appBarSlots, bellState, mergeInbox, noticeCacheKey, noticeList, openNotice, preferenceBody, preferenceRows, togglePreference, viewedNotices, withoutNotice } from "./src/notifications";
+import { phoneDelivery, phoneSetup, pushIsFresh, pushIssueId } from "./src/phone";
 import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS, foldedStories } from "./src/work";
 import {
@@ -162,6 +165,9 @@ export default function App() {
   const [boardProjectId, setBoardProjectId] = useState(null);
   const [accountView, setAccountView] = useState(null);
   const [accountLink, setAccountLink] = useState("loading");
+  const [notices, setNotices] = useState([]);
+  const [noticeError, setNoticeError] = useState("");
+  const [phoneAlert, setPhoneAlert] = useState(phoneSetup(null));
   const [settingsProjectId, setSettingsProjectId] = useState(null);
   const [settingsProject, setSettingsProject] = useState(null);
   const [settingsLink, setSettingsLink] = useState("loading");
@@ -203,6 +209,7 @@ export default function App() {
   const [homeLayout, setHomeLayout] = useState(null);
   const accountRef = useRef(null);
   const phaseRef = useRef("booting");
+  const openedPushRef = useRef(false);
   const libraryRef = useRef(emptyStore());
   const libraryGen = useRef(0);
   const librarySyncedAt = useRef(0);
@@ -619,6 +626,187 @@ export default function App() {
       forced: forcedOffline(),
     });
   }
+
+  async function loadNotices(current) {
+    const person = current || account;
+    if (!person) {
+      return [];
+    }
+    const key = noticeCacheKey(person.userId);
+    let cached = [];
+    try {
+      const raw = await AsyncStorage.getItem(key);
+      cached = raw ? JSON.parse(raw) : [];
+    } catch {
+      cached = [];
+    }
+    if (knownOffline()) {
+      const saved = mergeInbox(cached, null, false);
+      setNotices(saved);
+      return saved;
+    }
+    try {
+      const server = await read(person.origin, person.token, "/api/v1/notifications");
+      const live = mergeInbox(cached, server, true);
+      await AsyncStorage.setItem(key, JSON.stringify(live));
+      setNotices(live);
+      setNoticeError("");
+      return live;
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+      const saved = mergeInbox(cached, null, false);
+      setNotices(saved);
+      return saved;
+    }
+  }
+
+  async function markNoticesRead(current, list) {
+    const person = current || account;
+    const ids = viewedNotices(list);
+    if (!person || !ids.length || knownOffline()) {
+      return list;
+    }
+    await Promise.all(ids.map(async (id) => {
+      try {
+        await send(person.origin, person.token, "POST", `/api/v1/notifications/${id}/read`);
+      } catch (err) {
+        if (err.status === 401) {
+          throw err;
+        }
+      }
+    }));
+    return loadNotices(person);
+  }
+
+  async function registerPhone(person) {
+    let Notifications;
+    try {
+      Notifications = require("expo-notifications");
+    } catch {
+      return;
+    }
+    try {
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("keel-alerts", {
+          name: "Alerts",
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+      }
+      const permission = await Notifications.requestPermissionsAsync();
+      if (!permission || permission.status !== "granted") {
+        return;
+      }
+      const device = await Notifications.getDevicePushTokenAsync();
+      const token = device && device.data ? String(device.data) : "";
+      if (!token) {
+        return;
+      }
+      await send(person.origin, person.token, "PUT", "/api/v1/notifications/phone/token", { token });
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+    }
+  }
+
+  async function refreshPhone(person) {
+    if (knownOffline()) {
+      return;
+    }
+    try {
+      const setup = phoneSetup(await read(person.origin, person.token, "/api/v1/notifications/phone"));
+      setPhoneAlert(setup);
+      if (setup.mode === "fcm") {
+        await registerPhone(person);
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!account) {
+      setNotices([]);
+      setPhoneAlert(phoneSetup(null));
+      return undefined;
+    }
+    let stopped = false;
+    async function refresh() {
+      try {
+        const list = await loadNotices(account);
+        if (stopped) {
+          return;
+        }
+        await refreshPhone(account);
+        if (phaseRef.current === "notifications") {
+          await markNoticesRead(account, list);
+        }
+      } catch (err) {
+        if (!stopped && err.status === 401) {
+          await clearAccount();
+          setTone("error");
+          setMessage("Sign in.");
+        }
+      }
+    }
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [account]);
+
+  useEffect(() => {
+    if (!account) {
+      return undefined;
+    }
+    let Notifications;
+    try {
+      Notifications = require("expo-notifications");
+    } catch {
+      return undefined;
+    }
+    function openIssue(response) {
+      const issueId = pushIssueId(response);
+      if (!issueId) {
+        return;
+      }
+      setIssueId(issueId);
+      setPhase("issue");
+    }
+    let subscription;
+    try {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowBanner: true,
+          shouldShowList: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+      subscription = Notifications.addNotificationResponseReceivedListener(openIssue);
+      if (!openedPushRef.current) {
+        openedPushRef.current = true;
+        Notifications.getLastNotificationResponseAsync().then((response) => {
+          if (pushIsFresh(response, Date.now())) {
+            openIssue(response);
+          }
+        }).catch(() => {});
+      }
+    } catch {
+      return undefined;
+    }
+    return () => {
+      if (subscription && subscription.remove) {
+        subscription.remove();
+      }
+    };
+  }, [account]);
 
   function useSavedCopy() {
     setInboxMode("offline");
@@ -2098,6 +2286,105 @@ export default function App() {
     setPhase("settings");
   }
 
+  async function openNotifications() {
+    if (TAB_PHASES.includes(phase)) {
+      listPhase.current = phase;
+    }
+    setNoticeError("");
+    setDrawerOpen(false);
+    setPhase("notifications");
+    try {
+      const list = await loadNotices(account);
+      await markNoticesRead(account, list);
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setNoticeError(err.message || FAILED);
+    }
+  }
+
+  async function openNoticeItem(row) {
+    const choice = openNotice(row);
+    if (choice.missing) {
+      setNoticeError("That notification does not exist.");
+      return;
+    }
+    if (!knownOffline()) {
+      try {
+        await send(account.origin, account.token, "POST", `/api/v1/notifications/${row.id}/read`);
+        await loadNotices(account);
+      } catch (err) {
+        if (err.status === 401) {
+          await clearAccount();
+          setTone("error");
+          setMessage("Sign in.");
+          return;
+        }
+      }
+    }
+    if (choice.issueId == null) {
+      return;
+    }
+    setIssueId(choice.issueId);
+    setPhase("issue");
+  }
+
+  async function deleteNoticeItem(row) {
+    if (knownOffline()) {
+      setNoticeError(FAILED);
+      return;
+    }
+    try {
+      await send(account.origin, account.token, "DELETE", `/api/v1/notifications/${row.id}`);
+      const next = withoutNotice(notices, row.id);
+      setNotices(next);
+      await AsyncStorage.setItem(noticeCacheKey(account.userId), JSON.stringify(next));
+      setNoticeError("");
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return;
+      }
+      setNoticeError(err.message || FAILED);
+    }
+  }
+
+  async function savePreferences(rows) {
+    if (knownOffline()) {
+      return ACCOUNT_OFFLINE;
+    }
+    setBusy(true);
+    try {
+      const saved = await send(
+        account.origin,
+        account.token,
+        "PUT",
+        "/api/v1/notifications/preferences",
+        preferenceBody(rows),
+      );
+      setAccountView((current) => (
+        current ? { ...current, preferences: preferenceRows(saved) } : current
+      ));
+      return null;
+    } catch (err) {
+      if (err.status === 401) {
+        await clearAccount();
+        setTone("error");
+        setMessage("Sign in.");
+        return "Sign in.";
+      }
+      return err.message || FAILED;
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openAccount() {
     if (TAB_PHASES.includes(phase)) {
       listPhase.current = phase;
@@ -2114,7 +2401,22 @@ export default function App() {
         read(account.origin, account.token, "/api/v1/profile/tokens"),
         loadCatalog(account.origin, account.token),
       ]);
-      setAccountView({ profile, tokens: tokens || [], people: catalog.people || [] });
+      let preferences = preferenceRows([]);
+      try {
+        preferences = preferenceRows(
+          await read(account.origin, account.token, "/api/v1/notifications/preferences"),
+        );
+      } catch (prefErr) {
+        if (prefErr.status === 401) {
+          throw prefErr;
+        }
+      }
+      setAccountView({
+        profile,
+        tokens: tokens || [],
+        people: catalog.people || [],
+        preferences,
+      });
       setAccountLink("online");
       const next = { ...library, people: catalog.people || [], labels: catalog.labels || library.labels };
       await persistLibrary(account.userId, next);
@@ -2291,6 +2593,7 @@ export default function App() {
       create: "Create issue",
       settings: "Settings",
       account: "Profile",
+      notifications: "Notifications",
       license: "License",
       queue: "Offline Queue",
       issue: "Issue",
@@ -2306,7 +2609,7 @@ export default function App() {
       setPhase(listPhase.current);
       return;
     }
-    if (phase === "create" || phase === "settings" || phase === "account" || phase === "license") {
+    if (phase === "create" || phase === "settings" || phase === "account" || phase === "notifications" || phase === "license") {
       setMessage("");
       setPhase(listPhase.current);
       return;
@@ -2464,6 +2767,7 @@ export default function App() {
       <StatusBar style={signedIn ? "light" : "dark"} />
       {signedIn ? (
         <AppBar
+          bellLabel={bellState(notices).label}
           initialsText={initials(account.displayName)}
           menu={MENU_PHASES.includes(phase)}
           onAvatar={() => {
@@ -2471,10 +2775,12 @@ export default function App() {
             openAccount();
           }}
           onBack={requestBack}
+          onBell={openNotifications}
           onMenu={() => setDrawerOpen(true)}
           onConnection={toggleForceOffline}
           online={connectionMode(online, forceOffline)}
           title={barTitle()}
+          unread={bellState(notices).dot}
         />
       ) : (
         <Text style={styles.title}>Keel</Text>
@@ -3353,6 +3659,14 @@ export default function App() {
           library={library}
         />
       ) : null}
+      {phase === "notifications" && account ? (
+        <NotificationsScreen
+          error={noticeError}
+          notices={notices}
+          onDelete={deleteNoticeItem}
+          onOpen={openNoticeItem}
+        />
+      ) : null}
       {phase === "account" && account ? (
         <AccountScreen
           busy={busy}
@@ -3363,8 +3677,10 @@ export default function App() {
           view={accountView}
           onRevoke={askRevokeDevice}
           onSavePassword={savePassword}
+          onSavePreferences={savePreferences}
           onSaveProfile={saveProfile}
           onSignOut={onSignOut}
+          phoneAlert={phoneAlert}
         />
       ) : null}
       {phase === "settings" && account ? (
@@ -6321,7 +6637,16 @@ function StatusChip({ label, status }) {
   );
 }
 
-function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online, onConnection }) {
+function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online, onConnection, unread, bellLabel, onBell }) {
+  const trailing = {
+    connection: <ConnectionMark key="connection" mode={online} onPress={onConnection} />,
+    bell: <BellMark key="bell" label={bellLabel} onPress={onBell} unread={unread} />,
+    profile: (
+      <Pressable key="profile" accessibilityLabel="Profile" accessibilityRole="button" hitSlop={12} onPress={onAvatar} style={styles.avatar}>
+        <Text style={styles.avatarText}>{initialsText}</Text>
+      </Pressable>
+    ),
+  };
   return (
     <View style={styles.appBar}>
       <Pressable
@@ -6334,11 +6659,48 @@ function AppBar({ title, menu, onMenu, onBack, initialsText, onAvatar, online, o
         <Text style={styles.appBarIcon}>{menu ? "☰" : "‹"}</Text>
       </Pressable>
       <Text numberOfLines={1} style={styles.appBarTitle}>{title}</Text>
-      <ConnectionMark mode={online} onPress={onConnection} />
-      <Pressable accessibilityLabel="Profile" accessibilityRole="button" hitSlop={12} onPress={onAvatar} style={styles.avatar}>
-        <Text style={styles.avatarText}>{initialsText}</Text>
-      </Pressable>
+      {appBarSlots().map((slot) => trailing[slot])}
     </View>
+  );
+}
+
+function BellMark({ label, onPress, unread }) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      hitSlop={12}
+      onPress={onPress}
+      style={styles.bell}
+    >
+      <View style={styles.bellDome} />
+      <View style={styles.bellLip} />
+      {unread ? <View style={styles.bellDot} /> : null}
+    </Pressable>
+  );
+}
+
+function NotificationsScreen({ notices, error, onOpen, onDelete }) {
+  const list = noticeList(notices);
+  return (
+    <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {list.empty ? <Text style={styles.message}>{list.empty}</Text> : null}
+      {list.rows.map((row) => (
+        <View key={row.id} style={[styles.issue, row.unread ? styles.noticeUnread : null]}>
+          {row.linked ? (
+            <Pressable accessibilityRole="button" onPress={() => onOpen(row)}>
+              <Text style={styles.issueKey}>{row.heading}</Text>
+            </Pressable>
+          ) : (
+            <Text style={styles.issueKey}>{row.heading}</Text>
+          )}
+          <Text style={styles.message}>{row.actorName}</Text>
+          {row.body ? <Text style={styles.body}>{row.body}</Text> : null}
+          <TextButton label="Delete" onPress={() => onDelete(row)} />
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
@@ -6573,8 +6935,10 @@ function AccountScreen({
   tokenId,
   onSaveProfile,
   onSavePassword,
+  onSavePreferences,
   onRevoke,
   onSignOut,
+  phoneAlert,
 }) {
   const profile = view && view.profile;
   const [displayName, setDisplayName] = useState(profile ? profile.display_name : "");
@@ -6586,6 +6950,10 @@ function AccountScreen({
   const [profileNotice, setProfileNotice] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [passwordNotice, setPasswordNotice] = useState("");
+  const [preferences, setPreferences] = useState(view && view.preferences ? view.preferences : preferenceRows([]));
+  const [preferenceError, setPreferenceError] = useState("");
+  const [preferenceNotice, setPreferenceNotice] = useState("");
+  const preferenceKey = JSON.stringify(view && view.preferences ? view.preferences : []);
   const profileKey = profile ? `${profile.id}|${profile.display_name}|${profile.username}` : "";
   useEffect(() => {
     if (!profile) {
@@ -6594,6 +6962,9 @@ function AccountScreen({
     setDisplayName(profile.display_name || "");
     setLogin(profile.username || "");
   }, [profileKey]);
+  useEffect(() => {
+    setPreferences(view && view.preferences ? view.preferences : preferenceRows([]));
+  }, [preferenceKey]);
   const tokens = (view && view.tokens ? view.tokens : []).slice().sort((left, right) => {
     const leftMine = isThisPhone(left, tokenId) ? 0 : 1;
     const rightMine = isThisPhone(right, tokenId) ? 0 : 1;
@@ -6620,6 +6991,45 @@ function AccountScreen({
               setProfileError(failure || "");
               if (!failure) {
                 setProfileNotice("Saved.");
+              }
+            }}
+          />
+          <Text style={styles.sectionHeading}>Notifications</Text>
+          <Text style={styles.message}>{PHONE_NOTE} {phoneDelivery(phoneAlert)}</Text>
+          {phoneAlert && phoneAlert.subscribeUrl ? (
+            <TextButton label="Open in ntfy" onPress={() => Linking.openURL(phoneAlert.subscribeUrl)} />
+          ) : null}
+          {preferences.map((row) => (
+            <View key={row.type} style={styles.issue}>
+              <Text style={styles.choiceText}>{row.label}</Text>
+              {["email", "phone", "bell"].map((channel) => (
+                <View key={channel} style={styles.projectSwitch}>
+                  <Text style={styles.choiceText}>
+                    {channel === "phone" ? "Phone alert" : channel === "email" ? "Email" : "Bell"}
+                  </Text>
+                  <Switch
+                    accessibilityLabel={`${channel === "phone" ? "Phone alert" : channel === "email" ? "Email" : "Bell"} for ${row.label}`}
+                    disabled={busy}
+                    onValueChange={() => setPreferences(togglePreference(preferences, row.type, channel))}
+                    thumbColor={row[channel] ? "#FFFFFF" : "#8AA0B2"}
+                    trackColor={{ false: "#D5E2EC", true: "#0068B0" }}
+                    value={row[channel]}
+                  />
+                </View>
+              ))}
+            </View>
+          ))}
+          {preferenceError ? <Text style={styles.error}>{preferenceError}</Text> : null}
+          {preferenceNotice ? <Text style={[styles.message, styles.ok]}>{preferenceNotice}</Text> : null}
+          <PrimaryButton
+            label="Save notifications"
+            disabled={busy}
+            onPress={async () => {
+              setPreferenceNotice("");
+              const failure = await onSavePreferences(preferences);
+              setPreferenceError(failure || "");
+              if (!failure) {
+                setPreferenceNotice("Notification preferences saved.");
               }
             }}
           />
@@ -7188,6 +7598,44 @@ const styles = StyleSheet.create({
     top: 3,
     transform: [{ rotate: "45deg" }],
     width: 2,
+  },
+  bell: {
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    height: 32,
+    justifyContent: "center",
+    marginRight: 8,
+    width: 32,
+  },
+  bellDome: {
+    backgroundColor: "#0068B0",
+    borderTopLeftRadius: 7,
+    borderTopRightRadius: 7,
+    height: 9,
+    width: 12,
+  },
+  bellLip: {
+    backgroundColor: "#0068B0",
+    borderRadius: 1,
+    height: 2,
+    marginTop: 1,
+    width: 16,
+  },
+  bellDot: {
+    backgroundColor: "#0068B0",
+    borderColor: "#FFFFFF",
+    borderRadius: 5,
+    borderWidth: 1.5,
+    height: 8,
+    position: "absolute",
+    right: 1,
+    top: 1,
+    width: 8,
+  },
+  noticeUnread: {
+    backgroundColor: "#E8F3FB",
+    borderColor: "#0068B0",
   },
   avatar: {
     alignItems: "center",

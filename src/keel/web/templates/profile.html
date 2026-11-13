@@ -45,6 +45,56 @@
         </form>
       </div>
       <div class="keel-panel">
+        <h2>Notifications</h2>
+        <p class="keel-note">Phone alert is saved here. {{ phone_delivery }}</p>
+        {% if phone_subscribe_url %}
+        <p class="keel-note"><a href="{{ phone_subscribe_url }}">{{ phone_subscribe_url }}</a></p>
+        {% endif %}
+        <form class="keel-form" method="post" action="/web/profile/notifications">
+          <div class="keel-table-scroll">
+            <table class="keel-table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Email</th>
+                  <th>Phone alert</th>
+                  <th>Bell</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for choice in notification_preferences %}
+                <tr>
+                  <th scope="row">
+                    {{ choice.type|label }}
+                    <input type="hidden" name="notice_type" value="{{ choice.type.value }}"/>
+                  </th>
+                  <td>
+                    <label>
+                      <span class="keel-visually-hidden">Email for {{ choice.type|label }}</span>
+                      <input type="checkbox" name="email" value="{{ choice.type.value }}"{% if choice.email %} checked{% endif %}/>
+                    </label>
+                  </td>
+                  <td>
+                    <label>
+                      <span class="keel-visually-hidden">Phone alert for {{ choice.type|label }}</span>
+                      <input type="checkbox" name="phone" value="{{ choice.type.value }}"{% if choice.phone %} checked{% endif %}/>
+                    </label>
+                  </td>
+                  <td>
+                    <label>
+                      <span class="keel-visually-hidden">Bell for {{ choice.type|label }}</span>
+                      <input type="checkbox" name="bell" value="{{ choice.type.value }}"{% if choice.bell %} checked{% endif %}/>
+                    </label>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="keel-form-actions"><button class="keel-primary" type="submit">Save notifications</button></p>
+        </form>
+      </div>
+      <div class="keel-panel">
         <h2>Password</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/profile/password">
           <div class="keel-fields">

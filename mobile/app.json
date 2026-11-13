@@ -37,6 +37,8 @@
         }
       ],
       "./plugins/withReleaseSigning",
+      "./plugins/withFirebase",
+      "expo-notifications",
       "expo-secure-store",
       "expo-local-authentication"
     ]

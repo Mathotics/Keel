@@ -24,6 +24,7 @@ dependencies = [
     "python-multipart==0.0.32",
     "markdown==3.10.3",
     "bleach==6.4.0",
+    "cryptography==50.0.1",
 ]
 
 [project.optional-dependencies]

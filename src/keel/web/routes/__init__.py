@@ -9,6 +9,7 @@ from keel.web.routes import (
     forms,
     issues,
     lookup,
+    notifications,
     pages,
     project_access,
     projects,
@@ -21,6 +22,7 @@ from keel.web.routes import (
 
 router = APIRouter()
 router.include_router(account.router)
+router.include_router(notifications.router)
 router.include_router(recovery.router)
 router.include_router(admin.router)
 router.include_router(access.router)

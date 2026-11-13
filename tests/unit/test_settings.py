@@ -25,6 +25,9 @@ def test_default_settings() -> None:
     assert settings.seed_sign_in is True
     assert settings.request_log_max_age_days == 30
     assert settings.request_log_max_bytes == 100 * 1024 * 1024
+    assert settings.notification_read_retention_days == 3
+    assert settings.notification_issued_retention_days == 14
+    assert settings.notification_update_quiet_minutes == 5
 
 
 @pytest.mark.usefixtures("unconfigured")

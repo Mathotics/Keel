@@ -1,4 +1,5 @@
 from contextvars import ContextVar, Token
+from typing import NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -12,26 +13,45 @@ _acting_display_name: ContextVar[str | None] = ContextVar(
     "keel_acting_display_name",
     default=None,
 )
+_acting_user_id: ContextVar[int | None] = ContextVar(
+    "keel_acting_user_id",
+    default=None,
+)
 
 
-def bind_acting_user(user: User | None) -> Token[str | None]:
+class ActingUserToken(NamedTuple):
+    name: Token[str | None]
+    user_id: Token[int | None]
+
+
+def bind_acting_user(user: User | None) -> ActingUserToken:
     name = None if user is None else user.display_name
-    return _acting_display_name.set(name)
+    user_id = None if user is None else user.id
+    return ActingUserToken(
+        _acting_display_name.set(name),
+        _acting_user_id.set(user_id),
+    )
 
 
-def reset_acting_user(token: Token[str | None] | None = None) -> None:
+def reset_acting_user(token: ActingUserToken | None = None) -> None:
     """Clear the bound actor. Token reset can fail across TestClient contexts."""
     if token is not None:
         try:
-            _acting_display_name.reset(token)
+            _acting_display_name.reset(token.name)
+            _acting_user_id.reset(token.user_id)
             return
         except ValueError:
             pass
     _acting_display_name.set(None)
+    _acting_user_id.set(None)
 
 
 def acting_display_name() -> str | None:
     return _acting_display_name.get()
+
+
+def acting_user_id() -> int | None:
+    return _acting_user_id.get()
 
 
 def resolve_current_user(
