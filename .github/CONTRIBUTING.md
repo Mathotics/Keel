@@ -42,6 +42,14 @@ Branch from `main` and name the branch after the Keel key, for example `KEEL-45`
 .\scripts\deploy-worktree.ps1 KEEL-45
 ```
 
+[`scripts/delete-worktree.ps1`](../scripts/delete-worktree.ps1) (and the `.bat` and `.sh` siblings) removes that worktree directory and its local branch:
+
+```powershell
+.\scripts\delete-worktree.ps1 KEEL-45
+```
+
+`--force` discards uncommitted changes and deletes a branch that is not fully merged. A remote branch is left in place.
+
 ## Make the change
 
 A few rules hold across the codebase:
