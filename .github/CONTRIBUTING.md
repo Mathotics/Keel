@@ -2,7 +2,7 @@
 
 Keel is proprietary. [LICENSE](../LICENSE) requires prior written permission from the copyright holder before you copy or modify it, so code comes from the copyright holder and the collaborators he has invited. Anyone running Keel can still report a problem or propose a change.
 
-This guide is the checklist for a change from ticket to production, and it is the long form of the Contributing section in the [README](../README.md).
+This guide is the checklist for a change from ticket to production, and it is the long form of the Contributing section in the [README](../README.md). The [Code of Conduct](../CODE_OF_CONDUCT.md) covers how people behave in issues, pull requests, and other project spaces.
 
 ## Where work comes from
 
