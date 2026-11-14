@@ -1,11 +1,12 @@
 import json
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
 from keel.db.models import User
+from keel.domain.access import Permission
 from keel.domain.enums import (
     IssuePriority,
     IssueType,
@@ -26,6 +27,8 @@ from keel.services import series as series_service
 from keel.services import series_tree
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.guards import require_project_key
+from keel.web.guards import require_series as guard_series_page
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 
 router = APIRouter(prefix="/projects")
@@ -71,7 +74,11 @@ def _items_config(
     }
 
 
-@router.get("/{key}/schedules", response_class=HTMLResponse)
+@router.get(
+    "/{key}/schedules",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_SCHEDULES))],
+)
 def schedules_page(
     key: str,
     request: Request,
@@ -137,7 +144,11 @@ def schedules_page(
     )
 
 
-@router.get("/{key}/schedules/{series_id}", response_class=HTMLResponse)
+@router.get(
+    "/{key}/schedules/{series_id}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(guard_series_page(Permission.VIEW_SCHEDULES))],
+)
 def schedule_detail_page(
     key: str,
     series_id: int,

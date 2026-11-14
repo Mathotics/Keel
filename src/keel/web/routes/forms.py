@@ -67,6 +67,7 @@ from keel.web.forbid import require_page, require_project_page
 from keel.web.guards import require_comment_delete, require_dependency_delete
 from keel.web.guards import require_issue as guard_issue_page
 from keel.web.guards import require_project as guard_project_page
+from keel.web.guards import require_series as guard_series_page
 from keel.web.guards import require_sprint as guard_sprint_page
 from keel.web.home_layout import (
     HOME_COOKIE,
@@ -1639,7 +1640,10 @@ def complete_sprint(
     return _back(here, notice=notice)
 
 
-@router.post("/projects/{project_id}/schedules")
+@router.post(
+    "/projects/{project_id}/schedules",
+    dependencies=[Depends(guard_project_page(Permission.CREATE_SCHEDULES))],
+)
 def create_schedule(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1718,7 +1722,10 @@ def create_schedule(
     return _back(f"/projects/{project.key}/schedules/{series.id}")
 
 
-@router.post("/schedules/{series_id}/update")
+@router.post(
+    "/schedules/{series_id}/update",
+    dependencies=[Depends(guard_series_page(Permission.EDIT_SCHEDULES))],
+)
 def update_schedule(
     session: SessionDep,
     series_id: int,
@@ -1798,17 +1805,26 @@ def update_schedule(
     return _back(here)
 
 
-@router.post("/schedules/{series_id}/pause")
+@router.post(
+    "/schedules/{series_id}/pause",
+    dependencies=[Depends(guard_series_page(Permission.EDIT_SCHEDULES))],
+)
 def pause_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _schedule_state(session, series_id, SeriesState.PAUSED)
 
 
-@router.post("/schedules/{series_id}/resume")
+@router.post(
+    "/schedules/{series_id}/resume",
+    dependencies=[Depends(guard_series_page(Permission.EDIT_SCHEDULES))],
+)
 def resume_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _schedule_state(session, series_id, SeriesState.ACTIVE)
 
 
-@router.post("/schedules/{series_id}/delete")
+@router.post(
+    "/schedules/{series_id}/delete",
+    dependencies=[Depends(guard_series_page(Permission.DELETE_SCHEDULES))],
+)
 def delete_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     series = series_service.get_series(session, series_id)
     project = project_service.get_project(session, series.project_id)
@@ -1824,7 +1840,10 @@ def delete_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _back(listing, notice="Schedule deleted. Existing issues remain.")
 
 
-@router.post("/issues/{issue_id}/repeat")
+@router.post(
+    "/issues/{issue_id}/repeat",
+    dependencies=[Depends(guard_issue_page(Permission.CREATE_SCHEDULES))],
+)
 def make_issue_repeating(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1886,7 +1905,10 @@ def make_issue_repeating(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/series")
+@router.post(
+    "/issues/{issue_id}/series",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_SCHEDULES))],
+)
 def update_issue_series(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1948,7 +1970,10 @@ def update_issue_series(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/series-item")
+@router.post(
+    "/issues/{issue_id}/series-item",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_SCHEDULES))],
+)
 def add_series_item(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1996,7 +2021,10 @@ def add_series_item(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/series-item/remove")
+@router.post(
+    "/issues/{issue_id}/series-item/remove",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_SCHEDULES))],
+)
 def remove_series_item(
     session: SessionDep,
     chrome: ChromeDep,

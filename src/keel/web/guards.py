@@ -73,6 +73,18 @@ def require_dependency_delete() -> Callable[..., None]:
     return checker
 
 
+def require_series(permission: Permission) -> Callable[..., None]:
+    def checker(series_id: int, session: SessionDep, chrome: ChromeDep) -> None:
+        _require(
+            session,
+            chrome,
+            access_service.project_of_series(session, series_id),
+            permission,
+        )
+
+    return checker
+
+
 def require_sprint(permission: Permission) -> Callable[..., None]:
     def checker(sprint_id: int, session: SessionDep, chrome: ChromeDep) -> None:
         _require(
