@@ -121,6 +121,20 @@
     });
   }
 
+  const filters = board.querySelector("[data-keel-board-filters]");
+  if (filters) {
+    filters.addEventListener("toggle", () => {
+      const collapsed = filters.open ? "" : "filters";
+      const next = `${window.location.pathname}${window.location.search}`;
+      fetch("/web/board-filters", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ collapsed, next }),
+        redirect: "manual",
+      });
+    });
+  }
+
   const lanes = [...board.querySelectorAll("[data-keel-board-lane]")];
   if (!lanes.length) {
     return;

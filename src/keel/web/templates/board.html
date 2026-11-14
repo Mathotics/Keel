@@ -70,10 +70,19 @@
         {% endif %}
       {% endif %}
 
-      {% include "_filters.html" %}
-
       <div class="keel-board-scroll" data-keel-board-root>
         <p class="keel-error" data-keel-board-error hidden></p>
+        <details class="keel-board-filters"{% if "filters" not in collapsed_board_filters %} open{% endif %} data-keel-board-filters>
+          <summary>
+            <h2 class="keel-board-filters__title">Filters</h2>
+            <form class="keel-board-filters__fallback" method="post" action="/web/board-filters">
+              <input type="hidden" name="next" value="{{ board_return }}"/>
+              <input type="hidden" name="collapsed" value="{{ board_filters_toggle }}"/>
+              <button type="submit">{% if "filters" in collapsed_board_filters %}Expand{% else %}Minimize{% endif %}</button>
+            </form>
+          </summary>
+          {% include "_filters.html" %}
+        </details>
         {% if separate_by_sprint %}
           {% if board_lanes %}
             {% for row in board_lanes %}

@@ -9,6 +9,8 @@
 > **Amendment.** [Now on the home inbox](now-home-panel.md) adds a **Now** section. It collapses with the same cookie.
 >
 > **Amendment.** Sprint rows on the Kanban can be minimized and removed in this browser ([Collapsible board sprint lanes](collapsible-board-sprint-lanes.md)). Collapsing other panels on the board, on projects, or on schedules stays out of scope.
+>
+> **Amendment.** The board filter bar can be minimized in this browser ([Collapsible board filters](collapsible-board-filters.md)). Collapsing other panels on the board, on projects, or on schedules stays out of scope.
 
 ## Background
 
