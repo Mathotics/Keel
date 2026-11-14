@@ -114,7 +114,10 @@ def issue_page(
             issue_key=issue_key,
             children=issue_service.list_children(session, issue.id),
             issue_labels=label_service.labels_for_issue(session, issue.id),
-            label_catalog=label_service.list_labels(session),
+            label_catalog=label_service.list_labels(
+                session,
+                access_service.label_project_ids(session, chrome.access),
+            ),
             dependencies=_visible_dependencies(
                 session, chrome, dependency_service.list_for_issue(session, issue.id)
             ),

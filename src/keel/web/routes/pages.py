@@ -241,6 +241,7 @@ def _calendar_page(
         base=base,
         include_projects=project is None,
         extra=kept,
+        access=chrome.access,
     )
     criteria = bar.criteria
     if project is None:
@@ -284,7 +285,8 @@ def _calendar_page(
                 sprints=sprint_menu(
                     session,
                     project_id=scope,
-                    project_ids=bar.criteria.project_ids,
+                    project_ids=criteria.project_ids,
+                    limited=criteria.projects_limited,
                 ),
                 project_keys={item.id: item.key for item in projects},
                 prefix=project is None,
@@ -344,6 +346,7 @@ def _gantt_page(
         base=base,
         include_projects=project is None,
         extra=kept,
+        access=chrome.access,
     )
     criteria = bar.criteria
     if project is None:
@@ -383,7 +386,8 @@ def _gantt_page(
                 sprints=sprint_menu(
                     session,
                     project_id=scope,
-                    project_ids=bar.criteria.project_ids,
+                    project_ids=criteria.project_ids,
+                    limited=criteria.projects_limited,
                 ),
                 project_keys={item.id: item.key for item in projects},
                 prefix=project is None,

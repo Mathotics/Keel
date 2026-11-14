@@ -219,6 +219,27 @@ def test_like_wildcards_are_literal(session: Session) -> None:
     assert outcome.empty
 
 
+def test_a_hidden_issue_key_is_not_found(session: Session) -> None:
+    shown = project(session, "OPEN", "Open")
+    hidden = project(session, "HIDE", "Hidden")
+    story(session, shown, title="Shown work")
+    story(session, hidden, title="Secret work")
+    allowed = frozenset({shown.id})
+
+    hidden_key = find_service.find(session, "hide-1", allowed=allowed)
+    assert isinstance(hidden_key, FindResults)
+    assert hidden_key.issues == []
+    assert hidden_key.projects == []
+
+    hidden_title = find_service.find(session, "secret", allowed=allowed)
+    assert isinstance(hidden_title, FindResults)
+    assert hidden_title.issues == []
+
+    visible = find_service.find(session, "open-1", allowed=allowed)
+    assert isinstance(visible, FindJump)
+    assert visible.url == "/issues/OPEN-1"
+
+
 def test_find_does_not_search_issue_history(session: Session) -> None:
     owner = project(session)
     issue_id = story(session, owner, title="Quiet")

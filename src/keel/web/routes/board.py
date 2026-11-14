@@ -90,6 +90,7 @@ def _render(
         base=action,
         include_projects=show_project,
         extra=layout_pairs(grouping),
+        access=chrome.access,
     )
     criteria = replace(bar.criteria, hide_closed_in_completed_sprints=True)
     if project_id is None:
@@ -111,6 +112,7 @@ def _render(
         session,
         project_id=project_id,
         project_ids=criteria.project_ids,
+        limited=criteria.projects_limited,
     )
     prefs = parse_lanes(
         request.cookies.get(COLLAPSED_COOKIE),

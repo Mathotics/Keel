@@ -44,7 +44,11 @@ def create_project(
     return ProjectRead.model_validate(project)
 
 
-@router.get("/{project_id}", response_model=ProjectRead)
+@router.get(
+    "/{project_id}",
+    response_model=ProjectRead,
+    dependencies=[Depends(require_project(Permission.VIEW_ISSUES))],
+)
 def read_project(project_id: int, session: SessionDep) -> ProjectRead:
     return ProjectRead.model_validate(project_service.get_project(session, project_id))
 

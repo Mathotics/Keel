@@ -90,6 +90,8 @@ def load(
     due_to: str | None = None,
     include_projects: bool = False,
     extra: Sequence[tuple[str, str]] = (),
+    visible_projects: frozenset[int] | None = None,
+    visible_labels: frozenset[str] | None = None,
 ) -> ViewFilter:
     """Read one page address into checkbox state, chips, and an issue query."""
     error: str | None = None
@@ -106,6 +108,7 @@ def load(
         session,
         [*_tokens(labels), *_draft(label_add)],
         label_add,
+        visible_labels,
     )
     assignee_chips, assignee_ids, unassigned, assignee_error, assignee_draft = _people(
         session,
@@ -125,6 +128,7 @@ def load(
             session,
             [*_tokens(projects), *_draft(project_add)],
             project_add,
+            visible_projects,
         )
     else:
         project_chips = ()
@@ -334,6 +338,7 @@ def _labels(
     session: Session,
     raw: Sequence[str],
     draft: str | None,
+    visible: frozenset[str] | None = None,
 ) -> tuple[tuple[_Pending, ...], list[str], bool, str | None, str]:
     chips: list[_Pending] = []
     names: list[str] = []
@@ -345,6 +350,7 @@ def _labels(
         name, is_unlabeled, message = lookup_service.interpret_board_label(
             session,
             item,
+            visible=visible,
         )
         if message:
             error = error or message
@@ -443,6 +449,7 @@ def _projects(
     session: Session,
     raw: Sequence[str],
     draft: str | None,
+    allowed: frozenset[int] | None = None,
 ) -> tuple[tuple[_Pending, ...], list[int], str | None, str]:
     chips: list[_Pending] = []
     ids: list[int] = []
@@ -450,7 +457,11 @@ def _projects(
     error: str | None = None
     failed = ""
     for item in raw:
-        chosen, shown, message = lookup_service.interpret_project(session, item)
+        chosen, shown, message = lookup_service.interpret_project(
+            session,
+            item,
+            allowed=allowed,
+        )
         if message or chosen is None:
             error = error or message or lookup_service.PROJECT_MESSAGE
             failed = _failed(failed, item, draft)

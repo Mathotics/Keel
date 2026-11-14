@@ -25,12 +25,9 @@ _MARKERS = (
 # records that decision.
 INTENTIONALLY_OPEN: frozenset[str] = frozenset()
 
-# Removed in the commit that enforces the route.
-STILL_OPEN: frozenset[str] = frozenset(
-    {
-        "GET /api/v1/projects/{project_id}",
-    }
-)
+# Removed in the commit that enforces the route. Empty once every project
+# route checks a permission.
+STILL_OPEN: frozenset[str] = frozenset()
 
 
 def project_route_ids(app: FastAPI) -> set[str]:
@@ -238,6 +235,78 @@ def test_home_omits_issues_from_projects_the_user_cannot_view(
     assert client.get("/projects/HIDE").status_code == 403
     assert client.get("/projects/HIDE/board").status_code == 403
     assert client.get("/projects/OPEN/calendar").status_code == 200
+
+
+def test_search_lookup_and_labels_hide_other_projects(client: TestClient) -> None:
+    open_project = client.post(
+        "/api/v1/projects",
+        json={"key": "OPEN", "name": "Open"},
+    )
+    hidden_project = client.post(
+        "/api/v1/projects",
+        json={"key": "HIDE", "name": "Hidden"},
+    )
+    assert open_project.status_code == 201, open_project.text
+    assert hidden_project.status_code == 201, hidden_project.text
+    open_id = open_project.json()["id"]
+    hidden_id = hidden_project.json()["id"]
+    person_id = _user(client, "Riley", "riley", "riley@example.com")
+    _project_role(client, open_id, person_id, "viewer")
+    shown = client.post(
+        f"/api/v1/projects/{open_id}/issues",
+        json={"type": "story", "title": "Shown work", "labels": ["public"]},
+    )
+    secret = client.post(
+        f"/api/v1/projects/{hidden_id}/issues",
+        json={"type": "story", "title": "Secret work", "labels": ["covert"]},
+    )
+    sprint = client.post(
+        f"/api/v1/projects/{hidden_id}/sprints",
+        json={"name": "Covert sprint"},
+    )
+    assert shown.status_code == 201, shown.text
+    assert secret.status_code == 201, secret.text
+    assert sprint.status_code == 201, sprint.text
+    secret_key = secret.json()["key"]
+
+    _sign_in(client, "riley", "person-password-1")
+    assert client.get(f"/api/v1/projects/{hidden_id}").status_code == 403
+    assert client.get(f"/api/v1/projects/{open_id}").status_code == 200
+
+    hidden_jump = client.get("/api/v1/search", params={"q": secret_key})
+    assert hidden_jump.status_code == 200, hidden_jump.text
+    assert hidden_jump.json()["kind"] == "results"
+    assert hidden_jump.json()["issues"] == []
+    assert hidden_jump.json()["projects"] == []
+    named = client.get("/api/v1/search", params={"q": "Hidden"})
+    assert named.json()["projects"] == []
+    assert named.json()["issues"] == []
+    visible = client.get("/api/v1/search", params={"q": shown.json()["key"]})
+    assert visible.json()["kind"] == "jump"
+    assert visible.json()["key"] == shown.json()["key"]
+
+    page = client.get("/search", params={"q": secret_key}, follow_redirects=False)
+    assert page.status_code == 200, page.text
+    assert f'/issues/{secret_key}"' not in page.text
+
+    names = [item["name"] for item in client.get("/api/v1/labels").json()]
+    assert "public" in names
+    assert "covert" not in names
+    assert client.get("/web/lookup/projects", params={"q": "hid"}).json() == []
+    assert client.get("/web/lookup/issues", params={"q": "secret"}).json() == []
+    assert "covert" not in client.get("/web/lookup/labels", params={"q": "cov"}).json()
+
+    calendar = client.get("/calendar")
+    assert calendar.status_code == 200, calendar.text
+    assert "Covert sprint" not in calendar.text
+    filtered = client.get("/calendar", params={"project": "HIDE"})
+    assert filtered.status_code == 200, filtered.text
+    assert "Hidden" not in filtered.text
+
+    detail = client.get(f"/issues/{shown.json()['key']}")
+    assert detail.status_code == 200, detail.text
+    assert "covert" not in detail.text
+    assert "public" in detail.text
 
 
 def test_project_role_gates_issue_reads_and_writes(client: TestClient) -> None:

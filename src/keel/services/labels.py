@@ -1,16 +1,54 @@
 from collections.abc import Sequence
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, union
 from sqlalchemy.orm import Session
 
-from keel.db.models import IssueLabel, Label, SeriesItemLabel, SeriesLabel
+from keel.db.models import (
+    Issue,
+    IssueLabel,
+    Label,
+    Series,
+    SeriesItem,
+    SeriesItemLabel,
+    SeriesLabel,
+)
 from keel.domain.labels import normalize_label_name, parse_label_names
 from keel.services import history as history_service
 from keel.services import issues as issue_service
 
 
-def list_labels(session: Session) -> Sequence[Label]:
-    return session.scalars(select(Label).order_by(Label.name)).all()
+def list_labels(
+    session: Session,
+    project_ids: frozenset[int] | None = None,
+) -> Sequence[Label]:
+    """Labels, optionally only those used on work in ``project_ids``.
+
+    None means every label. An empty set means none, so a person who can view
+    no project does not learn names that exist only on hidden work.
+    """
+    stmt = select(Label).order_by(Label.name)
+    if project_ids is not None:
+        if not project_ids:
+            return []
+        ids = tuple(project_ids)
+        on_issues = (
+            select(IssueLabel.label_id)
+            .join(Issue, Issue.id == IssueLabel.issue_id)
+            .where(Issue.project_id.in_(ids))
+        )
+        on_series = (
+            select(SeriesLabel.label_id)
+            .join(Series, Series.id == SeriesLabel.series_id)
+            .where(Series.project_id.in_(ids))
+        )
+        on_items = (
+            select(SeriesItemLabel.label_id)
+            .join(SeriesItem, SeriesItem.id == SeriesItemLabel.series_item_id)
+            .join(Series, Series.id == SeriesItem.series_id)
+            .where(Series.project_id.in_(ids))
+        )
+        stmt = stmt.where(Label.id.in_(union(on_issues, on_series, on_items)))
+    return session.scalars(stmt).all()
 
 
 def names_for_issue(session: Session, issue_id: int) -> list[str]:

@@ -580,6 +580,19 @@ def project_ids_holding(
     return frozenset(found)
 
 
+def label_project_ids(session: Session, actor: Access) -> frozenset[int] | None:
+    """Projects whose issue or schedule labels this person may see.
+
+    None means every project. A label name stays hidden until it is used on
+    work in one of these projects.
+    """
+    issues = project_ids_holding(session, actor, Permission.VIEW_ISSUES)
+    schedules = project_ids_holding(session, actor, Permission.VIEW_SCHEDULES)
+    if issues is None or schedules is None:
+        return None
+    return issues | schedules
+
+
 def visible_project_ids(access: Access, projects: list[Project]) -> list[Project]:
     if access.is_owner or access.allows(Permission.VIEW_PROJECTS.value):
         return projects

@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from starlette.responses import Response
 
 from keel.db.models import Project
+from keel.domain.access import Permission
 from keel.domain.errors import NotFoundError
+from keel.services import access as access_service
 from keel.services import find as find_service
 from keel.services import projects as project_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
@@ -33,15 +35,21 @@ def search_page(
     needle = q.strip()
     if not needle:
         return RedirectResponse(url="/projects", status_code=EMPTY_QUERY)
+    allowed = access_service.project_ids_holding(
+        session, chrome.access, Permission.VIEW_ISSUES
+    )
     scoped = _resolve_project(session, project)
+    if scoped is not None and allowed is not None and scoped.id not in allowed:
+        scoped = None
     project_id = None if scoped is None else scoped.id
-    jump = find_service.lookup_jump(session, needle, project_id)
+    jump = find_service.lookup_jump(session, needle, project_id, allowed=allowed)
     if jump is not None:
         return RedirectResponse(url=jump.url, status_code=303)
     issue_total, project_total, sprint_total, user_total = find_service.match_totals(
         session,
         needle,
         project_id,
+        allowed=allowed,
     )
     keep = [("q", needle)]
     if scoped is not None:
@@ -104,6 +112,7 @@ def search_page(
             project_id,
             limit=issues_pager.window.page_size,
             offset=issues_pager.window.offset,
+            allowed=allowed,
         ),
         issues_more=False,
         projects=find_service.load_project_hits(
@@ -111,6 +120,7 @@ def search_page(
             needle,
             limit=projects_pager.window.page_size,
             offset=projects_pager.window.offset,
+            allowed=allowed,
         ),
         projects_more=False,
         sprints=find_service.load_sprint_hits(
@@ -119,6 +129,7 @@ def search_page(
             project_id,
             limit=sprints_pager.window.page_size,
             offset=sprints_pager.window.offset,
+            allowed=allowed,
         ),
         sprints_more=False,
         users=find_service.load_user_hits(
