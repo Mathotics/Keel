@@ -10,7 +10,7 @@ Planned work lives in the **KEEL** project of the running Keel instance. A branc
 
 GitHub issues are the inbox rather than the plan. The [bug report and feature request forms](https://github.com/Mathotics/Keel/issues/new/choose) let someone running Keel describe a problem without access to the tracker. Turn such an issue into a KEEL item before starting on it, and close the GitHub issue once that item ships.
 
-A security flaw is not a GitHub issue. Report it in private, as [SECURITY](../SECURITY.md) describes.
+A security flaw is not a GitHub issue. Report it in private, as [SECURITY](../SECURITY.md) describes. A barrier to using Keel with a keyboard, a screen reader, or a phone is a normal bug. The [accessibility statement](../ACCESSIBILITY.md) says what the product does today and what to include in that report.
 
 ## Set up a checkout
 
