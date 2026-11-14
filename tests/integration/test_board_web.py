@@ -682,8 +682,9 @@ def test_sprint_rows_are_open_disclosures_with_a_count(
 
     together = client.get("/projects/KEEL/board", params={"by": "status"})
     assert "data-keel-board-lane" not in together.text
-    assert "Minimize" not in together.text
+    assert 'action="/web/board-lanes"' not in together.text
     assert "Add a sprint" not in together.text
+    assert "Minimize" in _filters_summary(together.text)
     assert "In sprint" in together.text
 
 
@@ -877,9 +878,16 @@ def test_board_columns_fill_the_row(client: TestClient) -> None:
     heading = css.split(".keel-board__heading {", 1)[1].split("}", 1)[0]
     assert "position: sticky" in heading
     assert "top: 0" in heading
+    filters = css.split(".keel-board-filters {", 1)[1].split("}", 1)[0]
+    assert "position: sticky" in filters
+    assert "left: 0" in filters
+    assert "top:" not in filters
     page = client.get("/board")
-    assert 'class="keel-page-board"' in page.text
-    assert 'class="keel-board-scroll"' in page.text
+    html = page.text
+    assert 'class="keel-page-board"' in html
+    scroll_at = html.index('class="keel-board-scroll"')
+    assert html.index("<h1>") < scroll_at < html.index("data-keel-board-filters")
+    assert html.index("data-keel-board-filters") < html.index('class="keel-board"')
 
 
 def test_board_script_persists_a_sprint_disclosure(client: TestClient) -> None:
@@ -888,6 +896,70 @@ def test_board_script_persists_a_sprint_disclosure(client: TestClient) -> None:
     assert "keelBoardLane" in script.text
     css = client.get("/assets/brand.css").text
     hidden = css.split("[data-keel-board] .keel-board-lane__fallback", 1)[1].split(
+        "}",
+        1,
+    )[0]
+    assert "display: none" in hidden
+    assert script.text.index("/web/board-filters") < script.text.index(
+        "if (!lanes.length)"
+    )
+
+
+def _filters_tag(html: str) -> str:
+    marker = "data-keel-board-filters"
+    index = html.index(marker)
+    start = html.rfind("<details", 0, index)
+    return html[start : html.index(">", index) + 1]
+
+
+def _filters_summary(html: str) -> str:
+    tag = _filters_tag(html)
+    start = html.index(tag)
+    return html[start : html.index("</summary>", start)]
+
+
+def test_the_board_filter_bar_minimizes_and_stays_minimized(
+    client: TestClient,
+    project: Json,
+) -> None:
+    page = client.get("/projects/KEEL/board")
+    summary = _filters_summary(page.text)
+    assert " open" in summary
+    assert "Filters" in summary
+    assert "Minimize" in summary
+    assert 'action="/web/board-filters"' in summary
+
+    folded = client.post(
+        "/web/board-filters",
+        data={"collapsed": "filters.nope", "next": "/projects/KEEL/board?by=status"},
+        follow_redirects=False,
+    )
+    assert folded.status_code == 303
+    assert folded.headers["location"] == "/projects/KEEL/board?by=status"
+    assert folded.cookies["keel_board_filters"] == "filters"
+
+    again = client.get("/projects/KEEL/board").text
+    assert " open" not in _filters_tag(again)
+    assert "Expand" in _filters_summary(again)
+    assert 'class="keel-form keel-board__filter keel-filters"' in again
+    master = client.get("/board").text
+    assert " open" not in _filters_tag(master)
+
+    calendar = client.get("/calendar").text
+    assert "data-keel-board-filters" not in calendar
+
+    refused = client.post(
+        "/web/board-filters",
+        data={"collapsed": "", "next": "https://evil.example"},
+        follow_redirects=False,
+    )
+    assert refused.headers["location"] == "/"
+    opened = client.get("/board").text
+    assert " open" in _filters_tag(opened)
+    assert "Minimize" in _filters_summary(opened)
+
+    css = client.get("/assets/brand.css").text
+    hidden = css.split("[data-keel-board] .keel-board-filters__fallback", 1)[1].split(
         "}",
         1,
     )[0]

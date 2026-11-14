@@ -1845,8 +1845,10 @@ body {
   flex-shrink: 0;
 }
 
-/* The board page keeps the bar, title, and filters in place. Cards scroll
-   inside the pane below them, so a column heading can stick to that pane. */
+/* The board page keeps the bar and the page title in place. Filters and
+   cards scroll in the pane below the title, so a column heading can stick
+   to that pane. The filter bar sticks to the left edge: a sideways swipe
+   moves the columns and leaves the filters where they are. */
 .keel-page-board {
   height: 100dvh;
   overflow: hidden;
@@ -1861,9 +1863,106 @@ body {
 }
 
 .keel-board-scroll {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+.keel-board-scroll > * {
+  flex-shrink: 0;
+}
+
+/* The filter bar uses the same disclosure as a sprint row. It scrolls away
+   with the cards. left sticks it during a sideways swipe; it does not stick
+   to the top of the pane. */
+.keel-board-filters {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  flex: 0 0 auto;
+  align-self: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0 0 1rem;
+}
+
+.keel-board-filters > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.7rem;
+  margin: 0;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.4rem;
+  background: var(--keel-sheet);
+  cursor: pointer;
+  list-style: none;
+}
+
+.keel-board-filters > summary::-webkit-details-marker,
+.keel-board-filters > summary::marker {
+  display: none;
+  content: "";
+}
+
+.keel-board-filters > summary::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--keel-blue);
+  border-bottom: 2px solid var(--keel-blue);
+  transform: rotate(-45deg);
+  translate: 0 -0.05rem;
+}
+
+.keel-board-filters[open] > summary::before {
+  transform: rotate(45deg);
+  translate: 0 -0.15rem;
+}
+
+.keel-board-filters[open] > summary {
+  border-radius: 0.4rem 0.4rem 0 0;
+}
+
+.keel-board-filters > summary:focus-visible {
+  outline: 2px solid var(--keel-blue);
+  outline-offset: 2px;
+}
+
+.keel-board-filters__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.keel-board-filters__fallback {
+  margin: 0 0 0 auto;
+}
+
+.keel-board-filters__fallback button {
+  height: var(--keel-control-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--keel-blue);
+  border-radius: 0.25rem;
+  background: var(--keel-white);
+  color: var(--keel-blue-deep);
+  font-size: var(--keel-control-font-size);
+  line-height: 1;
+}
+
+[data-keel-board] .keel-board-filters__fallback {
+  display: none;
+}
+
+.keel-board-filters .keel-board__filter {
+  margin: 0;
+}
+
+.keel-board-filters[open] .keel-board__filter {
+  border-radius: 0 0 0.4rem 0.4rem;
 }
 
 /* A row is as tall as its tallest column. Short columns stretch to that

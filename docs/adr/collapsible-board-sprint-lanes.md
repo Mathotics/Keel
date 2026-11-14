@@ -2,6 +2,7 @@
 
 * **Status:** Accepted
 * **Date:** 2026-11-02
+* **Updated:** 2026-11-14 — the filter bar can be minimized ([Collapsible board filters](collapsible-board-filters.md)). Sprint-row collapse is unchanged. The out-of-scope line that forbids collapsing anything else on the board is superseded for that filter bar only.
 
 ## Background
 

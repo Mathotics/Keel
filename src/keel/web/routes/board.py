@@ -9,6 +9,9 @@ from keel.domain.enums import label
 from keel.services import boards as board_service
 from keel.services import projects as project_service
 from keel.services.boards import BoardLane
+from keel.web.board_filters import BOARD_FILTERS_COOKIE
+from keel.web.board_filters import encode_toggle as encode_filter_toggle
+from keel.web.board_filters import parse_collapsed as parse_board_filters
 from keel.web.board_lanes import (
     COLLAPSED_COOKIE,
     HIDDEN_COOKIE,
@@ -102,6 +105,7 @@ def _render(
         request.cookies.get(COLLAPSED_COOKIE),
         request.cookies.get(HIDDEN_COOKIE),
     )
+    collapsed_filters = parse_board_filters(request.cookies.get(BOARD_FILTERS_COOKIE))
     shown, removed = _lane_rows(board.lanes, project_id, prefs.hidden)
     board_return = request.url.path
     if request.url.query:
@@ -124,6 +128,8 @@ def _render(
             hidden_board_lanes=removed,
             collapsed_board_lanes=prefs.collapsed,
             board_lane_toggle=board_lane_toggle,
+            collapsed_board_filters=collapsed_filters,
+            board_filters_toggle=encode_filter_toggle(collapsed_filters, "filters"),
             board_return=board_return,
             **filter_context(
                 bar,

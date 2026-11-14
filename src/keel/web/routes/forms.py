@@ -45,6 +45,12 @@ from keel.services import series as series_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.services.series_tree import ItemDraft
+from keel.web.board_filters import (
+    BOARD_FILTERS_COOKIE,
+    BOARD_FILTERS_COOKIE_MAX_AGE,
+)
+from keel.web.board_filters import encode_collapsed as encode_board_filters
+from keel.web.board_filters import parse_collapsed as parse_board_filters
 from keel.web.board_lanes import (
     COLLAPSED_COOKIE,
     COOKIE_MAX_AGE,
@@ -259,6 +265,22 @@ def show_board_lane(
         HIDDEN_COOKIE,
         hidden,
     )
+
+
+@router.post("/board-filters")
+def save_board_filters(
+    collapsed: Annotated[str, Form()] = "",
+    return_to: Annotated[str, Form(alias="next")] = "/",
+) -> RedirectResponse:
+    response = _back(safe_next(return_to))
+    response.set_cookie(
+        BOARD_FILTERS_COOKIE,
+        encode_board_filters(parse_board_filters(collapsed)),
+        max_age=BOARD_FILTERS_COOKIE_MAX_AGE,
+        path="/",
+        samesite="lax",
+    )
+    return response
 
 
 @router.post("/issue-panels")

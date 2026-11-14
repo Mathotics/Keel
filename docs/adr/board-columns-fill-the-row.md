@@ -2,6 +2,7 @@
 
 * **Status:** Accepted
 * **Date:** 2026-11-06
+* **Updated:** 2026-11-14 — the filter bar scrolls with the cards and can be minimized ([Collapsible board filters](collapsible-board-filters.md)). The requirement below that kept the filters in place is superseded for that bar. The top bar and the page title still stay put.
 
 ## Background
 
@@ -42,7 +43,7 @@ A card at the bottom of a tall column sits beside empty page, not beside the oth
 * **Must** stretch every status column in a row to the height of the tallest column in that row.
 * **Must** let the card list fill the column below its heading, so the empty stretch is inside the column that accepts a drop.
 * **Must** keep each status heading visible at the top of the board pane while that row's cards scroll.
-* **Must** leave the top bar, the page title, and the filters in place while the cards scroll.
+* **Must** leave the top bar and the page title in place while the cards scroll. The filter bar scrolls with the cards ([Collapsible board filters](collapsible-board-filters.md)).
 * **Must** apply on a project board and on `/board`, whether or not the board is separated by sprint.
 * **Must** keep a readable column width and sideways swipe on a phone-narrow viewport.
 * **Must Not** change the Move fallback, sprint-row collapse, or the JSON board.
@@ -58,7 +59,7 @@ A card at the bottom of a tall column sits beside empty page, not beside the oth
 
 ### Technical Stack and Architecture
 
-This is presentation on the HTML board. `.keel-board` is a row flex with `align-items: stretch`. Each `.keel-board__column` is a column flex, and `.keel-board__cards` grows to fill it. `board.js` already listens for a drop on the column, so the empty stretch accepts the card. On the board page the cards scroll in `.keel-board-scroll`, and each `.keel-board__heading` is `position: sticky` against that pane. The row itself does not scroll, so the heading is not trapped. No new route and no script change.
+This is presentation on the HTML board. `.keel-board` is a row flex with `align-items: stretch`. Each `.keel-board__column` is a column flex, and `.keel-board__cards` grows to fill it. `board.js` already listens for a drop on the column, so the empty stretch accepts the card. On the board page the cards scroll in `.keel-board-scroll`, and each `.keel-board__heading` is `position: sticky` against that pane. The filter bar sits in that same pane, so it scrolls away; the page title stays above the pane. The row itself does not scroll, so the heading is not trapped. No new route and no script change.
 
 ### UML Diagrams
 
