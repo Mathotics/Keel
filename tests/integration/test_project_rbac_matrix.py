@@ -309,6 +309,23 @@ def test_search_lookup_and_labels_hide_other_projects(client: TestClient) -> Non
     assert "public" in detail.text
 
 
+def test_no_access_can_still_read_the_people_directory(client: TestClient) -> None:
+    person_id = _user(client, "Mallory", "mallory", "mallory@example.com")
+    refused = client.put(
+        f"/api/v1/access/global/{person_id}",
+        json={"no_access": True, "direct_permissions": []},
+    )
+    assert refused.status_code == 200, refused.text
+
+    _sign_in(client, "mallory", "person-password-1")
+    listed = client.get("/api/v1/users")
+    assert listed.status_code == 200, listed.text
+    assert any(item["display_name"] == "Mallory" for item in listed.json())
+    one = client.get(f"/api/v1/users/{person_id}")
+    assert one.status_code == 200, one.text
+    assert one.json()["display_name"] == "Mallory"
+
+
 def test_project_role_gates_issue_reads_and_writes(client: TestClient) -> None:
     project = client.post(
         "/api/v1/projects",
