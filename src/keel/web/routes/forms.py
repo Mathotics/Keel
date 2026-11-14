@@ -63,7 +63,7 @@ from keel.web.board_lanes import (
     show_lane,
 )
 from keel.web.context import Chrome, ChromeDep, SessionDep
-from keel.web.forbid import require_page, require_project_page
+from keel.web.forbid import forbidden_page, require_page, require_project_page
 from keel.web.guards import require_comment_delete, require_dependency_delete
 from keel.web.guards import require_issue as guard_issue_page
 from keel.web.guards import require_project as guard_project_page
@@ -516,7 +516,10 @@ def create_project(
     return _back(f"/projects/{project.key}")
 
 
-@router.post("/projects/{project_id}/update")
+@router.post(
+    "/projects/{project_id}/update",
+    dependencies=[Depends(guard_project_page(Permission.CHANGE_PROJECT_SETTINGS))],
+)
 def update_project(
     session: SessionDep,
     project_id: int,
@@ -553,9 +556,9 @@ def delete_project(
     session: SessionDep,
     project_id: int,
 ) -> HTMLResponse | RedirectResponse:
-    denied = require_page(request, chrome, Permission.DELETE_PROJECTS.value)
-    if denied is not None:
-        return denied
+    project_service.get_project(session, project_id)
+    if not access_service.may_delete_project(session, chrome.access, project_id):
+        return forbidden_page(request, chrome)
     project_service.delete_project(session, project_id)
     return _back("/projects")
 

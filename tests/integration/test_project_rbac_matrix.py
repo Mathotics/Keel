@@ -34,8 +34,6 @@ STILL_OPEN: frozenset[str] = frozenset(
         "GET /projects/{key}/board",
         "GET /projects/{key}/calendar",
         "GET /projects/{key}/gantt",
-        "PATCH /api/v1/projects/{project_id}",
-        "POST /web/projects/{project_id}/update",
     }
 )
 

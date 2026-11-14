@@ -109,6 +109,15 @@ def project_page(
             can_view_project_access=access_service.holds_project(
                 session, chrome.access, project.id, Permission.VIEW_PROJECT_RBAC
             ),
+            can_change_settings=access_service.holds_project(
+                session,
+                chrome.access,
+                project.id,
+                Permission.CHANGE_PROJECT_SETTINGS,
+            ),
+            can_delete_project=access_service.may_delete_project(
+                session, chrome.access, project.id
+            ),
         ),
     )
 

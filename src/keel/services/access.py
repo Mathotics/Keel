@@ -370,6 +370,13 @@ def require_project(
         raise PermissionDeniedError(DENIED)
 
 
+def may_delete_project(session: Session, actor: Access, project_id: int) -> bool:
+    """Global Delete projects, or Delete this project, and Owner either way."""
+    if actor.allows(Permission.DELETE_PROJECTS.value):
+        return True
+    return holds_project(session, actor, project_id, Permission.DELETE_PROJECT)
+
+
 @dataclass(frozen=True)
 class DependencyEnds:
     """The projects on the two issues a dependency link connects."""

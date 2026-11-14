@@ -285,6 +285,32 @@ def test_a_cross_project_link_needs_view_on_the_other_project(session: Session) 
     access_service.require_dependency_projects(session, person, home.id, away.id)
 
 
+def test_delete_project_allows_a_global_grant_or_the_project_permission(
+    session: Session,
+) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    member = _person(session, "Member", RoleCode.MEMBER)
+    editor = _person(session, "Editor", RoleCode.EDITOR)
+    assert member.user_id is not None
+    assert editor.user_id is not None
+    access_service.set_project_role(
+        session, member.user_id, project.id, RoleCode.PROJECT_OWNER
+    )
+    access_service.replace_global_roles(
+        session, editor.user_id, frozenset({RoleCode.ADMIN})
+    )
+    editor = access_service.load_access(session, editor.user_id)
+
+    assert access_service.may_delete_project(session, member, project.id)
+    assert access_service.may_delete_project(session, editor, project.id)
+    viewer = _person(session, "Viewer", RoleCode.MEMBER)
+    assert viewer.user_id is not None
+    access_service.set_project_role(
+        session, viewer.user_id, project.id, RoleCode.VIEWER
+    )
+    assert not access_service.may_delete_project(session, viewer, project.id)
+
+
 def test_issue_update_permissions_split_status_from_edits() -> None:
     assert permissions_for_issue_update(set()) == (Permission.EDIT_ISSUES,)
     assert permissions_for_issue_update({"status"}) == (Permission.UPDATE_ISSUES,)
