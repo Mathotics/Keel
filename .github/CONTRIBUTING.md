@@ -10,6 +10,8 @@ Planned work lives in the **KEEL** project of the running Keel instance. A branc
 
 GitHub issues are the inbox rather than the plan. The [bug report and feature request forms](https://github.com/Mathotics/Keel/issues/new/choose) let someone running Keel describe a problem without access to the tracker. Turn such an issue into a KEEL item before starting on it, and close the GitHub issue once that item ships.
 
+A security flaw is not a GitHub issue. Report it in private, as [SECURITY](../SECURITY.md) describes.
+
 ## Set up a checkout
 
 Run the onboarding script for your shell once per checkout. It creates `.venv`, installs the package in editable mode with the `dev` extra, installs the git hooks, and copies `.env.example` to `.env`.
