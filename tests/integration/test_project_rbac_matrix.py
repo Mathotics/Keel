@@ -29,11 +29,6 @@ INTENTIONALLY_OPEN: frozenset[str] = frozenset()
 STILL_OPEN: frozenset[str] = frozenset(
     {
         "GET /api/v1/projects/{project_id}",
-        "GET /projects/{key}",
-        "GET /projects/{key}/backlog",
-        "GET /projects/{key}/board",
-        "GET /projects/{key}/calendar",
-        "GET /projects/{key}/gantt",
     }
 )
 
@@ -206,6 +201,43 @@ def _sign_in(client: TestClient, username: str, password: str) -> None:
         follow_redirects=False,
     )
     assert signed.status_code == 303, signed.text
+
+
+def test_home_omits_issues_from_projects_the_user_cannot_view(
+    client: TestClient,
+) -> None:
+    open_project = client.post(
+        "/api/v1/projects",
+        json={"key": "OPEN", "name": "Open"},
+    )
+    hidden_project = client.post(
+        "/api/v1/projects",
+        json={"key": "HIDE", "name": "Hidden"},
+    )
+    assert open_project.status_code == 201, open_project.text
+    assert hidden_project.status_code == 201, hidden_project.text
+    person_id = _user(client, "Riley", "riley", "riley@example.com")
+    _project_role(client, open_project.json()["id"], person_id, "viewer")
+    visible = client.post(
+        f"/api/v1/projects/{open_project.json()['id']}/issues",
+        json={"type": "story", "title": "Shown", "assignee_id": person_id},
+    )
+    hidden = client.post(
+        f"/api/v1/projects/{hidden_project.json()['id']}/issues",
+        json={"type": "story", "title": "Secret", "assignee_id": person_id},
+    )
+    assert visible.status_code == 201, visible.text
+    assert hidden.status_code == 201, hidden.text
+
+    _sign_in(client, "riley", "person-password-1")
+    home = client.get("/")
+    assert home.status_code == 200, home.text
+    assert visible.json()["key"] in home.text
+    assert hidden.json()["key"] not in home.text
+    assert client.get("/projects/OPEN").status_code == 200
+    assert client.get("/projects/HIDE").status_code == 403
+    assert client.get("/projects/HIDE/board").status_code == 403
+    assert client.get("/projects/OPEN/calendar").status_code == 200
 
 
 def test_project_role_gates_issue_reads_and_writes(client: TestClient) -> None:

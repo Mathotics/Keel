@@ -5,8 +5,11 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 
+from keel.domain.access import Permission
 from keel.domain.enums import label
+from keel.services import access as access_service
 from keel.services import boards as board_service
+from keel.services import issues as issue_service
 from keel.services import projects as project_service
 from keel.services.boards import BoardLane
 from keel.web.board_filters import BOARD_FILTERS_COOKIE
@@ -28,6 +31,7 @@ from keel.web.filters import (
     read_bar,
     sprint_menu,
 )
+from keel.web.guards import require_project_key
 
 router = APIRouter()
 project_router = APIRouter(prefix="/projects")
@@ -88,6 +92,13 @@ def _render(
         extra=layout_pairs(grouping),
     )
     criteria = replace(bar.criteria, hide_closed_in_completed_sprints=True)
+    if project_id is None:
+        criteria = issue_service.limit_projects(
+            criteria,
+            access_service.project_ids_holding(
+                session, chrome.access, Permission.VIEW_BOARD
+            ),
+        )
     if project_id is None:
         board = board_service.master_board(session, filters=criteria)
         projects = list(project_service.list_projects(session))
@@ -172,7 +183,11 @@ def master_board_page(
     )
 
 
-@project_router.get("/{key}/board", response_class=HTMLResponse)
+@project_router.get(
+    "/{key}/board",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_BOARD))],
+)
 def board_page(
     key: str,
     request: Request,

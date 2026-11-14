@@ -58,7 +58,11 @@ def project_list(
     )
 
 
-@router.get("/{key}", response_class=HTMLResponse)
+@router.get(
+    "/{key}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_ISSUES))],
+)
 def project_page(
     key: str,
     request: Request,
@@ -134,7 +138,11 @@ def new_issue_page(key: str, error: str | None = None) -> RedirectResponse:
     return RedirectResponse(url=f"/create?{urlencode(params)}", status_code=303)
 
 
-@router.get("/{key}/calendar", response_class=HTMLResponse)
+@router.get(
+    "/{key}/calendar",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_CALENDAR))],
+)
 def project_calendar_page(
     key: str,
     request: Request,
@@ -171,7 +179,11 @@ def project_calendar_page(
     )
 
 
-@router.get("/{key}/gantt", response_class=HTMLResponse)
+@router.get(
+    "/{key}/gantt",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_GANTT))],
+)
 def project_gantt_page(
     key: str,
     request: Request,

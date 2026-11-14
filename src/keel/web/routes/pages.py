@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse
 
 from keel.db.models import Project
+from keel.domain.access import Permission
 from keel.domain.enums import (
     INITIAL_PRIORITY,
     IssuePriority,
@@ -17,6 +18,7 @@ from keel.domain.enums import (
     types_in_hierarchy_order,
 )
 from keel.paths import license_text
+from keel.services import access as access_service
 from keel.services import calendar as calendar_service
 from keel.services import gantt as gantt_service
 from keel.services import home as home_service
@@ -84,8 +86,15 @@ def home(
 ) -> HTMLResponse:
     """Personal inbox for the acting user; `/projects` stays the directory."""
     inbox = home_service.HomeInbox()
+    visible_projects = access_service.project_ids_holding(
+        session, chrome.access, Permission.VIEW_ISSUES
+    )
     if chrome.current_user is not None:
-        inbox = home_service.personal_inbox(session, chrome.current_user.id)
+        inbox = home_service.personal_inbox(
+            session,
+            chrome.current_user.id,
+            project_ids=visible_projects,
+        )
     collapsed = parse_collapsed(request.cookies.get(INBOX_COOKIE))
     layout = parse_layout(request.cookies.get(HOME_COOKIE))
     visible = []
@@ -126,7 +135,7 @@ def home(
             request,
             chrome,
             inbox=inbox,
-            has_projects=bool(project_service.list_projects(session)),
+            has_projects=_has_visible_projects(session, visible_projects),
             statuses=statuses_in_workflow_order(),
             collapsed_inbox=collapsed,
             inbox_toggle=inbox_toggle,
@@ -138,6 +147,15 @@ def home(
             error=error,
         ),
     )
+
+
+def _has_visible_projects(
+    session: SessionDep,
+    project_ids: frozenset[int] | None,
+) -> bool:
+    if project_ids is None:
+        return bool(project_service.list_projects(session))
+    return bool(project_ids)
 
 
 def _query_int(request: Request, name: str, default: int) -> int:
@@ -224,6 +242,14 @@ def _calendar_page(
         include_projects=project is None,
         extra=kept,
     )
+    criteria = bar.criteria
+    if project is None:
+        criteria = issue_service.limit_projects(
+            criteria,
+            access_service.project_ids_holding(
+                session, chrome.access, Permission.VIEW_CALENDAR
+            ),
+        )
     shown = calendar_service.open_calendar(
         session,
         assignee_id,
@@ -237,7 +263,7 @@ def _calendar_page(
         today=date.today(),
         project_id=None if project is None else project.id,
         base=base,
-        filters=bar.criteria,
+        filters=criteria,
         mode=mode,
     )
     projects = list(project_service.list_projects(session))
@@ -319,6 +345,14 @@ def _gantt_page(
         include_projects=project is None,
         extra=kept,
     )
+    criteria = bar.criteria
+    if project is None:
+        criteria = issue_service.limit_projects(
+            criteria,
+            access_service.project_ids_holding(
+                session, chrome.access, Permission.VIEW_GANTT
+            ),
+        )
     shown = gantt_service.open_gantt(
         session,
         assignee_id,
@@ -329,7 +363,7 @@ def _gantt_page(
         today=date.today(),
         project_id=None if project is None else project.id,
         base=base,
-        filters=bar.criteria,
+        filters=criteria,
     )
     projects = list(project_service.list_projects(session))
     scope = None if project is None else project.id

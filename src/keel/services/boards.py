@@ -234,6 +234,9 @@ def master_board(
     elif project_id is not None:
         sprints = list(sprint_service.list_sprints(session, project_id))
         projects = {project_id: project_service.get_project(session, project_id)}
+    elif chosen.projects_limited:
+        sprints = []
+        projects = {}
     else:
         sprints = list(sprint_service.list_all_sprints(session))
         projects = {item.id: item for item in project_service.list_projects(session)}

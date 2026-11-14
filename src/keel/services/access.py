@@ -562,6 +562,24 @@ def reset_user_password(
     auth_service.revoke_sessions(session, person.id)
 
 
+def project_ids_holding(
+    session: Session,
+    actor: Access,
+    permission: Permission,
+) -> frozenset[int] | None:
+    """Projects where ``permission`` holds. None means every project."""
+    if actor.is_owner:
+        return None
+    if actor.user_id is None:
+        return frozenset()
+    found = {
+        project_id
+        for project_id in session.scalars(select(Project.id)).all()
+        if holds_project(session, actor, project_id, permission)
+    }
+    return frozenset(found)
+
+
 def visible_project_ids(access: Access, projects: list[Project]) -> list[Project]:
     if access.is_owner or access.allows(Permission.VIEW_PROJECTS.value):
         return projects

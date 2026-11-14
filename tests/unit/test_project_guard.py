@@ -311,6 +311,35 @@ def test_delete_project_allows_a_global_grant_or_the_project_permission(
     assert not access_service.may_delete_project(session, viewer, project.id)
 
 
+def test_viewable_projects_follow_the_project_permission(session: Session) -> None:
+    home = project_service.create_project(session, "KEEL", "Keel")
+    away = project_service.create_project(session, "BOAT", "Boat")
+    owner = _person(session, "Owner", RoleCode.OWNER)
+    viewer = _person(session, "Viewer", RoleCode.MEMBER)
+    assert viewer.user_id is not None
+    access_service.set_project_role(session, viewer.user_id, home.id, RoleCode.VIEWER)
+
+    assert (
+        access_service.project_ids_holding(session, owner, Permission.VIEW_ISSUES)
+        is None
+    )
+    assert access_service.project_ids_holding(
+        session, viewer, Permission.VIEW_ISSUES
+    ) == frozenset({home.id})
+    assert away.id not in (
+        access_service.project_ids_holding(session, viewer, Permission.VIEW_ISSUES)
+        or frozenset()
+    )
+    limited = issue_service.limit_projects(
+        issue_service.IssueFilters(),
+        frozenset({home.id}),
+    )
+    assert limited.projects_limited
+    assert limited.project_ids == (home.id,)
+    untouched = issue_service.limit_projects(issue_service.IssueFilters(), None)
+    assert not untouched.projects_limited
+
+
 def test_issue_update_permissions_split_status_from_edits() -> None:
     assert permissions_for_issue_update(set()) == (Permission.EDIT_ISSUES,)
     assert permissions_for_issue_update({"status"}) == (Permission.UPDATE_ISSUES,)
