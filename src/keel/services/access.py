@@ -427,6 +427,42 @@ def project_of_dependency(session: Session, dependency_id: int) -> DependencyEnd
     )
 
 
+def require_comment_delete(session: Session, actor: Access, comment_id: int) -> None:
+    """Delete any comment, or delete one you wrote."""
+    comment = session.get(Comment, comment_id)
+    if comment is None:
+        raise NotFoundError(f"No comment with id {comment_id}.")
+    project_id = project_of_issue(session, comment.issue_id)
+    if holds_project(session, actor, project_id, Permission.DELETE_ANY_COMMENTS):
+        return
+    if (
+        comment.author_id is not None
+        and comment.author_id == actor.user_id
+        and holds_project(session, actor, project_id, Permission.DELETE_OWN_COMMENTS)
+    ):
+        return
+    raise PermissionDeniedError(DENIED)
+
+
+def require_dependency_projects(
+    session: Session,
+    actor: Access,
+    source_project_id: int,
+    target_project_id: int,
+) -> None:
+    """See both issues, and manage dependencies on at least one of them."""
+    require_project(session, actor, source_project_id, Permission.VIEW_ISSUES)
+    if target_project_id != source_project_id:
+        require_project(session, actor, target_project_id, Permission.VIEW_ISSUES)
+    if holds_project(
+        session, actor, source_project_id, Permission.MANAGE_DEPENDENCIES
+    ) or holds_project(
+        session, actor, target_project_id, Permission.MANAGE_DEPENDENCIES
+    ):
+        return
+    raise PermissionDeniedError(DENIED)
+
+
 def save_project_grant(
     session: Session,
     actor: Access,

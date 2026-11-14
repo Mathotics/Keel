@@ -64,6 +64,7 @@ from keel.web.board_lanes import (
 )
 from keel.web.context import Chrome, ChromeDep, SessionDep
 from keel.web.forbid import require_page, require_project_page
+from keel.web.guards import require_comment_delete, require_dependency_delete
 from keel.web.guards import require_issue as guard_issue_page
 from keel.web.guards import require_project as guard_project_page
 from keel.web.home_layout import (
@@ -1360,9 +1361,13 @@ def _dependency_ends(
     return None
 
 
-@router.post("/issues/{issue_id}/dependencies")
+@router.post(
+    "/issues/{issue_id}/dependencies",
+    dependencies=[Depends(guard_issue_page(Permission.MANAGE_DEPENDENCIES))],
+)
 def create_issue_dependency(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     other_id: Annotated[str, Form()] = "",
     other_query: Annotated[str, Form()] = "",
@@ -1387,14 +1392,26 @@ def create_issue_dependency(
         return _back(here, "That is not a valid dependency kind.")
     source_id, target_id, kind = ends
     try:
+        access_service.require_dependency_projects(
+            session,
+            chrome.access,
+            access_service.project_of_issue(session, source_id),
+            access_service.project_of_issue(session, target_id),
+        )
         dependency_service.create_dependency(session, source_id, target_id, kind)
+    except PermissionDeniedError:
+        session.rollback()
+        raise
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
     return _back(here)
 
 
-@router.post("/dependencies/{dependency_id}/delete")
+@router.post(
+    "/dependencies/{dependency_id}/delete",
+    dependencies=[Depends(require_dependency_delete())],
+)
 def delete_issue_dependency(
     session: SessionDep,
     dependency_id: int,
@@ -1410,7 +1427,10 @@ def delete_issue_dependency(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/comments")
+@router.post(
+    "/issues/{issue_id}/comments",
+    dependencies=[Depends(guard_issue_page(Permission.COMMENT_ISSUES))],
+)
 def create_issue_comment(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1431,7 +1451,10 @@ def create_issue_comment(
     return _back(here)
 
 
-@router.post("/comments/{comment_id}/delete")
+@router.post(
+    "/comments/{comment_id}/delete",
+    dependencies=[Depends(require_comment_delete())],
+)
 def delete_issue_comment(
     session: SessionDep,
     comment_id: int,

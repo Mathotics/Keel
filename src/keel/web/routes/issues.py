@@ -28,7 +28,7 @@ from keel.services import series as series_service
 from keel.services import series_tree
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
-from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.context import Chrome, ChromeDep, SessionDep, get_templates, page_context
 from keel.web.guards import require_issue_key
 from keel.web.issue_panels import (
     ISSUE_PANELS_COOKIE,
@@ -66,7 +66,7 @@ def issue_page(
     project = project_service.get_project(session, issue.project_id)
     issue_key = issue_service.issue_key(issue, project)
     found_history = history_service.list_history(session, issue.id)
-    found_comments = _comment_views(session, issue.id)
+    found_comments = _comment_views(session, chrome, project.id, issue.id)
     history_pager, comments_pager = table_pagers(
         f"/issues/{issue_key}",
         (
@@ -115,7 +115,9 @@ def issue_page(
             children=issue_service.list_children(session, issue.id),
             issue_labels=label_service.labels_for_issue(session, issue.id),
             label_catalog=label_service.list_labels(session),
-            dependencies=dependency_service.list_for_issue(session, issue.id),
+            dependencies=_visible_dependencies(
+                session, chrome, dependency_service.list_for_issue(session, issue.id)
+            ),
             comments=page_rows(found_comments, comments_pager.window),
             comments_pager=comments_pager,
             history=page_rows(found_history, history_pager.window),
@@ -182,6 +184,12 @@ def issue_page(
             can_create_issue=access_service.holds_project(
                 session, chrome.access, project.id, Permission.CREATE_ISSUES
             ),
+            can_comment=access_service.holds_project(
+                session, chrome.access, project.id, Permission.COMMENT_ISSUES
+            ),
+            can_manage_dependencies=access_service.holds_project(
+                session, chrome.access, project.id, Permission.MANAGE_DEPENDENCIES
+            ),
         ),
     )
 
@@ -223,10 +231,42 @@ def _recipe_view(series: object, item: object) -> object:
     )
 
 
-def _comment_views(session: Session, issue_id: int) -> list[dict[str, object]]:
+def _visible_dependencies(
+    session: Session,
+    chrome: Chrome,
+    groups: dependency_service.IssueDependencies,
+) -> dependency_service.IssueDependencies:
+    def keep(link: dependency_service.DependencyLink) -> bool:
+        return access_service.holds_project(
+            session,
+            chrome.access,
+            link.issue.project_id,
+            Permission.VIEW_ISSUES,
+        )
+
+    return dependency_service.IssueDependencies(
+        blocks=tuple(link for link in groups.blocks if keep(link)),
+        blocked_by=tuple(link for link in groups.blocked_by if keep(link)),
+        relates_to=tuple(link for link in groups.relates_to if keep(link)),
+    )
+
+
+def _comment_views(
+    session: Session,
+    chrome: Chrome,
+    project_id: int,
+    issue_id: int,
+) -> list[dict[str, object]]:
     names = {
         person.id: person.display_name for person in user_service.list_users(session)
     }
+    can_delete_any = access_service.holds_project(
+        session, chrome.access, project_id, Permission.DELETE_ANY_COMMENTS
+    )
+    can_delete_own = access_service.holds_project(
+        session, chrome.access, project_id, Permission.DELETE_OWN_COMMENTS
+    )
+    actor_id = chrome.access.user_id
     return [
         {
             "id": comment.id,
@@ -235,6 +275,8 @@ def _comment_views(session: Session, issue_id: int) -> list[dict[str, object]]:
             "author_name": names.get(comment.author_id, "None")
             if comment.author_id is not None
             else "None",
+            "can_delete": can_delete_any
+            or (can_delete_own and comment.author_id == actor_id),
         }
         for comment in comment_service.list_comments(session, issue_id)
     ]

@@ -28,12 +28,8 @@ INTENTIONALLY_OPEN: frozenset[str] = frozenset()
 # Removed in the commit that enforces the route.
 STILL_OPEN: frozenset[str] = frozenset(
     {
-        "DELETE /api/v1/comments/{comment_id}",
-        "DELETE /api/v1/dependencies/{dependency_id}",
         "DELETE /api/v1/series/{series_id}",
         "DELETE /api/v1/sprints/{sprint_id}",
-        "GET /api/v1/issues/{issue_id}/comments",
-        "GET /api/v1/issues/{issue_id}/dependencies",
         "GET /api/v1/projects/{project_id}",
         "GET /api/v1/projects/{project_id}/series",
         "GET /api/v1/projects/{project_id}/sprints",
@@ -51,7 +47,6 @@ STILL_OPEN: frozenset[str] = frozenset(
         "PATCH /api/v1/projects/{project_id}",
         "PATCH /api/v1/series/{series_id}",
         "PATCH /api/v1/sprints/{sprint_id}",
-        "POST /api/v1/issues/{issue_id}/comments",
         "POST /api/v1/issues/{issue_id}/series",
         "POST /api/v1/projects/{project_id}/series",
         "POST /api/v1/projects/{project_id}/sprints",
@@ -59,10 +54,6 @@ STILL_OPEN: frozenset[str] = frozenset(
         "POST /api/v1/series/{series_id}/resume",
         "POST /api/v1/sprints/{sprint_id}/complete",
         "POST /api/v1/sprints/{sprint_id}/start",
-        "POST /web/comments/{comment_id}/delete",
-        "POST /web/dependencies/{dependency_id}/delete",
-        "POST /web/issues/{issue_id}/comments",
-        "POST /web/issues/{issue_id}/dependencies",
         "POST /web/issues/{issue_id}/repeat",
         "POST /web/issues/{issue_id}/series",
         "POST /web/issues/{issue_id}/series-item",
@@ -167,6 +158,25 @@ def test_guarded_project_routes_deny_outsiders_and_no_access(
     )
     assert created_issue.status_code == 201, created_issue.text
     issue = created_issue.json()
+    other_issue = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={"type": "story", "title": "Also hidden"},
+    )
+    assert other_issue.status_code == 201, other_issue.text
+    link = client.post(
+        "/api/v1/dependencies",
+        json={
+            "source_id": issue["id"],
+            "target_id": other_issue.json()["id"],
+            "kind": "blocks",
+        },
+    )
+    assert link.status_code == 201, link.text
+    note = client.post(
+        f"/api/v1/issues/{issue['id']}/comments",
+        json={"body": "secret"},
+    )
+    assert note.status_code == 201, note.text
     values = {
         "project_id": project_id,
         "key": "SECR",
@@ -175,8 +185,8 @@ def test_guarded_project_routes_deny_outsiders_and_no_access(
         "issue_id": issue["id"],
         "sprint_id": 0,
         "series_id": 0,
-        "comment_id": 0,
-        "dependency_id": 0,
+        "comment_id": note.json()["id"],
+        "dependency_id": link.json()["id"],
         "label_id": 0,
     }
 

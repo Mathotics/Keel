@@ -53,6 +53,26 @@ def require_project_key(permission: Permission) -> Callable[..., None]:
     return checker
 
 
+def require_comment_delete() -> Callable[..., None]:
+    def checker(comment_id: int, session: SessionDep, chrome: ChromeDep) -> None:
+        access_service.require_comment_delete(session, chrome.access, comment_id)
+
+    return checker
+
+
+def require_dependency_delete() -> Callable[..., None]:
+    def checker(dependency_id: int, session: SessionDep, chrome: ChromeDep) -> None:
+        ends = access_service.project_of_dependency(session, dependency_id)
+        access_service.require_dependency_projects(
+            session,
+            chrome.access,
+            ends.source_project_id,
+            ends.target_project_id,
+        )
+
+    return checker
+
+
 def require_issue_key(permission: Permission) -> Callable[..., None]:
     def checker(key: str, session: SessionDep, chrome: ChromeDep) -> None:
         _require(

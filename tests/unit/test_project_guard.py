@@ -232,6 +232,59 @@ def test_the_web_guard_renders_the_forbidden_page(session: Session) -> None:
     assert denied.status_code == 403
 
 
+def test_comment_delete_is_own_unless_the_project_owner(session: Session) -> None:
+    project = project_service.create_project(session, "KEEL", "Keel")
+    author = _person(session, "Author", RoleCode.EDITOR)
+    peer = _person(session, "Peer", RoleCode.EDITOR)
+    lead = _person(session, "Lead", RoleCode.EDITOR)
+    member = _person(session, "Member", RoleCode.MEMBER)
+    assert author.user_id is not None
+    assert peer.user_id is not None
+    assert lead.user_id is not None
+    assert member.user_id is not None
+    access_service.set_project_role(
+        session, author.user_id, project.id, RoleCode.CONTRIBUTOR
+    )
+    access_service.set_project_role(
+        session, peer.user_id, project.id, RoleCode.CONTRIBUTOR
+    )
+    access_service.set_project_role(
+        session, lead.user_id, project.id, RoleCode.PROJECT_OWNER
+    )
+    access_service.set_project_role(
+        session, member.user_id, project.id, RoleCode.CONTRIBUTOR
+    )
+    issue = issue_service.create_issue(
+        session, project.id, type=IssueType.STORY, title="Hull"
+    )
+    comment = comment_service.create_comment(
+        session, issue.id, "Mine", author_id=author.user_id
+    )
+
+    access_service.require_comment_delete(session, author, comment.id)
+    access_service.require_comment_delete(session, lead, comment.id)
+    with pytest.raises(PermissionDeniedError):
+        access_service.require_comment_delete(session, peer, comment.id)
+    with pytest.raises(PermissionDeniedError):
+        access_service.require_comment_delete(session, member, comment.id)
+
+
+def test_a_cross_project_link_needs_view_on_the_other_project(session: Session) -> None:
+    home = project_service.create_project(session, "KEEL", "Keel")
+    away = project_service.create_project(session, "BOAT", "Boat")
+    person = _person(session, "Linker", RoleCode.EDITOR)
+    assert person.user_id is not None
+    access_service.set_project_role(
+        session, person.user_id, home.id, RoleCode.CONTRIBUTOR
+    )
+
+    with pytest.raises(PermissionDeniedError):
+        access_service.require_dependency_projects(session, person, home.id, away.id)
+
+    access_service.set_project_role(session, person.user_id, away.id, RoleCode.VIEWER)
+    access_service.require_dependency_projects(session, person, home.id, away.id)
+
+
 def test_issue_update_permissions_split_status_from_edits() -> None:
     assert permissions_for_issue_update(set()) == (Permission.EDIT_ISSUES,)
     assert permissions_for_issue_update({"status"}) == (Permission.UPDATE_ISSUES,)

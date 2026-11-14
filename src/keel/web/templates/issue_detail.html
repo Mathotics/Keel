@@ -528,10 +528,12 @@
             </td>
             <td>{{ link.issue.title }}</td>
             <td>
+              {% if can_manage_dependencies %}
               <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
                 <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
                 <button type="submit">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -555,10 +557,12 @@
             </td>
             <td>{{ link.issue.title }}</td>
             <td>
+              {% if can_manage_dependencies %}
               <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
                 <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
                 <button type="submit">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -582,10 +586,12 @@
             </td>
             <td>{{ link.issue.title }}</td>
             <td>
+              {% if can_manage_dependencies %}
               <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
                 <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
                 <button type="submit">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -595,6 +601,7 @@
       </table>
       </div>
 
+      {% if can_manage_dependencies %}
       <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dependencies">
         <p>This issue</p>
         <label>
@@ -613,6 +620,7 @@
         </label>
         <button class="keel-primary" type="submit">Add</button>
       </form>
+      {% endif %}
       {% endcall %}
 
       {% call issue_panel('history', 'History', history_pager.window.total) %}
@@ -629,15 +637,18 @@
       <article class="keel-comment">
         <p class="keel-comment__meta">{{ comment.author_name }} · {{ comment.created_at | when }}</p>
         <div class="keel-comment__body keel-markdown">{{ comment.body | markdown }}</div>
+        {% if comment.can_delete %}
         <form class="keel-form keel-form--inline" method="post" action="/web/comments/{{ comment.id }}/delete">
           <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
           <button type="submit">Remove</button>
         </form>
+        {% endif %}
       </article>
       {% else %}
       <p class="keel-empty">No comments yet.</p>
       {% endfor %}
       {% with pager=comments_pager %}{% include "_pager.html" %}{% endwith %}
+      {% if can_comment %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
         <p>
           <label for="issue-comment">Comment</label>
@@ -645,6 +656,7 @@
         </p>
         <p><button class="keel-primary" type="submit">Add comment</button></p>
       </form>
+      {% endif %}
       {% endcall %}
 
       {% if can_delete_issue %}

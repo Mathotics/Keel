@@ -151,6 +151,28 @@ def require_issue_update(
         )
 
 
+def require_comment_delete(
+    comment_id: int,
+    session: SessionDep,
+    access: AccessDep,
+) -> None:
+    access_service.require_comment_delete(session, access, comment_id)
+
+
+def require_dependency_delete(
+    dependency_id: int,
+    session: SessionDep,
+    access: AccessDep,
+) -> None:
+    ends = access_service.project_of_dependency(session, dependency_id)
+    access_service.require_dependency_projects(
+        session,
+        access,
+        ends.source_project_id,
+        ends.target_project_id,
+    )
+
+
 def guard_comment(
     session: Session,
     access: Access,
