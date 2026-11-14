@@ -15,7 +15,7 @@ from keel.domain.access import (
     parse_permission,
     parse_role,
 )
-from keel.domain.errors import DomainError
+from keel.domain.errors import DomainError, PermissionDeniedError
 from keel.services import access as access_service
 from keel.services import projects as project_service
 from keel.services import users as user_service
@@ -154,6 +154,9 @@ def save_everyone_access(
             role=_parse_project_role(role),
             submitted_direct=_submitted(permission),
         )
+    except PermissionDeniedError:
+        session.rollback()
+        return forbidden_page(request, chrome)
     except DomainError as exc:
         session.rollback()
         return RedirectResponse(
@@ -183,6 +186,9 @@ def save_person_access(
             role=_parse_project_role(role),
             submitted_direct=_submitted(permission),
         )
+    except PermissionDeniedError:
+        session.rollback()
+        return forbidden_page(request, chrome)
     except DomainError as exc:
         session.rollback()
         return RedirectResponse(

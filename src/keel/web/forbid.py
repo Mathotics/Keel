@@ -1,6 +1,9 @@
 from fastapi import Request
 from fastapi.responses import HTMLResponse
+from sqlalchemy.orm import Session
 
+from keel.domain.access import Permission
+from keel.services import access as access_service
 from keel.web.context import Chrome, get_templates, page_context
 
 FORBIDDEN = "You are signed in, but this page is not allowed."
@@ -20,5 +23,18 @@ def require_page(
     request: Request, chrome: Chrome, permission: str
 ) -> HTMLResponse | None:
     if chrome.access.allows(permission):
+        return None
+    return forbidden_page(request, chrome)
+
+
+def require_project_page(
+    request: Request,
+    chrome: Chrome,
+    session: Session,
+    project_id: int,
+    permission: Permission,
+) -> HTMLResponse | None:
+    """The forbidden page when this person lacks ``permission`` on the project."""
+    if access_service.holds_project(session, chrome.access, project_id, permission):
         return None
     return forbidden_page(request, chrome)

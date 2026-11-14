@@ -1,13 +1,13 @@
 from fastapi import APIRouter, status
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.api.v1.guards import AccessDep
 from keel.domain.access import Permission
-from keel.domain.errors import CannotDeleteSelfError, PermissionDeniedError
+from keel.domain.errors import CannotDeleteSelfError
 from keel.schemas.access import PasswordReset
 from keel.schemas.user import UserCreate, UserRead, UserUpdate
 from keel.services import access as access_service
 from keel.services import users as user_service
-from keel.services.access import DENIED
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -17,19 +17,13 @@ def list_users(session: SessionDep) -> list[UserRead]:
     return [UserRead.model_validate(user) for user in user_service.list_users(session)]
 
 
-def _access(session: SessionDep, acting: ActingUserDep) -> access_service.Access:
-    if acting is None:
-        raise PermissionDeniedError(DENIED)
-    return access_service.load_access(session, acting.id)
-
-
 @router.post("", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(
     payload: UserCreate,
     session: SessionDep,
-    acting: ActingUserDep,
+    access: AccessDep,
 ) -> UserRead:
-    access_service.require(_access(session, acting), Permission.CREATE_USERS)
+    access_service.require(access, Permission.CREATE_USERS)
     user = user_service.create_user(
         session,
         payload.display_name,
@@ -51,9 +45,9 @@ def update_user(
     user_id: int,
     payload: UserUpdate,
     session: SessionDep,
-    acting: ActingUserDep,
+    access: AccessDep,
 ) -> UserRead:
-    access_service.require(_access(session, acting), Permission.RENAME_USERS)
+    access_service.require(access, Permission.RENAME_USERS)
     user = user_service.rename_user(session, user_id, payload.display_name)
     return UserRead.model_validate(user)
 
@@ -63,8 +57,8 @@ def delete_user(
     user_id: int,
     session: SessionDep,
     acting: ActingUserDep,
+    access: AccessDep,
 ) -> None:
-    access = _access(session, acting)
     if acting is not None and acting.id == user_id:
         raise CannotDeleteSelfError(
             "Sign in as someone else before deleting this account.",
@@ -78,11 +72,11 @@ def reset_password(
     user_id: int,
     payload: PasswordReset,
     session: SessionDep,
-    acting: ActingUserDep,
+    access: AccessDep,
 ) -> None:
     access_service.reset_user_password(
         session,
-        _access(session, acting),
+        access,
         user_id,
         payload.password,
         payload.confirm,
