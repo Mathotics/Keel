@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.api.v1.guards import require_project, require_sprint
 from keel.db.models import Sprint
+from keel.domain.access import Permission
 from keel.domain.enums import SprintState
 from keel.schemas.issue import IssueRead
 from keel.schemas.sprint import (
@@ -37,7 +39,11 @@ def _detail(session: Session, sprint: Sprint) -> SprintDetailRead:
     )
 
 
-@router.get("/projects/{project_id}/sprints", response_model=list[SprintRead])
+@router.get(
+    "/projects/{project_id}/sprints",
+    response_model=list[SprintRead],
+    dependencies=[Depends(require_project(Permission.VIEW_SPRINTS))],
+)
 def list_sprints(
     project_id: int,
     session: SessionDep,
@@ -53,6 +59,7 @@ def list_sprints(
     "/projects/{project_id}/sprints",
     response_model=SprintRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_project(Permission.CREATE_SPRINTS))],
 )
 def create_sprint(
     project_id: int,
@@ -70,12 +77,20 @@ def create_sprint(
     return SprintRead.of(sprint)
 
 
-@router.get("/sprints/{sprint_id}", response_model=SprintDetailRead)
+@router.get(
+    "/sprints/{sprint_id}",
+    response_model=SprintDetailRead,
+    dependencies=[Depends(require_sprint(Permission.VIEW_SPRINTS))],
+)
 def read_sprint(sprint_id: int, session: SessionDep) -> SprintDetailRead:
     return _detail(session, sprint_service.get_sprint(session, sprint_id))
 
 
-@router.patch("/sprints/{sprint_id}", response_model=SprintRead)
+@router.patch(
+    "/sprints/{sprint_id}",
+    response_model=SprintRead,
+    dependencies=[Depends(require_sprint(Permission.EDIT_SPRINTS))],
+)
 def update_sprint(
     sprint_id: int,
     payload: SprintUpdate,
@@ -95,17 +110,29 @@ def update_sprint(
     return SprintRead.of(sprint)
 
 
-@router.delete("/sprints/{sprint_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/sprints/{sprint_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_sprint(Permission.DELETE_SPRINTS))],
+)
 def delete_sprint(sprint_id: int, session: SessionDep) -> None:
     auto_sprint.delete_sprint(session, sprint_id)
 
 
-@router.post("/sprints/{sprint_id}/start", response_model=SprintRead)
+@router.post(
+    "/sprints/{sprint_id}/start",
+    response_model=SprintRead,
+    dependencies=[Depends(require_sprint(Permission.START_COMPLETE_SPRINTS))],
+)
 def start_sprint(sprint_id: int, session: SessionDep) -> SprintRead:
     return SprintRead.of(auto_sprint.start_sprint(session, sprint_id))
 
 
-@router.post("/sprints/{sprint_id}/complete", response_model=SprintCompletionRead)
+@router.post(
+    "/sprints/{sprint_id}/complete",
+    response_model=SprintCompletionRead,
+    dependencies=[Depends(require_sprint(Permission.START_COMPLETE_SPRINTS))],
+)
 def complete_sprint(
     sprint_id: int,
     session: SessionDep,

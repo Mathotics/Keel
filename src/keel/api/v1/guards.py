@@ -116,6 +116,13 @@ def require_project(permission: Permission) -> Callable[..., None]:
     return checker
 
 
+def require_sprint(permission: Permission) -> Callable[..., None]:
+    def checker(sprint_id: int, session: SessionDep, access: AccessDep) -> None:
+        guard_sprint(session, access, sprint_id, permission)
+
+    return checker
+
+
 def require_issue(permission: Permission) -> Callable[..., None]:
     def checker(issue_id: int, session: SessionDep, access: AccessDep) -> None:
         guard_issue(session, access, issue_id, permission)

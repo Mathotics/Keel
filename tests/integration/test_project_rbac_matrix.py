@@ -29,12 +29,9 @@ INTENTIONALLY_OPEN: frozenset[str] = frozenset()
 STILL_OPEN: frozenset[str] = frozenset(
     {
         "DELETE /api/v1/series/{series_id}",
-        "DELETE /api/v1/sprints/{sprint_id}",
         "GET /api/v1/projects/{project_id}",
         "GET /api/v1/projects/{project_id}/series",
-        "GET /api/v1/projects/{project_id}/sprints",
         "GET /api/v1/series/{series_id}",
-        "GET /api/v1/sprints/{sprint_id}",
         "GET /projects/{key}",
         "GET /projects/{key}/backlog",
         "GET /projects/{key}/board",
@@ -42,33 +39,22 @@ STILL_OPEN: frozenset[str] = frozenset(
         "GET /projects/{key}/gantt",
         "GET /projects/{key}/schedules",
         "GET /projects/{key}/schedules/{series_id}",
-        "GET /projects/{key}/sprints",
-        "GET /projects/{key}/sprints/{sprint_id}",
         "PATCH /api/v1/projects/{project_id}",
         "PATCH /api/v1/series/{series_id}",
-        "PATCH /api/v1/sprints/{sprint_id}",
         "POST /api/v1/issues/{issue_id}/series",
         "POST /api/v1/projects/{project_id}/series",
-        "POST /api/v1/projects/{project_id}/sprints",
         "POST /api/v1/series/{series_id}/pause",
         "POST /api/v1/series/{series_id}/resume",
-        "POST /api/v1/sprints/{sprint_id}/complete",
-        "POST /api/v1/sprints/{sprint_id}/start",
         "POST /web/issues/{issue_id}/repeat",
         "POST /web/issues/{issue_id}/series",
         "POST /web/issues/{issue_id}/series-item",
         "POST /web/issues/{issue_id}/series-item/remove",
         "POST /web/projects/{project_id}/schedules",
-        "POST /web/projects/{project_id}/sprints",
         "POST /web/projects/{project_id}/update",
         "POST /web/schedules/{series_id}/delete",
         "POST /web/schedules/{series_id}/pause",
         "POST /web/schedules/{series_id}/resume",
         "POST /web/schedules/{series_id}/update",
-        "POST /web/sprints/{sprint_id}/complete",
-        "POST /web/sprints/{sprint_id}/delete",
-        "POST /web/sprints/{sprint_id}/start",
-        "POST /web/sprints/{sprint_id}/update",
     }
 )
 
@@ -177,13 +163,18 @@ def test_guarded_project_routes_deny_outsiders_and_no_access(
         json={"body": "secret"},
     )
     assert note.status_code == 201, note.text
+    sprint = client.post(
+        f"/api/v1/projects/{project_id}/sprints",
+        json={"name": "Hidden sprint"},
+    )
+    assert sprint.status_code == 201, sprint.text
     values = {
         "project_id": project_id,
         "key": "SECR",
         "issue_key": issue["key"],
         "user_id": outsider_id,
         "issue_id": issue["id"],
-        "sprint_id": 0,
+        "sprint_id": sprint.json()["id"],
         "series_id": 0,
         "comment_id": note.json()["id"],
         "dependency_id": link.json()["id"],

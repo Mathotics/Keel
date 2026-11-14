@@ -67,6 +67,7 @@ from keel.web.forbid import require_page, require_project_page
 from keel.web.guards import require_comment_delete, require_dependency_delete
 from keel.web.guards import require_issue as guard_issue_page
 from keel.web.guards import require_project as guard_project_page
+from keel.web.guards import require_sprint as guard_sprint_page
 from keel.web.home_layout import (
     HOME_COOKIE,
     HOME_COOKIE_MAX_AGE,
@@ -1523,7 +1524,10 @@ def update_issue_sprint(
     return _back(return_to or here)
 
 
-@router.post("/projects/{project_id}/sprints")
+@router.post(
+    "/projects/{project_id}/sprints",
+    dependencies=[Depends(guard_project_page(Permission.CREATE_SPRINTS))],
+)
 def create_sprint(
     session: SessionDep,
     project_id: int,
@@ -1549,7 +1553,10 @@ def create_sprint(
     return _back(f"/projects/{key}/sprints/{sprint.id}")
 
 
-@router.post("/sprints/{sprint_id}/update")
+@router.post(
+    "/sprints/{sprint_id}/update",
+    dependencies=[Depends(guard_sprint_page(Permission.EDIT_SPRINTS))],
+)
 def update_sprint(
     session: SessionDep,
     sprint_id: int,
@@ -1574,7 +1581,10 @@ def update_sprint(
     return _back(here)
 
 
-@router.post("/sprints/{sprint_id}/delete")
+@router.post(
+    "/sprints/{sprint_id}/delete",
+    dependencies=[Depends(guard_sprint_page(Permission.DELETE_SPRINTS))],
+)
 def delete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     sprint = sprint_service.get_sprint(session, sprint_id)
     key = project_service.get_project(session, sprint.project_id).key
@@ -1588,7 +1598,10 @@ def delete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     return _back(listing, notice=project.auto_sprint_notice or None)
 
 
-@router.post("/sprints/{sprint_id}/start")
+@router.post(
+    "/sprints/{sprint_id}/start",
+    dependencies=[Depends(guard_sprint_page(Permission.START_COMPLETE_SPRINTS))],
+)
 def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     here = _sprint_page(session, sprint_id)
     try:
@@ -1599,7 +1612,10 @@ def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     return _back(here)
 
 
-@router.post("/sprints/{sprint_id}/complete")
+@router.post(
+    "/sprints/{sprint_id}/complete",
+    dependencies=[Depends(guard_sprint_page(Permission.START_COMPLETE_SPRINTS))],
+)
 def complete_sprint(
     session: SessionDep,
     chrome: ChromeDep,

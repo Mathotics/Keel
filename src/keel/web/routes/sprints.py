@@ -1,10 +1,11 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
 from keel.db.models import Sprint
+from keel.domain.access import Permission
 from keel.domain.enums import (
     SprintCadence,
     SprintState,
@@ -17,6 +18,8 @@ from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.guards import require_project_key
+from keel.web.guards import require_sprint as guard_sprint_page
 from keel.web.paging import (
     DEFAULT_PAGE_SIZE,
     PagerRequest,
@@ -36,7 +39,11 @@ class _SprintTable:
     pager: TablePager
 
 
-@router.get("/{key}/sprints", response_class=HTMLResponse)
+@router.get(
+    "/{key}/sprints",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_SPRINTS))],
+)
 def sprints_page(
     key: str,
     request: Request,
@@ -108,7 +115,11 @@ def sprints_page(
     )
 
 
-@router.get("/{key}/sprints/{sprint_id}", response_class=HTMLResponse)
+@router.get(
+    "/{key}/sprints/{sprint_id}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(guard_sprint_page(Permission.VIEW_SPRINTS))],
+)
 def sprint_detail_page(
     key: str,
     sprint_id: int,
