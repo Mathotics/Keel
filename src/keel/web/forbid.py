@@ -19,6 +19,43 @@ def forbidden_page(request: Request, chrome: Chrome) -> HTMLResponse:
     )
 
 
+def forbidden_response(request: Request) -> HTMLResponse:
+    """The forbidden page when a route raises instead of returning it."""
+    factory = request.app.state.session_factory
+    with factory() as session:
+        chrome = _chrome(request, session)
+        rendered = (
+            get_templates()
+            .env.get_template("forbidden.html")
+            .render(page_context(request, chrome, forbidden_message=FORBIDDEN))
+        )
+    return HTMLResponse(rendered, status_code=403)
+
+
+def _chrome(request: Request, session: Session) -> Chrome:
+    from keel.services import notifications as notification_service
+    from keel.services import users as user_service
+    from keel.services.access import load_access
+    from keel.services.identity import SESSION_COOKIE, resolve_current_user
+
+    current = resolve_current_user(
+        session,
+        authorization=request.headers.get("authorization"),
+        session_cookie=request.cookies.get(SESSION_COOKIE),
+        touch=False,
+    )
+    return Chrome(
+        users=user_service.list_users(session),
+        current_user=current,
+        access=load_access(session, None if current is None else current.id),
+        unread=(
+            notification_service.has_unread(session, current.id)
+            if current is not None
+            else False
+        ),
+    )
+
+
 def require_page(
     request: Request, chrome: Chrome, permission: str
 ) -> HTMLResponse | None:

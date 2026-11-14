@@ -6,7 +6,11 @@ import pytest
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
-from keel.api.v1.guards import current_access, guard_issue
+from keel.api.v1.guards import (
+    current_access,
+    guard_issue,
+    permissions_for_issue_update,
+)
 from keel.db.models import Series
 from keel.domain.access import Permission, RoleCode
 from keel.domain.enums import (
@@ -226,3 +230,13 @@ def test_the_web_guard_renders_the_forbidden_page(session: Session) -> None:
     assert allowed is None
     assert denied is not None
     assert denied.status_code == 403
+
+
+def test_issue_update_permissions_split_status_from_edits() -> None:
+    assert permissions_for_issue_update(set()) == (Permission.EDIT_ISSUES,)
+    assert permissions_for_issue_update({"status"}) == (Permission.UPDATE_ISSUES,)
+    assert permissions_for_issue_update({"title"}) == (Permission.EDIT_ISSUES,)
+    assert permissions_for_issue_update({"status", "title"}) == (
+        Permission.UPDATE_ISSUES,
+        Permission.EDIT_ISSUES,
+    )

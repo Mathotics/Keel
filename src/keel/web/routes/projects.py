@@ -13,6 +13,7 @@ from keel.services import projects as project_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.filters import FilterRequest, filter_request
+from keel.web.guards import require_project_key
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 from keel.web.routes.pages import _calendar_page, _gantt_page
 
@@ -112,7 +113,10 @@ def project_page(
     )
 
 
-@router.get("/{key}/issues/new")
+@router.get(
+    "/{key}/issues/new",
+    dependencies=[Depends(require_project_key(Permission.CREATE_ISSUES))],
+)
 def new_issue_page(key: str, error: str | None = None) -> RedirectResponse:
     """Creating happens on /create; keep the old per-project URL working."""
     params = {"project": key}

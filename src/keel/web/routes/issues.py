@@ -1,9 +1,10 @@
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
+from keel.domain.access import Permission
 from keel.domain.enums import (
     EditScope,
     RecurrenceFreq,
@@ -15,6 +16,7 @@ from keel.domain.enums import (
 )
 from keel.domain.hierarchy import child_type_of
 from keel.domain.recurrence import MONTH_NAMES, WEEKDAY_NAMES, parse_weekdays
+from keel.services import access as access_service
 from keel.services import comments as comment_service
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
@@ -27,6 +29,7 @@ from keel.services import series_tree
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.guards import require_issue_key
 from keel.web.issue_panels import (
     ISSUE_PANELS_COOKIE,
     encode_toggle,
@@ -42,7 +45,11 @@ from keel.web.paging import (
 router = APIRouter(prefix="/issues")
 
 
-@router.get("/{key}", response_class=HTMLResponse)
+@router.get(
+    "/{key}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_issue_key(Permission.VIEW_ISSUES))],
+)
 def issue_page(
     key: str,
     request: Request,
@@ -163,11 +170,26 @@ def issue_page(
             collapsed_issue_panels=collapsed,
             issue_panel_toggle=issue_panel_toggle,
             client_key=issue_service.new_client_key(),
+            can_edit_issue=access_service.holds_project(
+                session, chrome.access, project.id, Permission.EDIT_ISSUES
+            ),
+            can_update_issue=access_service.holds_project(
+                session, chrome.access, project.id, Permission.UPDATE_ISSUES
+            ),
+            can_delete_issue=access_service.holds_project(
+                session, chrome.access, project.id, Permission.DELETE_ISSUES
+            ),
+            can_create_issue=access_service.holds_project(
+                session, chrome.access, project.id, Permission.CREATE_ISSUES
+            ),
         ),
     )
 
 
-@router.get("/{key}/edit")
+@router.get(
+    "/{key}/edit",
+    dependencies=[Depends(require_issue_key(Permission.VIEW_ISSUES))],
+)
 def edit_issue_page(key: str) -> RedirectResponse:
     """Editing happens on the issue page; keep old /edit URLs working."""
     return RedirectResponse(url=f"/issues/{key}", status_code=303)
