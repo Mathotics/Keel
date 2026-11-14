@@ -379,6 +379,9 @@ The script defaults to a checkout at `/mnt/library/Keel` and data under `/mnt/li
 │   └── settings.py         KEEL_ environment settings
 ├── tests/                  unit, integration, and system tests
 ├── pyproject.toml          package metadata and developer tasks
+├── ACCESSIBILITY.md
+├── CODE_OF_CONDUCT.md
+├── SECURITY.md
 ├── LICENSE
 └── README.md
 ```
@@ -436,7 +439,7 @@ That runs pre-commit (including isort, mypy, and the code scans) and the full py
 
 `poe` with no arguments lists the other tasks: `lint`, `format`, `mypy`, `test`, and the rest.
 
-[CONTRIBUTING](.github/CONTRIBUTING.md) is the long form of those steps, covering how work is tracked, how branches and commits are named, and what a merge to `main` sets off. To report a bug or propose a change instead, open a [GitHub issue](https://github.com/Mathotics/Keel/issues/new/choose).
+[CONTRIBUTING](.github/CONTRIBUTING.md) is the long form of those steps, covering how work is tracked, how branches and commits are named, and what a merge to `main` sets off. Behavior in issues, pull requests, and other project spaces is covered by the [Code of Conduct](CODE_OF_CONDUCT.md). To report a bug or propose a change, open a [GitHub issue](https://github.com/Mathotics/Keel/issues/new/choose). Report a security flaw in private, as the [Security policy](SECURITY.md) describes. How the product is built for keyboard, screen reader, and phone use is in the [Accessibility statement](ACCESSIBILITY.md).
 
 ## Documentation
 
@@ -448,6 +451,9 @@ How Keel is shaped is written down under `docs/`. Start with the architecture pa
 | Design | [Data model](docs/design/data-model.md), [API reference](docs/design/api.md), [module layout](docs/design/module-layout.md), [UI design](docs/design/ui.md), [roles](docs/design/rbac-catalog.md), [implementation plan](docs/design/implementation-plan.md) |
 | Decisions | [ADRs](docs/adr/), including [production deploy](docs/adr/ADR-026.md), [password login](docs/adr/password-login.md), and [Docker container](docs/adr/docker-container.md) |
 | Process | [Contributing](.github/CONTRIBUTING.md) — ticket to deploy, for the owner and invited collaborators |
+| Conduct | [Code of Conduct](CODE_OF_CONDUCT.md) — how people behave in project spaces |
+| Security | [Security policy](SECURITY.md) — how to report a vulnerability in private |
+| Access | [Accessibility statement](ACCESSIBILITY.md) — keyboard, screen reader, and phone use |
 | Other | [Brand colors](docs/brand-colors.md), [package version](docs/version.md) |
 
 The in-app license page is at `/license`.
