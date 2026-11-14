@@ -95,8 +95,8 @@ Schedules:
 
 Project administration:
 
-* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, lookahead, and currency.
-* **Delete this project.** Requires View issues. This project only.
+* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, lookahead, and currency. The project settings routes check this permission.
+* **Delete this project.** Requires View issues. Deleting a project is allowed with this permission or with the global Delete projects permission. An Owner may delete either way.
 * **View project RBAC page.** Requires View issues.
 * **Manage project RBAC.** Requires View project RBAC page.
 

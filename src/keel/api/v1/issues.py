@@ -1,13 +1,22 @@
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.api.v1.guards import (
+    AccessDep,
+    guard_other_project,
+    require_issue,
+    require_issue_update,
+    require_project,
+)
 from keel.db.models import Issue, Project
+from keel.domain.access import Permission
 from keel.domain.enums import IssuePriority, IssueStatus, IssueType
 from keel.schemas.history import CompletionTimeRead, HistoryEventRead
 from keel.schemas.issue import IssueCreate, IssueRead, IssueUpdate
+from keel.services import access as access_service
 from keel.services import dependencies as dependency_service
 from keel.services import history as history_service
 from keel.services import issues as issue_service
@@ -56,7 +65,11 @@ def _reads(
     return IssueRead.many(issues, project, counts, labels, titles)
 
 
-@router.get("/projects/{project_id}/issues", response_model=list[IssueRead])
+@router.get(
+    "/projects/{project_id}/issues",
+    response_model=list[IssueRead],
+    dependencies=[Depends(require_project(Permission.VIEW_ISSUES))],
+)
 def list_issues(
     project_id: int,
     session: SessionDep,
@@ -92,6 +105,7 @@ def list_issues(
 @router.get(
     "/projects/{project_id}/completion-times",
     response_model=list[CompletionTimeRead],
+    dependencies=[Depends(require_project(Permission.VIEW_ISSUES))],
 )
 def list_completion_times(
     project_id: int,
@@ -111,13 +125,31 @@ def list_completion_times(
     "/projects/{project_id}/issues",
     response_model=IssueRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_project(Permission.CREATE_ISSUES))],
 )
 def create_issue(
     project_id: int,
     payload: IssueCreate,
     session: SessionDep,
     acting_user: ActingUserDep,
+    access: AccessDep,
 ) -> IssueRead:
+    if payload.parent_id is not None:
+        guard_other_project(
+            session,
+            access,
+            project_id,
+            access_service.project_of_issue(session, payload.parent_id),
+            Permission.CREATE_ISSUES,
+        )
+    if payload.sprint_id is not None:
+        guard_other_project(
+            session,
+            access,
+            project_id,
+            access_service.project_of_sprint(session, payload.sprint_id),
+            Permission.UPDATE_ISSUES,
+        )
     issue = issue_service.create_issue(
         session,
         project_id,
@@ -145,12 +177,20 @@ def create_issue(
     return _read(session, issue)
 
 
-@router.get("/issues/{issue_id}", response_model=IssueRead)
+@router.get(
+    "/issues/{issue_id}",
+    response_model=IssueRead,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def read_issue(issue_id: int, session: SessionDep) -> IssueRead:
     return _read(session, issue_service.get_issue(session, issue_id))
 
 
-@router.get("/issues/{issue_id}/history", response_model=list[HistoryEventRead])
+@router.get(
+    "/issues/{issue_id}/history",
+    response_model=list[HistoryEventRead],
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def read_history(issue_id: int, session: SessionDep) -> list[HistoryEventRead]:
     """Field changes for one issue, oldest first."""
     return [
@@ -159,7 +199,11 @@ def read_history(issue_id: int, session: SessionDep) -> list[HistoryEventRead]:
     ]
 
 
-@router.get("/issues/{issue_id}/children", response_model=list[IssueRead])
+@router.get(
+    "/issues/{issue_id}/children",
+    response_model=list[IssueRead],
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def read_children(issue_id: int, session: SessionDep) -> list[IssueRead]:
     issue = issue_service.get_issue(session, issue_id)
     project = project_service.get_project(session, issue.project_id)
@@ -167,7 +211,11 @@ def read_children(issue_id: int, session: SessionDep) -> list[IssueRead]:
     return _reads(session, children, project)
 
 
-@router.patch("/issues/{issue_id}", response_model=IssueRead)
+@router.patch(
+    "/issues/{issue_id}",
+    response_model=IssueRead,
+    dependencies=[Depends(require_issue_update)],
+)
 def update_issue(
     issue_id: int,
     payload: IssueUpdate,
@@ -228,7 +276,11 @@ def update_issue(
     return _read(session, issue)
 
 
-@router.delete("/issues/{issue_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/issues/{issue_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_issue(Permission.DELETE_ISSUES))],
+)
 def delete_issue(issue_id: int, session: SessionDep) -> None:
     issue_service.delete_issue(session, issue_id)
 

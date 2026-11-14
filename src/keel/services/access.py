@@ -1,7 +1,7 @@
 """Load and store roles and direct grants.
 
-Global checks are enforced by callers. Project route checks are a later story;
-this module still stores project roles so that story has the rows it needs.
+Global checks and project checks are enforced by callers. A route that reads
+or writes one project calls ``require_project`` after resolving that project.
 """
 
 from collections.abc import Sequence
@@ -11,6 +11,9 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from keel.db.models import (
+    Comment,
+    Dependency,
+    Issue,
     PermissionDependency,
     PermissionRow,
     Project,
@@ -18,6 +21,8 @@ from keel.db.models import (
     ProjectEveryoneRole,
     Role,
     RolePermission,
+    Series,
+    Sprint,
     User,
     UserPermission,
     UserRole,
@@ -284,6 +289,7 @@ def set_project_role(
         UserRole(user_id=user_id, role_id=role_row.id, project_id=project_id),
     )
     session.flush()
+    _forget_held(session)
 
 
 def project_role(session: Session, user_id: int, project_id: int) -> RoleCode | None:
@@ -362,6 +368,106 @@ def require_project(
 ) -> None:
     if not holds_project(session, actor, project_id, permission):
         raise PermissionDeniedError(DENIED)
+
+
+def may_delete_project(session: Session, actor: Access, project_id: int) -> bool:
+    """Global Delete projects, or Delete this project, and Owner either way."""
+    if actor.allows(Permission.DELETE_PROJECTS.value):
+        return True
+    return holds_project(session, actor, project_id, Permission.DELETE_PROJECT)
+
+
+@dataclass(frozen=True)
+class DependencyEnds:
+    """The projects on the two issues a dependency link connects."""
+
+    source_project_id: int
+    target_project_id: int
+
+
+def project_of_issue(session: Session, issue_id: int) -> int:
+    project_id = session.scalar(select(Issue.project_id).where(Issue.id == issue_id))
+    if project_id is None:
+        raise NotFoundError(f"No issue with id {issue_id}.")
+    return project_id
+
+
+def project_of_issue_key(session: Session, key: str) -> int:
+    from keel.services import issues as issue_service
+
+    return issue_service.get_issue_by_key(session, key).project_id
+
+
+def project_of_sprint(session: Session, sprint_id: int) -> int:
+    project_id = session.scalar(select(Sprint.project_id).where(Sprint.id == sprint_id))
+    if project_id is None:
+        raise NotFoundError(f"No sprint with id {sprint_id}.")
+    return project_id
+
+
+def project_of_series(session: Session, series_id: int) -> int:
+    project_id = session.scalar(select(Series.project_id).where(Series.id == series_id))
+    if project_id is None:
+        raise NotFoundError(f"No series with id {series_id}.")
+    return project_id
+
+
+def project_of_comment(session: Session, comment_id: int) -> int:
+    issue_id = session.scalar(select(Comment.issue_id).where(Comment.id == comment_id))
+    if issue_id is None:
+        raise NotFoundError(f"No comment with id {comment_id}.")
+    return project_of_issue(session, issue_id)
+
+
+def project_of_dependency(session: Session, dependency_id: int) -> DependencyEnds:
+    row = session.execute(
+        select(Dependency.source_id, Dependency.target_id).where(
+            Dependency.id == dependency_id
+        )
+    ).one_or_none()
+    if row is None:
+        raise NotFoundError(f"No dependency with id {dependency_id}.")
+    source_id, target_id = row
+    return DependencyEnds(
+        source_project_id=project_of_issue(session, source_id),
+        target_project_id=project_of_issue(session, target_id),
+    )
+
+
+def require_comment_delete(session: Session, actor: Access, comment_id: int) -> None:
+    """Delete any comment, or delete one you wrote."""
+    comment = session.get(Comment, comment_id)
+    if comment is None:
+        raise NotFoundError(f"No comment with id {comment_id}.")
+    project_id = project_of_issue(session, comment.issue_id)
+    if holds_project(session, actor, project_id, Permission.DELETE_ANY_COMMENTS):
+        return
+    if (
+        comment.author_id is not None
+        and comment.author_id == actor.user_id
+        and holds_project(session, actor, project_id, Permission.DELETE_OWN_COMMENTS)
+    ):
+        return
+    raise PermissionDeniedError(DENIED)
+
+
+def require_dependency_projects(
+    session: Session,
+    actor: Access,
+    source_project_id: int,
+    target_project_id: int,
+) -> None:
+    """See both issues, and manage dependencies on at least one of them."""
+    require_project(session, actor, source_project_id, Permission.VIEW_ISSUES)
+    if target_project_id != source_project_id:
+        require_project(session, actor, target_project_id, Permission.VIEW_ISSUES)
+    if holds_project(
+        session, actor, source_project_id, Permission.MANAGE_DEPENDENCIES
+    ) or holds_project(
+        session, actor, target_project_id, Permission.MANAGE_DEPENDENCIES
+    ):
+        return
+    raise PermissionDeniedError(DENIED)
 
 
 def save_project_grant(
@@ -515,6 +621,7 @@ def replace_global_roles(
             )
         )
     session.flush()
+    _forget_held(session)
 
 
 def _clear_project_assignments(session: Session, user_id: int) -> None:
@@ -532,6 +639,7 @@ def _clear_project_assignments(session: Session, user_id: int) -> None:
         )
     )
     session.flush()
+    _forget_held(session)
 
 
 def replace_global_direct(
@@ -556,6 +664,7 @@ def replace_global_direct(
             )
         )
     session.flush()
+    _forget_held(session)
 
 
 _CATALOG_ROLES: tuple[RoleCode, ...] = (
@@ -708,23 +817,37 @@ def _project_ids(session: Session, user_id: int) -> frozenset[int]:
     )
 
 
+def _forget_held(session: Session) -> None:
+    """Drop cached project permissions after a grant changes."""
+    session.info.pop("held_project", None)
+
+
 def _held_project(
     session: Session, actor: Access, project_id: int
 ) -> tuple[bool, frozenset[Permission]]:
     assert actor.user_id is not None
+    cache: dict[tuple[int, int], tuple[bool, frozenset[Permission]]] = (
+        session.info.setdefault("held_project", {})
+    )
+    key = (actor.user_id, project_id)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
     roles = global_roles(session, actor.user_id)
     personal = project_role(session, actor.user_id, project_id)
     project_roles = frozenset({personal}) if personal is not None else frozenset()
     direct = global_direct(session, actor.user_id) | project_direct(
         session, actor.user_id, project_id
     )
-    return effective_project(
+    held = effective_project(
         roles,
         project_roles,
         direct,
         everyone_role=everyone_role(session, project_id),
         everyone_direct=everyone_direct(session, project_id),
     )
+    cache[key] = held
+    return held
 
 
 def _owner_delta(current: RoleCode | None, new: RoleCode | None) -> int:
@@ -782,6 +905,7 @@ def _replace_project_role(
             )
         )
     session.flush()
+    _forget_held(session)
 
 
 def _replace_project_direct(
@@ -807,6 +931,7 @@ def _replace_project_direct(
             )
         )
     session.flush()
+    _forget_held(session)
 
 
 def _replace_everyone_role(
@@ -823,6 +948,7 @@ def _replace_everyone_role(
             )
         )
     session.flush()
+    _forget_held(session)
 
 
 def _replace_everyone_direct(
@@ -845,6 +971,7 @@ def _replace_everyone_direct(
             )
         )
     session.flush()
+    _forget_held(session)
 
 
 def _project_permission_codes(codes: Sequence[str]) -> frozenset[Permission]:

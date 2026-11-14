@@ -1,25 +1,18 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.api.v1.guards import AccessDep, require_project
 from keel.domain.access import Permission, RoleCode
 from keel.domain.errors import PermissionDeniedError
 from keel.schemas.project import ProjectCreate, ProjectRead, ProjectUpdate
 from keel.services import access as access_service
 from keel.services import projects as project_service
-from keel.services.access import DENIED
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
-def _access(session: SessionDep, acting: ActingUserDep) -> access_service.Access:
-    if acting is None:
-        raise PermissionDeniedError(DENIED)
-    return access_service.load_access(session, acting.id)
-
-
 @router.get("", response_model=list[ProjectRead])
-def list_projects(session: SessionDep, acting: ActingUserDep) -> list[ProjectRead]:
-    access = _access(session, acting)
+def list_projects(session: SessionDep, access: AccessDep) -> list[ProjectRead]:
     projects = access_service.visible_project_ids(
         access,
         list(project_service.list_projects(session)),
@@ -32,8 +25,8 @@ def create_project(
     payload: ProjectCreate,
     session: SessionDep,
     acting: ActingUserDep,
+    access: AccessDep,
 ) -> ProjectRead:
-    access = _access(session, acting)
     access_service.require(access, Permission.CREATE_PROJECTS)
     project = project_service.create_project(
         session,
@@ -56,7 +49,11 @@ def read_project(project_id: int, session: SessionDep) -> ProjectRead:
     return ProjectRead.model_validate(project_service.get_project(session, project_id))
 
 
-@router.patch("/{project_id}", response_model=ProjectRead)
+@router.patch(
+    "/{project_id}",
+    response_model=ProjectRead,
+    dependencies=[Depends(require_project(Permission.CHANGE_PROJECT_SETTINGS))],
+)
 def update_project(
     project_id: int,
     payload: ProjectUpdate,
@@ -94,7 +91,9 @@ def update_project(
 def delete_project(
     project_id: int,
     session: SessionDep,
-    acting: ActingUserDep,
+    access: AccessDep,
 ) -> None:
-    access_service.require(_access(session, acting), Permission.DELETE_PROJECTS)
+    project_service.get_project(session, project_id)
+    if not access_service.may_delete_project(session, access, project_id):
+        raise PermissionDeniedError(access_service.DENIED)
     project_service.delete_project(session, project_id)

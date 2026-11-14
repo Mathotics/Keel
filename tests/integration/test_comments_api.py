@@ -12,6 +12,15 @@ def _project(client: TestClient) -> int:
     return int(created.json()["id"])
 
 
+def _contributor(client: TestClient, project_id: int, user_id: int) -> None:
+    saved = client.post(
+        f"/web/projects/{project_id}/access/{user_id}",
+        data={"role": "contributor"},
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303, saved.text
+
+
 def _issue(client: TestClient, project_id: int) -> Json:
     created: Json = client.post(
         f"/api/v1/projects/{project_id}/issues",
@@ -46,7 +55,9 @@ def test_a_comment_is_authored_by_the_acting_user(client: TestClient) -> None:
             "email": "ada@example.com",
         },
     ).json()
-    issue = _issue(client, _project(client))
+    project_id = _project(client)
+    issue = _issue(client, project_id)
+    _contributor(client, project_id, ada["id"])
 
     client.post(
         "/login",
@@ -80,7 +91,9 @@ def test_a_comment_author_cannot_be_deleted(client: TestClient) -> None:
             "email": "ada@example.com",
         },
     ).json()
-    issue = _issue(client, _project(client))
+    project_id = _project(client)
+    issue = _issue(client, project_id)
+    _contributor(client, project_id, ada["id"])
     client.post(
         "/login",
         data={"username": "Ada", "password": TEST_PASSWORD},
