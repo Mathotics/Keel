@@ -5,6 +5,8 @@
 
 > **Amendment.** [Issue definition of done](issue-definition-of-done.md) adds a second plain-text body to the issue, `definition_of_done`, and renders it through this same filter and sanitizer. Everywhere this record says "description", read "description and definition of done".
 
+> **Amendment (2026-11-16).** KEEL-216. Description, definition of done, and the comment box share one Write / Preview field. The toolbar inserts Markdown this renderer already accepts. Preview posts the draft to that same sanitizer; it is not a second parser, and it still loads nothing from another origin. A preview that updates on each keystroke stays out of scope. Titles and the other plain fields stay plain. Without JavaScript the textarea and the "Markdown is supported" note remain, and the toolbar stays hidden.
+
 ## Background
 
 Issue descriptions and comments are stored as plain text and shown as-is. That is enough to capture a sentence, and it is a bottleneck for notes: lists, links, and emphasis have to be faked in wrapping paragraphs. [ADR 009](server-rendered-jinja2.md) already forbids loading assets from a content delivery network, so any rendering must run in process. The JSON API and the create form still exchange the stored source; only HTML pages need a rendered view.

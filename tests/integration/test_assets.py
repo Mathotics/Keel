@@ -9,6 +9,7 @@ ASSETS = (
     "/assets/js/filters.js",
     "/assets/js/nav.js",
     "/assets/js/bell.js",
+    "/assets/js/markdown-field.js",
     "/assets/js/inbox.js",
     "/assets/js/board.js",
     "/assets/js/overlay.js",

@@ -92,6 +92,7 @@ from keel.web.issue_panels import (
 )
 from keel.web.issue_panels import encode_collapsed as encode_issue_panels
 from keel.web.issue_panels import parse_collapsed as parse_issue_panels
+from keel.web.markdown import render_markdown
 from keel.web.nav import (
     NAV_COOKIE,
     NAV_COOKIE_MAX_AGE,
@@ -106,6 +107,18 @@ from keel.web.routes.pages import IssueDraft, render_create_page
 router = APIRouter(prefix="/web")
 
 SEE_OTHER = 303
+
+
+@router.post("/markdown/preview")
+def preview_markdown(body: Annotated[str, Form()] = "") -> HTMLResponse:
+    """The same sanitized note the issue page will show after save."""
+    if not body.strip():
+        rendered = '<p class="keel-empty">Nothing to preview.</p>'
+    else:
+        rendered = str(render_markdown(body))
+    response = HTMLResponse(rendered)
+    response.headers["X-Keel-Markdown"] = "preview"
+    return response
 
 
 def _back(
