@@ -1869,8 +1869,9 @@ body {
   font-weight: 650;
 }
 
-/* The editor preview matches the markdown source. A heading is not bold
-   unless the source marks it with **. */
+/* The editor preview matches the markdown source. A heading is larger than
+   the paragraph around it, and it is not bold unless the source marks it
+   with **. */
 .keel-md__preview h1,
 .keel-md__preview h2,
 .keel-md__preview h3,
@@ -1878,6 +1879,31 @@ body {
 .keel-md__preview h5,
 .keel-md__preview h6 {
   font-weight: 400;
+  line-height: 1.25;
+}
+
+.keel-md__preview h1 {
+  font-size: 1.75rem;
+}
+
+.keel-md__preview h2 {
+  font-size: 1.4rem;
+}
+
+.keel-md__preview h3 {
+  font-size: 1.2rem;
+}
+
+.keel-md__preview h4 {
+  font-size: 1.05rem;
+}
+
+.keel-md__preview h5 {
+  font-size: 1rem;
+}
+
+.keel-md__preview h6 {
+  font-size: 0.95rem;
 }
 
 .keel-md__preview strong,

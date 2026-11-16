@@ -37,9 +37,17 @@
       preview.dataset.placeholder = textarea.getAttribute("placeholder");
     }
     const bar = editor.querySelector(".keel-md__bar");
+    let caret = null;
     if (bar) {
       bar.addEventListener("mousedown", (event) => {
         event.preventDefault();
+        caret = null;
+        const selection = window.getSelection();
+        if (document.activeElement === textarea) {
+          caret = { kind: "write", start: textarea.selectionStart, end: textarea.selectionEnd };
+        } else if (selection && selection.rangeCount && preview.contains(selection.anchorNode)) {
+          caret = { kind: "preview", range: selection.getRangeAt(0).cloneRange() };
+        }
       });
     }
     const form = editor.closest("form");
@@ -88,10 +96,11 @@
       button.addEventListener("click", () => {
         const action = button.getAttribute("data-keel-md");
         if (editor.classList.contains("is-preview")) {
-          applyPreview(preview, action);
+          applyPreview(preview, action, caret);
           syncPreview(textarea, preview);
           preview.focus();
         } else {
+          restoreCaret(caret, textarea);
           applyWrite(textarea, action);
           textarea.focus();
         }
@@ -239,8 +248,13 @@
     }
   }
 
-  function applyPreview(preview, action) {
+  function applyPreview(preview, action, caret) {
     preview.focus();
+    if (caret && caret.kind === "preview") {
+      const saved = window.getSelection();
+      saved.removeAllRanges();
+      saved.addRange(caret.range);
+    }
     const selection = window.getSelection();
     const node = selection && selection.anchorNode;
     document.execCommand("styleWithCSS", false, false);
@@ -253,8 +267,9 @@
     } else if (action === "number") {
       document.execCommand("insertOrderedList");
     } else if (action === "heading") {
-      if (closestTag(node, "h1,h2,h3,h4,h5,h6")) {
-        document.execCommand("formatBlock", false, "p");
+      const heading = closestTag(node, "h1,h2,h3,h4,h5,h6");
+      if (heading && preview.contains(heading)) {
+        replaceWithParagraph(heading);
       } else {
         document.execCommand("formatBlock", false, "h2");
       }
@@ -282,6 +297,10 @@
       return;
     }
     const existing = selectedMark(selection, selector);
+    if (existing && selection.isCollapsed) {
+      unwrapKeepCaret(existing);
+      return;
+    }
     if (existing || !document.queryCommandState(command)) {
       document.execCommand(command);
       return;
@@ -795,6 +814,69 @@
       lines.push("| " + cells(row).join(" | ") + " |");
     }
     return lines.join("\n");
+  }
+
+  function restoreCaret(caret, textarea) {
+    if (!caret || caret.kind !== "write") {
+      return;
+    }
+    textarea.focus();
+    textarea.setSelectionRange(caret.start, caret.end);
+  }
+
+  function placeRange(range) {
+    const selection = window.getSelection();
+    if (!range || !range.startContainer.isConnected) {
+      return;
+    }
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function unwrapKeepCaret(element) {
+    const selection = window.getSelection();
+    const range = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    const parent = element.parentNode;
+    const next = element.nextSibling;
+    const children = [...element.childNodes];
+    while (element.firstChild) {
+      parent.insertBefore(element.firstChild, element);
+    }
+    parent.removeChild(element);
+    if (!range) {
+      return;
+    }
+    if (range.startContainer.isConnected) {
+      placeRange(range);
+      return;
+    }
+    const point = document.createRange();
+    const last = children[children.length - 1];
+    if (last && last.nodeType === Node.TEXT_NODE) {
+      point.setStart(last, last.length);
+    } else if (last) {
+      point.setStartAfter(last);
+    } else if (next) {
+      point.setStartBefore(next);
+    } else {
+      point.selectNodeContents(parent);
+      point.collapse(false);
+    }
+    point.collapse(true);
+    placeRange(point);
+  }
+
+  function replaceWithParagraph(heading) {
+    const selection = window.getSelection();
+    const range = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    const paragraph = document.createElement("p");
+    while (heading.firstChild) {
+      paragraph.appendChild(heading.firstChild);
+    }
+    heading.replaceWith(paragraph);
+    if (range && range.startContainer.isConnected) {
+      placeRange(range);
+    }
   }
 
   function closestTag(node, selector) {
