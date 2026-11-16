@@ -3,7 +3,9 @@ from datetime import UTC, datetime
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from keel.domain.access import RoleCode
 from keel.domain.enums import IssueType, NotificationType
+from keel.services import access as access_service
 from keel.services import issues as issue_service
 from keel.services import notifications as notification_service
 from keel.services import projects as project_service
@@ -333,6 +335,12 @@ def test_another_persons_field_edit_notifies_the_reporter(
             title="Hull",
             reporter_id=me["id"],
             assignee_id=me["id"],
+        )
+        access_service.set_project_role(
+            session,
+            ada.id,
+            project.id,
+            RoleCode.CONTRIBUTOR,
         )
         issue_id = issue.id
         session.commit()
