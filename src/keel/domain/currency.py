@@ -245,6 +245,11 @@ DEFAULT_CURRENCY = "USD"
 _INVALID = "Currency must be an ISO code such as USD."
 
 
+def currency_codes() -> tuple[str, ...]:
+    """The ISO codes a project may use, in alphabetical order."""
+    return tuple(sorted(CODES))
+
+
 def normalize_currency(raw: str | None) -> str:
     """Return the uppercase ISO code, or refuse a blank or unknown one."""
     cleaned = (raw or "").strip().upper()

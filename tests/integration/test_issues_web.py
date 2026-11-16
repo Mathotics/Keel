@@ -81,6 +81,8 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="start_at"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'name="spent"' in page.text
+    assert 'name="points"' in page.text
     assert 'class="keel-type-select"' in page.text
     assert 'data-type="story"' in page.text
 
@@ -579,6 +581,8 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert 'name="sprint_id"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'name="spent"' in page.text
+    assert 'name="points"' in page.text
     assert "data-keel-autosubmit" in page.text
     assert "keel-autosubmit__fallback" in page.text
 
@@ -870,10 +874,11 @@ def test_type_and_description_can_be_changed_from_the_issue_page(
     assert stored["description"] == "A **longer** note."
     page = client.get("/issues/KEEL-1")
     assert page.status_code == 200
-    assert '<div class="keel-markdown">' in page.text
-    assert "<strong>longer</strong>" in page.text
-    assert "Edit description" in page.text
-    assert ">Add a description<" not in page.text
+    assert '<div class="keel-markdown">' not in page.text
+    assert "A **longer** note." in page.text
+    assert 'id="issue-description"' in page.text
+    assert "Edit description" not in page.text
+    assert "Add a description" not in page.text
 
 
 def test_definition_of_done_can_be_changed_from_the_issue_page(
@@ -885,7 +890,8 @@ def test_definition_of_done_can_be_changed_from_the_issue_page(
 
     page = client.get("/issues/KEEL-1")
     assert ">Definition of Done<" in page.text
-    assert ">Add a definition of done<" in page.text
+    assert 'id="issue-definition-of-done"' in page.text
+    assert "Add a definition of done" not in page.text
     description_at = page.text.index('data-keel-issue-panel="description"')
     done_at = page.text.index('data-keel-issue-panel="definition_of_done"')
     children_at = page.text.index('data-keel-issue-panel="children"')
@@ -901,9 +907,10 @@ def test_definition_of_done_can_be_changed_from_the_issue_page(
     assert stored["definition_of_done"] == "- A **passing** build."
 
     page = client.get("/issues/KEEL-1")
-    assert "<strong>passing</strong>" in page.text
-    assert "Edit definition of done" in page.text
-    assert ">Add a definition of done<" not in page.text
+    assert "- A **passing** build." in page.text
+    assert "<strong>passing</strong>" not in page.text
+    assert 'id="issue-definition-of-done"' in page.text
+    assert "Edit definition of done" not in page.text
 
 
 def test_location_can_be_changed_from_the_issue_page(
@@ -918,9 +925,11 @@ def test_location_can_be_changed_from_the_issue_page(
     assert 'name="location"' in page.text
     assert 'placeholder="Where will this happen?"' in page.text
     dates_at = page.text.index(">Dates<")
+    description_at = page.text.index('data-keel-issue-panel="description"')
+    done_at = page.text.index('data-keel-issue-panel="definition_of_done"')
     location_at = page.text.index(">Location<")
     estimate_at = page.text.index(">Estimate<")
-    assert dates_at < location_at < estimate_at
+    assert dates_at < description_at < done_at < location_at < estimate_at
 
     saved = client.post(
         f"/web/issues/{issue_id}/location",
@@ -1002,6 +1011,40 @@ def test_effort_round_trips_through_shorthand(
     )
     assert remaining_refused.headers["location"].startswith("/issues/KEEL-1?error=")
     assert client.get(f"/api/v1/issues/{issue_id}").json()["remaining_minutes"] == 45
+
+    spent = client.post(
+        f"/web/issues/{issue_id}/spent",
+        data={"spent": "30m"},
+        follow_redirects=False,
+    )
+    assert spent.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["spent_minutes"] == 30
+    assert 'value="30m"' in client.get("/issues/KEEL-1").text
+
+    points = client.post(
+        f"/web/issues/{issue_id}/points",
+        data={"points": "5"},
+        follow_redirects=False,
+    )
+    assert points.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["story_points"] == 5
+    assert 'value="5"' in client.get("/issues/KEEL-1").text
+
+    points_refused = client.post(
+        f"/web/issues/{issue_id}/points",
+        data={"points": "1.5"},
+        follow_redirects=False,
+    )
+    assert points_refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["story_points"] == 5
+
+    spent_refused = client.post(
+        f"/web/issues/{issue_id}/spent",
+        data={"spent": "1h30"},
+        follow_redirects=False,
+    )
+    assert spent_refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["spent_minutes"] == 30
 
 
 def test_cost_round_trips_through_dollars(
@@ -1124,7 +1167,10 @@ def test_an_epic_page_shows_subtree_progress(
     client.patch(f"/api/v1/issues/{story_id}", json={"status": "done"})
 
     page = client.get("/issues/KEEL-1")
-    assert "Including descendants: 3h estimate, 3h remaining. 1 of 1 done." in page.text
+    assert (
+        "Including descendants: 3h estimate, 3h remaining, none time spent. "
+        "1 of 1 done."
+    ) in page.text
     assert 'value="2h"' in page.text
 
 
@@ -1148,8 +1194,8 @@ def test_an_epic_page_shows_cancelled_descendants_separately(
 
     page = client.get("/issues/KEEL-1")
     assert (
-        "Including descendants: 3h estimate, 2h remaining. 0 of 1 done, 1 cancelled."
-        in page.text
+        "Including descendants: 3h estimate, 2h remaining, none time spent. "
+        "0 of 1 done, 1 cancelled." in page.text
     )
 
 

@@ -23,7 +23,9 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: scan/package-lock.json
+          cache-dependency-path: |
+            scan/package-lock.json
+            tests/js/package-lock.json
       - uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
@@ -35,6 +37,7 @@ jobs:
           .venv/bin/python -m pip install --upgrade pip
           .venv/bin/python -m pip install -e ".[dev]"
           npm ci --prefix scan
+          npm ci --prefix tests/js
       - name: Run pre-commit
         run: |
           . .venv/bin/activate

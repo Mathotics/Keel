@@ -46,11 +46,15 @@
               </p>
               <p class="keel-fields__full">
                 <label for="issue-description">Description</label>
-                <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ draft.description }}</textarea>
+                {% with field_id="issue-description", name="description", rows=6, value=draft.description, placeholder="Write a description…" %}
+                {% include "_markdown_field.html" %}
+                {% endwith %}
               </p>
               <p class="keel-fields__full">
                 <label for="issue-definition-of-done">Definition of Done</label>
-                <textarea id="issue-definition-of-done" class="keel-description" name="definition_of_done" rows="6">{{ draft.definition_of_done }}</textarea>
+                {% with field_id="issue-definition-of-done", name="definition_of_done", rows=6, value=draft.definition_of_done, placeholder="Write the definition of done…" %}
+                {% include "_markdown_field.html" %}
+                {% endwith %}
               </p>
             </div>
           </fieldset>
@@ -127,6 +131,14 @@
               <p>
                 <label for="issue-remaining">Remaining</label>
                 <input id="issue-remaining" name="remaining" type="text" placeholder="2h, 90m, 1h 30m, or 1d" value="{{ draft.remaining }}"/>
+              </p>
+              <p>
+                <label for="issue-spent">Time spent</label>
+                <input id="issue-spent" name="spent" type="text" placeholder="2h, 90m, 1h 30m, or 1d" value="{{ draft.spent }}"/>
+              </p>
+              <p>
+                <label for="issue-points">Story points</label>
+                <input id="issue-points" name="points" type="number" min="0" step="1" value="{{ draft.points }}"/>
               </p>
             </div>
           </fieldset>

@@ -12,7 +12,7 @@ Stored tokens below are the lowercase values on the database and the JSON API. T
 
 **Relates to.** [Project](#project), [Issue key](#issue-key), [Issue type](#issue-type), [Status](#status), [Priority](#priority), [Sprint](#sprint), [Parent](#parent), [Label](#label), [Comment](#comment), [Dependency](#dependency), [Series](#series).
 
-**How it works.** An issue belongs to one project. It starts in *To Do* at priority *P4 — Minor*. Creating one takes the next number from that project's counter in the same transaction; the number is never reused. A parent, when set, must be in the same project and must be the legal type for the child. Description, definition of done, and location are blank until someone writes them. Estimate, remaining time, the three cost amounts, start, due, sprint, and assignee stay unset until set. Deleting an issue that still has children is refused. Deleting a childless issue removes its comments, field history, label links, and every dependency that names it.
+**How it works.** An issue belongs to one project. It starts in *To Do* at priority *P4 — Minor*. Creating one takes the next number from that project's counter in the same transaction; the number is never reused. A parent, when set, must be in the same project and must be the legal type for the child. Description, definition of done, and location are blank until someone writes them. Estimate, time spent, remaining time, story points, the three cost amounts, start, due, sprint, and assignee stay unset until set. Deleting an issue that still has children is refused. Deleting a childless issue removes its comments, field history, label links, and every dependency that names it.
 
 ### Issue key
 
@@ -100,7 +100,7 @@ Stored tokens below are the lowercase values on the database and the JSON API. T
 
 **Relates to.** [Issue](#issue), [User](#user).
 
-**How it works.** The tracked fields are status, assignee, sprint, estimate, remaining, due date, parent, type, title, description, definition of done, priority, labels, location, planned value, earned value, and actual cost. Who, from, and to are snapshotted labels, so a later rename does not rewrite old lines. It is the changelog of one issue, not a log of every HTTP request. That log is the [request log](#request-log).
+**How it works.** The tracked fields are status, assignee, sprint, estimate, remaining, time spent, story points, due date, parent, type, title, description, definition of done, priority, labels, location, planned value, earned value, and actual cost. Who, from, and to are snapshotted labels, so a later rename does not rewrite old lines. It is the changelog of one issue, not a log of every HTTP request. That log is the [request log](#request-log).
 
 ### Label
 
@@ -166,7 +166,7 @@ Stored tokens below are the lowercase values on the database and the JSON API. T
 
 **Relates to.** [Closed](#closed), [Done](#done), [Rollup](#rollup), [Unresolved blocker](#unresolved-blocker).
 
-**How it works.** A cancelled issue leaves the backlog and does not carry over when its sprint is completed. It does not count as done in parent progress. It does not clear a blocks link: a cancelled source is still an unresolved blocker. Cancelled descendants stay in the estimate total and in the cost totals, and drop out of time remaining.
+**How it works.** A cancelled issue leaves the backlog and does not carry over when its sprint is completed. It does not count as done in parent progress. It does not clear a blocks link: a cancelled source is still an unresolved blocker. Cancelled descendants stay in the estimate total, the time-spent total, and the cost totals, and drop out of time remaining.
 
 ### Closed
 
@@ -382,7 +382,23 @@ Stored tokens below are the lowercase values on the database and the JSON API. T
 
 **Relates to.** [Time remaining](#time-remaining), [Rollup](#rollup), [Issue](#issue).
 
-**How it works.** Unset is different from zero. Unset contributes nothing to a sum. An explicit zero is stored and does contribute. A parent shows its own estimate beside the subtree total. Cancelled descendants stay in that total. A change is a history line. Nothing requires an estimate before an issue can be done.
+**How it works.** Unset is different from zero. Unset contributes nothing to a sum. An explicit zero is stored and does contribute. A parent shows its own estimate beside the subtree total. Cancelled descendants stay in that total. A change is a history line. Nothing requires an estimate before an issue can be done. Creating an issue copies an estimate into remaining when remaining is left blank, and leaves time spent unset.
+
+### Time spent
+
+**Definition.** The effort a person has already put into an issue, stored as whole minutes.
+
+**Relates to.** [Estimated time](#estimated-time), [Time remaining](#time-remaining), [Rollup](#rollup), [Cancelled](#cancelled).
+
+**How it works.** The same unset-versus-zero rule and the same shorthand as estimated time apply. It does not copy from the estimate. The subtree total includes cancelled descendants. A change is a history line.
+
+### Story points
+
+**Definition.** The size a person assigns to an issue, stored as a whole number.
+
+**Relates to.** [Issue](#issue), [Issue history](#issue-history).
+
+**How it works.** Unset is different from zero. A blank field clears it. A fraction or a negative number is refused. It stays on the issue itself and is not added up from descendants. A change is a history line.
 
 ### Time remaining
 
@@ -396,7 +412,7 @@ Stored tokens below are the lowercase values on the database and the JSON API. T
 
 **Definition.** The subtree totals shown on an issue: effort, cost, and progress, computed when the issue is read.
 
-**Relates to.** [Parent](#parent), [Estimated time](#estimated-time), [Time remaining](#time-remaining), [Planned value](#planned-value), [Earned value](#earned-value), [Actual cost](#actual-cost).
+**Relates to.** [Parent](#parent), [Estimated time](#estimated-time), [Time spent](#time-spent), [Time remaining](#time-remaining), [Planned value](#planned-value), [Earned value](#earned-value), [Actual cost](#actual-cost).
 
 **How it works.** The walk starts at the issue and includes every descendant. Nothing is cached. List responses leave rollup null. Progress counts descendants in *Done*, and counts cancelled descendants separately. The issue's own stored numbers are not replaced by the totals.
 

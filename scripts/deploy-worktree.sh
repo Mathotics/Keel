@@ -171,6 +171,7 @@ echo "Running onboard..."
 command -v npm >/dev/null 2>&1 || die "npm is required to install the code scan tools"
 echo "Installing code scan tools..."
 npm ci --prefix scan
+npm ci --prefix tests/js
 
 if [[ "${HAVE_AGENT}" -eq 1 ]]; then
   echo "Activating virtual environment..."

@@ -1,0 +1,8 @@
+{
+  "name": "keel-editor-tests",
+  "private": true,
+  "description": "DOM used to unit-test the Markdown editor.",
+  "dependencies": {
+    "jsdom": "26.1.0"
+  }
+}

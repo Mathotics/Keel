@@ -168,6 +168,8 @@ def create_issue(
         due_at=payload.due_at,
         estimate_minutes=payload.estimate_minutes,
         remaining_minutes=payload.remaining_minutes,
+        spent_minutes=payload.spent_minutes,
+        story_points=payload.story_points,
         planned_value_cents=payload.planned_value_cents,
         earned_value_cents=payload.earned_value_cents,
         actual_cost_cents=payload.actual_cost_cents,
@@ -254,6 +256,14 @@ def update_issue(
             payload.remaining_minutes
             if "remaining_minutes" in supplied
             else issue_service.UNSET
+        ),
+        spent_minutes=(
+            payload.spent_minutes
+            if "spent_minutes" in supplied
+            else issue_service.UNSET
+        ),
+        story_points=(
+            payload.story_points if "story_points" in supplied else issue_service.UNSET
         ),
         planned_value_cents=(
             payload.planned_value_cents

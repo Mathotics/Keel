@@ -48,12 +48,14 @@ test("a story can sit under an epic and effort is read", () => {
     type: "story",
     parent: { id: 4, type: "epic", projectId: 3 },
     estimate: "1h 30m",
+    spent: "30m",
     start: "2026-10-12 09:00",
     labels: "hull, deck",
   });
   assert.equal(prepared.error, null);
   assert.equal(prepared.draft.parent_id, 4);
   assert.equal(prepared.draft.estimate_minutes, 90);
+  assert.equal(prepared.draft.spent_minutes, 30);
   assert.equal(prepared.draft.planned_value_cents, null);
   assert.deepEqual(prepared.draft.labels, ["hull", "deck"]);
   assert.equal(prepared.draft.start_at, "2026-10-12T09:00:00");
@@ -198,6 +200,23 @@ test("a planned value change is the only field sent", () => {
   const prepared = prepareUpdate(updateInput({ plannedValue: "20" }));
   assert.equal(prepared.error, null);
   assert.deepEqual(prepared.changes, { planned_value_cents: 2000 });
+});
+
+test("a story points change is the only field sent", () => {
+  const prepared = prepareUpdate(updateInput({ points: "8" }));
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, { story_points: 8 });
+  assert.match(
+    prepareUpdate(updateInput({ points: "1.5" })).error,
+    /Story points must be a whole number/,
+  );
+});
+
+test("a time spent change is the only field sent", () => {
+  const prepared = prepareUpdate(updateInput({ spent: "45m" }));
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, { spent_minutes: 45 });
+  assert.match(prepareUpdate(updateInput({ spent: "1h30" })).error, /Effort must look like/);
 });
 
 test("a title change is the only field sent", () => {

@@ -7,11 +7,6 @@
 // Assign to me fills the people box with the signed-in person. On a field that
 // saves on pick, that fill saves immediately; otherwise the form waits.
 (() => {
-  const boxes = document.querySelectorAll("[data-keel-lookup]");
-  if (!boxes.length) {
-    return;
-  }
-
   const separator = " \u2014 ";
 
   const close = (input, list) => {
@@ -26,12 +21,16 @@
     input.setAttribute("aria-expanded", "true");
   };
 
-  for (const box of boxes) {
+  const bindLookup = (box) => {
+    if (box.dataset.keelLookupBound === "on") {
+      return;
+    }
     const input = box.querySelector("input");
     const list = box.querySelector("[role='listbox']");
     if (!input || !list || !input.form) {
-      continue;
+      return;
     }
+    box.dataset.keelLookupBound = "on";
     const kind = box.dataset.keelLookup;
     const project = box.dataset.keelLookupProject || "";
     const exclude = box.dataset.keelLookupExclude || "";
@@ -321,5 +320,16 @@
       },
       true,
     );
-  }
+  };
+
+  const bindLookups = (scope) => {
+    const root = scope && scope.querySelectorAll ? scope : document;
+    root.querySelectorAll("[data-keel-lookup]").forEach(bindLookup);
+    if (root.matches && root.matches("[data-keel-lookup]")) {
+      bindLookup(root);
+    }
+  };
+
+  window.keelBindLookups = bindLookups;
+  bindLookups(document);
 })();

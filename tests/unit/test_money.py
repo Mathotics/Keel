@@ -1,6 +1,9 @@
+import re
+from pathlib import Path
+
 import pytest
 
-from keel.domain.currency import normalize_currency
+from keel.domain.currency import currency_codes, normalize_currency
 from keel.domain.errors import InvalidCostError, InvalidCurrencyError
 from keel.domain.money import (
     estimate_at_completion,
@@ -31,6 +34,14 @@ def test_a_different_currency_mark_is_refused() -> None:
     for raw in ("€12.50", "12.50 EUR", "$12.50 JPY"):
         with pytest.raises(InvalidCostError):
             parse_cost(raw, "USD")
+
+
+def test_the_phone_offers_the_same_currencies() -> None:
+    root = Path(__file__).resolve().parents[2]
+    text = (root / "mobile" / "src" / "project.js").read_text(encoding="utf-8")
+    block = text.split("const CURRENCIES = [", 1)[1].split("];", 1)[0]
+    found = tuple(re.findall(r'"([A-Z]{3})"', block))
+    assert found == currency_codes()
 
 
 def test_only_an_iso_currency_is_accepted() -> None:

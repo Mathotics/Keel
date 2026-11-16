@@ -43,7 +43,12 @@ import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
 import { PHONE_NOTE, appBarSlots, bellState, mergeInbox, noticeCacheKey, noticeList, openNotice, preferenceBody, preferenceRows, togglePreference, viewedNotices, withoutNotice } from "./src/notifications";
 import { phoneDelivery, phoneSetup, pushIsFresh, pushIssueId } from "./src/phone";
-import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
+import {
+  CADENCES,
+  CURRENCIES,
+  NEEDS_CONNECTION as PROJECT_OFFLINE,
+  prepareProjectUpdate,
+} from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS, foldedStories } from "./src/work";
 import {
   NOT_ON_SERVER,
@@ -83,7 +88,7 @@ import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpeni
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
-import { formatMinutes, formatMoney, amountForEditing, amountForIdle, issueKeyParts, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
+import { formatMinutes, formatMoney, amountForEditing, amountForIdle, issueKeyParts, leaveIssuePrompt, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
 import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
@@ -138,6 +143,7 @@ export default function App() {
   const canSwipeBackRef = useRef(false);
   const drawerOpenRef = useRef(false);
   const lastBackAt = useRef(0);
+  const leavingIssue = useRef(false);
   const historyRef = useRef([]);
   const phaseTrack = useRef("booting");
   const restoringRef = useRef(false);
@@ -2641,12 +2647,29 @@ export default function App() {
     }
   }
 
-  function requestBack() {
+  function requestBack(confirmed) {
     if (drawerOpen) {
       return false;
     }
     const now = Date.now();
-    if (now - lastBackAt.current < 350) {
+    if (!confirmed && now - lastBackAt.current < 350) {
+      return true;
+    }
+    if (phase === "create" && !confirmed) {
+      if (leavingIssue.current) {
+        return true;
+      }
+      leavingIssue.current = true;
+      lastBackAt.current = now;
+      confirmLeaveIssue(
+        () => {
+          leavingIssue.current = false;
+          requestBack(true);
+        },
+        () => {
+          leavingIssue.current = false;
+        },
+      );
       return true;
     }
     if (phase === "issue" && issueBackRef.current && issueBackRef.current()) {
@@ -3831,6 +3854,19 @@ const PRIORITY_OPTIONS = [
   { id: "p5", title: "P5 — Trivial" },
 ];
 
+function confirmLeaveIssue(onLeave, onStay) {
+  const prompt = leaveIssuePrompt();
+  Alert.alert(
+    prompt.title,
+    prompt.message,
+    [
+      { text: prompt.stay, style: "cancel", onPress: onStay },
+      { text: prompt.leave, style: "destructive", onPress: onLeave },
+    ],
+    { cancelable: true, onDismiss: onStay },
+  );
+}
+
 function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const projects = Object.values(library.projects || {})
     .filter((project) => project.enabled)
@@ -3860,6 +3896,8 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [labels, setLabels] = useState("");
   const [estimate, setEstimate] = useState("");
   const [remaining, setRemaining] = useState("");
+  const [spent, setSpent] = useState("");
+  const [points, setPoints] = useState("");
   const [plannedValue, setPlannedValue] = useState(formatMoney(0, currency, "edit"));
   const [earnedValue, setEarnedValue] = useState(formatMoney(0, currency, "edit"));
   const [actualCost, setActualCost] = useState(formatMoney(0, currency, "edit"));
@@ -3998,6 +4036,8 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         sprintId: sprintId ? Number(sprintId) : null,
         estimate,
         remaining,
+        spent,
+        points,
         plannedValue,
         earnedValue,
         actualCost,
@@ -4092,6 +4132,8 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Time spent" value={spent} onChange={setSpent} placeholder="30m" />
+      <Field label="Story points" value={points} onChange={setPoints} placeholder="5" keyboardType="number-pad" />
       <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
       <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
       <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
@@ -4130,6 +4172,16 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
     issue.remaining_minutes === null || issue.remaining_minutes === undefined
       ? ""
       : formatMinutes(issue.remaining_minutes),
+  );
+  const [spent, setSpent] = useState(
+    issue.spent_minutes === null || issue.spent_minutes === undefined
+      ? ""
+      : formatMinutes(issue.spent_minutes),
+  );
+  const [points, setPoints] = useState(
+    issue.story_points === null || issue.story_points === undefined
+      ? ""
+      : String(issue.story_points),
   );
   const currency = projectCurrency(project);
   const [plannedValue, setPlannedValue] = useState(
@@ -4248,6 +4300,8 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       online: connected,
       estimate,
       remaining,
+      spent,
+      points,
       plannedValue,
       earnedValue,
       actualCost,
@@ -4335,6 +4389,8 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Time spent" value={spent} onChange={setSpent} placeholder="30m" />
+      <Field label="Story points" value={points} onChange={setPoints} placeholder="5" keyboardType="number-pad" />
       <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
       <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
       <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
@@ -5806,12 +5862,11 @@ function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDel
             placeholder="0"
             keyboardType="number-pad"
           />
-          <Field
+          <Dropdown
             label="Currency"
             value={currency}
+            options={CURRENCIES.map((code) => ({ id: code, title: code }))}
             onChange={setCurrency}
-            placeholder="USD"
-            autoCapitalize="characters"
           />
           <Text style={styles.message}>
             A cadence other than Off opens a sprint when this project has none active. Zero sprints in advance waits until the current one ends. Up to 12 can stay planned.
@@ -5989,6 +6044,7 @@ function IssueDetail({
   const addingChildLock = useRef(false);
   const childKey = useRef(newClientKey());
   const childSentTitle = useRef("");
+  const leavingEdit = useRef(false);
   const [commentBody, setCommentBody] = useState("");
   const [relation, setRelation] = useState("blocks");
   const [linkKey, setLinkKey] = useState("");
@@ -6084,8 +6140,20 @@ function IssueDetail({
 
   function goBack() {
     if (editing) {
-      setEditing(false);
-      setError("");
+      if (leavingEdit.current) {
+        return true;
+      }
+      leavingEdit.current = true;
+      confirmLeaveIssue(
+        () => {
+          leavingEdit.current = false;
+          setEditing(false);
+          setError("");
+        },
+        () => {
+          leavingEdit.current = false;
+        },
+      );
       return true;
     }
     if (stack.length <= 1) {
@@ -6326,6 +6394,8 @@ function IssueDetail({
           <DetailLine label="Location" value={page.location} />
           <DetailLine label="Estimate" value={page.estimate} />
           <DetailLine label="Remaining" value={page.remaining} />
+          <DetailLine label="Time spent" value={page.spent} />
+          <DetailLine label="Story points" value={page.points} />
           <DetailLine label="Planned value (PV)" value={page.plannedValue} />
           <DetailLine label="Earned value (EV)" value={page.earnedValue} />
           <DetailLine label="Actual cost (AC)" value={page.actualCost} />
@@ -6337,6 +6407,7 @@ function IssueDetail({
             <View>
               <DetailLine label="Rollup estimate" value={page.rollup.estimate} />
               <DetailLine label="Rollup remaining" value={page.rollup.remaining} />
+              <DetailLine label="Rollup time spent" value={page.rollup.spent} />
               <DetailLine label="Rollup planned value" value={page.rollup.plannedValue} />
               <DetailLine label="Rollup earned value" value={page.rollup.earnedValue} />
               <DetailLine label="Rollup actual cost" value={page.rollup.actualCost} />

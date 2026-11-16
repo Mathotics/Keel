@@ -1,7 +1,7 @@
 # Issue location
 
 * **Status:** Accepted
-* **Date:** 2026-11-02
+* **Date:** 2026-11-16
 
 ## Background
 
@@ -22,7 +22,7 @@ Where a piece of work will take place lives in the title, the description, or so
 ### In-Scope
 
 * A `location` string on Issue, default empty, never null, at most 300 characters.
-* A Location fact on the issue page, directly after Dates, editing in place.
+* A Location fact on the issue page, directly after Definition of Done, editing in place.
 * A Location field on Create, in Dates and effort.
 * Create, read, and update through the JSON issue API.
 * A `location` line in the per-issue history ([ADR 025](ADR-025.md)).
@@ -49,7 +49,7 @@ Where a piece of work will take place lives in the title, the description, or so
 * **Must** store `location` as a string of at most 300 characters, not null, defaulting to the empty string, and **Must** backfill existing issues to empty.
 * **Must** strip leading and trailing whitespace on create and update, and **Must** keep at most 300 characters after that strip.
 * **Must** treat empty as "not set": the issue page shows an empty box with the placeholder *Where will this happen?*, and the phone's read-only line says *None*.
-* **Must** place the fact directly after Dates and before Estimate, spanning the facts row, and **Must** autosubmit it the same way the other facts do, with a Save button when JavaScript has not run.
+* **Must** place the fact directly after Definition of Done and before Estimate, spanning the facts row, and **Must** autosubmit it the same way the other facts do, with a Save button when JavaScript has not run.
 * **Must** accept `location` on the issue create and patch bodies, and **Must** return it on every issue read. An absent PATCH key leaves the stored text alone. A create that omits it stores empty.
 * **Must** record a history line under the field name `location` when the trimmed text changes, using the same *none* placeholder as Description for an empty side. **Must Not** record a line when the save is a no-op.
 * **Must** widen the `issue_history.field` `CHECK` constraint to allow that name. The name fits the column's 20-character limit.
@@ -93,8 +93,9 @@ classDiagram
 ```mermaid
 flowchart TD
   page[Issue page] --> dates[Dates]
-  page --> place[Location]
-  page --> effort[Estimate]
+  dates --> bodies[Description and Definition of Done]
+  bodies --> place[Location]
+  place --> effort[Estimate]
   place --> box[Text box, empty until set]
   box --> post["POST /web/issues/id/location"]
   post --> service[update_issue trims the text]

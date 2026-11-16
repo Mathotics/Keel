@@ -479,6 +479,7 @@ def test_effort_is_stored_as_minutes(session: Session, project: Project) -> None
     )
     assert issue.estimate_minutes == 90
     assert issue.remaining_minutes == 90
+    assert issue.spent_minutes is None
 
     updated = issue_service.update_issue(
         session,
@@ -506,6 +507,66 @@ def test_remaining_stays_unset_when_there_is_no_estimate(
 def test_negative_effort_is_refused(session: Session, project: Project) -> None:
     with pytest.raises(InvalidIssueError):
         make(session, project, estimate_minutes=-1)
+
+
+def test_time_spent_is_independent_of_the_estimate(
+    session: Session,
+    project: Project,
+) -> None:
+    issue = issue_service.get_issue(
+        session,
+        make(session, project, estimate_minutes=90, spent_minutes=30),
+    )
+    assert issue.estimate_minutes == 90
+    assert issue.remaining_minutes == 90
+    assert issue.spent_minutes == 30
+
+    cleared = issue_service.update_issue(session, issue.id, spent_minutes=None)
+    assert cleared.spent_minutes is None
+    assert cleared.estimate_minutes == 90
+
+    with pytest.raises(InvalidIssueError):
+        issue_service.update_issue(session, issue.id, spent_minutes=-5)
+
+
+def test_story_points_are_a_whole_number_on_the_issue(
+    session: Session,
+    project: Project,
+) -> None:
+    issue = issue_service.get_issue(session, make(session, project, story_points=5))
+    assert issue.story_points == 5
+    cleared = issue_service.update_issue(session, issue.id, story_points=None)
+    assert cleared.story_points is None
+    with pytest.raises(InvalidIssueError):
+        issue_service.update_issue(session, issue.id, story_points=-1)
+
+
+def test_time_spent_rolls_up_including_cancelled_descendants(
+    session: Session,
+    project: Project,
+) -> None:
+    epic = make(session, project, IssueType.EPIC, "Epic", spent_minutes=10)
+    dropped = make(
+        session,
+        project,
+        IssueType.STORY,
+        "Dropped",
+        parent_id=epic,
+        spent_minutes=20,
+    )
+    make(
+        session,
+        project,
+        IssueType.STORY,
+        "Open",
+        parent_id=epic,
+        spent_minutes=5,
+    )
+    issue_service.update_issue(session, dropped, status=IssueStatus.CANCELLED)
+
+    rollup = issue_service.issue_rollup(session, epic)
+    assert rollup.spent_minutes == 35
+    assert issue_service.get_issue(session, epic).spent_minutes == 10
 
 
 def test_cost_is_stored_as_cents_and_rolls_up_without_replacing_own(

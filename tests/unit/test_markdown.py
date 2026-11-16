@@ -17,6 +17,15 @@ def test_a_line_break_in_plain_text_is_kept() -> None:
     assert "second line" in html
 
 
+def test_a_blank_line_keeps_two_quotes_apart() -> None:
+    html = str(render_markdown("> I am a quote\n\n> I am a quote too"))
+    assert html.count("<blockquote>") == 2
+    continued = str(render_markdown("> I am a quote\n> I am a quote too"))
+    assert continued.count("<blockquote>") == 1
+    fenced = str(render_markdown("```\n> I am a quote\n\n> I am a quote too\n```"))
+    assert "<blockquote>" not in fenced
+
+
 def test_empty_source_renders_nothing() -> None:
     assert str(render_markdown("")) == ""
     assert str(render_markdown("   ")) == ""

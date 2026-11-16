@@ -257,6 +257,34 @@ def test_several_fields_append_several_lines(
     ]
 
 
+def test_time_spent_is_recorded_like_other_effort(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(session, issue_id, spent_minutes=30, actor_name="Ada")
+    issue_service.update_issue(session, issue_id, spent_minutes=None, actor_name="Ada")
+    events = history_service.list_history(session, issue_id)
+    assert [(event.field, event.from_value, event.to_value) for event in events] == [
+        ("time spent", "none", "30m"),
+        ("time spent", "30m", "none"),
+    ]
+
+
+def test_story_points_are_recorded(
+    session: Session,
+    project: Project,
+) -> None:
+    issue_id = _story(session, project)
+    issue_service.update_issue(session, issue_id, story_points=8, actor_name="Ada")
+    issue_service.update_issue(session, issue_id, story_points=None, actor_name="Ada")
+    events = history_service.list_history(session, issue_id)
+    assert [(event.field, event.from_value, event.to_value) for event in events] == [
+        ("story points", "none", "8"),
+        ("story points", "8", "none"),
+    ]
+
+
 def test_cost_changes_use_dollar_labels(
     session: Session,
     project: Project,

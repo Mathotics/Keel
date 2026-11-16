@@ -81,8 +81,11 @@
               </p>
               <p>
                 <label for="project-currency">Currency</label>
-                <input id="project-currency" name="currency" type="text" maxlength="3" required
-                       autocapitalize="characters" spellcheck="false" value="{{ project.currency }}"/>
+                <select id="project-currency" name="currency" required>
+                  {% for code in currencies %}
+                  <option value="{{ code }}"{% if project.currency == code %} selected{% endif %}>{{ code }}</option>
+                  {% endfor %}
+                </select>
               </p>
             </div>
           </fieldset>

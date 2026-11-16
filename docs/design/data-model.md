@@ -162,6 +162,8 @@ Indexes and constraints:
 | `assignee_id` | INTEGER | nullable, references `users(id)` `ON DELETE RESTRICT` |
 | `estimate_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `remaining_minutes` | INTEGER | nullable, `CHECK` not negative |
+| `spent_minutes` | INTEGER | nullable, `CHECK` not negative |
+| `story_points` | INTEGER | nullable, `CHECK` not negative |
 | `planned_value_cents` | INTEGER | nullable, `CHECK` not negative |
 | `earned_value_cents` | INTEGER | nullable, `CHECK` not negative |
 | `actual_cost_cents` | INTEGER | nullable, `CHECK` not negative |
@@ -267,7 +269,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`, `planned value`, `earned value`, `actual cost`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `time spent`, `story points`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`, `planned value`, `earned value`, `actual cost`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -318,7 +320,7 @@ Three things the [domain model](../architecture/domain-model.md) describes have 
 
 **The backlog.** A project's issues where `sprint_id IS NULL` and `status` is not `done` or `cancelled`, ordered by `created_at` ascending. This is the amended definition from [ADR 013](../adr/planning-realization.md), which supersedes the rank-based definition in [ADR 005](../adr/boards-sprints-and-backlog.md).
 
-**Effort, cost, and progress rollup.** Computed per request with a recursive query walking `parent_id` down from the issue, summing `estimate_minutes` over the subtree, summing `remaining_minutes` excluding cancelled descendants, summing `planned_value_cents`, `earned_value_cents`, and `actual_cost_cents` over the subtree including cancelled descendants, counting descendants whose status is `done`, and counting descendants whose status is `cancelled` separately. Budget at completion, estimate at completion, and the two performance indexes are derived from those cost sums in the same pass ([Cost estimation](../adr/cost-estimation.md)). Nothing is cached or denormalized.
+**Effort, cost, and progress rollup.** Computed per request with a recursive query walking `parent_id` down from the issue, summing `estimate_minutes` and `spent_minutes` over the subtree, summing `remaining_minutes` excluding cancelled descendants, summing `planned_value_cents`, `earned_value_cents`, and `actual_cost_cents` over the subtree including cancelled descendants, counting descendants whose status is `done`, and counting descendants whose status is `cancelled` separately. Budget at completion, estimate at completion, and the two performance indexes are derived from those cost sums in the same pass ([Cost estimation](../adr/cost-estimation.md)). Nothing is cached or denormalized.
 
 ## Deletion behaviour
 
@@ -368,6 +370,8 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0030` | `issues.location` and `location` on `issue_history.field` |
 | `0031` | `issues.planned_value_cents`, `issues.earned_value_cents`, `issues.actual_cost_cents`, and those names on `issue_history.field` |
 | `0032` | `projects.currency` |
+| `0038` | `issues.spent_minutes` and `time spent` on `issue_history.field` |
+| `0039` | `issues.story_points` and `story points` on `issue_history.field` |
 
 ## Related documents
 

@@ -92,6 +92,7 @@ from keel.web.issue_panels import (
 )
 from keel.web.issue_panels import encode_collapsed as encode_issue_panels
 from keel.web.issue_panels import parse_collapsed as parse_issue_panels
+from keel.web.markdown import render_markdown
 from keel.web.nav import (
     NAV_COOKIE,
     NAV_COOKIE_MAX_AGE,
@@ -106,6 +107,18 @@ from keel.web.routes.pages import IssueDraft, render_create_page
 router = APIRouter(prefix="/web")
 
 SEE_OTHER = 303
+
+
+@router.post("/markdown/preview")
+def preview_markdown(body: Annotated[str, Form()] = "") -> HTMLResponse:
+    """The same sanitized note the issue page will show after save."""
+    if not body.strip():
+        rendered = '<p class="keel-empty">Nothing to preview.</p>'
+    else:
+        rendered = str(render_markdown(body))
+    response = HTMLResponse(rendered)
+    response.headers["X-Keel-Markdown"] = "preview"
+    return response
 
 
 def _back(
@@ -585,6 +598,8 @@ def create_issue_from_page(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    spent: Annotated[str, Form()] = "",
+    points: Annotated[str, Form()] = "",
     planned_value: Annotated[str, Form()] = "",
     earned_value: Annotated[str, Form()] = "",
     actual_cost: Annotated[str, Form()] = "",
@@ -630,6 +645,8 @@ def create_issue_from_page(
                 due_at=due_at,
                 estimate=estimate,
                 remaining=remaining,
+                spent=spent,
+                points=points,
                 planned_value=planned_value,
                 earned_value=earned_value,
                 actual_cost=actual_cost,
@@ -681,6 +698,8 @@ def create_issue_from_page(
             sprint_id=chosen_sprint,
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            spent_minutes=parse_duration(spent),
+            story_points=issue_service.parse_story_points(points),
             planned_value_cents=parse_cost(planned_value, project.currency),
             earned_value_cents=parse_cost(earned_value, project.currency),
             actual_cost_cents=parse_cost(actual_cost, project.currency),
@@ -721,6 +740,8 @@ def create_issue(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    spent: Annotated[str, Form()] = "",
+    points: Annotated[str, Form()] = "",
     planned_value: Annotated[str, Form()] = "",
     earned_value: Annotated[str, Form()] = "",
     actual_cost: Annotated[str, Form()] = "",
@@ -772,6 +793,8 @@ def create_issue(
             sprint_id=chosen_sprint,
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            spent_minutes=parse_duration(spent),
+            story_points=issue_service.parse_story_points(points),
             planned_value_cents=parse_cost(planned_value, project.currency),
             earned_value_cents=parse_cost(earned_value, project.currency),
             actual_cost_cents=parse_cost(actual_cost, project.currency),
@@ -1055,6 +1078,54 @@ def update_issue_remaining(
             session,
             issue_id,
             remaining_minutes=parse_duration(remaining),
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post(
+    "/issues/{issue_id}/spent",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
+def update_issue_spent(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    spent: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            spent_minutes=parse_duration(spent),
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post(
+    "/issues/{issue_id}/points",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
+def update_issue_points(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    points: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            story_points=issue_service.parse_story_points(points),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

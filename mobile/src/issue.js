@@ -429,6 +429,8 @@ function issuePage({
     updated: formatWhen(issue.updated_at),
     estimate: formatMinutes(issue.estimate_minutes),
     remaining: formatMinutes(issue.remaining_minutes),
+    spent: formatMinutes(issue.spent_minutes),
+    points: issue.story_points == null ? "None" : String(issue.story_points),
     plannedValue: formatMoney(issue.planned_value_cents ?? 0, code, "display"),
     earnedValue: formatMoney(issue.earned_value_cents ?? 0, code, "display"),
     actualCost: formatMoney(issue.actual_cost_cents ?? 0, code, "display"),
@@ -441,6 +443,7 @@ function issuePage({
         ? {
             estimate: formatMinutes(issue.rollup.estimate_minutes),
             remaining: formatMinutes(issue.rollup.remaining_minutes),
+            spent: formatMinutes(issue.rollup.spent_minutes),
             plannedValue: formatMoney(issue.rollup.planned_value_cents ?? 0, code, "display"),
             earnedValue: formatMoney(issue.rollup.earned_value_cents ?? 0, code, "display"),
             actualCost: formatMoney(issue.rollup.actual_cost_cents ?? 0, code, "display"),
@@ -505,6 +508,15 @@ function amountForIdle(value, currency) {
   return formatMoney(parsed.value, currency, "edit");
 }
 
+function leaveIssuePrompt() {
+  return {
+    title: "Are you sure you want to go back?",
+    message: "Your issue will not be saved.",
+    stay: "Stay",
+    leave: "Go back",
+  };
+}
+
 function costFigures(issue) {
   if (issue.rollup && issue.rollup.descendants) {
     return costMetrics(issue.rollup);
@@ -524,6 +536,7 @@ module.exports = {
   projectCurrency,
   issueKeyParts,
   issuePage,
+  leaveIssuePrompt,
   linkEnds,
   parseMarkdown,
   priorityLabel,

@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { amountForEditing, amountForIdle, formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
+const { amountForEditing, amountForIdle, formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, leaveIssuePrompt, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
 
 test("formats effort the way the server does", () => {
   assert.equal(formatMinutes(null), "None");
@@ -53,12 +53,14 @@ test("assembles a read-only issue page", () => {
       updated_at: "2026-10-02T12:00:00",
       estimate_minutes: 60,
       remaining_minutes: null,
+      spent_minutes: 30,
       description: "Sand the **bow**.",
       definition_of_done: "- Two **even** coats.",
       location: "Marina slip 2",
       rollup: {
         estimate_minutes: 120,
         remaining_minutes: 60,
+        spent_minutes: 45,
         descendants: 2,
         descendants_done: 1,
         descendants_cancelled: 0,
@@ -96,11 +98,15 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.reporter, "None");
   assert.equal(page.priorityLabel, "P3 — Major");
   assert.equal(page.estimate, "1h");
+  assert.equal(page.remaining, "None");
+  assert.equal(page.spent, "30m");
+  assert.equal(page.points, "None");
   assert.equal(page.plannedValue, "$0.00 USD");
   assert.equal(page.budgetAtCompletion, "$0.00 USD");
   assert.equal(page.schedulePerformanceIndex, "N/A");
   assert.equal(page.costPerformanceIndex, "N/A");
   assert.equal(page.rollup.progress, "1 of 2 done");
+  assert.equal(page.rollup.spent, "45m");
   assert.equal(page.rollup.plannedValue, "$0.00 USD");
   const yen = issuePage({
     issue: { id: 2, planned_value_cents: 1290, rollup: null },
@@ -145,4 +151,13 @@ test("a link points the right way and a key finds a saved issue", () => {
   };
   assert.equal(savedIssueId(library, "boat-2"), 3);
   assert.equal(savedIssueId(library, "KEEL-9"), null);
+});
+
+test("leaving an issue asks before the draft is dropped", () => {
+  assert.deepEqual(leaveIssuePrompt(), {
+    title: "Are you sure you want to go back?",
+    message: "Your issue will not be saved.",
+    stay: "Stay",
+    leave: "Go back",
+  });
 });

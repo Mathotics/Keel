@@ -43,6 +43,17 @@ function parseCost(raw, currency) {
   return parseAmount(raw, currency || "USD");
 }
 
+function parsePoints(raw) {
+  const text = String(raw ?? "").trim();
+  if (!text) {
+    return { value: null };
+  }
+  if (!/^\d+$/.test(text)) {
+    return { error: "Story points must be a whole number." };
+  }
+  return { value: Number(text) };
+}
+
 function parseWhen(raw) {
   const trimmed = String(raw || "").trim();
   if (!trimmed) {
@@ -125,6 +136,14 @@ function prepareCreate(input) {
   if (remaining.error) {
     return remaining;
   }
+  const spent = parseDuration(input.spent);
+  if (spent.error) {
+    return spent;
+  }
+  const points = parsePoints(input.points);
+  if (points.error) {
+    return points;
+  }
   const currency = input.currency || "USD";
   const planned = parseCost(input.plannedValue, currency);
   if (planned.error) {
@@ -170,6 +189,8 @@ function prepareCreate(input) {
       sprint_id: input.sprintId || null,
       estimate_minutes: estimate.value,
       remaining_minutes: remaining.value,
+      spent_minutes: spent.value,
+      story_points: points.value,
       planned_value_cents: planned.value,
       earned_value_cents: earned.value,
       actual_cost_cents: actual.value,
@@ -196,6 +217,8 @@ function prepareUpdate(input) {
     sprintId: input.sprintId,
     estimate: input.estimate,
     remaining: input.remaining,
+    spent: input.spent,
+    points: input.points,
     plannedValue: input.plannedValue,
     earnedValue: input.earnedValue,
     actualCost: input.actualCost,
@@ -257,6 +280,12 @@ function prepareUpdate(input) {
   }
   if ((draft.remaining_minutes ?? null) !== (issue.remaining_minutes ?? null)) {
     changes.remaining_minutes = draft.remaining_minutes;
+  }
+  if ((draft.spent_minutes ?? null) !== (issue.spent_minutes ?? null)) {
+    changes.spent_minutes = draft.spent_minutes;
+  }
+  if ((draft.story_points ?? null) !== (issue.story_points ?? null)) {
+    changes.story_points = draft.story_points;
   }
   if ((draft.planned_value_cents ?? 0) !== (issue.planned_value_cents ?? 0)) {
     changes.planned_value_cents = draft.planned_value_cents;

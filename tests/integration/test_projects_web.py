@@ -315,8 +315,10 @@ def test_the_project_form_saves_a_currency_and_refuses_a_blank_one(
     project: Json,
 ) -> None:
     page = client.get("/projects/KEEL")
-    assert 'name="currency"' in page.text
-    assert 'value="USD"' in page.text
+    assert '<select id="project-currency" name="currency" required>' in page.text
+    assert '<option value="USD" selected>USD</option>' in page.text
+    assert '<option value="EUR">EUR</option>' in page.text
+    assert '<option value="JPY">JPY</option>' in page.text
 
     saved = client.post(
         f"/web/projects/{project['id']}/update",

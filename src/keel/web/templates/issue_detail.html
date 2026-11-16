@@ -143,7 +143,7 @@
         <div class="keel-fact">
           <dt>Dates</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}{% if not can_edit_issue %} inert{% endif %}>
+            <form class="keel-form keel-form--inline keel-dates" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}{% if not can_edit_issue %} inert{% endif %}>
               <label for="issue-start">Start date</label>
               <input id="issue-start" name="start_at" type="datetime-local" value="{{ issue.start_at | datetime_local }}" data-keel-range="start"/>
               <label for="issue-due">Due date</label>
@@ -162,6 +162,31 @@
             </form>
           </dd>
         </div>
+      </dl>
+
+      {% call issue_panel('description', 'Description') %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description"{% if not can_edit_issue %} inert{% endif %}>
+        <p>
+          <label class="keel-visually-hidden" for="issue-description">Description</label>
+          {% with field_id="issue-description", name="description", rows=6, value=issue.description, placeholder="Write a description…", controls=true %}
+          {% include "_markdown_field.html" %}
+          {% endwith %}
+        </p>
+      </form>
+      {% endcall %}
+
+      {% call issue_panel('definition_of_done', 'Definition of Done') %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done"{% if not can_edit_issue %} inert{% endif %}>
+        <p>
+          <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
+          {% with field_id="issue-definition-of-done", name="definition_of_done", rows=6, value=issue.definition_of_done, placeholder="Write the definition of done…", controls=true %}
+          {% include "_markdown_field.html" %}
+          {% endwith %}
+        </p>
+      </form>
+      {% endcall %}
+
+      <dl class="keel-facts">
         <div class="keel-fact keel-fact--wide">
           <dt>Location</dt>
           <dd>
@@ -194,12 +219,32 @@
                 <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
-              {% if rollup.descendants %}
-              <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
-              {% endif %}
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Time spent</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/spent" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
+                <label class="keel-visually-hidden" for="issue-spent">Time spent</label>
+                <input id="issue-spent" name="spent" type="text" value="{{ issue.spent_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Story points</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/points" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
+                <label class="keel-visually-hidden" for="issue-points">Story points</label>
+                <input id="issue-points" name="points" type="number" min="0" step="1" value="{{ issue.story_points if issue.story_points is not none else '' }}"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
             </dd>
           </div>
         </dl>
+        {% if rollup.descendants %}
+        <p class="keel-rollup keel-fact-group__note">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining, {{ rollup.spent_minutes | duration or "none" }} time spent. {{ rollup.progress_sentence() }}.</p>
+        {% endif %}
       </div>
       <div class="keel-fact-group keel-fact-group--cost">
         <dl class="keel-facts">
@@ -449,38 +494,6 @@
         </div>
       </dialog>
 
-      {% call issue_panel('description', 'Description') %}
-      {% if issue.description %}
-      <div class="keel-markdown">{{ issue.description | markdown }}</div>
-      {% endif %}
-      <details class="keel-markdown-edit"{% if not issue.description %} open{% endif %}>
-        <summary>{% if issue.description %}Edit description{% else %}Add a description{% endif %}</summary>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
-          <p>
-            <label class="keel-visually-hidden" for="issue-description">Description</label>
-            <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ issue.description }}</textarea>
-          </p>
-          <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
-        </form>
-      </details>
-      {% endcall %}
-
-      {% call issue_panel('definition_of_done', 'Definition of Done') %}
-      {% if issue.definition_of_done %}
-      <div class="keel-markdown">{{ issue.definition_of_done | markdown }}</div>
-      {% endif %}
-      <details class="keel-markdown-edit"{% if not issue.definition_of_done %} open{% endif %}>
-        <summary>{% if issue.definition_of_done %}Edit definition of done{% else %}Add a definition of done{% endif %}</summary>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
-          <p>
-            <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
-            <textarea id="issue-definition-of-done" class="keel-description" name="definition_of_done" rows="6">{{ issue.definition_of_done }}</textarea>
-          </p>
-          <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
-        </form>
-      </details>
-      {% endcall %}
-
       {% call issue_panel('children', 'Children', children|length) %}
       <div class="keel-table-scroll">
       <table class="keel-table">
@@ -652,9 +665,10 @@
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
         <p>
           <label for="issue-comment">Comment</label>
-          <textarea id="issue-comment" name="body" rows="3" required></textarea>
+          {% with field_id="issue-comment", name="body", rows=4, value="", required=true, placeholder="Add your comment here…", controls=true, submit_label="Add comment" %}
+          {% include "_markdown_field.html" %}
+          {% endwith %}
         </p>
-        <p><button class="keel-primary" type="submit">Add comment</button></p>
       </form>
       {% endif %}
       {% endcall %}

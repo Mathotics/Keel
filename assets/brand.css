@@ -1599,6 +1599,7 @@ body {
 .keel-fact-group > .keel-facts {
   max-width: none;
   margin: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .keel-fact-group--cost > .keel-facts {
@@ -1645,10 +1646,237 @@ body {
   min-width: 0;
 }
 
+/* A date control is too wide to share one row with the other date, so each
+   label stays on the same row as its own field. */
+.keel-form.keel-dates {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+}
+
+.keel-dates input[type="datetime-local"],
+.keel-dates select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.keel-dates > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .keel-description {
   max-width: 48rem;
   min-height: 8rem;
   white-space: pre-wrap;
+}
+
+.keel-md {
+  display: block;
+  max-width: 48rem;
+  border: 1px solid var(--keel-sheet);
+  border-radius: 0.35rem;
+  background: var(--keel-white);
+}
+
+.keel-md__bar {
+  display: none;
+}
+
+[data-keel-md] .keel-md__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.15rem 0.35rem;
+  border-bottom: 1px solid var(--keel-sheet);
+  background: var(--keel-sheet);
+}
+
+.keel-md__tabs,
+.keel-md__tools {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.keel-md__bar button {
+  min-height: 1.6rem;
+  padding: 0.1rem 0.45rem;
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: var(--keel-blue-deep);
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.keel-md__bar button:hover,
+.keel-md__bar button:focus-visible {
+  background: var(--keel-white);
+}
+
+.keel-md__bar .keel-md__tab {
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
+.keel-md__tab.is-selected {
+  background: var(--keel-white);
+}
+
+.keel-md__tools button[aria-pressed="true"] {
+  background: var(--keel-blue);
+  color: var(--keel-white);
+}
+
+.keel-md__tools button[aria-pressed="true"]:hover,
+.keel-md__tools button[aria-pressed="true"]:focus-visible {
+  background: var(--keel-blue-deep);
+  color: var(--keel-white);
+}
+
+.keel-md .keel-description {
+  display: block;
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+}
+
+.keel-md.is-preview .keel-description {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.keel-md__preview {
+  display: block;
+  min-height: 8rem;
+  padding: 0.6rem 0.7rem;
+  cursor: text;
+  outline: none;
+}
+
+.keel-md__preview.is-blank::before {
+  content: attr(data-placeholder);
+  color: var(--keel-blue);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.keel-md__preview[hidden] {
+  display: none;
+}
+
+.keel-md__hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0.45rem 0.35rem 0.7rem;
+  border-top: 1px solid var(--keel-sheet);
+  color: var(--keel-blue);
+  font-size: 0.75rem;
+}
+
+.keel-md__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.keel-form .keel-md__cancel,
+.keel-form .keel-md__save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 1.6rem;
+  min-height: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 0.2rem;
+  background: var(--keel-white);
+}
+
+.keel-form .keel-md__cancel {
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.keel-form .keel-md__save {
+  border-color: var(--keel-blue);
+  color: var(--keel-blue);
+}
+
+.keel-form .keel-md__cancel:hover,
+.keel-form .keel-md__cancel:focus-visible,
+.keel-form .keel-md__save:hover,
+.keel-form .keel-md__save:focus-visible {
+  background: var(--keel-sheet);
+}
+
+.keel-form .keel-md__save:disabled {
+  border-color: var(--keel-sheet);
+  color: color-mix(in srgb, var(--keel-blue) 35%, #9aa7b0);
+  background: var(--keel-white);
+  cursor: default;
+}
+
+.keel-md__cancel svg,
+.keel-md__save svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.keel-md__link-dialog {
+  border: 1px solid var(--keel-sheet);
+  border-radius: 0.4rem;
+  padding: 1rem;
+  color: inherit;
+  background: var(--keel-white);
+}
+
+.keel-md__link-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 16rem;
+}
+
+.keel-md__link-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8125rem;
+}
+
+.keel-md__link-actions button[value="remove"] {
+  order: 1;
+  margin-right: auto;
+}
+
+.keel-md__link-actions button[value="cancel"] {
+  order: 2;
+}
+
+.keel-md__link-actions button[value="ok"] {
+  order: 3;
 }
 
 .keel-markdown {
@@ -1676,7 +1904,57 @@ body {
   font-weight: 650;
 }
 
+/* The editor preview matches the markdown source. A heading is larger than
+   the paragraph around it, and it is not bold unless the source marks it
+   with **. */
+.keel-md__preview h1,
+.keel-md__preview h2,
+.keel-md__preview h3,
+.keel-md__preview h4,
+.keel-md__preview h5,
+.keel-md__preview h6 {
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.keel-md__preview h1 {
+  font-size: 1.75rem;
+}
+
+.keel-md__preview h2 {
+  font-size: 1.4rem;
+}
+
+.keel-md__preview h3 {
+  font-size: 1.2rem;
+}
+
+.keel-md__preview h4 {
+  font-size: 1.05rem;
+}
+
+.keel-md__preview h5 {
+  font-size: 1rem;
+}
+
+.keel-md__preview h6 {
+  font-size: 0.95rem;
+}
+
+.keel-md__preview strong,
+.keel-md__preview b {
+  font-weight: 700;
+}
+
 .keel-markdown p {
+  margin: 0.4rem 0;
+}
+
+/* A stacked form lays its own paragraphs out as a column. Markdown paragraphs
+   inside the preview are text, so they stay on one line around bold and italic. */
+.keel-form--stacked .keel-markdown p {
+  display: block;
+  gap: 0;
   margin: 0.4rem 0;
 }
 
@@ -1684,6 +1962,14 @@ body {
 .keel-markdown ol {
   margin: 0.4rem 0;
   padding-left: 1.4rem;
+}
+
+.keel-markdown ul {
+  list-style: disc;
+}
+
+.keel-markdown ol {
+  list-style: decimal;
 }
 
 .keel-markdown blockquote {
@@ -1728,26 +2014,6 @@ body {
 .keel-markdown code {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.875em;
-}
-
-.keel-markdown-edit {
-  max-width: 48rem;
-  margin: 0 0 1rem;
-}
-
-.keel-markdown-edit summary {
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: var(--keel-blue);
-}
-
-.keel-markdown-edit summary:hover,
-.keel-markdown-edit summary:focus-visible {
-  color: var(--keel-blue-deep);
-}
-
-.keel-markdown-edit .keel-form {
-  margin-top: 0.6rem;
 }
 
 .keel-table {
@@ -2784,6 +3050,7 @@ select.keel-type-select[data-type] {
 
   .keel-fields,
   .keel-facts,
+  .keel-fact-group > .keel-facts,
   .keel-fact-group--cost > .keel-facts {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2793,7 +3060,7 @@ select.keel-type-select[data-type] {
   }
 
   .keel-markdown,
-  .keel-markdown-edit,
+  .keel-md,
   .keel-description {
     max-width: none;
   }

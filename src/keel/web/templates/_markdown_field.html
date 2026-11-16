@@ -1,0 +1,33 @@
+<span class="keel-md" data-keel-markdown>
+  <span class="keel-md__bar">
+    <span class="keel-md__tabs" role="tablist" aria-label="Write or preview">
+      <button type="button" class="keel-md__tab is-selected" role="tab" aria-selected="true" data-keel-md-tab="write">Write</button>
+      <button type="button" class="keel-md__tab" role="tab" aria-selected="false" data-keel-md-tab="preview">Preview</button>
+    </span>
+    <span class="keel-md__tools" role="toolbar" aria-label="Formatting">
+      <button type="button" data-keel-md="heading" aria-label="Heading" aria-pressed="false">H</button>
+      <button type="button" data-keel-md="bold" aria-label="Bold" aria-pressed="false"><strong>B</strong></button>
+      <button type="button" data-keel-md="italic" aria-label="Italic" aria-pressed="false"><em>I</em></button>
+      <button type="button" data-keel-md="quote" aria-label="Quote" aria-pressed="false">”</button>
+      <button type="button" data-keel-md="code" aria-label="Code" aria-pressed="false">&lt;&gt;</button>
+      <button type="button" data-keel-md="link" aria-label="Link" aria-pressed="false">Link</button>
+      <button type="button" data-keel-md="bullet" aria-label="Bulleted list" aria-pressed="false">•</button>
+      <button type="button" data-keel-md="number" aria-label="Numbered list" aria-pressed="false">1.</button>
+    </span>
+  </span>
+  <textarea id="{{ field_id }}" class="keel-description" name="{{ name }}" rows="{{ rows|default(6) }}"{% if required %} required{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}>{{ value|default('') }}</textarea>
+  <span class="keel-md__preview keel-markdown" hidden></span>
+  <span class="keel-md__hint">
+    <span>Markdown is supported.</span>
+    {% if controls %}
+    <span class="keel-md__actions">
+      <button class="keel-md__cancel" type="reset" aria-label="Cancel">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg>
+      </button>
+      <button class="keel-md__save" type="submit" aria-label="{{ submit_label|default('Save') }}">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.2l2.6 2.6L10 3.2"/></svg>
+      </button>
+    </span>
+    {% endif %}
+  </span>
+</span>
