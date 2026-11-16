@@ -43,7 +43,12 @@ import { applyPasswordEdit, maskPassword } from "./src/password";
 import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePassword, prepareProfile } from "./src/account";
 import { PHONE_NOTE, appBarSlots, bellState, mergeInbox, noticeCacheKey, noticeList, openNotice, preferenceBody, preferenceRows, togglePreference, viewedNotices, withoutNotice } from "./src/notifications";
 import { phoneDelivery, phoneSetup, pushIsFresh, pushIssueId } from "./src/phone";
-import { CADENCES, NEEDS_CONNECTION as PROJECT_OFFLINE, prepareProjectUpdate } from "./src/project";
+import {
+  CADENCES,
+  CURRENCIES,
+  NEEDS_CONNECTION as PROJECT_OFFLINE,
+  prepareProjectUpdate,
+} from "./src/project";
 import { NO_ACTIVE_SPRINT, NO_ISSUES, NO_PROJECTS, foldedStories } from "./src/work";
 import {
   NOT_ON_SERVER,
@@ -5816,12 +5821,11 @@ function ProjectSettings({ project, link, busy, error, refreshing, onSave, onDel
             placeholder="0"
             keyboardType="number-pad"
           />
-          <Field
+          <Dropdown
             label="Currency"
             value={currency}
+            options={CURRENCIES.map((code) => ({ id: code, title: code }))}
             onChange={setCurrency}
-            placeholder="USD"
-            autoCapitalize="characters"
           />
           <Text style={styles.message}>
             A cadence other than Off opens a sprint when this project has none active. Zero sprints in advance waits until the current one ends. Up to 12 can stay planned.

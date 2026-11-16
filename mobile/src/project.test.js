@@ -39,6 +39,27 @@ test("every N days requires a positive day count", () => {
   assert.equal(prepared.body.sprint_cadence_days, 10);
 });
 
+test("currency has to be an ISO code the project can use", () => {
+  const saved = prepareProjectUpdate({
+    name: "Keel",
+    description: "",
+    cadence: "off",
+    days: "",
+    ahead: "0",
+    currency: "jpy",
+  });
+  assert.equal(saved.body.currency, "JPY");
+  const refused = prepareProjectUpdate({
+    name: "Keel",
+    description: "",
+    cadence: "off",
+    days: "",
+    ahead: "0",
+    currency: "XYZ",
+  });
+  assert.equal(refused.error, "Currency must be an ISO code such as USD.");
+});
+
 test("a blank name and an out of range ahead are refused", () => {
   assert.equal(
     prepareProjectUpdate({ name: " ", description: "", cadence: "off", days: "", ahead: "0" }).error,

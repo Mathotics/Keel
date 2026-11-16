@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from keel.domain.access import Permission
 from keel.domain.cadence import MAX_SPRINT_AHEAD
+from keel.domain.currency import currency_codes
 from keel.domain.enums import sprint_cadences_in_menu_order, statuses_in_workflow_order
 from keel.services import access as access_service
 from keel.services import issues as issue_service
@@ -106,6 +107,7 @@ def project_page(
             counts=counts,
             statuses=statuses_in_workflow_order(),
             cadences=sprint_cadences_in_menu_order(),
+            currencies=currency_codes(),
             max_sprint_ahead=MAX_SPRINT_AHEAD,
             pager=pager,
             error=error,
