@@ -27,6 +27,7 @@ class IssueCreate(BaseModel):
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    spent_minutes: int | None = Field(default=None, ge=0)
     planned_value_cents: int | None = Field(default=None, ge=0)
     earned_value_cents: int | None = Field(default=None, ge=0)
     actual_cost_cents: int | None = Field(default=None, ge=0)
@@ -56,6 +57,7 @@ class IssueUpdate(BaseModel):
     assignee_id: int | None = None
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
+    spent_minutes: int | None = Field(default=None, ge=0)
     planned_value_cents: int | None = Field(default=None, ge=0)
     earned_value_cents: int | None = Field(default=None, ge=0)
     actual_cost_cents: int | None = Field(default=None, ge=0)
@@ -67,6 +69,7 @@ class IssueUpdate(BaseModel):
 class RollupRead(BaseModel):
     estimate_minutes: int | None
     remaining_minutes: int | None
+    spent_minutes: int | None
     descendants: int
     descendants_done: int
     descendants_cancelled: int
@@ -83,6 +86,7 @@ class RollupRead(BaseModel):
         return cls(
             estimate_minutes=rollup.estimate_minutes,
             remaining_minutes=rollup.remaining_minutes,
+            spent_minutes=rollup.spent_minutes,
             descendants=rollup.descendants,
             descendants_done=rollup.descendants_done,
             descendants_cancelled=rollup.descendants_cancelled,
@@ -116,6 +120,7 @@ class IssueRead(BaseModel):
     assignee_id: int | None
     estimate_minutes: int | None
     remaining_minutes: int | None
+    spent_minutes: int | None
     planned_value_cents: int | None
     earned_value_cents: int | None
     actual_cost_cents: int | None
@@ -161,6 +166,7 @@ class IssueRead(BaseModel):
             assignee_id=issue.assignee_id,
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
+            spent_minutes=issue.spent_minutes,
             planned_value_cents=issue.planned_value_cents,
             earned_value_cents=issue.earned_value_cents,
             actual_cost_cents=issue.actual_cost_cents,

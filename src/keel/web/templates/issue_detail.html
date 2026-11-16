@@ -194,12 +194,22 @@
                 <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
               </form>
-              {% if rollup.descendants %}
-              <p class="keel-rollup">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining. {{ rollup.progress_sentence() }}.</p>
-              {% endif %}
+            </dd>
+          </div>
+          <div class="keel-fact">
+            <dt>Time spent</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/spent" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
+                <label class="keel-visually-hidden" for="issue-spent">Time spent</label>
+                <input id="issue-spent" name="spent" type="text" value="{{ issue.spent_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
             </dd>
           </div>
         </dl>
+        {% if rollup.descendants %}
+        <p class="keel-rollup keel-fact-group__note">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining, {{ rollup.spent_minutes | duration or "none" }} time spent. {{ rollup.progress_sentence() }}.</p>
+        {% endif %}
       </div>
       <div class="keel-fact-group keel-fact-group--cost">
         <dl class="keel-facts">

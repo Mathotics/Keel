@@ -1599,6 +1599,7 @@ body {
 .keel-fact-group > .keel-facts {
   max-width: none;
   margin: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .keel-fact-group--cost > .keel-facts {
@@ -2784,6 +2785,7 @@ select.keel-type-select[data-type] {
 
   .keel-fields,
   .keel-facts,
+  .keel-fact-group > .keel-facts,
   .keel-fact-group--cost > .keel-facts {
     grid-template-columns: minmax(0, 1fr);
   }

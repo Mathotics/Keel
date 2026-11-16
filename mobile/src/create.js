@@ -125,6 +125,10 @@ function prepareCreate(input) {
   if (remaining.error) {
     return remaining;
   }
+  const spent = parseDuration(input.spent);
+  if (spent.error) {
+    return spent;
+  }
   const currency = input.currency || "USD";
   const planned = parseCost(input.plannedValue, currency);
   if (planned.error) {
@@ -170,6 +174,7 @@ function prepareCreate(input) {
       sprint_id: input.sprintId || null,
       estimate_minutes: estimate.value,
       remaining_minutes: remaining.value,
+      spent_minutes: spent.value,
       planned_value_cents: planned.value,
       earned_value_cents: earned.value,
       actual_cost_cents: actual.value,
@@ -196,6 +201,7 @@ function prepareUpdate(input) {
     sprintId: input.sprintId,
     estimate: input.estimate,
     remaining: input.remaining,
+    spent: input.spent,
     plannedValue: input.plannedValue,
     earnedValue: input.earnedValue,
     actualCost: input.actualCost,
@@ -257,6 +263,9 @@ function prepareUpdate(input) {
   }
   if ((draft.remaining_minutes ?? null) !== (issue.remaining_minutes ?? null)) {
     changes.remaining_minutes = draft.remaining_minutes;
+  }
+  if ((draft.spent_minutes ?? null) !== (issue.spent_minutes ?? null)) {
+    changes.spent_minutes = draft.spent_minutes;
   }
   if ((draft.planned_value_cents ?? 0) !== (issue.planned_value_cents ?? 0)) {
     changes.planned_value_cents = draft.planned_value_cents;

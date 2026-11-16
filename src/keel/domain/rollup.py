@@ -14,6 +14,7 @@ class EffortNode:
     planned_value_cents: int | None = None
     earned_value_cents: int | None = None
     actual_cost_cents: int | None = None
+    spent_minutes: int | None = None
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,7 @@ class Rollup:
 
     estimate_minutes: int | None
     remaining_minutes: int | None
+    spent_minutes: int | None
     descendants: int
     descendants_done: int
     descendants_cancelled: int
@@ -66,6 +68,10 @@ def compute_rollup(root_id: int, nodes: Sequence[EffortNode]) -> Rollup:
             *(node.estimate_minutes for node in descendants),
         ),
         remaining_minutes=_sum_present(own.remaining_minutes, *open_remaining),
+        spent_minutes=_sum_present(
+            own.spent_minutes,
+            *(node.spent_minutes for node in descendants),
+        ),
         descendants=len(descendants),
         descendants_done=sum(
             1 for node in descendants if node.status is COMPLETED_STATUS

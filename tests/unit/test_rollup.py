@@ -71,10 +71,25 @@ def test_cancelled_descendants_are_counted_separately_and_omit_remaining() -> No
     )
     assert rollup.estimate_minutes == 225
     assert rollup.remaining_minutes == 165
+    assert rollup.spent_minutes is None
     assert rollup.descendants == 3
     assert rollup.descendants_done == 1
     assert rollup.descendants_cancelled == 1
     assert rollup.progress_sentence() == "1 of 3 done, 1 cancelled"
+
+
+def test_time_spent_sums_every_descendant_including_cancelled() -> None:
+    rollup = compute_rollup(
+        1,
+        [
+            EffortNode(1, None, None, IssueStatus.TODO, spent_minutes=10),
+            EffortNode(2, None, None, IssueStatus.DONE, spent_minutes=20),
+            EffortNode(3, None, None, IssueStatus.CANCELLED, spent_minutes=5),
+            EffortNode(4, None, None, IssueStatus.TODO),
+        ],
+    )
+    assert rollup.spent_minutes == 35
+    assert rollup.estimate_minutes is None
 
 
 def test_cost_sums_include_cancelled_work_and_skip_unset_values() -> None:

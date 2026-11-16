@@ -191,6 +191,7 @@ def create_issue(
     sprint_id: int | None = None,
     estimate_minutes: int | None = None,
     remaining_minutes: int | None = None,
+    spent_minutes: int | None = None,
     planned_value_cents: int | None = None,
     earned_value_cents: int | None = None,
     actual_cost_cents: int | None = None,
@@ -208,6 +209,7 @@ def create_issue(
             return already
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
+    _check_minutes(spent_minutes)
     _check_cents(planned_value_cents)
     _check_cents(earned_value_cents)
     _check_cents(actual_cost_cents)
@@ -231,6 +233,7 @@ def create_issue(
         due_at=due_at,
         estimate_minutes=estimate_minutes,
         remaining_minutes=remaining_minutes,
+        spent_minutes=spent_minutes,
         planned_value_cents=planned_value_cents,
         earned_value_cents=earned_value_cents,
         actual_cost_cents=actual_cost_cents,
@@ -285,6 +288,7 @@ def update_issue(
     sprint_id: int | None | object = UNSET,
     estimate_minutes: int | None | object = UNSET,
     remaining_minutes: int | None | object = UNSET,
+    spent_minutes: int | None | object = UNSET,
     planned_value_cents: int | None | object = UNSET,
     earned_value_cents: int | None | object = UNSET,
     actual_cost_cents: int | None | object = UNSET,
@@ -416,6 +420,15 @@ def update_issue(
                 history_service.effort_label(remaining_minutes),  # type: ignore[arg-type]
             )
             issue.remaining_minutes = remaining_minutes  # type: ignore[assignment]
+    if spent_minutes is not UNSET:
+        _check_minutes(spent_minutes)  # type: ignore[arg-type]
+        if spent_minutes != issue.spent_minutes:
+            _note(
+                history_service.FIELD_SPENT,
+                history_service.effort_label(issue.spent_minutes),
+                history_service.effort_label(spent_minutes),  # type: ignore[arg-type]
+            )
+            issue.spent_minutes = spent_minutes  # type: ignore[assignment]
     cost_currency = project_service.get_project(session, issue.project_id).currency
     if planned_value_cents is not UNSET:
         _check_cents(planned_value_cents)  # type: ignore[arg-type]
@@ -551,6 +564,7 @@ def issue_rollup(session: Session, issue_id: int) -> Rollup:
             id=item.id,
             estimate_minutes=item.estimate_minutes,
             remaining_minutes=item.remaining_minutes,
+            spent_minutes=item.spent_minutes,
             status=item.status,
             planned_value_cents=item.planned_value_cents,
             earned_value_cents=item.earned_value_cents,

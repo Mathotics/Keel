@@ -429,6 +429,7 @@ function issuePage({
     updated: formatWhen(issue.updated_at),
     estimate: formatMinutes(issue.estimate_minutes),
     remaining: formatMinutes(issue.remaining_minutes),
+    spent: formatMinutes(issue.spent_minutes),
     plannedValue: formatMoney(issue.planned_value_cents ?? 0, code, "display"),
     earnedValue: formatMoney(issue.earned_value_cents ?? 0, code, "display"),
     actualCost: formatMoney(issue.actual_cost_cents ?? 0, code, "display"),
@@ -441,6 +442,7 @@ function issuePage({
         ? {
             estimate: formatMinutes(issue.rollup.estimate_minutes),
             remaining: formatMinutes(issue.rollup.remaining_minutes),
+            spent: formatMinutes(issue.rollup.spent_minutes),
             plannedValue: formatMoney(issue.rollup.planned_value_cents ?? 0, code, "display"),
             earnedValue: formatMoney(issue.rollup.earned_value_cents ?? 0, code, "display"),
             actualCost: formatMoney(issue.rollup.actual_cost_cents ?? 0, code, "display"),

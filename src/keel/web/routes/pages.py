@@ -71,6 +71,7 @@ class IssueDraft:
     due_at: str = ""
     estimate: str = ""
     remaining: str = ""
+    spent: str = ""
     planned_value: str = ""
     earned_value: str = ""
     actual_cost: str = ""

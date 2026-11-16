@@ -81,6 +81,7 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="start_at"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'name="spent"' in page.text
     assert 'class="keel-type-select"' in page.text
     assert 'data-type="story"' in page.text
 
@@ -579,6 +580,7 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert 'name="sprint_id"' in page.text
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
+    assert 'name="spent"' in page.text
     assert "data-keel-autosubmit" in page.text
     assert "keel-autosubmit__fallback" in page.text
 
@@ -1003,6 +1005,23 @@ def test_effort_round_trips_through_shorthand(
     assert remaining_refused.headers["location"].startswith("/issues/KEEL-1?error=")
     assert client.get(f"/api/v1/issues/{issue_id}").json()["remaining_minutes"] == 45
 
+    spent = client.post(
+        f"/web/issues/{issue_id}/spent",
+        data={"spent": "30m"},
+        follow_redirects=False,
+    )
+    assert spent.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["spent_minutes"] == 30
+    assert 'value="30m"' in client.get("/issues/KEEL-1").text
+
+    spent_refused = client.post(
+        f"/web/issues/{issue_id}/spent",
+        data={"spent": "1h30"},
+        follow_redirects=False,
+    )
+    assert spent_refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["spent_minutes"] == 30
+
 
 def test_cost_round_trips_through_dollars(
     client: TestClient,
@@ -1124,7 +1143,10 @@ def test_an_epic_page_shows_subtree_progress(
     client.patch(f"/api/v1/issues/{story_id}", json={"status": "done"})
 
     page = client.get("/issues/KEEL-1")
-    assert "Including descendants: 3h estimate, 3h remaining. 1 of 1 done." in page.text
+    assert (
+        "Including descendants: 3h estimate, 3h remaining, none time spent. "
+        "1 of 1 done."
+    ) in page.text
     assert 'value="2h"' in page.text
 
 
@@ -1148,8 +1170,8 @@ def test_an_epic_page_shows_cancelled_descendants_separately(
 
     page = client.get("/issues/KEEL-1")
     assert (
-        "Including descendants: 3h estimate, 2h remaining. 0 of 1 done, 1 cancelled."
-        in page.text
+        "Including descendants: 3h estimate, 2h remaining, none time spent. "
+        "0 of 1 done, 1 cancelled." in page.text
     )
 
 

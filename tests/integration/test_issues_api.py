@@ -391,6 +391,7 @@ def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> N
     issue = create_issue(client, project_id, estimate_minutes=90)
     assert issue["estimate_minutes"] == 90
     assert issue["remaining_minutes"] == 90
+    assert issue["spent_minutes"] is None
     assert issue["rollup"]["estimate_minutes"] == 90
     assert issue["rollup"]["descendants"] == 0
 
@@ -409,6 +410,53 @@ def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> N
         json={"estimate_minutes": None},
     ).json()
     assert cleared["estimate_minutes"] is None
+
+
+def test_time_spent_round_trips_and_rolls_up_cancelled_work(
+    client: TestClient,
+    project_id: int,
+) -> None:
+    epic = create_issue(client, project_id, type="epic", title="Epic", spent_minutes=15)
+    assert epic["spent_minutes"] == 15
+    assert epic["estimate_minutes"] is None
+    story = create_issue(
+        client,
+        project_id,
+        type="story",
+        title="Dropped",
+        parent_id=epic["id"],
+        spent_minutes=45,
+    )
+    client.patch(f"/api/v1/issues/{story['id']}", json={"status": "cancelled"})
+    kept = create_issue(
+        client,
+        project_id,
+        type="story",
+        title="Kept",
+        parent_id=epic["id"],
+    )
+
+    updated = client.patch(
+        f"/api/v1/issues/{kept['id']}",
+        json={"spent_minutes": 30},
+    ).json()
+    assert updated["spent_minutes"] == 30
+
+    cleared = client.patch(
+        f"/api/v1/issues/{kept['id']}",
+        json={"spent_minutes": None},
+    ).json()
+    assert cleared["spent_minutes"] is None
+
+    refused = client.post(
+        f"/api/v1/projects/{project_id}/issues",
+        json={"type": "story", "title": "Negative", "spent_minutes": -1},
+    )
+    assert refused.status_code == 422
+
+    body = client.get(f"/api/v1/issues/{epic['id']}").json()
+    assert body["spent_minutes"] == 15
+    assert body["rollup"]["spent_minutes"] == 60
 
 
 def test_cost_round_trips_as_cents_and_rolls_up(
@@ -488,6 +536,7 @@ def test_an_epic_reports_subtree_rollup(client: TestClient, project_id: int) -> 
     assert body["rollup"] == {
         "estimate_minutes": 210,
         "remaining_minutes": 150,
+        "spent_minutes": None,
         "descendants": 2,
         "descendants_done": 1,
         "descendants_cancelled": 0,
@@ -527,6 +576,7 @@ def test_cancelled_children_are_counted_separately_in_api_rollup(
     assert body["rollup"] == {
         "estimate_minutes": 180,
         "remaining_minutes": 120,
+        "spent_minutes": None,
         "descendants": 1,
         "descendants_done": 0,
         "descendants_cancelled": 1,

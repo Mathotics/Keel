@@ -12,7 +12,7 @@ class IssueHistory(Base):
     __table_args__ = (
         CheckConstraint(
             "field in ('status', 'assignee', 'sprint', 'estimate', "
-            "'remaining', 'due date', 'parent', 'type', 'title', "
+            "'remaining', 'time spent', 'due date', 'parent', 'type', 'title', "
             "'description', 'definition of done', 'priority', 'labels', "
             "'location', 'planned value', 'earned value', 'actual cost')",
             name="ck_issue_history_field",

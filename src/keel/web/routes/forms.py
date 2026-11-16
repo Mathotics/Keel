@@ -585,6 +585,7 @@ def create_issue_from_page(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    spent: Annotated[str, Form()] = "",
     planned_value: Annotated[str, Form()] = "",
     earned_value: Annotated[str, Form()] = "",
     actual_cost: Annotated[str, Form()] = "",
@@ -630,6 +631,7 @@ def create_issue_from_page(
                 due_at=due_at,
                 estimate=estimate,
                 remaining=remaining,
+                spent=spent,
                 planned_value=planned_value,
                 earned_value=earned_value,
                 actual_cost=actual_cost,
@@ -681,6 +683,7 @@ def create_issue_from_page(
             sprint_id=chosen_sprint,
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            spent_minutes=parse_duration(spent),
             planned_value_cents=parse_cost(planned_value, project.currency),
             earned_value_cents=parse_cost(earned_value, project.currency),
             actual_cost_cents=parse_cost(actual_cost, project.currency),
@@ -721,6 +724,7 @@ def create_issue(
     sprint_id: Annotated[str, Form()] = "",
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
+    spent: Annotated[str, Form()] = "",
     planned_value: Annotated[str, Form()] = "",
     earned_value: Annotated[str, Form()] = "",
     actual_cost: Annotated[str, Form()] = "",
@@ -772,6 +776,7 @@ def create_issue(
             sprint_id=chosen_sprint,
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
+            spent_minutes=parse_duration(spent),
             planned_value_cents=parse_cost(planned_value, project.currency),
             earned_value_cents=parse_cost(earned_value, project.currency),
             actual_cost_cents=parse_cost(actual_cost, project.currency),
@@ -1055,6 +1060,30 @@ def update_issue_remaining(
             session,
             issue_id,
             remaining_minutes=parse_duration(remaining),
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post(
+    "/issues/{issue_id}/spent",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
+def update_issue_spent(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    spent: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            spent_minutes=parse_duration(spent),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

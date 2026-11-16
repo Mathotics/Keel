@@ -3860,6 +3860,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [labels, setLabels] = useState("");
   const [estimate, setEstimate] = useState("");
   const [remaining, setRemaining] = useState("");
+  const [spent, setSpent] = useState("");
   const [plannedValue, setPlannedValue] = useState(formatMoney(0, currency, "edit"));
   const [earnedValue, setEarnedValue] = useState(formatMoney(0, currency, "edit"));
   const [actualCost, setActualCost] = useState(formatMoney(0, currency, "edit"));
@@ -3998,6 +3999,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         sprintId: sprintId ? Number(sprintId) : null,
         estimate,
         remaining,
+        spent,
         plannedValue,
         earnedValue,
         actualCost,
@@ -4092,6 +4094,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Time spent" value={spent} onChange={setSpent} placeholder="30m" />
       <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
       <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
       <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
@@ -4130,6 +4133,11 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
     issue.remaining_minutes === null || issue.remaining_minutes === undefined
       ? ""
       : formatMinutes(issue.remaining_minutes),
+  );
+  const [spent, setSpent] = useState(
+    issue.spent_minutes === null || issue.spent_minutes === undefined
+      ? ""
+      : formatMinutes(issue.spent_minutes),
   );
   const currency = projectCurrency(project);
   const [plannedValue, setPlannedValue] = useState(
@@ -4248,6 +4256,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       online: connected,
       estimate,
       remaining,
+      spent,
       plannedValue,
       earnedValue,
       actualCost,
@@ -4335,6 +4344,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Labels" value={labels} onChange={setLabels} placeholder="hull, deck" />
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
+      <Field label="Time spent" value={spent} onChange={setSpent} placeholder="30m" />
       <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
       <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
       <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
@@ -6326,6 +6336,7 @@ function IssueDetail({
           <DetailLine label="Location" value={page.location} />
           <DetailLine label="Estimate" value={page.estimate} />
           <DetailLine label="Remaining" value={page.remaining} />
+          <DetailLine label="Time spent" value={page.spent} />
           <DetailLine label="Planned value (PV)" value={page.plannedValue} />
           <DetailLine label="Earned value (EV)" value={page.earnedValue} />
           <DetailLine label="Actual cost (AC)" value={page.actualCost} />
@@ -6337,6 +6348,7 @@ function IssueDetail({
             <View>
               <DetailLine label="Rollup estimate" value={page.rollup.estimate} />
               <DetailLine label="Rollup remaining" value={page.rollup.remaining} />
+              <DetailLine label="Rollup time spent" value={page.rollup.spent} />
               <DetailLine label="Rollup planned value" value={page.rollup.plannedValue} />
               <DetailLine label="Rollup earned value" value={page.rollup.earnedValue} />
               <DetailLine label="Rollup actual cost" value={page.rollup.actualCost} />

@@ -53,6 +53,10 @@ class Issue(Base):
             name="ck_issues_remaining_not_negative",
         ),
         CheckConstraint(
+            "spent_minutes is null or spent_minutes >= 0",
+            name="ck_issues_spent_not_negative",
+        ),
+        CheckConstraint(
             "planned_value_cents is null or planned_value_cents >= 0",
             name="ck_issues_planned_value_not_negative",
         ),
@@ -137,6 +141,7 @@ class Issue(Base):
     )
     estimate_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
     remaining_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
+    spent_minutes: Mapped[int | None] = mapped_column(Integer, default=None)
     planned_value_cents: Mapped[int | None] = mapped_column(Integer, default=None)
     earned_value_cents: Mapped[int | None] = mapped_column(Integer, default=None)
     actual_cost_cents: Mapped[int | None] = mapped_column(Integer, default=None)
