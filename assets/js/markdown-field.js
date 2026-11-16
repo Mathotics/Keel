@@ -298,7 +298,7 @@
     }
     const existing = selectedMark(selection, selector);
     if (existing && selection.isCollapsed) {
-      unwrapKeepCaret(existing);
+      leaveMark(existing);
       return;
     }
     if (existing || !document.queryCommandState(command)) {
@@ -634,7 +634,11 @@
     const code = closestTag(selection.anchorNode, "code");
     const pre = closestTag(selection.anchorNode, "pre");
     if (code && (!pre || code.parentElement !== pre)) {
-      unwrap(code);
+      if (selection.isCollapsed) {
+        leaveMark(code);
+      } else {
+        unwrap(code);
+      }
       return;
     }
     if (pre) {
@@ -657,7 +661,11 @@
     }
     const anchor = closestTag(selection.anchorNode, "a");
     if (anchor) {
-      unwrap(anchor);
+      if (selection.isCollapsed) {
+        leaveMark(anchor);
+      } else {
+        unwrap(anchor);
+      }
       return;
     }
     const text = selection.toString() || "text";
@@ -691,7 +699,7 @@
 
   function blockToMarkdown(node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent.replace(/\u00a0/g, " ").trim();
+      const text = node.textContent.replace(/\u200b/g, "").replace(/\u00a0/g, " ").trim();
       return text || null;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) {
@@ -771,7 +779,7 @@
 
   function inlineNode(node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      return node.textContent;
+      return node.textContent.replace(/\u200b/g, "");
     }
     if (node.nodeType !== Node.ELEMENT_NODE) {
       return "";
@@ -833,37 +841,50 @@
     selection.addRange(range);
   }
 
-  function unwrapKeepCaret(element) {
+  // A collapsed caret turns the mark off for text typed next. Text already
+  // inside the mark stays formatted.
+  function leaveMark(element) {
     const selection = window.getSelection();
-    const range = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+    if (!selection.rangeCount) {
+      return;
+    }
+    const range = selection.getRangeAt(0);
+    const tail = document.createRange();
+    tail.setStart(range.startContainer, range.startOffset);
+    tail.setEnd(element, element.childNodes.length);
+    const extracted = tail.extractContents();
     const parent = element.parentNode;
-    const next = element.nextSibling;
-    const children = [...element.childNodes];
-    while (element.firstChild) {
-      parent.insertBefore(element.firstChild, element);
-    }
-    parent.removeChild(element);
-    if (!range) {
-      return;
-    }
-    if (range.startContainer.isConnected) {
-      placeRange(range);
-      return;
+    const following = element.nextSibling;
+    const restHasContent = [...extracted.childNodes].some((node) => {
+      return node.nodeType !== Node.TEXT_NODE || node.textContent.length > 0;
+    });
+    let rest = null;
+    if (restHasContent) {
+      rest = document.createElement(element.tagName.toLowerCase());
+      if (element.hasAttribute("href")) {
+        rest.setAttribute("href", element.getAttribute("href"));
+      }
+      rest.appendChild(extracted);
+      parent.insertBefore(rest, following);
     }
     const point = document.createRange();
-    const last = children[children.length - 1];
-    if (last && last.nodeType === Node.TEXT_NODE) {
-      point.setStart(last, last.length);
-    } else if (last) {
-      point.setStartAfter(last);
-    } else if (next) {
-      point.setStartBefore(next);
+    if (!element.textContent) {
+      const anchor = rest || following;
+      parent.removeChild(element);
+      if (anchor && anchor.isConnected) {
+        point.setStartBefore(anchor);
+      } else {
+        point.selectNodeContents(parent);
+        point.collapse(false);
+      }
     } else {
-      point.selectNodeContents(parent);
-      point.collapse(false);
+      const holder = document.createTextNode("\u200b");
+      parent.insertBefore(holder, element.nextSibling);
+      point.setStart(holder, 1);
     }
     point.collapse(true);
-    placeRange(point);
+    selection.removeAllRanges();
+    selection.addRange(point);
   }
 
   function replaceWithParagraph(heading) {
