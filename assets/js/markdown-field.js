@@ -42,27 +42,22 @@
         event.preventDefault();
       });
     }
-    textarea.addEventListener("change", (event) => {
-      if (editor.dataset.keelMdHold === "on" || editor.contains(document.activeElement)) {
-        event.stopPropagation();
-      }
-    });
-    let baseline = textarea.value;
-    editor.addEventListener("focusin", () => {
-      baseline = textarea.value;
-    });
-    editor.addEventListener("focusout", (event) => {
-      if (editor.contains(event.relatedTarget)) {
-        return;
-      }
-      window.setTimeout(() => {
-        if (editor.contains(document.activeElement) || textarea.value === baseline) {
-          return;
+    const form = editor.closest("form");
+    if (form && editor.querySelector(".keel-md__save")) {
+      form.addEventListener("submit", () => {
+        if (editor.classList.contains("is-preview")) {
+          syncPreview(textarea, preview);
         }
-        baseline = textarea.value;
-        textarea.dispatchEvent(new Event("change", { bubbles: true }));
-      }, 0);
-    });
+      });
+      form.addEventListener("reset", () => {
+        window.setTimeout(() => {
+          if (editor.classList.contains("is-preview")) {
+            showPreview(editor, textarea, preview);
+          }
+        }, 0);
+      });
+      textarea.addEventListener("invalid", () => showWrite(editor, textarea));
+    }
     writeTab.addEventListener("click", () => showWrite(editor, textarea));
     previewTab.addEventListener("click", () => showPreview(editor, textarea, preview));
     preview.addEventListener("input", () => {
@@ -207,8 +202,8 @@
     const node = selection.anchorNode;
     return {
       heading: !!closestTag(node, "h1,h2,h3,h4,h5,h6"),
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
+      bold: !!closestTag(node, "strong, b"),
+      italic: !!closestTag(node, "em, i"),
       quote: !!closestTag(node, "blockquote"),
       code: !!closestTag(node, "code,pre"),
       link: !!closestTag(node, "a"),
@@ -235,10 +230,11 @@
     preview.focus();
     const selection = window.getSelection();
     const node = selection && selection.anchorNode;
+    document.execCommand("styleWithCSS", false, false);
     if (action === "bold") {
-      document.execCommand("bold");
+      togglePreviewMark("bold", "strong, b", "strong");
     } else if (action === "italic") {
-      document.execCommand("italic");
+      togglePreviewMark("italic", "em, i", "em");
     } else if (action === "bullet") {
       document.execCommand("insertUnorderedList");
     } else if (action === "number") {
@@ -262,6 +258,49 @@
       togglePreviewLink();
     }
     markBlank(preview);
+  }
+
+  // Bold and italic follow the tags the markdown source can store. A heading's
+  // own weight is not bold: the browser would report it as bold and a click
+  // would only change a style the source cannot keep.
+  function togglePreviewMark(command, selector, tag) {
+    const selection = window.getSelection();
+    if (!selection || !selection.rangeCount) {
+      return;
+    }
+    const existing = selectedMark(selection, selector);
+    if (existing || !document.queryCommandState(command)) {
+      document.execCommand(command);
+      return;
+    }
+    if (selection.isCollapsed) {
+      const mark = document.createElement(tag);
+      const range = selection.getRangeAt(0);
+      range.insertNode(mark);
+      range.selectNodeContents(mark);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return;
+    }
+    document.execCommand("insertHTML", false, "<" + tag + ">" + escapeHtml(selection.toString()) + "</" + tag + ">");
+  }
+
+  function selectedMark(selection, selector) {
+    const direct = closestTag(selection.anchorNode, selector);
+    if (direct) {
+      return direct;
+    }
+    if (selection.isCollapsed) {
+      return null;
+    }
+    const range = selection.getRangeAt(0);
+    const root = range.commonAncestorContainer;
+    const scope = root.nodeType === Node.ELEMENT_NODE ? root : root.parentElement;
+    if (!scope) {
+      return null;
+    }
+    return [...scope.querySelectorAll(selector)].find((mark) => range.intersectsNode(mark)) || null;
   }
 
   function togglePrefix(textarea, kind) {

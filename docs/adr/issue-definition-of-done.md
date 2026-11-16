@@ -1,7 +1,7 @@
 # Issue definition of done
 
 * **Status:** Accepted
-* **Date:** 2026-10-28
+* **Date:** 2026-11-16
 
 ## Background
 
@@ -22,8 +22,8 @@ Acceptance criteria end up buried in the description, in a comment, or in someon
 ### In-Scope
 
 * A `definition_of_done` text attribute on Issue, default empty, never null.
-* Its own foldable panel on the issue page titled **Definition of Done**, immediately after Description and before Children.
-* Inline edit on that panel, autosubmitting like Description with a Save fallback.
+* Its own foldable panel on the issue page titled **Definition of Done**, immediately after Description and before Location.
+* Inline edit on that panel, saved from the check button on the editor. Cancel restores the stored text, and leaving the editor does not save.
 * A field on the Create form, directly beneath Description.
 * Create, read, and update through the JSON issue API.
 * A `definition of done` line in the per-issue history ([ADR 025](ADR-025.md)).
@@ -50,9 +50,9 @@ Acceptance criteria end up buried in the description, in a comment, or in someon
 
 * **Must** store `definition_of_done` as `TEXT`, not null, defaulting to the empty string, and **Must** backfill existing issues to empty.
 * **Must** strip leading and trailing whitespace on create and update, matching Description.
-* **Must** treat empty as "not set": the panel renders no Markdown block and offers *Add a definition of done* instead of *Edit definition of done*.
-* **Must** render the stored text as Markdown and keep the source in the panel's edit control, so it still works without JavaScript ([ADR 017](markdown-descriptions-and-comments.md)).
-* **Must** place the panel directly after Description and before Children, and **Must** make it foldable on the same `keel_issue_panels` cookie under the key `definition_of_done` ([Foldable issue panels](foldable-issue-panels.md)).
+* **Must** treat empty as "not set": the panel shows the editor and its placeholder.
+* **Must** keep the source in the editor, which is the only display of the field, so it still works without JavaScript. Preview renders that source. There is no second rendered block above the editor ([ADR 017](markdown-descriptions-and-comments.md)).
+* **Must** place the panel directly after Description and before Location, and **Must** make it foldable on the same `keel_issue_panels` cookie under the key `definition_of_done` ([Foldable issue panels](foldable-issue-panels.md)).
 * **Must Not** give the panel a row count; it holds one body, not a list.
 * **Must** accept `definition_of_done` on the issue create and patch bodies, and **Must** return it on every issue read. An absent PATCH key leaves the stored text alone.
 * **Must** record a history line under the field name `definition of done` when the trimmed text changes, using the same *none* placeholder as Description for an empty side. **Must Not** record a line when the save is a no-op.
@@ -101,10 +101,11 @@ flowchart TD
   page[Issue page] --> panels[Foldable panels in order]
   panels --> p1[Description]
   panels --> p2[Definition of Done]
+  p2 --> place[Location]
   panels --> p3[Children]
   p2 --> empty{Text stored?}
-  empty -->|no| add[Add a definition of done, editor open]
-  empty -->|yes| show[Rendered Markdown plus Edit control]
+  empty -->|no| add[Editor open]
+  empty -->|yes| show[Editor]
   add --> post["POST /web/issues/id/definition-of-done"]
   show --> post
   post --> service[update_issue trims the text]

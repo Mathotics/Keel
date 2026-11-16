@@ -1778,11 +1778,63 @@ body {
 }
 
 .keel-md__hint {
-  display: block;
-  padding: 0.2rem 0.7rem 0.45rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0.45rem 0.35rem 0.7rem;
   border-top: 1px solid var(--keel-sheet);
   color: var(--keel-blue);
   font-size: 0.75rem;
+}
+
+.keel-md__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.keel-form .keel-md__cancel,
+.keel-form .keel-md__save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  width: 1.6rem;
+  min-height: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 0.2rem;
+  background: var(--keel-white);
+}
+
+.keel-form .keel-md__cancel {
+  border-color: #b42318;
+  color: #b42318;
+}
+
+.keel-form .keel-md__save {
+  border-color: var(--keel-blue);
+  color: var(--keel-blue);
+}
+
+.keel-form .keel-md__cancel:hover,
+.keel-form .keel-md__cancel:focus-visible,
+.keel-form .keel-md__save:hover,
+.keel-form .keel-md__save:focus-visible {
+  background: var(--keel-sheet);
+}
+
+.keel-md__cancel svg,
+.keel-md__save svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .keel-markdown {
@@ -1810,7 +1862,31 @@ body {
   font-weight: 650;
 }
 
+/* The editor preview matches the markdown source. A heading is not bold
+   unless the source marks it with **. */
+.keel-md__preview h1,
+.keel-md__preview h2,
+.keel-md__preview h3,
+.keel-md__preview h4,
+.keel-md__preview h5,
+.keel-md__preview h6 {
+  font-weight: 400;
+}
+
+.keel-md__preview strong,
+.keel-md__preview b {
+  font-weight: 700;
+}
+
 .keel-markdown p {
+  margin: 0.4rem 0;
+}
+
+/* A stacked form lays its own paragraphs out as a column. Markdown paragraphs
+   inside the preview are text, so they stay on one line around bold and italic. */
+.keel-form--stacked .keel-markdown p {
+  display: block;
+  gap: 0;
   margin: 0.4rem 0;
 }
 
@@ -1862,26 +1938,6 @@ body {
 .keel-markdown code {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 0.875em;
-}
-
-.keel-markdown-edit {
-  max-width: 48rem;
-  margin: 0 0 1rem;
-}
-
-.keel-markdown-edit summary {
-  cursor: pointer;
-  font-size: 0.875rem;
-  color: var(--keel-blue);
-}
-
-.keel-markdown-edit summary:hover,
-.keel-markdown-edit summary:focus-visible {
-  color: var(--keel-blue-deep);
-}
-
-.keel-markdown-edit .keel-form {
-  margin-top: 0.6rem;
 }
 
 .keel-table {
@@ -2928,7 +2984,6 @@ select.keel-type-select[data-type] {
   }
 
   .keel-markdown,
-  .keel-markdown-edit,
   .keel-md,
   .keel-description {
     max-width: none;

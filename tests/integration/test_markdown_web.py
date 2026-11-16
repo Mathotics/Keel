@@ -17,6 +17,7 @@ def test_markdown_fields_share_one_editor(client: TestClient) -> None:
     assert "data-keel-markdown" not in create.text.split('id="issue-title"')[0]
     assert create.text.count("data-keel-markdown") == 2
     assert "Markdown is supported." in create.text
+    assert "keel-md__save" not in create.text
     assert 'name="description"' in create.text
     assert 'name="definition_of_done"' in create.text
     assert "/assets/js/markdown-field.js" in create.text
@@ -25,6 +26,12 @@ def test_markdown_fields_share_one_editor(client: TestClient) -> None:
     assert page.text.count("data-keel-markdown") == 3
     assert 'name="body"' in page.text
     assert "Add your comment here…" in page.text
+    assert page.text.count('aria-label="Cancel"') == 3
+    assert page.text.count("keel-md__save") == 3
+    assert 'aria-label="Add comment"' in page.text
+    assert ">Add comment<" not in page.text
+    description = page.text.split("/description", 1)[1].split("</form>", 1)[0]
+    assert "data-keel-autosubmit" not in description
     assert 'name="title"' in page.text
     title = page.text.split('name="title"', 1)[1][:80]
     assert "data-keel-markdown" not in title

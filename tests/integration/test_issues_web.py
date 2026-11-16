@@ -874,10 +874,11 @@ def test_type_and_description_can_be_changed_from_the_issue_page(
     assert stored["description"] == "A **longer** note."
     page = client.get("/issues/KEEL-1")
     assert page.status_code == 200
-    assert '<div class="keel-markdown">' in page.text
-    assert "<strong>longer</strong>" in page.text
-    assert "Edit description" in page.text
-    assert ">Add a description<" not in page.text
+    assert '<div class="keel-markdown">' not in page.text
+    assert "A **longer** note." in page.text
+    assert 'id="issue-description"' in page.text
+    assert "Edit description" not in page.text
+    assert "Add a description" not in page.text
 
 
 def test_definition_of_done_can_be_changed_from_the_issue_page(
@@ -889,7 +890,8 @@ def test_definition_of_done_can_be_changed_from_the_issue_page(
 
     page = client.get("/issues/KEEL-1")
     assert ">Definition of Done<" in page.text
-    assert ">Add a definition of done<" in page.text
+    assert 'id="issue-definition-of-done"' in page.text
+    assert "Add a definition of done" not in page.text
     description_at = page.text.index('data-keel-issue-panel="description"')
     done_at = page.text.index('data-keel-issue-panel="definition_of_done"')
     children_at = page.text.index('data-keel-issue-panel="children"')
@@ -905,9 +907,10 @@ def test_definition_of_done_can_be_changed_from_the_issue_page(
     assert stored["definition_of_done"] == "- A **passing** build."
 
     page = client.get("/issues/KEEL-1")
-    assert "<strong>passing</strong>" in page.text
-    assert "Edit definition of done" in page.text
-    assert ">Add a definition of done<" not in page.text
+    assert "- A **passing** build." in page.text
+    assert "<strong>passing</strong>" not in page.text
+    assert 'id="issue-definition-of-done"' in page.text
+    assert "Edit definition of done" not in page.text
 
 
 def test_location_can_be_changed_from_the_issue_page(
@@ -922,9 +925,11 @@ def test_location_can_be_changed_from_the_issue_page(
     assert 'name="location"' in page.text
     assert 'placeholder="Where will this happen?"' in page.text
     dates_at = page.text.index(">Dates<")
+    description_at = page.text.index('data-keel-issue-panel="description"')
+    done_at = page.text.index('data-keel-issue-panel="definition_of_done"')
     location_at = page.text.index(">Location<")
     estimate_at = page.text.index(">Estimate<")
-    assert dates_at < location_at < estimate_at
+    assert dates_at < description_at < done_at < location_at < estimate_at
 
     saved = client.post(
         f"/web/issues/{issue_id}/location",

@@ -3,7 +3,7 @@
 * **Status:** Accepted
 * **Date:** 2026-10-28
 
-> **Amendment.** [Issue definition of done](issue-definition-of-done.md) adds a sixth panel, **Definition of Done**, between Description and Children. The known-key list below becomes `description`, `definition_of_done`, `children`, `dependencies`, `history`, `comments`, in that order. Like Description, the new panel holds one body and carries no count. Every other rule here applies to it unchanged.
+> **Amendment.** [Issue definition of done](issue-definition-of-done.md) adds a sixth panel, **Definition of Done**, between Description and Children. The known-key list below becomes `description`, `definition_of_done`, `children`, `dependencies`, `history`, `comments`, in that order. Like Description, the new panel holds one body and carries no count. Every other rule here applies to it unchanged. On the page, Description and Definition of Done sit after Dates and before Location; Children and the later panels stay below the remaining fields.
 
 ## Background
 

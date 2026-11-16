@@ -162,6 +162,31 @@
             </form>
           </dd>
         </div>
+      </dl>
+
+      {% call issue_panel('description', 'Description') %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description"{% if not can_edit_issue %} inert{% endif %}>
+        <p>
+          <label class="keel-visually-hidden" for="issue-description">Description</label>
+          {% with field_id="issue-description", name="description", rows=6, value=issue.description, placeholder="Write a description…", controls=true %}
+          {% include "_markdown_field.html" %}
+          {% endwith %}
+        </p>
+      </form>
+      {% endcall %}
+
+      {% call issue_panel('definition_of_done', 'Definition of Done') %}
+      <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done"{% if not can_edit_issue %} inert{% endif %}>
+        <p>
+          <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
+          {% with field_id="issue-definition-of-done", name="definition_of_done", rows=6, value=issue.definition_of_done, placeholder="Write the definition of done…", controls=true %}
+          {% include "_markdown_field.html" %}
+          {% endwith %}
+        </p>
+      </form>
+      {% endcall %}
+
+      <dl class="keel-facts">
         <div class="keel-fact keel-fact--wide">
           <dt>Location</dt>
           <dd>
@@ -469,42 +494,6 @@
         </div>
       </dialog>
 
-      {% call issue_panel('description', 'Description') %}
-      {% if issue.description %}
-      <div class="keel-markdown">{{ issue.description | markdown }}</div>
-      {% endif %}
-      <details class="keel-markdown-edit"{% if not issue.description %} open{% endif %}>
-        <summary>{% if issue.description %}Edit description{% else %}Add a description{% endif %}</summary>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
-          <p>
-            <label class="keel-visually-hidden" for="issue-description">Description</label>
-            {% with field_id="issue-description", name="description", rows=6, value=issue.description, placeholder="Write a description…" %}
-            {% include "_markdown_field.html" %}
-            {% endwith %}
-          </p>
-          <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
-        </form>
-      </details>
-      {% endcall %}
-
-      {% call issue_panel('definition_of_done', 'Definition of Done') %}
-      {% if issue.definition_of_done %}
-      <div class="keel-markdown">{{ issue.definition_of_done | markdown }}</div>
-      {% endif %}
-      <details class="keel-markdown-edit"{% if not issue.definition_of_done %} open{% endif %}>
-        <summary>{% if issue.definition_of_done %}Edit definition of done{% else %}Add a definition of done{% endif %}</summary>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
-          <p>
-            <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
-            {% with field_id="issue-definition-of-done", name="definition_of_done", rows=6, value=issue.definition_of_done, placeholder="Write the definition of done…" %}
-            {% include "_markdown_field.html" %}
-            {% endwith %}
-          </p>
-          <p><button class="keel-autosubmit__fallback" type="submit">Save</button></p>
-        </form>
-      </details>
-      {% endcall %}
-
       {% call issue_panel('children', 'Children', children|length) %}
       <div class="keel-table-scroll">
       <table class="keel-table">
@@ -676,11 +665,10 @@
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
         <p>
           <label for="issue-comment">Comment</label>
-          {% with field_id="issue-comment", name="body", rows=4, value="", required=true, placeholder="Add your comment here…" %}
+          {% with field_id="issue-comment", name="body", rows=4, value="", required=true, placeholder="Add your comment here…", controls=true, submit_label="Add comment" %}
           {% include "_markdown_field.html" %}
           {% endwith %}
         </p>
-        <p><button class="keel-primary" type="submit">Add comment</button></p>
       </form>
       {% endif %}
       {% endcall %}

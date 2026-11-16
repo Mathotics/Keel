@@ -17,5 +17,17 @@
   </span>
   <textarea id="{{ field_id }}" class="keel-description" name="{{ name }}" rows="{{ rows|default(6) }}"{% if required %} required{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}>{{ value|default('') }}</textarea>
   <span class="keel-md__preview keel-markdown" hidden></span>
-  <span class="keel-md__hint">Markdown is supported.</span>
+  <span class="keel-md__hint">
+    <span>Markdown is supported.</span>
+    {% if controls %}
+    <span class="keel-md__actions">
+      <button class="keel-md__cancel" type="reset" aria-label="Cancel">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg>
+      </button>
+      <button class="keel-md__save" type="submit" aria-label="{{ submit_label|default('Save') }}">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.2l2.6 2.6L10 3.2"/></svg>
+      </button>
+    </span>
+    {% endif %}
+  </span>
 </span>
