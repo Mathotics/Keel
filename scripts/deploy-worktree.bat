@@ -226,6 +226,11 @@ if errorlevel 1 (
     call :fail "npm ci --prefix scan failed"
     exit /b 1
 )
+call npm ci --prefix tests/js
+if errorlevel 1 (
+    call :fail "npm ci --prefix tests/js failed"
+    exit /b 1
+)
 
 if "%HAVE_AGENT%"=="1" (
     echo Activating virtual environment...

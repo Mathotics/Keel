@@ -206,6 +206,8 @@ try {
     Write-Host "Installing code scan tools..."
     npm ci --prefix scan
     if ($LASTEXITCODE -ne 0) { Fail "npm ci --prefix scan failed" }
+    npm ci --prefix tests/js
+    if ($LASTEXITCODE -ne 0) { Fail "npm ci --prefix tests/js failed" }
 
     if ($null -ne $AgentCommand) {
         Write-Host "Activating virtual environment..."

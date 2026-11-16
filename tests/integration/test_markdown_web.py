@@ -20,6 +20,7 @@ def test_markdown_fields_share_one_editor(client: TestClient) -> None:
     assert "keel-md__save" not in create.text
     assert 'name="description"' in create.text
     assert 'name="definition_of_done"' in create.text
+    assert "/assets/js/markdown-source.js" in create.text
     assert "/assets/js/markdown-field.js" in create.text
 
     page = client.get(f"/issues/{issue['key']}")

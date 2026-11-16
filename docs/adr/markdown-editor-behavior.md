@@ -65,6 +65,7 @@ The editor has many caret, selection, and tab-switch cases. Implementing from a 
 * **Must** show that source rendered in Preview, through the same sanitizer as ADR 017, and **Must** accept edits there.
 * **Must** write Preview edits back into the Markdown source.
 * **Must** keep Preview and the source one to one. Switching Write, then Preview, then Write shows the same source.
+* **Must** keep two quotes apart when a blank line stands between them. `> I am a quote`, a blank line, then `> I am a quote too` is two quotes. A following line that still starts with `>` stays in the same quote.
 * **Must Not** load a preview from another origin, or from a response that is not this app's preview.
 
 ### Toolbar states
@@ -85,6 +86,8 @@ Each row is the requirement for that action in that situation. Button states nam
 | Preview | Enter pressed | Inside a bullet item, with text between the caret and the bullet | Bullet | Text to the left of the caret stays on the current item. Text to the right of the caret goes to a new line with a bullet. | `- Hello ^World` → `- Hello/n- World` |
 | Preview | Enter pressed | On a bullet item, with no text between the caret and the bullet | Bullet | The bullet is removed. | `- ^There is no text to the left of the caret` → `There is no text to the left of the caret` |
 | Preview | Enter pressed | On a quoted line, with no text between the caret and the start of the quote | Quote | The quote is removed. | `> ^There is no text to the left of the caret` → `There is no text to the left of the caret` |
+| Preview | Enter pressed | At the end or middle of a quoted line that has text | Quote | Text to the left of the caret stays quoted. Text to the right goes to a new quoted line. At the end of the line, that new line is an empty quote. | `> I am a quote^` → `> I am a quote/n> ^` |
+| Preview | Enter pressed | On an empty quoted line, with quoted text before it | Quote | The empty quote is removed. The caret goes to a new line that is not a quote. | `> I am a quote/n> ^` → `> I am a quote/n/n^` |
 | Write | Bold button pressed | Empty text | None | Inserts `**` on each side of the caret so the next characters are bold. | `^` → `**^**` |
 | Write | Bold button pressed | Middle of plain text | None | Inserts `**` on each side of the caret. | `Paint the ^door` → `Paint the **^**door` |
 | Write | Bold button pressed | Inside bold text, nothing highlighted | Bold | Removes the surrounding `**` and leaves the words. The caret stays in the words. | `**Paint the ^door**` → `Paint the ^door` |
@@ -144,7 +147,7 @@ Each row is the requirement for that action in that situation. Button states nam
 | Preview | Number button pressed | Inside a numbered item | Number | Removes the number from that item. | `1. Paint the ^door` → `Paint the ^door` |
 | Preview | Number button pressed | Inside a bullet item | Bullet | Converts that list to numbers. Numbers show. | `- Paint the door` → `1. Paint the door` |
 
-A highlight that covers several lines uses the same rule on each line. Several highlighted blocks in Preview become one list, one item per block. Enter in Preview inserts a line break, except inside a heading, a quote, a list item, or a code block. Inside a heading, or inside a quote or list item that already has text before the caret, the Enter rows apply. At the start of a quote or list item, Enter removes that marker. Inside a code block, Enter keeps the block.
+A highlight that covers several lines uses the same rule on each line. Several highlighted blocks in Preview become one list, one item per block. Enter in Preview inserts a line break, except inside a heading, a quote, a list item, or a code block. Inside a heading, or inside a list item that already has text before the caret, the Enter rows apply. Inside a quote, Enter starts another quoted line when the current line has text, and the next Enter on that empty quoted line leaves the quote. At the start of a quote or list item, Enter removes that marker. Inside a code block, Enter keeps the block.
 
 ### Mistakes that must not return
 

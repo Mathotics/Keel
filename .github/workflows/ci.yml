@@ -21,12 +21,15 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: scan/package-lock.json
+          cache-dependency-path: |
+            scan/package-lock.json
+            tests/js/package-lock.json
       - name: Install
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           npm ci --prefix scan
+          npm ci --prefix tests/js
       - name: Check
         run: poe check
 
