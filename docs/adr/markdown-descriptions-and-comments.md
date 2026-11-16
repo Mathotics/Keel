@@ -5,7 +5,7 @@
 
 > **Amendment.** [Issue definition of done](issue-definition-of-done.md) adds a second plain-text body to the issue, `definition_of_done`, and renders it through this same filter and sanitizer. Everywhere this record says "description", read "description and definition of done".
 
-> **Amendment (2026-11-16).** KEEL-216. Description, definition of done, and the comment box share one Write / Preview field. The toolbar inserts Markdown this renderer already accepts. Preview posts the draft to that same sanitizer; it is not a second parser, and it still loads nothing from another origin. A preview that updates on each keystroke stays out of scope. Titles and the other plain fields stay plain. Without JavaScript the textarea and the "Markdown is supported" note remain, and the toolbar stays hidden.
+> **Amendment (2026-11-16).** KEEL-216. Description, definition of done, and the comment box share one Write / Preview field. The toolbar inserts Markdown this renderer already accepts, and a button stays highlighted while the caret is in that formatting so a second click removes it. Write shows the source. Preview shows that source rendered through the same sanitizer and still accepts edits, which are written back into the source. It is not a second parser, and it still loads nothing from another origin. A preview that updates on each keystroke in Write stays out of scope. Titles and the other plain fields stay plain. Without JavaScript the textarea and the "Markdown is supported" note remain, and the toolbar stays hidden.
 
 ## Background
 

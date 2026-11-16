@@ -1718,8 +1718,24 @@ body {
   background: var(--keel-white);
 }
 
+.keel-md__bar .keel-md__tab {
+  font-size: 0.8125rem;
+  font-weight: 650;
+}
+
 .keel-md__tab.is-selected {
   background: var(--keel-white);
+}
+
+.keel-md__tools button[aria-pressed="true"] {
+  background: var(--keel-blue);
+  color: var(--keel-white);
+}
+
+.keel-md__tools button[aria-pressed="true"]:hover,
+.keel-md__tools button[aria-pressed="true"]:focus-visible {
+  background: var(--keel-blue-deep);
+  color: var(--keel-white);
 }
 
 .keel-md .keel-description {
@@ -1746,6 +1762,15 @@ body {
   display: block;
   min-height: 8rem;
   padding: 0.6rem 0.7rem;
+  cursor: text;
+  outline: none;
+}
+
+.keel-md__preview.is-blank::before {
+  content: attr(data-placeholder);
+  color: var(--keel-blue);
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .keel-md__preview[hidden] {
