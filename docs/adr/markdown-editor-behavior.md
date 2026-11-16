@@ -80,8 +80,11 @@ Each row is the requirement for that action in that situation. Button states nam
 | Preview | Heading button pressed | Middle of a normal line | None | That line becomes a heading. The caret stays in the text. | `Paint the ^door` → `## Paint the ^door` |
 | Preview | Heading button pressed | Inside a heading | Heading is pressed. The heading is a larger size than a normal paragraph, and it is not bold. Bold is active for only part of that text. | Clicking Heading again removes the heading, and the line becomes a normal paragraph. | `## Paint the **door**` → `Paint the **door**` |
 | Preview | Enter pressed | Anywhere within a header | Header applied | Text to the right of the caret goes to the next line. Text to the left of the caret stays on the header. The heading is removed from the text on the new line. | `## I am a ^heading` → `## I am a/nheading` |
-| Preview | Enter pressed | Anywhere within a numbered list | Numbered list | Text to the left of the caret stays on the current item. Text to the right of the caret goes to a new line with the next number. | `1. Hello ^World` → `1. Hello/n2. World` |
-| Preview | Enter pressed | Anywhere within a bullet list | Bullet | Text to the left of the caret stays on the current item. Text to the right of the caret goes to a new line with a bullet. | `- Hello ^World` → `- Hello/n- World` |
+| Preview | Enter pressed | Inside a numbered item, with text between the caret and the number | Numbered list | Text to the left of the caret stays on the current item. Text to the right of the caret goes to a new line with the next number. | `1. Hello ^World` → `1. Hello/n2. World` |
+| Preview | Enter pressed | On a numbered item, with no text between the caret and the number | Numbered list | The number is removed. | `1. ^There is no text to the left of the caret` → `There is no text to the left of the caret` |
+| Preview | Enter pressed | Inside a bullet item, with text between the caret and the bullet | Bullet | Text to the left of the caret stays on the current item. Text to the right of the caret goes to a new line with a bullet. | `- Hello ^World` → `- Hello/n- World` |
+| Preview | Enter pressed | On a bullet item, with no text between the caret and the bullet | Bullet | The bullet is removed. | `- ^There is no text to the left of the caret` → `There is no text to the left of the caret` |
+| Preview | Enter pressed | On a quoted line, with no text between the caret and the start of the quote | Quote | The quote is removed. | `> ^There is no text to the left of the caret` → `There is no text to the left of the caret` |
 | Write | Bold button pressed | Empty text | None | Inserts `**` on each side of the caret so the next characters are bold. | `^` → `**^**` |
 | Write | Bold button pressed | Middle of plain text | None | Inserts `**` on each side of the caret. | `Paint the ^door` → `Paint the **^**door` |
 | Write | Bold button pressed | Inside bold text, nothing highlighted | Bold | Removes the surrounding `**` and leaves the words. The caret stays in the words. | `**Paint the ^door**` → `Paint the ^door` |
@@ -141,7 +144,7 @@ Each row is the requirement for that action in that situation. Button states nam
 | Preview | Number button pressed | Inside a numbered item | Number | Removes the number from that item. | `1. Paint the ^door` → `Paint the ^door` |
 | Preview | Number button pressed | Inside a bullet item | Bullet | Converts that list to numbers. Numbers show. | `- Paint the door` → `1. Paint the door` |
 
-A highlight that covers several lines uses the same rule on each line. Several highlighted blocks in Preview become one list, one item per block. Enter in Preview inserts a line break, except inside a heading, a list item, or a code block. Inside a heading or a list item, the Enter rows apply. Inside a code block, Enter keeps the block.
+A highlight that covers several lines uses the same rule on each line. Several highlighted blocks in Preview become one list, one item per block. Enter in Preview inserts a line break, except inside a heading, a quote, a list item, or a code block. Inside a heading, or inside a quote or list item that already has text before the caret, the Enter rows apply. At the start of a quote or list item, Enter removes that marker. Inside a code block, Enter keeps the block.
 
 ### Mistakes that must not return
 
