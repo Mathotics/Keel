@@ -88,7 +88,7 @@ import { inputWhen, prepareCreate, prepareUpdate, assignableSprints, createOpeni
 import { LOOKUP_ISSUE, LOOKUP_PERSON, LOOKUP_PROJECT, lookupDirty, projectLabel, suggestIssues, suggestPeople, suggestProjects } from "./src/lookup";
 import { LICENSE_TEXT } from "./src/license";
 import { formatWhen, monthCells, monthTitle, readWhen, shiftMonth, WEEKDAYS as CALENDAR_DAYS, wrapUnit } from "./src/when";
-import { formatMinutes, formatMoney, amountForEditing, amountForIdle, issueKeyParts, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
+import { formatMinutes, formatMoney, amountForEditing, amountForIdle, issueKeyParts, leaveIssuePrompt, linkEnds, projectCurrency, savedIssueId } from "./src/issue";
 import { claimsMenuDismiss, claimsPageBack, notePhase, releasesMenuDismiss, releasesPageBack } from "./src/swipe";
 
 const ADDRESS_KEY = "keel.serverAddress";
@@ -143,6 +143,7 @@ export default function App() {
   const canSwipeBackRef = useRef(false);
   const drawerOpenRef = useRef(false);
   const lastBackAt = useRef(0);
+  const leavingIssue = useRef(false);
   const historyRef = useRef([]);
   const phaseTrack = useRef("booting");
   const restoringRef = useRef(false);
@@ -2646,12 +2647,29 @@ export default function App() {
     }
   }
 
-  function requestBack() {
+  function requestBack(confirmed) {
     if (drawerOpen) {
       return false;
     }
     const now = Date.now();
-    if (now - lastBackAt.current < 350) {
+    if (!confirmed && now - lastBackAt.current < 350) {
+      return true;
+    }
+    if (phase === "create" && !confirmed) {
+      if (leavingIssue.current) {
+        return true;
+      }
+      leavingIssue.current = true;
+      lastBackAt.current = now;
+      confirmLeaveIssue(
+        () => {
+          leavingIssue.current = false;
+          requestBack(true);
+        },
+        () => {
+          leavingIssue.current = false;
+        },
+      );
       return true;
     }
     if (phase === "issue" && issueBackRef.current && issueBackRef.current()) {
@@ -3835,6 +3853,19 @@ const PRIORITY_OPTIONS = [
   { id: "p4", title: "P4 — Minor" },
   { id: "p5", title: "P5 — Trivial" },
 ];
+
+function confirmLeaveIssue(onLeave, onStay) {
+  const prompt = leaveIssuePrompt();
+  Alert.alert(
+    prompt.title,
+    prompt.message,
+    [
+      { text: prompt.stay, style: "cancel", onPress: onStay },
+      { text: prompt.leave, style: "destructive", onPress: onLeave },
+    ],
+    { cancelable: true, onDismiss: onStay },
+  );
+}
 
 function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const projects = Object.values(library.projects || {})
@@ -6013,6 +6044,7 @@ function IssueDetail({
   const addingChildLock = useRef(false);
   const childKey = useRef(newClientKey());
   const childSentTitle = useRef("");
+  const leavingEdit = useRef(false);
   const [commentBody, setCommentBody] = useState("");
   const [relation, setRelation] = useState("blocks");
   const [linkKey, setLinkKey] = useState("");
@@ -6108,8 +6140,20 @@ function IssueDetail({
 
   function goBack() {
     if (editing) {
-      setEditing(false);
-      setError("");
+      if (leavingEdit.current) {
+        return true;
+      }
+      leavingEdit.current = true;
+      confirmLeaveIssue(
+        () => {
+          leavingEdit.current = false;
+          setEditing(false);
+          setError("");
+        },
+        () => {
+          leavingEdit.current = false;
+        },
+      );
       return true;
     }
     if (stack.length <= 1) {

@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { amountForEditing, amountForIdle, formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
+const { amountForEditing, amountForIdle, formatMinutes, formatMoney, formatWhen, issueKeyParts, issuePage, leaveIssuePrompt, linkEnds, parseMarkdown, savedIssueId } = require("./issue");
 
 test("formats effort the way the server does", () => {
   assert.equal(formatMinutes(null), "None");
@@ -151,4 +151,13 @@ test("a link points the right way and a key finds a saved issue", () => {
   };
   assert.equal(savedIssueId(library, "boat-2"), 3);
   assert.equal(savedIssueId(library, "KEEL-9"), null);
+});
+
+test("leaving an issue asks before the draft is dropped", () => {
+  assert.deepEqual(leaveIssuePrompt(), {
+    title: "Are you sure you want to go back?",
+    message: "Your issue will not be saved.",
+    stay: "Stay",
+    leave: "Go back",
+  });
 });

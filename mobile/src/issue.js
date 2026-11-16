@@ -508,6 +508,15 @@ function amountForIdle(value, currency) {
   return formatMoney(parsed.value, currency, "edit");
 }
 
+function leaveIssuePrompt() {
+  return {
+    title: "Are you sure you want to go back?",
+    message: "Your issue will not be saved.",
+    stay: "Stay",
+    leave: "Go back",
+  };
+}
+
 function costFigures(issue) {
   if (issue.rollup && issue.rollup.descendants) {
     return costMetrics(issue.rollup);
@@ -527,6 +536,7 @@ module.exports = {
   projectCurrency,
   issueKeyParts,
   issuePage,
+  leaveIssuePrompt,
   linkEnds,
   parseMarkdown,
   priorityLabel,
