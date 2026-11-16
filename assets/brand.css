@@ -1826,6 +1826,13 @@ body {
   background: var(--keel-sheet);
 }
 
+.keel-form .keel-md__save:disabled {
+  border-color: var(--keel-sheet);
+  color: color-mix(in srgb, var(--keel-blue) 35%, #9aa7b0);
+  background: var(--keel-white);
+  cursor: default;
+}
+
 .keel-md__cancel svg,
 .keel-md__save svg {
   width: 0.75rem;

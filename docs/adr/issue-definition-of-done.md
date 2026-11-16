@@ -23,7 +23,7 @@ Acceptance criteria end up buried in the description, in a comment, or in someon
 
 * A `definition_of_done` text attribute on Issue, default empty, never null.
 * Its own foldable panel on the issue page titled **Definition of Done**, immediately after Description and before Location.
-* Inline edit on that panel, saved from the check button on the editor. Cancel restores the stored text, and leaving the editor does not save.
+* Inline edit on that panel, saved from the check button on the editor. The check stays inactive until the text differs from what was loaded. Cancel restores the stored text, and leaving the editor does not save.
 * A field on the Create form, directly beneath Description.
 * Create, read, and update through the JSON issue API.
 * A `definition of done` line in the per-issue history ([ADR 025](ADR-025.md)).

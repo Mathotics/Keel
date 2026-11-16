@@ -54,10 +54,12 @@
           if (editor.classList.contains("is-preview")) {
             showPreview(editor, textarea, preview);
           }
+          refreshSave(editor, textarea);
         }, 0);
       });
       textarea.addEventListener("invalid", () => showWrite(editor, textarea));
     }
+    textarea.addEventListener("input", () => refreshSave(editor, textarea));
     writeTab.addEventListener("click", () => showWrite(editor, textarea));
     previewTab.addEventListener("click", () => showPreview(editor, textarea, preview));
     preview.addEventListener("input", () => {
@@ -167,6 +169,17 @@
       const on = !!state[button.getAttribute("data-keel-md")];
       button.setAttribute("aria-pressed", on ? "true" : "false");
     }
+    if (textarea) {
+      refreshSave(editor, textarea);
+    }
+  }
+
+  function refreshSave(editor, textarea) {
+    const save = editor.querySelector(".keel-md__save");
+    if (!save) {
+      return;
+    }
+    save.disabled = textarea.value === textarea.defaultValue;
   }
 
   function writeState(textarea) {
