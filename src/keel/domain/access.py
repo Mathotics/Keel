@@ -1,7 +1,7 @@
 """Roles, permissions, and the rules that connect them.
 
-Pure data. Nothing here touches the database. Project checks are part of the
-catalog so a later story can enforce them without inventing a second list.
+Pure data. Nothing here touches the database. Project checks use this catalog
+so a route can require a project permission without inventing a second list.
 """
 
 from enum import StrEnum

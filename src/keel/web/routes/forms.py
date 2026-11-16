@@ -3,7 +3,7 @@ from datetime import date
 from typing import Annotated
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from keel.domain.access import Permission, RoleCode
@@ -27,6 +27,7 @@ from keel.domain.errors import (
     DomainError,
     InvalidSprintCadenceError,
     NotFoundError,
+    PermissionDeniedError,
 )
 from keel.domain.hierarchy import child_type_of
 from keel.domain.labels import parse_label_names
@@ -62,7 +63,12 @@ from keel.web.board_lanes import (
     show_lane,
 )
 from keel.web.context import Chrome, ChromeDep, SessionDep
-from keel.web.forbid import require_page
+from keel.web.forbid import forbidden_page, require_page, require_project_page
+from keel.web.guards import require_comment_delete, require_dependency_delete
+from keel.web.guards import require_issue as guard_issue_page
+from keel.web.guards import require_project as guard_project_page
+from keel.web.guards import require_series as guard_series_page
+from keel.web.guards import require_sprint as guard_sprint_page
 from keel.web.home_layout import (
     HOME_COOKIE,
     HOME_COOKIE_MAX_AGE,
@@ -115,6 +121,23 @@ def _back(
         params["notice"] = notice
     target = urlunparse(parsed._replace(query=urlencode(params)))
     return RedirectResponse(url=target, status_code=SEE_OTHER)
+
+
+def _deny_other_project(
+    session: SessionDep,
+    chrome: Chrome,
+    source_project_id: int,
+    target_project_id: int,
+    permission: Permission,
+) -> None:
+    """A parent or sprint in another project needs the same permission there."""
+    if target_project_id == source_project_id:
+        return
+    if access_service.holds_project(
+        session, chrome.access, target_project_id, permission
+    ):
+        return
+    raise PermissionDeniedError(access_service.DENIED)
 
 
 def _optional_id(raw: str) -> int | None:
@@ -493,7 +516,10 @@ def create_project(
     return _back(f"/projects/{project.key}")
 
 
-@router.post("/projects/{project_id}/update")
+@router.post(
+    "/projects/{project_id}/update",
+    dependencies=[Depends(guard_project_page(Permission.CHANGE_PROJECT_SETTINGS))],
+)
 def update_project(
     session: SessionDep,
     project_id: int,
@@ -530,9 +556,9 @@ def delete_project(
     session: SessionDep,
     project_id: int,
 ) -> HTMLResponse | RedirectResponse:
-    denied = require_page(request, chrome, Permission.DELETE_PROJECTS.value)
-    if denied is not None:
-        return denied
+    project_service.get_project(session, project_id)
+    if not access_service.may_delete_project(session, chrome.access, project_id):
+        return forbidden_page(request, chrome)
     project_service.delete_project(session, project_id)
     return _back("/projects")
 
@@ -570,6 +596,11 @@ def create_issue_from_page(
     if chosen is None:
         return _back("/create", "Choose a project.")
     project = project_service.get_project(session, chosen)
+    denied = require_project_page(
+        request, chrome, session, project.id, Permission.CREATE_ISSUES
+    )
+    if denied is not None:
+        return denied
     here = f"/create?project={project.key}"
     if _assign_to_me(assign_to_me):
         if chrome.current_user is None:
@@ -606,6 +637,30 @@ def create_issue_from_page(
             ),
         )
     try:
+        chosen_parent = _posted_issue(
+            session,
+            parent_id,
+            parent_query,
+            project_id=project.id,
+            message=lookup_service.PARENT_MESSAGE,
+        )
+        chosen_sprint = _optional_id(sprint_id)
+        if chosen_parent is not None:
+            _deny_other_project(
+                session,
+                chrome,
+                project.id,
+                access_service.project_of_issue(session, chosen_parent),
+                Permission.CREATE_ISSUES,
+            )
+        if chosen_sprint is not None:
+            _deny_other_project(
+                session,
+                chrome,
+                project.id,
+                access_service.project_of_sprint(session, chosen_sprint),
+                Permission.UPDATE_ISSUES,
+            )
         issue = issue_service.create_issue(
             session,
             project.id,
@@ -616,20 +671,14 @@ def create_issue_from_page(
             location=location,
             status=status,
             priority=priority,
-            parent_id=_posted_issue(
-                session,
-                parent_id,
-                parent_query,
-                project_id=project.id,
-                message=lookup_service.PARENT_MESSAGE,
-            ),
+            parent_id=chosen_parent,
             reporter_id=(
                 None if chrome.current_user is None else chrome.current_user.id
             ),
             assignee_id=_posted_user(session, assignee_id, assignee_query),
             start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
-            sprint_id=_optional_id(sprint_id),
+            sprint_id=chosen_sprint,
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
             planned_value_cents=parse_cost(planned_value, project.currency),
@@ -638,15 +687,22 @@ def create_issue_from_page(
             labels=labels,
             client_key=client_key,
         )
+    except PermissionDeniedError:
+        session.rollback()
+        raise
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
     return _back(f"/issues/{project.key}-{issue.number}")
 
 
-@router.post("/projects/{project_id}/issues")
+@router.post(
+    "/projects/{project_id}/issues",
+    dependencies=[Depends(guard_project_page(Permission.CREATE_ISSUES))],
+)
 def create_issue(
     session: SessionDep,
+    chrome: ChromeDep,
     project_id: int,
     type: Annotated[IssueType, Form()],
     title: Annotated[str, Form()],
@@ -674,6 +730,30 @@ def create_issue(
     project = project_service.get_project(session, project_id)
     key = project.key
     try:
+        chosen_parent = _posted_issue(
+            session,
+            parent_id,
+            parent_query,
+            project_id=project_id,
+            message=lookup_service.PARENT_MESSAGE,
+        )
+        chosen_sprint = _optional_id(sprint_id)
+        if chosen_parent is not None:
+            _deny_other_project(
+                session,
+                chrome,
+                project.id,
+                access_service.project_of_issue(session, chosen_parent),
+                Permission.CREATE_ISSUES,
+            )
+        if chosen_sprint is not None:
+            _deny_other_project(
+                session,
+                chrome,
+                project.id,
+                access_service.project_of_sprint(session, chosen_sprint),
+                Permission.UPDATE_ISSUES,
+            )
         issue = issue_service.create_issue(
             session,
             project_id,
@@ -684,18 +764,12 @@ def create_issue(
             location=location,
             status=status,
             priority=priority,
-            parent_id=_posted_issue(
-                session,
-                parent_id,
-                parent_query,
-                project_id=project_id,
-                message=lookup_service.PARENT_MESSAGE,
-            ),
+            parent_id=chosen_parent,
             reporter_id=_optional_id(reporter_id),
             assignee_id=_posted_user(session, assignee_id, assignee_query),
             start_at=issue_service.parse_start_at(start_at),
             due_at=issue_service.parse_due_at(due_at),
-            sprint_id=_optional_id(sprint_id),
+            sprint_id=chosen_sprint,
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
             planned_value_cents=parse_cost(planned_value, project.currency),
@@ -704,6 +778,9 @@ def create_issue(
             labels=labels,
             client_key=client_key,
         )
+    except PermissionDeniedError:
+        session.rollback()
+        raise
     except DomainError as exc:
         session.rollback()
         return _back(f"/create?project={key}", exc.message)
@@ -722,7 +799,10 @@ def _issue_here(session: SessionDep, issue_id: int) -> str:
     return f"/issues/{key}-{issue.number}"
 
 
-@router.post("/issues/{issue_id}/title")
+@router.post(
+    "/issues/{issue_id}/title",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_title(
     session: SessionDep,
     chrome: ChromeDep,
@@ -743,7 +823,10 @@ def update_issue_title(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/type")
+@router.post(
+    "/issues/{issue_id}/type",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_type(
     session: SessionDep,
     chrome: ChromeDep,
@@ -764,7 +847,10 @@ def update_issue_type(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/priority")
+@router.post(
+    "/issues/{issue_id}/priority",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_priority(
     session: SessionDep,
     issue_id: int,
@@ -779,7 +865,10 @@ def update_issue_priority(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/description")
+@router.post(
+    "/issues/{issue_id}/description",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_description(
     session: SessionDep,
     chrome: ChromeDep,
@@ -800,7 +889,10 @@ def update_issue_description(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/definition-of-done")
+@router.post(
+    "/issues/{issue_id}/definition-of-done",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_definition_of_done(
     session: SessionDep,
     chrome: ChromeDep,
@@ -821,7 +913,10 @@ def update_issue_definition_of_done(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/location")
+@router.post(
+    "/issues/{issue_id}/location",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_location(
     session: SessionDep,
     chrome: ChromeDep,
@@ -842,7 +937,10 @@ def update_issue_location(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/children")
+@router.post(
+    "/issues/{issue_id}/children",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def create_child_issue(
     session: SessionDep,
     chrome: ChromeDep,
@@ -873,7 +971,10 @@ def create_child_issue(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/parent")
+@router.post(
+    "/issues/{issue_id}/parent",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_parent(
     session: SessionDep,
     chrome: ChromeDep,
@@ -884,25 +985,40 @@ def update_issue_parent(
     here = _issue_here(session, issue_id)
     try:
         issue = issue_service.get_issue(session, issue_id)
+        chosen_parent = _posted_issue(
+            session,
+            parent_id,
+            parent_query,
+            project_id=issue.project_id,
+            message=lookup_service.PARENT_MESSAGE,
+        )
+        if chosen_parent is not None:
+            _deny_other_project(
+                session,
+                chrome,
+                issue.project_id,
+                access_service.project_of_issue(session, chosen_parent),
+                Permission.EDIT_ISSUES,
+            )
         issue_service.update_issue(
             session,
             issue_id,
-            parent_id=_posted_issue(
-                session,
-                parent_id,
-                parent_query,
-                project_id=issue.project_id,
-                message=lookup_service.PARENT_MESSAGE,
-            ),
+            parent_id=chosen_parent,
             actor_name=_actor_name(chrome),
         )
+    except PermissionDeniedError:
+        session.rollback()
+        raise
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/estimate")
+@router.post(
+    "/issues/{issue_id}/estimate",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_estimate(
     session: SessionDep,
     chrome: ChromeDep,
@@ -923,7 +1039,10 @@ def update_issue_estimate(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/remaining")
+@router.post(
+    "/issues/{issue_id}/remaining",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_remaining(
     session: SessionDep,
     chrome: ChromeDep,
@@ -944,7 +1063,10 @@ def update_issue_remaining(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/planned-value")
+@router.post(
+    "/issues/{issue_id}/planned-value",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_planned_value(
     session: SessionDep,
     chrome: ChromeDep,
@@ -960,7 +1082,10 @@ def update_issue_planned_value(
     )
 
 
-@router.post("/issues/{issue_id}/earned-value")
+@router.post(
+    "/issues/{issue_id}/earned-value",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_earned_value(
     session: SessionDep,
     chrome: ChromeDep,
@@ -976,7 +1101,10 @@ def update_issue_earned_value(
     )
 
 
-@router.post("/issues/{issue_id}/actual-cost")
+@router.post(
+    "/issues/{issue_id}/actual-cost",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_actual_cost(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1033,7 +1161,10 @@ def _update_cost(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/labels")
+@router.post(
+    "/issues/{issue_id}/labels",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def add_issue_label(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1054,7 +1185,10 @@ def add_issue_label(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/labels/{label_id}/delete")
+@router.post(
+    "/issues/{issue_id}/labels/{label_id}/delete",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def remove_issue_label(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1075,7 +1209,10 @@ def remove_issue_label(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/dates")
+@router.post(
+    "/issues/{issue_id}/dates",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_dates(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1112,7 +1249,10 @@ def update_issue_dates(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/due")
+@router.post(
+    "/issues/{issue_id}/due",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
 def update_issue_due(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1135,7 +1275,10 @@ def update_issue_due(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/assignee")
+@router.post(
+    "/issues/{issue_id}/assignee",
+    dependencies=[Depends(guard_issue_page(Permission.UPDATE_ISSUES))],
+)
 def update_issue_assignee(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1166,7 +1309,10 @@ def update_issue_assignee(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/status")
+@router.post(
+    "/issues/{issue_id}/status",
+    dependencies=[Depends(guard_issue_page(Permission.UPDATE_ISSUES))],
+)
 def move_issue_status(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1190,7 +1336,10 @@ def move_issue_status(
     return _back(return_to or board)
 
 
-@router.post("/issues/{issue_id}/delete")
+@router.post(
+    "/issues/{issue_id}/delete",
+    dependencies=[Depends(guard_issue_page(Permission.DELETE_ISSUES))],
+)
 def delete_issue(session: SessionDep, issue_id: int) -> RedirectResponse:
     issue = issue_service.get_issue(session, issue_id)
     project = project_service.get_project(session, issue.project_id)
@@ -1217,9 +1366,13 @@ def _dependency_ends(
     return None
 
 
-@router.post("/issues/{issue_id}/dependencies")
+@router.post(
+    "/issues/{issue_id}/dependencies",
+    dependencies=[Depends(guard_issue_page(Permission.MANAGE_DEPENDENCIES))],
+)
 def create_issue_dependency(
     session: SessionDep,
+    chrome: ChromeDep,
     issue_id: int,
     other_id: Annotated[str, Form()] = "",
     other_query: Annotated[str, Form()] = "",
@@ -1244,14 +1397,26 @@ def create_issue_dependency(
         return _back(here, "That is not a valid dependency kind.")
     source_id, target_id, kind = ends
     try:
+        access_service.require_dependency_projects(
+            session,
+            chrome.access,
+            access_service.project_of_issue(session, source_id),
+            access_service.project_of_issue(session, target_id),
+        )
         dependency_service.create_dependency(session, source_id, target_id, kind)
+    except PermissionDeniedError:
+        session.rollback()
+        raise
     except DomainError as exc:
         session.rollback()
         return _back(here, exc.message)
     return _back(here)
 
 
-@router.post("/dependencies/{dependency_id}/delete")
+@router.post(
+    "/dependencies/{dependency_id}/delete",
+    dependencies=[Depends(require_dependency_delete())],
+)
 def delete_issue_dependency(
     session: SessionDep,
     dependency_id: int,
@@ -1267,7 +1432,10 @@ def delete_issue_dependency(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/comments")
+@router.post(
+    "/issues/{issue_id}/comments",
+    dependencies=[Depends(guard_issue_page(Permission.COMMENT_ISSUES))],
+)
 def create_issue_comment(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1288,7 +1456,10 @@ def create_issue_comment(
     return _back(here)
 
 
-@router.post("/comments/{comment_id}/delete")
+@router.post(
+    "/comments/{comment_id}/delete",
+    dependencies=[Depends(require_comment_delete())],
+)
 def delete_issue_comment(
     session: SessionDep,
     comment_id: int,
@@ -1321,7 +1492,10 @@ def _carry_notice(session: SessionDep, result: sprint_service.SprintCompletion) 
     return f"{count} unfinished {noun} moved to {destination.name}."
 
 
-@router.post("/issues/{issue_id}/sprint")
+@router.post(
+    "/issues/{issue_id}/sprint",
+    dependencies=[Depends(guard_issue_page(Permission.UPDATE_ISSUES))],
+)
 def update_issue_sprint(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1332,11 +1506,20 @@ def update_issue_sprint(
     issue = issue_service.get_issue(session, issue_id)
     project = project_service.get_project(session, issue.project_id)
     here = f"/issues/{project.key}-{issue.number}"
+    chosen_sprint = _optional_id(sprint_id)
+    if chosen_sprint is not None:
+        _deny_other_project(
+            session,
+            chrome,
+            issue.project_id,
+            access_service.project_of_sprint(session, chosen_sprint),
+            Permission.UPDATE_ISSUES,
+        )
     try:
         issue_service.update_issue(
             session,
             issue_id,
-            sprint_id=_optional_id(sprint_id),
+            sprint_id=chosen_sprint,
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:
@@ -1345,7 +1528,10 @@ def update_issue_sprint(
     return _back(return_to or here)
 
 
-@router.post("/projects/{project_id}/sprints")
+@router.post(
+    "/projects/{project_id}/sprints",
+    dependencies=[Depends(guard_project_page(Permission.CREATE_SPRINTS))],
+)
 def create_sprint(
     session: SessionDep,
     project_id: int,
@@ -1371,7 +1557,10 @@ def create_sprint(
     return _back(f"/projects/{key}/sprints/{sprint.id}")
 
 
-@router.post("/sprints/{sprint_id}/update")
+@router.post(
+    "/sprints/{sprint_id}/update",
+    dependencies=[Depends(guard_sprint_page(Permission.EDIT_SPRINTS))],
+)
 def update_sprint(
     session: SessionDep,
     sprint_id: int,
@@ -1396,7 +1585,10 @@ def update_sprint(
     return _back(here)
 
 
-@router.post("/sprints/{sprint_id}/delete")
+@router.post(
+    "/sprints/{sprint_id}/delete",
+    dependencies=[Depends(guard_sprint_page(Permission.DELETE_SPRINTS))],
+)
 def delete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     sprint = sprint_service.get_sprint(session, sprint_id)
     key = project_service.get_project(session, sprint.project_id).key
@@ -1410,7 +1602,10 @@ def delete_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     return _back(listing, notice=project.auto_sprint_notice or None)
 
 
-@router.post("/sprints/{sprint_id}/start")
+@router.post(
+    "/sprints/{sprint_id}/start",
+    dependencies=[Depends(guard_sprint_page(Permission.START_COMPLETE_SPRINTS))],
+)
 def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     here = _sprint_page(session, sprint_id)
     try:
@@ -1421,7 +1616,10 @@ def start_sprint(session: SessionDep, sprint_id: int) -> RedirectResponse:
     return _back(here)
 
 
-@router.post("/sprints/{sprint_id}/complete")
+@router.post(
+    "/sprints/{sprint_id}/complete",
+    dependencies=[Depends(guard_sprint_page(Permission.START_COMPLETE_SPRINTS))],
+)
 def complete_sprint(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1445,7 +1643,10 @@ def complete_sprint(
     return _back(here, notice=notice)
 
 
-@router.post("/projects/{project_id}/schedules")
+@router.post(
+    "/projects/{project_id}/schedules",
+    dependencies=[Depends(guard_project_page(Permission.CREATE_SCHEDULES))],
+)
 def create_schedule(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1524,7 +1725,10 @@ def create_schedule(
     return _back(f"/projects/{project.key}/schedules/{series.id}")
 
 
-@router.post("/schedules/{series_id}/update")
+@router.post(
+    "/schedules/{series_id}/update",
+    dependencies=[Depends(guard_series_page(Permission.EDIT_SCHEDULES))],
+)
 def update_schedule(
     session: SessionDep,
     series_id: int,
@@ -1604,17 +1808,26 @@ def update_schedule(
     return _back(here)
 
 
-@router.post("/schedules/{series_id}/pause")
+@router.post(
+    "/schedules/{series_id}/pause",
+    dependencies=[Depends(guard_series_page(Permission.EDIT_SCHEDULES))],
+)
 def pause_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _schedule_state(session, series_id, SeriesState.PAUSED)
 
 
-@router.post("/schedules/{series_id}/resume")
+@router.post(
+    "/schedules/{series_id}/resume",
+    dependencies=[Depends(guard_series_page(Permission.EDIT_SCHEDULES))],
+)
 def resume_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _schedule_state(session, series_id, SeriesState.ACTIVE)
 
 
-@router.post("/schedules/{series_id}/delete")
+@router.post(
+    "/schedules/{series_id}/delete",
+    dependencies=[Depends(guard_series_page(Permission.DELETE_SCHEDULES))],
+)
 def delete_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     series = series_service.get_series(session, series_id)
     project = project_service.get_project(session, series.project_id)
@@ -1630,7 +1843,10 @@ def delete_schedule(session: SessionDep, series_id: int) -> RedirectResponse:
     return _back(listing, notice="Schedule deleted. Existing issues remain.")
 
 
-@router.post("/issues/{issue_id}/repeat")
+@router.post(
+    "/issues/{issue_id}/repeat",
+    dependencies=[Depends(guard_issue_page(Permission.CREATE_SCHEDULES))],
+)
 def make_issue_repeating(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1692,7 +1908,10 @@ def make_issue_repeating(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/series")
+@router.post(
+    "/issues/{issue_id}/series",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_SCHEDULES))],
+)
 def update_issue_series(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1754,7 +1973,10 @@ def update_issue_series(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/series-item")
+@router.post(
+    "/issues/{issue_id}/series-item",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_SCHEDULES))],
+)
 def add_series_item(
     session: SessionDep,
     chrome: ChromeDep,
@@ -1802,7 +2024,10 @@ def add_series_item(
     return _back(here)
 
 
-@router.post("/issues/{issue_id}/series-item/remove")
+@router.post(
+    "/issues/{issue_id}/series-item/remove",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_SCHEDULES))],
+)
 def remove_series_item(
     session: SessionDep,
     chrome: ChromeDep,

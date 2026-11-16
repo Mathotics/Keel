@@ -345,6 +345,12 @@ def test_switching_the_picker_changes_whose_inbox_is_shown(
             "email": "ada@example.com",
         },
     ).json()
+    granted = client.post(
+        f"/web/projects/{project['id']}/access/{ada['id']}",
+        data={"role": "viewer"},
+        follow_redirects=False,
+    )
+    assert granted.status_code == 303, granted.text
     client.post(
         f"/api/v1/projects/{project['id']}/issues",
         json={

@@ -165,6 +165,12 @@ def test_the_reporter_follows_the_user_header(
             "email": "ada@example.com",
         },
     ).json()
+    granted = client.post(
+        f"/web/projects/{project_id}/access/{ada['id']}",
+        data={"role": "contributor"},
+        follow_redirects=False,
+    )
+    assert granted.status_code == 303, granted.text
 
     client.post(
         "/login",

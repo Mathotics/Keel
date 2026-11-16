@@ -2,6 +2,8 @@ from fastapi import APIRouter, Query
 from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import SessionDep
+from keel.api.v1.guards import AccessDep
+from keel.domain.access import Permission
 from keel.domain.errors import NotFoundError
 from keel.schemas.find import (
     FindIssueHitRead,
@@ -11,6 +13,7 @@ from keel.schemas.find import (
     FindSprintHitRead,
     FindUserHitRead,
 )
+from keel.services import access as access_service
 from keel.services import find as find_service
 from keel.services import projects as project_service
 
@@ -20,11 +23,17 @@ router = APIRouter(tags=["find"])
 @router.get("/search", response_model=FindJumpRead | FindResultsRead)
 def read_search(
     session: SessionDep,
+    access: AccessDep,
     q: str = "",
     project: str | None = Query(default=None),
 ) -> FindJumpRead | FindResultsRead:
+    allowed = access_service.project_ids_holding(
+        session, access, Permission.VIEW_ISSUES
+    )
     project_id = _project_id(session, project)
-    outcome = find_service.find(session, q, project_id)
+    if project_id is not None and allowed is not None and project_id not in allowed:
+        project_id = None
+    outcome = find_service.find(session, q, project_id, allowed=allowed)
     if isinstance(outcome, find_service.FindJump):
         return FindJumpRead(
             target=outcome.target,

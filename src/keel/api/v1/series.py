@@ -1,8 +1,10 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.api.v1.guards import require_issue, require_project, require_series
 from keel.db.models import Series
+from keel.domain.access import Permission
 from keel.domain.enums import SeriesState
 from keel.domain.errors import InvalidSeriesError
 from keel.schemas.series import (
@@ -22,7 +24,11 @@ from keel.services.series_tree import ItemDraft
 router = APIRouter(tags=["series"])
 
 
-@router.get("/projects/{project_id}/series", response_model=list[SeriesRead])
+@router.get(
+    "/projects/{project_id}/series",
+    response_model=list[SeriesRead],
+    dependencies=[Depends(require_project(Permission.VIEW_SCHEDULES))],
+)
 def list_series(project_id: int, session: SessionDep) -> list[SeriesRead]:
     return [
         _read(session, item) for item in series_service.list_series(session, project_id)
@@ -33,6 +39,7 @@ def list_series(project_id: int, session: SessionDep) -> list[SeriesRead]:
     "/projects/{project_id}/series",
     response_model=SeriesRead,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_project(Permission.CREATE_SCHEDULES))],
 )
 def create_series(
     project_id: int,
@@ -73,12 +80,20 @@ def create_series(
     return _read(session, series)
 
 
-@router.get("/series/{series_id}", response_model=SeriesRead)
+@router.get(
+    "/series/{series_id}",
+    response_model=SeriesRead,
+    dependencies=[Depends(require_series(Permission.VIEW_SCHEDULES))],
+)
 def read_series(series_id: int, session: SessionDep) -> SeriesRead:
     return _read(session, series_service.get_series(session, series_id))
 
 
-@router.patch("/series/{series_id}", response_model=SeriesRead)
+@router.patch(
+    "/series/{series_id}",
+    response_model=SeriesRead,
+    dependencies=[Depends(require_series(Permission.EDIT_SCHEDULES))],
+)
 def update_series(
     series_id: int,
     payload: SeriesUpdate,
@@ -135,7 +150,11 @@ def update_series(
     return _read(session, series)
 
 
-@router.post("/series/{series_id}/pause", response_model=SeriesRead)
+@router.post(
+    "/series/{series_id}/pause",
+    response_model=SeriesRead,
+    dependencies=[Depends(require_series(Permission.EDIT_SCHEDULES))],
+)
 def pause_series(series_id: int, session: SessionDep) -> SeriesRead:
     return _read(
         session,
@@ -143,7 +162,11 @@ def pause_series(series_id: int, session: SessionDep) -> SeriesRead:
     )
 
 
-@router.post("/series/{series_id}/resume", response_model=SeriesRead)
+@router.post(
+    "/series/{series_id}/resume",
+    response_model=SeriesRead,
+    dependencies=[Depends(require_series(Permission.EDIT_SCHEDULES))],
+)
 def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
     return _read(
         session,
@@ -151,7 +174,11 @@ def resume_series(series_id: int, session: SessionDep) -> SeriesRead:
     )
 
 
-@router.post("/issues/{issue_id}/series", response_model=SeriesRead)
+@router.post(
+    "/issues/{issue_id}/series",
+    response_model=SeriesRead,
+    dependencies=[Depends(require_issue(Permission.EDIT_SCHEDULES))],
+)
 def edit_occurrence(
     issue_id: int,
     payload: OccurrenceEdit,
@@ -206,7 +233,11 @@ def edit_occurrence(
     return _read(session, series_service.get_series(session, issue.series_id))
 
 
-@router.delete("/series/{series_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/series/{series_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_series(Permission.DELETE_SCHEDULES))],
+)
 def delete_series(series_id: int, session: SessionDep) -> None:
     series_service.delete_series(session, series_id)
 

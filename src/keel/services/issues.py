@@ -1,7 +1,7 @@
 import re
 import secrets
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
@@ -67,10 +67,25 @@ class IssueFilters:
     reporter_ids: tuple[int, ...] = ()
     reporter_none: bool = False
     project_ids: tuple[int, ...] = ()
+    projects_limited: bool = False
     start_from: date | None = None
     start_to: date | None = None
     due_from: date | None = None
     due_to: date | None = None
+
+
+def limit_projects(
+    filters: IssueFilters,
+    allowed: frozenset[int] | None,
+) -> IssueFilters:
+    """Keep issues in ``allowed``. None leaves a cross-project filter alone."""
+    if allowed is None:
+        return filters
+    if filters.project_ids:
+        chosen = tuple(item for item in filters.project_ids if item in allowed)
+    else:
+        chosen = tuple(sorted(allowed))
+    return replace(filters, project_ids=chosen, projects_limited=True)
 
 
 def issue_key(issue: Issue, project: Project) -> str:
@@ -670,7 +685,12 @@ def _apply_filters(query: Select[Any], filters: IssueFilters) -> Select[Any]:
         query = query.where(_has_no_label())
     elif filters.label is not None:
         query = query.where(_has_label(filters.label))
-    if filters.project_ids:
+    if filters.projects_limited:
+        if filters.project_ids:
+            query = query.where(Issue.project_id.in_(tuple(filters.project_ids)))
+        else:
+            query = query.where(false())
+    elif filters.project_ids:
         query = query.where(Issue.project_id.in_(tuple(filters.project_ids)))
     start_window = _on_calendar_days(
         Issue.start_at,

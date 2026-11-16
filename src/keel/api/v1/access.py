@@ -1,19 +1,12 @@
 from fastapi import APIRouter
 
-from keel.api.v1.deps import ActingUserDep, SessionDep
+from keel.api.v1.deps import SessionDep
+from keel.api.v1.guards import AccessDep
 from keel.domain.access import Permission, parse_permission
-from keel.domain.errors import PermissionDeniedError
 from keel.schemas.access import GlobalGrantRead, GlobalGrantUpdate
 from keel.services import access as access_service
-from keel.services.access import DENIED
 
 router = APIRouter(prefix="/access", tags=["access"])
-
-
-def _access(session: SessionDep, acting: ActingUserDep) -> access_service.Access:
-    if acting is None:
-        raise PermissionDeniedError(DENIED)
-    return access_service.load_access(session, acting.id)
 
 
 def _read(grant: access_service.GlobalGrant) -> GlobalGrantRead:
@@ -29,9 +22,8 @@ def _read(grant: access_service.GlobalGrant) -> GlobalGrantRead:
 @router.get("/global", response_model=list[GlobalGrantRead])
 def list_global_grants(
     session: SessionDep,
-    acting: ActingUserDep,
+    access: AccessDep,
 ) -> list[GlobalGrantRead]:
-    access = _access(session, acting)
     access_service.require(access, Permission.VIEW_GLOBAL_RBAC)
     return [_read(grant) for grant in access_service.global_grants(session)]
 
@@ -41,9 +33,8 @@ def update_global_grant(
     user_id: int,
     payload: GlobalGrantUpdate,
     session: SessionDep,
-    acting: ActingUserDep,
+    access: AccessDep,
 ) -> GlobalGrantRead:
-    access = _access(session, acting)
     submitted = set()
     for code in payload.direct_permissions:
         parsed = parse_permission(code)

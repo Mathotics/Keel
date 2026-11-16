@@ -28,7 +28,7 @@
       <p class="keel-error" role="alert">{{ error }}</p>
       {% endif %}
 
-      <form class="keel-form keel-form--inline keel-title-field" method="post" action="/web/issues/{{ issue.id }}/title" data-keel-autosubmit>
+      <form class="keel-form keel-form--inline keel-title-field" method="post" action="/web/issues/{{ issue.id }}/title" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
         <label class="keel-visually-hidden" for="issue-title">Title</label>
         <input id="issue-title" name="title" type="text" maxlength="300" value="{{ issue.title }}" required/>
         <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -57,7 +57,7 @@
         <div class="keel-fact">
           <dt>Type</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/type" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
               <label class="keel-visually-hidden" for="issue-type">Type</label>
               <select class="keel-type-select" id="issue-type" name="type" data-type="{{ issue.type.value }}">
                 {% for value in issue_types %}
@@ -71,7 +71,7 @@
         <div class="keel-fact">
           <dt>Status</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/status" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/status" data-keel-autosubmit{% if not can_update_issue %} inert{% endif %}>
               <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
               <label class="keel-visually-hidden" for="issue-status">Status</label>
               <select id="issue-status" name="status">
@@ -86,7 +86,7 @@
         <div class="keel-fact">
           <dt>Priority</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/priority" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/priority" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
               <label class="keel-visually-hidden" for="issue-priority">Priority</label>
               <select id="issue-priority" name="priority">
                 {% for value in priorities %}
@@ -100,7 +100,7 @@
         <div class="keel-fact">
           <dt>Assignee</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/assignee" data-keel-autosubmit{% if not can_update_issue %} inert{% endif %}>
               <label class="keel-visually-hidden" for="issue-assignee">Assignee</label>
               {% with field_id="issue-assignee", query_name="assignee_query", value=assignee_label, kind="users", project_key="", exclude_id="", id_name="assignee_id", submit=true, placeholder="Unassigned" %}
               {% include "_lookup.html" %}
@@ -115,7 +115,7 @@
         <div class="keel-fact">
           <dt>Parent</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/parent" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/parent" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
               <label class="keel-visually-hidden" for="issue-parent">Parent</label>
               {% with field_id="issue-parent", query_name="parent_query", value=parent_label, kind="issues", project_key=project.key, exclude_id=issue.id, id_name="parent_id", submit=true, placeholder="No parent" %}
               {% include "_lookup.html" %}
@@ -127,7 +127,7 @@
         <div class="keel-fact">
           <dt>Sprint</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/sprint" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/sprint" data-keel-autosubmit{% if not can_update_issue %} inert{% endif %}>
               <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
               <label class="keel-visually-hidden" for="issue-sprint">Sprint</label>
               <select id="issue-sprint" name="sprint_id">
@@ -143,7 +143,7 @@
         <div class="keel-fact">
           <dt>Dates</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}{% if not can_edit_issue %} inert{% endif %}>
               <label for="issue-start">Start date</label>
               <input id="issue-start" name="start_at" type="datetime-local" value="{{ issue.start_at | datetime_local }}" data-keel-range="start"/>
               <label for="issue-due">Due date</label>
@@ -165,7 +165,7 @@
         <div class="keel-fact keel-fact--wide">
           <dt>Location</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/location" data-keel-autosubmit>
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/location" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
               <label class="keel-visually-hidden" for="issue-location">Location</label>
               <input id="issue-location" name="location" type="text" maxlength="300" value="{{ issue.location }}" placeholder="Where will this happen?"/>
               <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -179,7 +179,7 @@
           <div class="keel-fact">
             <dt>Estimate</dt>
             <dd>
-              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/estimate" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
                 <label class="keel-visually-hidden" for="issue-estimate">Estimate</label>
                 <input id="issue-estimate" name="estimate" type="text" value="{{ issue.estimate_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -189,7 +189,7 @@
           <div class="keel-fact">
             <dt>Remaining</dt>
             <dd>
-              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/remaining" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
                 <label class="keel-visually-hidden" for="issue-remaining">Remaining</label>
                 <input id="issue-remaining" name="remaining" type="text" value="{{ issue.remaining_minutes | duration }}" placeholder="2h, 90m, 1h 30m, or 1d"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -206,7 +206,7 @@
           <div class="keel-fact">
             <dt>Planned value (PV)</dt>
             <dd>
-              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/planned-value" data-keel-autosubmit>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/planned-value" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
                 <label class="keel-visually-hidden" for="issue-planned-value">Planned value</label>
                 <input id="issue-planned-value" name="planned_value" type="text" inputmode="decimal" value="{{ issue.planned_value_cents | money(project.currency) }}" data-keel-money data-currency-code="{{ project.currency }}" data-currency-symbol="{{ project.currency | currency_symbol }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -216,7 +216,7 @@
           <div class="keel-fact">
             <dt>Earned value (EV)</dt>
             <dd>
-              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/earned-value" data-keel-autosubmit>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/earned-value" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
                 <label class="keel-visually-hidden" for="issue-earned-value">Earned value</label>
                 <input id="issue-earned-value" name="earned_value" type="text" inputmode="decimal" value="{{ issue.earned_value_cents | money(project.currency) }}" data-keel-money data-currency-code="{{ project.currency }}" data-currency-symbol="{{ project.currency | currency_symbol }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -226,7 +226,7 @@
           <div class="keel-fact">
             <dt>Actual cost (AC)</dt>
             <dd>
-              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/actual-cost" data-keel-autosubmit>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/actual-cost" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
                 <label class="keel-visually-hidden" for="issue-actual-cost">Actual cost</label>
                 <input id="issue-actual-cost" name="actual_cost" type="text" inputmode="decimal" value="{{ issue.actual_cost_cents | money(project.currency) }}" data-keel-money data-currency-code="{{ project.currency }}" data-currency-symbol="{{ project.currency | currency_symbol }}"/>
                 <button class="keel-autosubmit__fallback" type="submit">Save</button>
@@ -271,7 +271,7 @@
               {% for item in issue_labels %}
               <li>
                 <span class="keel-chip keel-label">{{ item.name }}</span>
-                <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/labels/{{ item.id }}/delete">
+                <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/labels/{{ item.id }}/delete"{% if not can_edit_issue %} inert{% endif %}>
                   <button type="submit">Remove</button>
                 </form>
               </li>
@@ -279,7 +279,7 @@
               <li class="keel-empty">None</li>
               {% endfor %}
             </ul>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/labels">
+            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/labels"{% if not can_edit_issue %} inert{% endif %}>
               <label class="keel-visually-hidden" for="issue-label">Add label</label>
               <input id="issue-label" name="name" type="text" maxlength="40" list="issue-label-suggestions" placeholder="urgent" required/>
               <datalist id="issue-label-suggestions">
@@ -455,7 +455,7 @@
       {% endif %}
       <details class="keel-markdown-edit"{% if not issue.description %} open{% endif %}>
         <summary>{% if issue.description %}Edit description{% else %}Add a description{% endif %}</summary>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
           <p>
             <label class="keel-visually-hidden" for="issue-description">Description</label>
             <textarea id="issue-description" class="keel-description" name="description" rows="6">{{ issue.description }}</textarea>
@@ -471,7 +471,7 @@
       {% endif %}
       <details class="keel-markdown-edit"{% if not issue.definition_of_done %} open{% endif %}>
         <summary>{% if issue.definition_of_done %}Edit definition of done{% else %}Add a definition of done{% endif %}</summary>
-        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done" data-keel-autosubmit>
+        <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
           <p>
             <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
             <textarea id="issue-definition-of-done" class="keel-description" name="definition_of_done" rows="6">{{ issue.definition_of_done }}</textarea>
@@ -503,7 +503,7 @@
       </table>
       </div>
       {% if child_type %}
-      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/children" data-keel-submit-once>
+      <form class="keel-form" method="post" action="/web/issues/{{ issue.id }}/children" data-keel-submit-once{% if not can_edit_issue %} inert{% endif %}>
         <input type="hidden" name="client_key" value="{{ client_key }}"/>
         <label class="keel-visually-hidden" for="issue-child-title">{{ child_type | label }} title</label>
         <input id="issue-child-title" name="title" type="text" maxlength="300" required placeholder="What needs doing?"/>
@@ -528,10 +528,12 @@
             </td>
             <td>{{ link.issue.title }}</td>
             <td>
+              {% if can_manage_dependencies %}
               <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
                 <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
                 <button type="submit">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -555,10 +557,12 @@
             </td>
             <td>{{ link.issue.title }}</td>
             <td>
+              {% if can_manage_dependencies %}
               <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
                 <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
                 <button type="submit">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -582,10 +586,12 @@
             </td>
             <td>{{ link.issue.title }}</td>
             <td>
+              {% if can_manage_dependencies %}
               <form class="keel-form keel-form--inline" method="post" action="/web/dependencies/{{ link.id }}/delete">
                 <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
                 <button type="submit">Remove</button>
               </form>
+              {% endif %}
             </td>
           </tr>
           {% else %}
@@ -595,6 +601,7 @@
       </table>
       </div>
 
+      {% if can_manage_dependencies %}
       <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dependencies">
         <p>This issue</p>
         <label>
@@ -613,6 +620,7 @@
         </label>
         <button class="keel-primary" type="submit">Add</button>
       </form>
+      {% endif %}
       {% endcall %}
 
       {% call issue_panel('history', 'History', history_pager.window.total) %}
@@ -629,15 +637,18 @@
       <article class="keel-comment">
         <p class="keel-comment__meta">{{ comment.author_name }} · {{ comment.created_at | when }}</p>
         <div class="keel-comment__body keel-markdown">{{ comment.body | markdown }}</div>
+        {% if comment.can_delete %}
         <form class="keel-form keel-form--inline" method="post" action="/web/comments/{{ comment.id }}/delete">
           <input type="hidden" name="next" value="/issues/{{ issue_key }}"/>
           <button type="submit">Remove</button>
         </form>
+        {% endif %}
       </article>
       {% else %}
       <p class="keel-empty">No comments yet.</p>
       {% endfor %}
       {% with pager=comments_pager %}{% include "_pager.html" %}{% endwith %}
+      {% if can_comment %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
         <p>
           <label for="issue-comment">Comment</label>
@@ -645,10 +656,13 @@
         </p>
         <p><button class="keel-primary" type="submit">Add comment</button></p>
       </form>
+      {% endif %}
       {% endcall %}
 
+      {% if can_delete_issue %}
       <form class="keel-form keel-form--danger" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?{% if series and series_item %} This item is removed from this occurrence only.{% elif series %} This occurrence and its scheduled items will not come back.{% endif %}');">
         <button type="submit">Delete issue</button>
       </form>
+      {% endif %}
 {% endblock %}

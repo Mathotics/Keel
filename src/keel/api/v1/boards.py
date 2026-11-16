@@ -1,8 +1,10 @@
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from keel.api.v1.deps import SessionDep
+from keel.api.v1.guards import require_project
+from keel.domain.access import Permission
 from keel.domain.enums import IssueType, label
 from keel.schemas.board import BoardColumnRead, BoardLaneRead, BoardRead
 from keel.schemas.issue import IssueRead
@@ -15,7 +17,11 @@ from keel.services.boards import Board, BoardColumn
 router = APIRouter(tags=["boards"])
 
 
-@router.get("/projects/{project_id}/board", response_model=BoardRead)
+@router.get(
+    "/projects/{project_id}/board",
+    response_model=BoardRead,
+    dependencies=[Depends(require_project(Permission.VIEW_BOARD))],
+)
 def read_board(
     project_id: int,
     session: SessionDep,
@@ -81,7 +87,11 @@ def _column_reads(
     ]
 
 
-@router.get("/projects/{project_id}/backlog", response_model=list[IssueRead])
+@router.get(
+    "/projects/{project_id}/backlog",
+    response_model=list[IssueRead],
+    dependencies=[Depends(require_project(Permission.VIEW_BACKLOG))],
+)
 def read_backlog(project_id: int, session: SessionDep) -> list[IssueRead]:
     project = project_service.get_project(session, project_id)
     items = backlog_service.project_backlog(session, project.id)

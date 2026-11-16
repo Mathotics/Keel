@@ -1,17 +1,23 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 
+from keel.domain.access import Permission
 from keel.services import backlog as backlog_service
 from keel.services import projects as project_service
 from keel.services import sprints as sprint_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
+from keel.web.guards import require_project_key
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 
 router = APIRouter(prefix="/projects")
 
 
-@router.get("/{key}/backlog", response_class=HTMLResponse)
+@router.get(
+    "/{key}/backlog",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_BACKLOG))],
+)
 def backlog_page(
     key: str,
     request: Request,

@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
-from sqlalchemy import String, cast, func, literal, or_, select
+from sqlalchemy import String, cast, false, func, literal, or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
 
 from keel.db.models import Issue, Label, Project, User
 from keel.domain.errors import InvalidIssueError, NotFoundError
 from keel.domain.labels import normalize_label_name
 from keel.services import issues as issue_service
+from keel.services import labels as label_service
 from keel.services import projects as project_service
 
 LIMIT = 10
@@ -66,6 +69,7 @@ def suggest_issues(
     *,
     project_id: int | None = None,
     exclude_id: int | None = None,
+    allowed: frozenset[int] | None = None,
 ) -> list[IssueSuggestion]:
     needle = query.strip()
     if not needle:
@@ -88,6 +92,7 @@ def suggest_issues(
         stmt = stmt.where(Issue.project_id == project_id)
     if exclude_id is not None:
         stmt = stmt.where(Issue.id != exclude_id)
+    stmt = _limit_projects(stmt, Issue.project_id, allowed)
     return [
         IssueSuggestion(
             id=issue.id,
@@ -98,9 +103,14 @@ def suggest_issues(
     ]
 
 
-def suggest_labels(session: Session, query: str) -> list[str]:
+def suggest_labels(
+    session: Session,
+    query: str,
+    *,
+    allowed: frozenset[int] | None = None,
+) -> list[str]:
     needle = query.strip().lower()
-    names = session.scalars(select(Label.name).order_by(Label.name)).all()
+    names = [label.name for label in label_service.list_labels(session, allowed)]
     results: list[str] = []
     if not needle or UNLABELED.startswith(needle):
         results.append(UNLABELED)
@@ -141,6 +151,8 @@ def resolve_posted_issue(
 def interpret_board_label(
     session: Session,
     raw: str | None,
+    *,
+    visible: frozenset[str] | None = None,
 ) -> tuple[str | None, bool, str | None]:
     """Name, unlabeled flag, and a message when the text is not a real label."""
     if raw is None or not raw.strip():
@@ -153,7 +165,7 @@ def interpret_board_label(
     except InvalidIssueError as exc:
         return None, False, exc.message
     known = session.scalar(select(Label.id).where(Label.name == name))
-    if known is None:
+    if known is None or (visible is not None and name not in visible):
         return None, False, LABEL_MESSAGE
     return name, False, None
 
@@ -254,13 +266,18 @@ def project_field_value(project: Project | None) -> str:
     return issue_display(project.key, project.name)
 
 
-def suggest_projects(session: Session, query: str) -> list[ProjectSuggestion]:
+def suggest_projects(
+    session: Session,
+    query: str,
+    *,
+    allowed: frozenset[int] | None = None,
+) -> list[ProjectSuggestion]:
     """Projects by key or name. An empty query lists nothing."""
     needle = query.strip()
     if not needle:
         return []
     pattern = _like_pattern(needle)
-    found = session.scalars(
+    stmt = _limit_projects(
         select(Project)
         .where(
             or_(
@@ -270,7 +287,10 @@ def suggest_projects(session: Session, query: str) -> list[ProjectSuggestion]:
         )
         .order_by(Project.key)
         .limit(LIMIT),
+        Project.id,
+        allowed,
     )
+    found = session.scalars(stmt)
     return [
         ProjectSuggestion(id=project.id, key=project.key, name=project.name)
         for project in found
@@ -280,6 +300,8 @@ def suggest_projects(session: Session, query: str) -> list[ProjectSuggestion]:
 def interpret_project(
     session: Session,
     raw: str | None,
+    *,
+    allowed: frozenset[int] | None = None,
 ) -> tuple[Project | None, str, str | None]:
     """The project, the text to show, and a message when it is not a project.
 
@@ -294,7 +316,7 @@ def interpret_project(
         found = project_service.get_project_by_key(session, key)
     except NotFoundError:
         found = _project_named(session, cleaned)
-    if found is None:
+    if found is None or (allowed is not None and found.id not in allowed):
         return None, cleaned, PROJECT_MESSAGE
     return found, project_field_value(found), None
 
@@ -350,3 +372,15 @@ def _user_named(session: Session, text: str) -> User | None:
 def _like_pattern(needle: str) -> str:
     escaped = needle.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped}%"
+
+
+def _limit_projects(
+    stmt: Select[Any],
+    column: Any,
+    allowed: frozenset[int] | None,
+) -> Select[Any]:
+    if allowed is None:
+        return stmt
+    if not allowed:
+        return stmt.where(false())
+    return stmt.where(column.in_(tuple(allowed)))

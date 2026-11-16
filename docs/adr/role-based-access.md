@@ -1,9 +1,11 @@
 # Role-based access
 
 * **Status:** Accepted
-* **Date:** 2026-10-31
+* **Date:** 2026-11-14
 
-> **Amendment.** View gantt is a project permission beside View calendar, and the same project roles hold it. Route checks for the gantt pages wait with the other project routes (KEEL-105).
+> **Amendment.** View gantt is a project permission beside View calendar, and the same project roles hold it. The gantt pages check that permission with the other project routes.
+>
+> **Amendment.** Project routes check the matching project permission (KEEL-181). Reading or changing issues, comments, dependencies, sprints, schedules, the board, the backlog, the calendar, the gantt, and project settings follows that project's grant. Search, lookup, and label lists leave out projects the person cannot view. `GET /api/v1/users` and `GET /api/v1/users/{user_id}` stay available to every signed-in person, including No Access, so assignee lists and the phone app can read display names. The Users management page still requires View users.
 
 ## Background
 
@@ -43,7 +45,7 @@ A household tracker now has people who should not all administer the server or a
 
 ### Out-of-Scope
 
-* Project route checks for issues, board, calendar, gantt, backlog, sprints, schedules, and project settings. Those are KEEL-105. Until then a signed-in person can still open a project URL. The project list is already filtered. The project access page is in place and checks its own permission.
+* Project route checks were deferred from this record as KEEL-105. KEEL-181 enforces them. The project list stays filtered by View projects. The project access page checks its own permission.
 * Single sign-on and a second factor. Email password reset is [Email password reset](email-password-reset.md).
 * A deny flag.
 * Putting server CLI backup, restore, `keel users set-password`, or `keel users create-token` behind a web permission.
@@ -70,7 +72,7 @@ A household tracker now has people who should not all administer the server or a
 * **Must** let a project owner grant one project role to everyone, and grant project permissions to everyone, without adding each person. Those grants are added to each person's own role and direct grants. **Must Not** give them to a person who is No Access. A necessary global permission is still required for the matching project action.
 * **Must** compute access as the union of role permissions and direct grants. **Must Not** store a deny.
 * **Must** on save, add missing dependencies and remove grants whose dependency was removed. A stored permission whose dependency is absent does not count at check time.
-* **Must** keep the Users management page under the Admin menu, shown only with View users. The people directory `GET /api/v1/users` stays available to every signed-in person so assignee lists and the phone app can read display names.
+* **Must** keep the Users management page under the Admin menu, shown only with View users. `GET /api/v1/users` and `GET /api/v1/users/{user_id}` stay available to every signed-in person, including No Access, so assignee lists and the phone app can read display names. Creating, renaming, deleting, and resetting passwords still require View users.
 * **Must** show the Admin menu with Display Admin menu, and also when View users is the only item that person can open. Users, Log tracker, and Access live under that menu.
 * **Must** hide a global nav link or button the person cannot use. **Must** answer a typed global page with the forbidden page, and the matching API call with 403. **Must Not** send that person to `/login`.
 * **Must** let every signed-in person open their profile, change their own password, manage their own API tokens, arrange home and nav, sign out, and open Help and License.
@@ -85,8 +87,8 @@ The permission list, role bundles, dependencies, and day-one usernames are the c
 ## Consequences
 
 * **Good:** jacob_hootman is Owner and Project Owner on the current projects. Cursor is Member and Contributor on KEEL. danielle_hootman is Member and Contributor on HOUSE. Admin can be given later without handing over those projects.
-* **Bad:** Every new global page and API route has to name the permission it needs. Until KEEL-105, a project URL is still open to any signed-in person even when the list hides that project.
-* **Risk:** A missed global check leaves an action open. The catalog and the route tests are what catch that. The day-one project rows do not restrict anyone until the project checks exist.
+* **Bad:** Every new global page and API route has to name the permission it needs. A new project route has to name the project permission it needs as well.
+* **Risk:** A missed check leaves an action open. The catalog and the route tests are what catch that.
 
 ## System Design
 
@@ -94,7 +96,7 @@ The permission list, role bundles, dependencies, and day-one usernames are the c
 
 The same FastAPI app, SQLite database, Alembic migration, and Jinja pages. Pure allow-or-deny rules live in `src/keel/domain/access.py`. `src/keel/services/access.py` loads roles and direct grants and is the only writer. HTML routes and `/api/v1` call it before a global read or change. `resolve_current_user` still only answers who is signed in.
 
-Stored shape: `permissions`, `permission_dependencies`, `roles`, `role_permissions`, `user_roles`, and `user_permissions`. A global row leaves `project_id` empty. Owner is the role with `bypass` and has no rows in `role_permissions`. Custom also has no rows in `role_permissions`, and that person's access is the direct grants saved for them. No Access has no rows in `role_permissions`. Saving it deletes that person's direct grants, project roles, and project grants, and a later check treats the person as holding nothing from the catalog. Editor's rows are View projects, the global create, edit, and delete permissions for issues, schedules, and sprints, and Create comments and Delete comments. Member's rows are View projects, the global create and edit permissions for issues and schedules, and Create comments. Startup seeds the catalog and guarantees an Owner. The upgrade also writes the day-one project roles. Creating a user assigns Member. Creating a project assigns Project Owner to the creator. A project can also store one role and a set of permissions for everyone on that project; those rows are `project_everyone_roles` and `project_everyone_permissions`. The project page links to `/projects/{key}/access`. A project create, edit, or delete of issues, schedules, or sprints, and creating or deleting comments, is kept only when the matching global permission is held. Project routes do not call that rule until KEEL-105.
+Stored shape: `permissions`, `permission_dependencies`, `roles`, `role_permissions`, `user_roles`, and `user_permissions`. A global row leaves `project_id` empty. Owner is the role with `bypass` and has no rows in `role_permissions`. Custom also has no rows in `role_permissions`, and that person's access is the direct grants saved for them. No Access has no rows in `role_permissions`. Saving it deletes that person's direct grants, project roles, and project grants, and a later check treats the person as holding nothing from the catalog. Editor's rows are View projects, the global create, edit, and delete permissions for issues, schedules, and sprints, and Create comments and Delete comments. Member's rows are View projects, the global create and edit permissions for issues and schedules, and Create comments. Startup seeds the catalog and guarantees an Owner. The upgrade also writes the day-one project roles. Creating a user assigns Member. Creating a project assigns Project Owner to the creator. A project can also store one role and a set of permissions for everyone on that project; those rows are `project_everyone_roles` and `project_everyone_permissions`. The project page links to `/projects/{key}/access`. A project create, edit, or delete of issues, schedules, or sprints, and creating or deleting comments, is kept only when the matching global permission is held. Project routes call that rule.
 
 A missing global permission becomes `access.denied`. HTML renders `forbidden.html` inside the normal shell. The API returns 403 and the domain error body. A person who is not signed in still goes to `/login`, or receives 401 from the API.
 
@@ -113,7 +115,7 @@ flowchart TD
   holds -->|no| denyNode[Deny403]
 ```
 
-Project checks in that diagram are defined and stored. KEEL-105 is what calls them from project routes.
+Project checks in that diagram are defined, stored, and called from project routes.
 
 ## Supporting Documentation
 

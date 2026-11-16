@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import Select, String, cast, func, literal, or_, select
+from sqlalchemy import Select, String, cast, false, func, literal, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -86,6 +86,8 @@ def find(
     session: Session,
     query: str,
     project_id: int | None = None,
+    *,
+    allowed: frozenset[int] | None = None,
 ) -> FindJump | FindResults:
     needle = query.strip()
     if not needle:
@@ -100,29 +102,35 @@ def find(
             users=(),
             users_more=False,
         )
-    jump = _exact_jump(session, needle, project_id)
+    jump = _exact_jump(session, needle, project_id, allowed=allowed)
     if jump is not None:
         return jump
-    return _list_matches(session, needle, project_id)
+    return _list_matches(session, needle, project_id, allowed=allowed)
 
 
 def lookup_jump(
     session: Session,
     query: str,
     project_id: int | None = None,
+    *,
+    allowed: frozenset[int] | None = None,
 ) -> FindJump | None:
     """An exact key or unique name, when the find field should leave the list."""
-    return _exact_jump(session, query.strip(), project_id)
+    return _exact_jump(session, query.strip(), project_id, allowed=allowed)
 
 
 def _exact_jump(
     session: Session,
     needle: str,
     project_id: int | None,
+    *,
+    allowed: frozenset[int] | None,
 ) -> FindJump | None:
     try:
         issue = issue_service.get_issue_by_key(session, needle)
     except NotFoundError:
+        issue = None
+    if issue is not None and not _keeps(issue.project_id, allowed):
         issue = None
     if issue is not None:
         project = project_service.get_project(session, issue.project_id)
@@ -140,7 +148,7 @@ def _exact_jump(
             named = project_service.get_project_by_key(session, needle)
         except NotFoundError:
             named = None
-        if named is not None:
+        if named is not None and _keeps(named.id, allowed):
             return FindJump(
                 url=f"/projects/{named.key}",
                 target="project",
@@ -157,7 +165,7 @@ def _exact_jump(
             target="user",
             display_name=users[0].display_name,
         )
-    sprints = _sprints_named(session, needle, project_id)
+    sprints = _sprints_named(session, needle, project_id, allowed=allowed)
     if len(sprints) == 1:
         sprint = sprints[0]
         project = project_service.get_project(session, sprint.project_id)
@@ -175,10 +183,13 @@ def _sprints_named(
     session: Session,
     needle: str,
     project_id: int | None,
+    *,
+    allowed: frozenset[int] | None,
 ) -> Sequence[Sprint]:
     query = select(Sprint).where(func.lower(Sprint.name) == needle.lower())
     if project_id is not None:
         query = query.where(Sprint.project_id == project_id)
+    query = _limit(query, Sprint.project_id, allowed)
     return session.scalars(query.order_by(Sprint.id)).all()
 
 
@@ -186,13 +197,15 @@ def match_totals(
     session: Session,
     needle: str,
     project_id: int | None,
+    *,
+    allowed: frozenset[int] | None = None,
 ) -> tuple[int, int, int, int]:
     """How many issues, projects, sprints, and users match, in that order."""
     pattern = _like_pattern(needle)
     return (
-        _count(session, _issue_stmt(pattern, project_id)),
-        _count(session, _project_stmt(pattern)),
-        _count(session, _sprint_stmt(pattern, project_id)),
+        _count(session, _issue_stmt(pattern, project_id, allowed=allowed)),
+        _count(session, _project_stmt(pattern, allowed=allowed)),
+        _count(session, _sprint_stmt(pattern, project_id, allowed=allowed)),
         _count(session, _user_stmt(pattern)),
     )
 
@@ -204,10 +217,11 @@ def load_issue_hits(
     *,
     limit: int,
     offset: int,
+    allowed: frozenset[int] | None = None,
 ) -> list[IssueHit]:
     pattern = _like_pattern(needle)
     rows = session.execute(
-        _issue_stmt(pattern, project_id)
+        _issue_stmt(pattern, project_id, allowed=allowed)
         .order_by(Project.key, Issue.number)
         .offset(offset)
         .limit(limit),
@@ -233,9 +247,10 @@ def load_project_hits(
     *,
     limit: int,
     offset: int,
+    allowed: frozenset[int] | None = None,
 ) -> list[ProjectHit]:
     rows = session.scalars(
-        _project_stmt(_like_pattern(needle))
+        _project_stmt(_like_pattern(needle), allowed=allowed)
         .order_by(Project.key)
         .offset(offset)
         .limit(limit),
@@ -260,9 +275,10 @@ def load_sprint_hits(
     *,
     limit: int,
     offset: int,
+    allowed: frozenset[int] | None = None,
 ) -> list[SprintHit]:
     rows = session.execute(
-        _sprint_stmt(_like_pattern(needle), project_id)
+        _sprint_stmt(_like_pattern(needle), project_id, allowed=allowed)
         .order_by(Project.key, Sprint.id)
         .offset(offset)
         .limit(limit),
@@ -304,6 +320,8 @@ def _list_matches(
     session: Session,
     needle: str,
     project_id: int | None,
+    *,
+    allowed: frozenset[int] | None,
 ) -> FindResults:
     issues = load_issue_hits(
         session,
@@ -311,14 +329,22 @@ def _list_matches(
         project_id,
         limit=PER_KIND + 1,
         offset=0,
+        allowed=allowed,
     )
-    projects = load_project_hits(session, needle, limit=PER_KIND + 1, offset=0)
+    projects = load_project_hits(
+        session,
+        needle,
+        limit=PER_KIND + 1,
+        offset=0,
+        allowed=allowed,
+    )
     sprints = load_sprint_hits(
         session,
         needle,
         project_id,
         limit=PER_KIND + 1,
         offset=0,
+        allowed=allowed,
     )
     users = load_user_hits(session, needle, limit=PER_KIND + 1, offset=0)
     return FindResults(
@@ -347,7 +373,28 @@ def _issue_key_expr() -> ColumnElement[str]:
     return Project.key.concat(literal("-")).concat(cast(Issue.number, String))
 
 
-def _issue_stmt(pattern: str, project_id: int | None) -> Select[tuple[Issue, Project]]:
+def _keeps(project_id: int, allowed: frozenset[int] | None) -> bool:
+    return allowed is None or project_id in allowed
+
+
+def _limit[Row: tuple[Any, ...]](
+    stmt: Select[Row],
+    column: Any,
+    allowed: frozenset[int] | None,
+) -> Select[Row]:
+    if allowed is None:
+        return stmt
+    if not allowed:
+        return stmt.where(false())
+    return stmt.where(column.in_(tuple(allowed)))
+
+
+def _issue_stmt(
+    pattern: str,
+    project_id: int | None,
+    *,
+    allowed: frozenset[int] | None,
+) -> Select[tuple[Issue, Project]]:
     comment_ids = select(Comment.issue_id).where(
         Comment.body.ilike(pattern, escape="\\"),
     )
@@ -367,7 +414,7 @@ def _issue_stmt(pattern: str, project_id: int | None) -> Select[tuple[Issue, Pro
     )
     if project_id is not None:
         stmt = stmt.where(Issue.project_id == project_id)
-    return stmt
+    return _limit(stmt, Issue.project_id, allowed)
 
 
 def _issue_snippet(
@@ -398,19 +445,26 @@ def _issue_snippet(
     return None
 
 
-def _project_stmt(pattern: str) -> Select[tuple[Project]]:
-    return select(Project).where(
+def _project_stmt(
+    pattern: str,
+    *,
+    allowed: frozenset[int] | None,
+) -> Select[tuple[Project]]:
+    stmt = select(Project).where(
         or_(
             Project.key.ilike(pattern, escape="\\"),
             Project.name.ilike(pattern, escape="\\"),
             Project.description.ilike(pattern, escape="\\"),
         ),
     )
+    return _limit(stmt, Project.id, allowed)
 
 
 def _sprint_stmt(
     pattern: str,
     project_id: int | None,
+    *,
+    allowed: frozenset[int] | None,
 ) -> Select[tuple[Sprint, Project]]:
     stmt = (
         select(Sprint, Project)
@@ -424,7 +478,7 @@ def _sprint_stmt(
     )
     if project_id is not None:
         stmt = stmt.where(Sprint.project_id == project_id)
-    return stmt
+    return _limit(stmt, Sprint.project_id, allowed)
 
 
 def _user_stmt(pattern: str) -> Select[tuple[User]]:

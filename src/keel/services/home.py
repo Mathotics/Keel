@@ -68,17 +68,26 @@ def personal_inbox(
     assignee_id: int,
     *,
     today: date | None = None,
+    project_ids: frozenset[int] | None = None,
 ) -> HomeInbox:
-    """Issues assigned to one user, partitioned into overlapping home sections."""
+    """Issues assigned to one user, partitioned into overlapping home sections.
+
+    ``project_ids`` None includes every project. An empty set includes none.
+    """
     day = today or date.today()
     week_end = _week_end(day)
     month_end = _month_end(day)
-    found = session.execute(
+    if project_ids is not None and not project_ids:
+        return HomeInbox()
+    statement = (
         select(Issue, Project, Sprint)
         .join(Project, Issue.project_id == Project.id)
         .outerjoin(Sprint, Issue.sprint_id == Sprint.id)
-        .where(Issue.assignee_id == assignee_id),
-    ).all()
+        .where(Issue.assignee_id == assignee_id)
+    )
+    if project_ids is not None:
+        statement = statement.where(Issue.project_id.in_(tuple(project_ids)))
+    found = session.execute(statement).all()
     counts = dependency_service.unresolved_blocker_counts(
         session,
         [issue.id for issue, _project, _sprint in found],

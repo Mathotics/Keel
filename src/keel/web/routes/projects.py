@@ -13,6 +13,7 @@ from keel.services import projects as project_service
 from keel.services import users as user_service
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.filters import FilterRequest, filter_request
+from keel.web.guards import require_project_key
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
 from keel.web.routes.pages import _calendar_page, _gantt_page
 
@@ -57,7 +58,11 @@ def project_list(
     )
 
 
-@router.get("/{key}", response_class=HTMLResponse)
+@router.get(
+    "/{key}",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_ISSUES))],
+)
 def project_page(
     key: str,
     request: Request,
@@ -108,11 +113,23 @@ def project_page(
             can_view_project_access=access_service.holds_project(
                 session, chrome.access, project.id, Permission.VIEW_PROJECT_RBAC
             ),
+            can_change_settings=access_service.holds_project(
+                session,
+                chrome.access,
+                project.id,
+                Permission.CHANGE_PROJECT_SETTINGS,
+            ),
+            can_delete_project=access_service.may_delete_project(
+                session, chrome.access, project.id
+            ),
         ),
     )
 
 
-@router.get("/{key}/issues/new")
+@router.get(
+    "/{key}/issues/new",
+    dependencies=[Depends(require_project_key(Permission.CREATE_ISSUES))],
+)
 def new_issue_page(key: str, error: str | None = None) -> RedirectResponse:
     """Creating happens on /create; keep the old per-project URL working."""
     params = {"project": key}
@@ -121,7 +138,11 @@ def new_issue_page(key: str, error: str | None = None) -> RedirectResponse:
     return RedirectResponse(url=f"/create?{urlencode(params)}", status_code=303)
 
 
-@router.get("/{key}/calendar", response_class=HTMLResponse)
+@router.get(
+    "/{key}/calendar",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_CALENDAR))],
+)
 def project_calendar_page(
     key: str,
     request: Request,
@@ -158,7 +179,11 @@ def project_calendar_page(
     )
 
 
-@router.get("/{key}/gantt", response_class=HTMLResponse)
+@router.get(
+    "/{key}/gantt",
+    response_class=HTMLResponse,
+    dependencies=[Depends(require_project_key(Permission.VIEW_GANTT))],
+)
 def project_gantt_page(
     key: str,
     request: Request,

@@ -8,10 +8,14 @@ from fastapi import Query, Request
 from sqlalchemy.orm import Session
 
 from keel.db.models import Sprint
+from keel.domain.access import Permission
 from keel.domain.enums import types_in_hierarchy_order
+from keel.services import access as access_service
 from keel.services import boards as board_service
+from keel.services import labels as label_service
 from keel.services import sprints as sprint_service
 from keel.services import view_filter
+from keel.services.access import Access
 from keel.services.view_filter import ViewFilter
 
 DATE_PARAMS = (
@@ -109,7 +113,21 @@ def read_bar(
     base: str,
     include_projects: bool,
     extra: Sequence[tuple[str, str]] = (),
+    access: Access | None = None,
 ) -> ViewFilter:
+    visible_projects: frozenset[int] | None = None
+    visible_labels: frozenset[str] | None = None
+    if access is not None:
+        visible_projects = access_service.project_ids_holding(
+            session,
+            access,
+            Permission.VIEW_ISSUES,
+        )
+        label_projects = access_service.label_project_ids(session, access)
+        if label_projects is not None:
+            visible_labels = frozenset(
+                item.name for item in label_service.list_labels(session, label_projects)
+            )
     return view_filter.load(
         session,
         base=base,
@@ -132,6 +150,8 @@ def read_bar(
         due_to=raw.due_to,
         include_projects=include_projects,
         extra=extra,
+        visible_projects=visible_projects,
+        visible_labels=visible_labels,
     )
 
 
@@ -140,7 +160,10 @@ def sprint_menu(
     *,
     project_id: int | None,
     project_ids: tuple[int, ...],
+    limited: bool = False,
 ) -> tuple[Sprint, ...]:
+    if limited and project_id is None and not project_ids:
+        return ()
     if project_ids:
         found = [
             sprint

@@ -38,7 +38,7 @@ The project access page is `/projects/{key}/access`. The project page links to i
 * **View Log Tracker.** Requires Display Admin menu.
 * **View global RBAC page.** Requires Display Admin menu.
 * **Manage global RBAC.** Requires View global RBAC page. An Admin cannot change Owner membership.
-* **View users.** The Users link under the Admin menu. It does not require Display Admin menu. When it is the only Admin item that person can open, the Admin menu still appears. The people directory used for assignees stays available to every signed-in person.
+* **View users.** The Users link under the Admin menu. It does not require Display Admin menu. When it is the only Admin item that person can open, the Admin menu still appears. `GET /api/v1/users` and `GET /api/v1/users/{user_id}` stay available to every signed-in person, including No Access, so assignee lists and the phone app can read display names. Creating, renaming, deleting, and resetting passwords still require this permission.
 * **Create users.** Requires View users. A new person is Member.
 * **Delete users.** Requires View users. A person still cannot delete their own user. Deleting an Owner follows the Owner rules above.
 * **Rename users.** Requires View users.
@@ -95,16 +95,16 @@ Schedules:
 
 Project administration:
 
-* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, lookahead, and currency.
-* **Delete this project.** Requires View issues. This project only.
+* **Change project settings.** Requires View issues. Name, description, sprint cadence, cadence length, lookahead, and currency. The project settings routes check this permission.
+* **Delete this project.** Requires View issues. Deleting a project is allowed with this permission or with the global Delete projects permission. An Owner may delete either way.
 * **View project RBAC page.** Requires View issues.
 * **Manage project RBAC.** Requires View project RBAC page.
 
-The project access page checks View project RBAC and Manage project RBAC. Other project route checks are KEEL-105. The rows and the role bundles exist now.
+The project access page checks View project RBAC and Manage project RBAC. Every other route that reads or writes one project's issues, comments, dependencies, sprints, schedules, board, backlog, calendar, gantt, or settings checks that project's permission. Search, lookup, and label lists leave out projects the person cannot view. `GET /api/v1/users` and `GET /api/v1/users/{user_id}` stay open to every signed-in person.
 
 ## Always allowed
 
-Every signed-in person can open their profile, change their own password, manage their own API tokens, arrange home and nav, sign out, and open Help, License, `/docs`, and `/redoc`. `GET /health`, `/login`, and `/assets/` stay public. Server CLI backup, restore, `keel users set-password`, and `keel users create-token` stay operator actions on the machine.
+Every signed-in person, including No Access, can open their profile, change their own password, manage their own API tokens, arrange home and nav, sign out, and open Help, License, `/docs`, and `/redoc`. They can also `GET /api/v1/users` and `GET /api/v1/users/{user_id}`. `GET /health`, `/login`, and `/assets/` stay public. Server CLI backup, restore, `keel users set-password`, and `keel users create-token` stay operator actions on the machine.
 
 ## Signed-in but not allowed
 
@@ -112,7 +112,7 @@ A signed-in person who opens a global page they cannot use sees a forbidden page
 
 ## Day-one assignments
 
-Stored by the upgrade. Project checks that would enforce them ship with KEEL-105.
+Stored by the upgrade. Project routes enforce these roles.
 
 * **jacob_hootman:** Owner, and Project Owner on BOAT, HOUSE, KEEL, and PERSONAL.
 * **Cursor:** Member, and Contributor on KEEL.
