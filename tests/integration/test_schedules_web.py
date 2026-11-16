@@ -567,6 +567,20 @@ def test_the_schedule_form_saves_items_under_the_root(client: TestClient) -> Non
     assert "File federal return" in detail.text
 
 
+def test_schedule_item_assignee_is_a_person_lookup(client: TestClient) -> None:
+    client.post("/api/v1/projects", json={"key": "HOME", "name": "Home"})
+    form = client.get("/projects/HOME/schedules?tab=new")
+    assert 'src="/assets/js/lookup.js"' in form.text
+    assert 'src="/assets/js/series-items.js"' in form.text
+    script = client.get("/assets/js/series-items.js")
+    assert script.status_code == 200
+    assert 'setAttribute("data-keel-lookup", "users")' in script.text
+    assert "keelBindLookups" in script.text
+    assert 'label: "Unassigned"' not in script.text
+    lookup = client.get("/assets/js/lookup.js")
+    assert "window.keelBindLookups" in lookup.text
+
+
 def test_overlay_script_opens_without_a_framework(client: TestClient) -> None:
     script = client.get("/assets/js/overlay.js")
     assert script.status_code == 200

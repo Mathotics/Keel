@@ -134,6 +134,54 @@
     return node;
   }
 
+  function assigneeField(item) {
+    var people = config.users || [];
+    var current = null;
+    people.forEach(function (person) {
+      if (person.id === item.assignee_id) {
+        current = person;
+      }
+    });
+    var box = document.createElement("span");
+    box.className = "keel-lookup";
+    box.setAttribute("data-keel-lookup", "users");
+    var input = document.createElement("input");
+    input.type = "text";
+    input.id = "series-item-field-" + fieldId++;
+    input.value = current ? current.name : "";
+    input.placeholder = "Unassigned";
+    input.autocomplete = "off";
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-expanded", "false");
+    var list = document.createElement("span");
+    list.id = input.id + "-list";
+    list.className = "keel-lookup__list";
+    list.setAttribute("role", "listbox");
+    list.hidden = true;
+    input.setAttribute("aria-controls", list.id);
+    box.appendChild(input);
+    box.appendChild(list);
+    box.addEventListener("keel-lookup-pick", function (event) {
+      var row = event.detail || {};
+      item.assignee_id = row.id == null ? null : Number(row.id);
+      write();
+    });
+    input.addEventListener("input", function () {
+      if (!input.value.trim()) {
+        item.assignee_id = null;
+        write();
+      }
+    });
+    var wrap = document.createElement("p");
+    var caption = document.createElement("label");
+    caption.textContent = "Assignee";
+    caption.htmlFor = input.id;
+    wrap.appendChild(caption);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
   function render() {
     root.replaceChildren();
     items.forEach(function (item, index) {
@@ -173,16 +221,6 @@
         item.labels = labels.value.split(",").map(function (part) {
           return part.trim();
         }).filter(Boolean);
-        write();
-      });
-      var people = [{ value: "", label: "Unassigned" }].concat(
-        (config.users || []).map(function (person) {
-          return { value: String(person.id), label: person.name };
-        }),
-      );
-      var assignee = select(people, item.assignee_id == null ? "" : item.assignee_id);
-      assignee.addEventListener("change", function () {
-        item.assignee_id = assignee.value ? Number(assignee.value) : null;
         write();
       });
       var parents = legalParents(item);
@@ -242,7 +280,7 @@
       card.appendChild(field("Default description", description));
       card.appendChild(field("Priority", priority));
       card.appendChild(field("Labels", labels));
-      card.appendChild(field("Assignee", assignee));
+      card.appendChild(assigneeField(item));
       card.appendChild(field("Start offset (days before)", offsetInput(item.start_offset_days, function (value) {
         item.start_offset_days = value;
       })));
@@ -267,6 +305,9 @@
         card.appendChild(addNested);
       }
       root.appendChild(card);
+      if (window.keelBindLookups) {
+        window.keelBindLookups(card);
+      }
       void index;
     });
     var add = document.querySelector("[data-series-items-add]");
