@@ -143,7 +143,7 @@
         <div class="keel-fact">
           <dt>Dates</dt>
           <dd>
-            <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}{% if not can_edit_issue %} inert{% endif %}>
+            <form class="keel-form keel-form--inline keel-dates" method="post" action="/web/issues/{{ issue.id }}/dates"{% if not series %} data-keel-autosubmit{% endif %}{% if not can_edit_issue %} inert{% endif %}>
               <label for="issue-start">Start date</label>
               <input id="issue-start" name="start_at" type="datetime-local" value="{{ issue.start_at | datetime_local }}" data-keel-range="start"/>
               <label for="issue-due">Due date</label>

@@ -1646,6 +1646,27 @@ body {
   min-width: 0;
 }
 
+/* A date control is too wide to share one row with the other date, so each
+   label stays on the same row as its own field. */
+.keel-form.keel-dates {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+}
+
+.keel-dates input[type="datetime-local"],
+.keel-dates select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.keel-dates > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
 .keel-description {
   max-width: 48rem;
   min-height: 8rem;
