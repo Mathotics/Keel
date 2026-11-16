@@ -529,6 +529,18 @@ def test_time_spent_is_independent_of_the_estimate(
         issue_service.update_issue(session, issue.id, spent_minutes=-5)
 
 
+def test_story_points_are_a_whole_number_on_the_issue(
+    session: Session,
+    project: Project,
+) -> None:
+    issue = issue_service.get_issue(session, make(session, project, story_points=5))
+    assert issue.story_points == 5
+    cleared = issue_service.update_issue(session, issue.id, story_points=None)
+    assert cleared.story_points is None
+    with pytest.raises(InvalidIssueError):
+        issue_service.update_issue(session, issue.id, story_points=-1)
+
+
 def test_time_spent_rolls_up_including_cancelled_descendants(
     session: Session,
     project: Project,

@@ -192,6 +192,7 @@ def create_issue(
     estimate_minutes: int | None = None,
     remaining_minutes: int | None = None,
     spent_minutes: int | None = None,
+    story_points: int | None = None,
     planned_value_cents: int | None = None,
     earned_value_cents: int | None = None,
     actual_cost_cents: int | None = None,
@@ -210,6 +211,7 @@ def create_issue(
     _check_minutes(estimate_minutes)
     _check_minutes(remaining_minutes)
     _check_minutes(spent_minutes)
+    _check_points(story_points)
     _check_cents(planned_value_cents)
     _check_cents(earned_value_cents)
     _check_cents(actual_cost_cents)
@@ -234,6 +236,7 @@ def create_issue(
         estimate_minutes=estimate_minutes,
         remaining_minutes=remaining_minutes,
         spent_minutes=spent_minutes,
+        story_points=story_points,
         planned_value_cents=planned_value_cents,
         earned_value_cents=earned_value_cents,
         actual_cost_cents=actual_cost_cents,
@@ -289,6 +292,7 @@ def update_issue(
     estimate_minutes: int | None | object = UNSET,
     remaining_minutes: int | None | object = UNSET,
     spent_minutes: int | None | object = UNSET,
+    story_points: int | None | object = UNSET,
     planned_value_cents: int | None | object = UNSET,
     earned_value_cents: int | None | object = UNSET,
     actual_cost_cents: int | None | object = UNSET,
@@ -429,6 +433,15 @@ def update_issue(
                 history_service.effort_label(spent_minutes),  # type: ignore[arg-type]
             )
             issue.spent_minutes = spent_minutes  # type: ignore[assignment]
+    if story_points is not UNSET:
+        _check_points(story_points)  # type: ignore[arg-type]
+        if story_points != issue.story_points:
+            _note(
+                history_service.FIELD_POINTS,
+                history_service.points_label(issue.story_points),
+                history_service.points_label(story_points),  # type: ignore[arg-type]
+            )
+            issue.story_points = story_points  # type: ignore[assignment]
     cost_currency = project_service.get_project(session, issue.project_id).currency
     if planned_value_cents is not UNSET:
         _check_cents(planned_value_cents)  # type: ignore[arg-type]
@@ -848,6 +861,21 @@ def _clean_title(title: str) -> str:
 
 def _clean_location(location: str) -> str:
     return location.strip()[:MAX_LOCATION_LENGTH]
+
+
+def parse_story_points(raw: str) -> int | None:
+    """A blank box is unset. Anything other than a whole number is refused."""
+    text = raw.strip()
+    if not text:
+        return None
+    if not text.isdigit():
+        raise InvalidIssueError("Story points must be a whole number.")
+    return int(text)
+
+
+def _check_points(value: int | None) -> None:
+    if value is not None and value < 0:
+        raise InvalidIssueError("Story points cannot be negative.")
 
 
 def _check_minutes(value: int | None) -> None:

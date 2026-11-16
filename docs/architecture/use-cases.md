@@ -79,7 +79,7 @@ Goal-level journeys for the v1 features. All journeys are performed by the **own
 
 ## Issue history
 
-* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, time spent, due date, parent, type, title, description, definition of done, and location changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md)).
+* **See how an issue got here.** A user opens an issue and reads a short trail of status, assignee, sprint, estimate, remaining, time spent, story points, due date, parent, type, title, description, definition of done, and location changes — who, when, from → to — without relying on comments ([ADR 025](../adr/ADR-025.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md)).
 
 ## Time estimates
 

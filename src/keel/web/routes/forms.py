@@ -586,6 +586,7 @@ def create_issue_from_page(
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
     spent: Annotated[str, Form()] = "",
+    points: Annotated[str, Form()] = "",
     planned_value: Annotated[str, Form()] = "",
     earned_value: Annotated[str, Form()] = "",
     actual_cost: Annotated[str, Form()] = "",
@@ -632,6 +633,7 @@ def create_issue_from_page(
                 estimate=estimate,
                 remaining=remaining,
                 spent=spent,
+                points=points,
                 planned_value=planned_value,
                 earned_value=earned_value,
                 actual_cost=actual_cost,
@@ -684,6 +686,7 @@ def create_issue_from_page(
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
             spent_minutes=parse_duration(spent),
+            story_points=issue_service.parse_story_points(points),
             planned_value_cents=parse_cost(planned_value, project.currency),
             earned_value_cents=parse_cost(earned_value, project.currency),
             actual_cost_cents=parse_cost(actual_cost, project.currency),
@@ -725,6 +728,7 @@ def create_issue(
     estimate: Annotated[str, Form()] = "",
     remaining: Annotated[str, Form()] = "",
     spent: Annotated[str, Form()] = "",
+    points: Annotated[str, Form()] = "",
     planned_value: Annotated[str, Form()] = "",
     earned_value: Annotated[str, Form()] = "",
     actual_cost: Annotated[str, Form()] = "",
@@ -777,6 +781,7 @@ def create_issue(
             estimate_minutes=parse_duration(estimate),
             remaining_minutes=parse_duration(remaining),
             spent_minutes=parse_duration(spent),
+            story_points=issue_service.parse_story_points(points),
             planned_value_cents=parse_cost(planned_value, project.currency),
             earned_value_cents=parse_cost(earned_value, project.currency),
             actual_cost_cents=parse_cost(actual_cost, project.currency),
@@ -1084,6 +1089,30 @@ def update_issue_spent(
             session,
             issue_id,
             spent_minutes=parse_duration(spent),
+            actor_name=_actor_name(chrome),
+        )
+    except DomainError as exc:
+        session.rollback()
+        return _back(here, exc.message)
+    return _back(here)
+
+
+@router.post(
+    "/issues/{issue_id}/points",
+    dependencies=[Depends(guard_issue_page(Permission.EDIT_ISSUES))],
+)
+def update_issue_points(
+    session: SessionDep,
+    chrome: ChromeDep,
+    issue_id: int,
+    points: Annotated[str, Form()] = "",
+) -> RedirectResponse:
+    here = _issue_here(session, issue_id)
+    try:
+        issue_service.update_issue(
+            session,
+            issue_id,
+            story_points=issue_service.parse_story_points(points),
             actor_name=_actor_name(chrome),
         )
     except DomainError as exc:

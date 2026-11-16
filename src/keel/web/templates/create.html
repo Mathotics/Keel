@@ -132,6 +132,10 @@
                 <label for="issue-spent">Time spent</label>
                 <input id="issue-spent" name="spent" type="text" placeholder="2h, 90m, 1h 30m, or 1d" value="{{ draft.spent }}"/>
               </p>
+              <p>
+                <label for="issue-points">Story points</label>
+                <input id="issue-points" name="points" type="number" min="0" step="1" value="{{ draft.points }}"/>
+              </p>
             </div>
           </fieldset>
           <fieldset>

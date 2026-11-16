@@ -392,6 +392,7 @@ def test_effort_round_trips_as_minutes(client: TestClient, project_id: int) -> N
     assert issue["estimate_minutes"] == 90
     assert issue["remaining_minutes"] == 90
     assert issue["spent_minutes"] is None
+    assert issue["story_points"] is None
     assert issue["rollup"]["estimate_minutes"] == 90
     assert issue["rollup"]["descendants"] == 0
 

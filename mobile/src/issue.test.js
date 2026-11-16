@@ -100,6 +100,7 @@ test("assembles a read-only issue page", () => {
   assert.equal(page.estimate, "1h");
   assert.equal(page.remaining, "None");
   assert.equal(page.spent, "30m");
+  assert.equal(page.points, "None");
   assert.equal(page.plannedValue, "$0.00 USD");
   assert.equal(page.budgetAtCompletion, "$0.00 USD");
   assert.equal(page.schedulePerformanceIndex, "N/A");

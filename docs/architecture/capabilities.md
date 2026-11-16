@@ -62,7 +62,7 @@ flowchart LR
 * Write an issue's definition of done — the criteria for calling it *Done* — in its own panel beneath Description ([Issue definition of done](../adr/issue-definition-of-done.md)).
 * Record where an issue will happen in an optional location, blank until set ([Issue location](../adr/issue-location.md)).
 * Add and remove labels on an issue, and filter the board and issue list by one label ([ADR 031](../adr/ADR-031.md)).
-* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, time spent, due date, parent, type, title, description, definition of done, priority, labels, location, planned value, earned value, and actual cost ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md), [Cost estimation](../adr/cost-estimation.md)).
+* Read a short per-issue changelog of status, assignee, sprint, estimate, remaining, time spent, story points, due date, parent, type, title, description, definition of done, priority, labels, location, planned value, earned value, and actual cost ([ADR 025](../adr/ADR-025.md), [ADR 030](../adr/ADR-030.md), [ADR 031](../adr/ADR-031.md), [Issue definition of done](../adr/issue-definition-of-done.md), [Issue location](../adr/issue-location.md), [Cost estimation](../adr/cost-estimation.md)).
 
 ## Planning
 

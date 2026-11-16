@@ -82,6 +82,7 @@ def test_the_new_issue_form_renders(client: TestClient, project: Json) -> None:
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
     assert 'name="spent"' in page.text
+    assert 'name="points"' in page.text
     assert 'class="keel-type-select"' in page.text
     assert 'data-type="story"' in page.text
 
@@ -581,6 +582,7 @@ def test_the_issue_page_shows_its_metadata(client: TestClient, project: Json) ->
     assert 'name="estimate"' in page.text
     assert 'name="remaining"' in page.text
     assert 'name="spent"' in page.text
+    assert 'name="points"' in page.text
     assert "data-keel-autosubmit" in page.text
     assert "keel-autosubmit__fallback" in page.text
 
@@ -1013,6 +1015,23 @@ def test_effort_round_trips_through_shorthand(
     assert spent.headers["location"] == "/issues/KEEL-1"
     assert client.get(f"/api/v1/issues/{issue_id}").json()["spent_minutes"] == 30
     assert 'value="30m"' in client.get("/issues/KEEL-1").text
+
+    points = client.post(
+        f"/web/issues/{issue_id}/points",
+        data={"points": "5"},
+        follow_redirects=False,
+    )
+    assert points.headers["location"] == "/issues/KEEL-1"
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["story_points"] == 5
+    assert 'value="5"' in client.get("/issues/KEEL-1").text
+
+    points_refused = client.post(
+        f"/web/issues/{issue_id}/points",
+        data={"points": "1.5"},
+        follow_redirects=False,
+    )
+    assert points_refused.headers["location"].startswith("/issues/KEEL-1?error=")
+    assert client.get(f"/api/v1/issues/{issue_id}").json()["story_points"] == 5
 
     spent_refused = client.post(
         f"/web/issues/{issue_id}/spent",

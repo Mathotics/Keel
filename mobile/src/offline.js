@@ -39,6 +39,7 @@ function issueCreateBody(raw, clientKey) {
     estimate_minutes: raw.estimate_minutes ?? null,
     remaining_minutes: raw.remaining_minutes ?? null,
     spent_minutes: raw.spent_minutes ?? null,
+    story_points: raw.story_points ?? null,
     planned_value_cents: raw.planned_value_cents ?? null,
     earned_value_cents: raw.earned_value_cents ?? null,
     actual_cost_cents: raw.actual_cost_cents ?? null,
@@ -613,6 +614,7 @@ function reuseQueuedCreate(store, pending, draft, clientKey) {
     estimate_minutes: draft.estimate_minutes ?? null,
     remaining_minutes: draft.remaining_minutes ?? null,
     spent_minutes: draft.spent_minutes ?? null,
+    story_points: draft.story_points ?? null,
     planned_value_cents: draft.planned_value_cents ?? null,
     earned_value_cents: draft.earned_value_cents ?? null,
     actual_cost_cents: draft.actual_cost_cents ?? null,
@@ -676,6 +678,7 @@ function queueCreate(store, draft) {
     estimate_minutes: draft.estimate_minutes ?? null,
     remaining_minutes: draft.remaining_minutes ?? null,
     spent_minutes: draft.spent_minutes ?? null,
+    story_points: draft.story_points ?? null,
     planned_value_cents: draft.planned_value_cents ?? null,
     earned_value_cents: draft.earned_value_cents ?? null,
     actual_cost_cents: draft.actual_cost_cents ?? null,
@@ -1178,6 +1181,7 @@ const QUEUE_FIELD = {
   estimate_minutes: "Estimate",
   remaining_minutes: "Remaining",
   spent_minutes: "Time spent",
+  story_points: "Story points",
   planned_value_cents: "Planned value",
   earned_value_cents: "Earned value",
   actual_cost_cents: "Actual cost",
@@ -1245,6 +1249,9 @@ function queueValue(store, key, value, currency) {
   if (key === "estimate_minutes" || key === "remaining_minutes" || key === "spent_minutes") {
     return value == null ? "None" : `${value}m`;
   }
+  if (key === "story_points") {
+    return value == null ? "None" : String(value);
+  }
   if (key === "planned_value_cents" || key === "earned_value_cents" || key === "actual_cost_cents") {
     return formatMoney(value, currency || "USD", "edit");
   }
@@ -1303,6 +1310,7 @@ const CONFLICT_FIELDS = [
   ["estimate_minutes", "Estimate"],
   ["remaining_minutes", "Remaining"],
   ["spent_minutes", "Time spent"],
+  ["story_points", "Story points"],
   ["planned_value_cents", "Planned value"],
   ["earned_value_cents", "Earned value"],
   ["actual_cost_cents", "Actual cost"],
@@ -1320,6 +1328,9 @@ function conflictFieldValue(store, issue, key, value) {
   }
   if (key === "estimate_minutes" || key === "remaining_minutes" || key === "spent_minutes") {
     return formatMinutes(value);
+  }
+  if (key === "story_points") {
+    return value == null ? "None" : String(value);
   }
   if (key === "planned_value_cents" || key === "earned_value_cents" || key === "actual_cost_cents") {
     const project = issue && store.projects && store.projects[issue.projectId];

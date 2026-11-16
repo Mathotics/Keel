@@ -202,6 +202,16 @@ test("a planned value change is the only field sent", () => {
   assert.deepEqual(prepared.changes, { planned_value_cents: 2000 });
 });
 
+test("a story points change is the only field sent", () => {
+  const prepared = prepareUpdate(updateInput({ points: "8" }));
+  assert.equal(prepared.error, null);
+  assert.deepEqual(prepared.changes, { story_points: 8 });
+  assert.match(
+    prepareUpdate(updateInput({ points: "1.5" })).error,
+    /Story points must be a whole number/,
+  );
+});
+
 test("a time spent change is the only field sent", () => {
   const prepared = prepareUpdate(updateInput({ spent: "45m" }));
   assert.equal(prepared.error, null);

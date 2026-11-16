@@ -3866,6 +3866,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
   const [estimate, setEstimate] = useState("");
   const [remaining, setRemaining] = useState("");
   const [spent, setSpent] = useState("");
+  const [points, setPoints] = useState("");
   const [plannedValue, setPlannedValue] = useState(formatMoney(0, currency, "edit"));
   const [earnedValue, setEarnedValue] = useState(formatMoney(0, currency, "edit"));
   const [actualCost, setActualCost] = useState(formatMoney(0, currency, "edit"));
@@ -4005,6 +4006,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
         estimate,
         remaining,
         spent,
+        points,
         plannedValue,
         earnedValue,
         actualCost,
@@ -4100,6 +4102,7 @@ function CreateIssue({ account, library, busy, seed, onCancel, onFile }) {
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
       <Field label="Time spent" value={spent} onChange={setSpent} placeholder="30m" />
+      <Field label="Story points" value={points} onChange={setPoints} placeholder="5" keyboardType="number-pad" />
       <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
       <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
       <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
@@ -4143,6 +4146,11 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
     issue.spent_minutes === null || issue.spent_minutes === undefined
       ? ""
       : formatMinutes(issue.spent_minutes),
+  );
+  const [points, setPoints] = useState(
+    issue.story_points === null || issue.story_points === undefined
+      ? ""
+      : String(issue.story_points),
   );
   const currency = projectCurrency(project);
   const [plannedValue, setPlannedValue] = useState(
@@ -4262,6 +4270,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       estimate,
       remaining,
       spent,
+      points,
       plannedValue,
       earnedValue,
       actualCost,
@@ -4350,6 +4359,7 @@ function EditIssue({ account, issue, library, page, project, onCancel, onSave })
       <Field label="Estimate" value={estimate} onChange={setEstimate} placeholder="1h 30m" />
       <Field label="Remaining" value={remaining} onChange={setRemaining} placeholder="45m" />
       <Field label="Time spent" value={spent} onChange={setSpent} placeholder="30m" />
+      <Field label="Story points" value={points} onChange={setPoints} placeholder="5" keyboardType="number-pad" />
       <MoneyField label="Planned value (PV)" value={plannedValue} onChange={setPlannedValue} currency={currency} />
       <MoneyField label="Earned value (EV)" value={earnedValue} onChange={setEarnedValue} currency={currency} />
       <MoneyField label="Actual cost (AC)" value={actualCost} onChange={setActualCost} currency={currency} />
@@ -6341,6 +6351,7 @@ function IssueDetail({
           <DetailLine label="Estimate" value={page.estimate} />
           <DetailLine label="Remaining" value={page.remaining} />
           <DetailLine label="Time spent" value={page.spent} />
+          <DetailLine label="Story points" value={page.points} />
           <DetailLine label="Planned value (PV)" value={page.plannedValue} />
           <DetailLine label="Earned value (EV)" value={page.earnedValue} />
           <DetailLine label="Actual cost (AC)" value={page.actualCost} />

@@ -206,6 +206,16 @@
               </form>
             </dd>
           </div>
+          <div class="keel-fact">
+            <dt>Story points</dt>
+            <dd>
+              <form class="keel-form keel-form--inline" method="post" action="/web/issues/{{ issue.id }}/points" data-keel-autosubmit{% if not can_edit_issue %} inert{% endif %}>
+                <label class="keel-visually-hidden" for="issue-points">Story points</label>
+                <input id="issue-points" name="points" type="number" min="0" step="1" value="{{ issue.story_points if issue.story_points is not none else '' }}"/>
+                <button class="keel-autosubmit__fallback" type="submit">Save</button>
+              </form>
+            </dd>
+          </div>
         </dl>
         {% if rollup.descendants %}
         <p class="keel-rollup keel-fact-group__note">Including descendants: {{ rollup.estimate_minutes | duration or "none" }} estimate, {{ rollup.remaining_minutes | duration or "none" }} remaining, {{ rollup.spent_minutes | duration or "none" }} time spent. {{ rollup.progress_sentence() }}.</p>

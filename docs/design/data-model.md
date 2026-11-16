@@ -163,6 +163,7 @@ Indexes and constraints:
 | `estimate_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `remaining_minutes` | INTEGER | nullable, `CHECK` not negative |
 | `spent_minutes` | INTEGER | nullable, `CHECK` not negative |
+| `story_points` | INTEGER | nullable, `CHECK` not negative |
 | `planned_value_cents` | INTEGER | nullable, `CHECK` not negative |
 | `earned_value_cents` | INTEGER | nullable, `CHECK` not negative |
 | `actual_cost_cents` | INTEGER | nullable, `CHECK` not negative |
@@ -268,7 +269,7 @@ Index: `ix_comments_issue_created` on (`issue_id`, `created_at`).
 | `id` | INTEGER | primary key |
 | `issue_id` | INTEGER | not null, references `issues(id)` `ON DELETE CASCADE` |
 | `actor_name` | TEXT | not null |
-| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `time spent`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`, `planned value`, `earned value`, `actual cost`) |
+| `field` | TEXT | not null, `CHECK` in (`status`, `assignee`, `sprint`, `estimate`, `remaining`, `time spent`, `story points`, `due date`, `parent`, `type`, `title`, `description`, `definition of done`, `priority`, `labels`, `location`, `planned value`, `earned value`, `actual cost`) |
 | `from_value` | TEXT | not null |
 | `to_value` | TEXT | not null |
 | `created_at` | TIMESTAMP | not null |
@@ -370,6 +371,7 @@ Alembic revisions live in `migrations/`. They were written by hand and reviewed 
 | `0031` | `issues.planned_value_cents`, `issues.earned_value_cents`, `issues.actual_cost_cents`, and those names on `issue_history.field` |
 | `0032` | `projects.currency` |
 | `0038` | `issues.spent_minutes` and `time spent` on `issue_history.field` |
+| `0039` | `issues.story_points` and `story points` on `issue_history.field` |
 
 ## Related documents
 

@@ -19,6 +19,7 @@ FIELD_SPRINT = "sprint"
 FIELD_ESTIMATE = "estimate"
 FIELD_REMAINING = "remaining"
 FIELD_SPENT = "time spent"
+FIELD_POINTS = "story points"
 FIELD_PLANNED_VALUE = "planned value"
 FIELD_EARNED_VALUE = "earned value"
 FIELD_ACTUAL_COST = "actual cost"
@@ -145,6 +146,12 @@ def parent_label(session: Session, parent_id: int | None) -> str:
     if project is None:
         return NO_PARENT
     return f"{project.key}-{parent.number}"
+
+
+def points_label(points: int | None) -> str:
+    if points is None:
+        return NONE
+    return str(points)
 
 
 def effort_label(minutes: int | None) -> str:

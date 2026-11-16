@@ -28,6 +28,7 @@ class IssueCreate(BaseModel):
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
     spent_minutes: int | None = Field(default=None, ge=0)
+    story_points: int | None = Field(default=None, ge=0)
     planned_value_cents: int | None = Field(default=None, ge=0)
     earned_value_cents: int | None = Field(default=None, ge=0)
     actual_cost_cents: int | None = Field(default=None, ge=0)
@@ -58,6 +59,7 @@ class IssueUpdate(BaseModel):
     estimate_minutes: int | None = Field(default=None, ge=0)
     remaining_minutes: int | None = Field(default=None, ge=0)
     spent_minutes: int | None = Field(default=None, ge=0)
+    story_points: int | None = Field(default=None, ge=0)
     planned_value_cents: int | None = Field(default=None, ge=0)
     earned_value_cents: int | None = Field(default=None, ge=0)
     actual_cost_cents: int | None = Field(default=None, ge=0)
@@ -121,6 +123,7 @@ class IssueRead(BaseModel):
     estimate_minutes: int | None
     remaining_minutes: int | None
     spent_minutes: int | None
+    story_points: int | None
     planned_value_cents: int | None
     earned_value_cents: int | None
     actual_cost_cents: int | None
@@ -167,6 +170,7 @@ class IssueRead(BaseModel):
             estimate_minutes=issue.estimate_minutes,
             remaining_minutes=issue.remaining_minutes,
             spent_minutes=issue.spent_minutes,
+            story_points=issue.story_points,
             planned_value_cents=issue.planned_value_cents,
             earned_value_cents=issue.earned_value_cents,
             actual_cost_cents=issue.actual_cost_cents,

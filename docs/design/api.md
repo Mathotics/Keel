@@ -7,7 +7,7 @@ Collections are nested under their parent; single resources are flat, so a clien
 ## Conventions
 
 * All request and response bodies are JSON. Timestamps are ISO 8601 in UTC.
-* Effort is exchanged as whole minutes in `estimate_minutes`, `remaining_minutes`, and `spent_minutes`; the shorthand of [ADR 012](../adr/issue-realization.md) is a user-interface concern, not a wire format.
+* Effort is exchanged as whole minutes in `estimate_minutes`, `remaining_minutes`, and `spent_minutes`; the shorthand of [ADR 012](../adr/issue-realization.md) is a user-interface concern, not a wire format. `story_points` is a whole number, or null when unset.
 * Cost is exchanged as whole cents in `planned_value_cents` (PV), `earned_value_cents` (EV), and `actual_cost_cents` (AC). The project `currency` (default `USD`) is the unit shown for those amounts. Entry on the website and phone accepts a bare number or the formatted value, and refuses a symbol or code for a different currency ([Cost estimation](../adr/cost-estimation.md), [Project currency](../adr/project-currency.md)).
 * `PATCH` bodies are partial: only supplied fields change. Sending `null` clears a nullable field.
 * The acting user is the signed-in person ([Password login](../adr/password-login.md)). Browsers send the `keel_session` cookie. Scripts send `Authorization: Bearer`. A bearer header that does not match a live token does not fall through to the cookie. `X-Keel-User` is ignored. The acting user defaults an issue's reporter and a comment's author, and names person-driven field history on the issue page ([ADR 025](../adr/ADR-025.md)).
@@ -77,6 +77,7 @@ Create body:
   "assignee_id": 2,
   "estimate_minutes": 180,
   "spent_minutes": null,
+  "story_points": null,
   "start_at": "2026-09-14T09:00:00Z",
   "due_at": "2026-09-15T17:00:00Z",
   "labels": ["onboarding"]
@@ -107,6 +108,7 @@ Response body, with the fields the interface needs added:
   "estimate_minutes": 180,
   "remaining_minutes": 180,
   "spent_minutes": null,
+  "story_points": null,
   "planned_value_cents": 10000,
   "earned_value_cents": null,
   "actual_cost_cents": null,
@@ -304,6 +306,7 @@ Non-JavaScript fallbacks post to `/web` routes that redirect rather than returni
 | `POST` | `/web/issues/{issue_id}/estimate` | The issue page's estimate |
 | `POST` | `/web/issues/{issue_id}/remaining` | The issue page's remaining time |
 | `POST` | `/web/issues/{issue_id}/spent` | The issue page's time spent |
+| `POST` | `/web/issues/{issue_id}/points` | The issue page's story points |
 | `POST` | `/web/issues/{issue_id}/planned-value` | The issue page's planned value |
 | `POST` | `/web/issues/{issue_id}/earned-value` | The issue page's earned value |
 | `POST` | `/web/issues/{issue_id}/actual-cost` | The issue page's actual cost |
