@@ -44,18 +44,18 @@
                 <label for="issue-title">Title</label>
                 <input id="issue-title" name="title" type="text" maxlength="300" required autofocus placeholder="What needs doing?" value="{{ draft.title }}"/>
               </p>
-              <p class="keel-fields__full">
+              <div class="keel-field keel-fields__full">
                 <label for="issue-description">Description</label>
                 {% with field_id="issue-description", name="description", rows=6, value=draft.description, placeholder="Write a description…" %}
                 {% include "_markdown_field.html" %}
                 {% endwith %}
-              </p>
-              <p class="keel-fields__full">
+              </div>
+              <div class="keel-field keel-fields__full">
                 <label for="issue-definition-of-done">Definition of Done</label>
                 {% with field_id="issue-definition-of-done", name="definition_of_done", rows=6, value=draft.definition_of_done, placeholder="Write the definition of done…" %}
                 {% include "_markdown_field.html" %}
                 {% endwith %}
-              </p>
+              </div>
             </div>
           </fieldset>
           <fieldset>

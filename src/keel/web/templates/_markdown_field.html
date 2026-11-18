@@ -1,4 +1,13 @@
-<span class="keel-md" data-keel-markdown>
+<div class="keel-md" data-keel-markdown{% if controls %} data-keel-md-rest{% endif %}>
+  {% if controls %}
+  <div class="keel-md__face keel-markdown" data-keel-md-face tabindex="0">
+    {% if value and value.strip() %}
+    {{ value | markdown }}
+    {% else %}
+    <p class="keel-md__placeholder">{{ placeholder }}</p>
+    {% endif %}
+  </div>
+  {% endif %}
   <span class="keel-md__bar">
     <span class="keel-md__tabs" role="tablist" aria-label="Write or preview">
       <button type="button" class="keel-md__tab is-selected" role="tab" aria-selected="true" data-keel-md-tab="write">Write</button>
@@ -16,7 +25,7 @@
     </span>
   </span>
   <textarea id="{{ field_id }}" class="keel-description" name="{{ name }}" rows="{{ rows|default(6) }}"{% if required %} required{% endif %}{% if placeholder %} placeholder="{{ placeholder }}"{% endif %}>{{ value|default('') }}</textarea>
-  <span class="keel-md__preview keel-markdown" hidden></span>
+  <div class="keel-md__preview keel-markdown" hidden></div>
   <span class="keel-md__hint">
     <span>Markdown is supported.</span>
     {% if controls %}
@@ -30,4 +39,4 @@
     </span>
     {% endif %}
   </span>
-</span>
+</div>

@@ -876,6 +876,8 @@ def test_type_and_description_can_be_changed_from_the_issue_page(
     assert page.status_code == 200
     assert '<div class="keel-markdown">' not in page.text
     assert "A **longer** note." in page.text
+    assert "<strong>longer</strong>" in page.text
+    assert "data-keel-md-face" in page.text
     assert 'id="issue-description"' in page.text
     assert "Edit description" not in page.text
     assert "Add a description" not in page.text
@@ -908,7 +910,8 @@ def test_definition_of_done_can_be_changed_from_the_issue_page(
 
     page = client.get("/issues/KEEL-1")
     assert "- A **passing** build." in page.text
-    assert "<strong>passing</strong>" not in page.text
+    assert "<strong>passing</strong>" in page.text
+    assert "data-keel-md-face" in page.text
     assert 'id="issue-definition-of-done"' in page.text
     assert "Edit definition of done" not in page.text
 
