@@ -228,3 +228,12 @@ class LastProjectOwnerError(DomainError):
 class OwnerChangeDeniedError(DomainError):
     code = "access.owner_change"
     status_code = 403
+
+
+class InvalidReminderError(DomainError):
+    code = "reminder.invalid"
+    status_code = 422
+
+
+class ReminderConflictError(DomainError):
+    code = "reminder.conflict"

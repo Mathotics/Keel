@@ -30,6 +30,7 @@ from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.guards import require_project_key
 from keel.web.guards import require_series as guard_series_page
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
+from keel.web.routes.reminders import series_editor
 
 router = APIRouter(prefix="/projects")
 
@@ -200,5 +201,10 @@ def schedule_detail_page(
             ),
             error=error,
             notice=notice,
+            reminder_form=series_editor(
+                session,
+                chrome.current_user.id,  # type: ignore[union-attr]
+                series.id,
+            ),
         ),
     )

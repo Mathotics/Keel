@@ -6,6 +6,7 @@ const {
   markSeriesError,
   noteUploaded,
 } = require("./offline");
+const { uploadReminderQueue } = require("./reminders");
 
 function restoreComment(store, item) {
   if (!item.comment) {
@@ -119,7 +120,7 @@ async function uploadQueue(store, client) {
       held.add(item.issueId);
     }
   }
-  return current;
+  return uploadReminderQueue(current, client);
 }
 
 async function pullLibrary(store, client) {

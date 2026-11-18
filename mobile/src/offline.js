@@ -1,4 +1,5 @@
 const { commentView, formatMinutes, formatMoney, formatWhen, issuePage, priorityLabel, typeLabel } = require("./issue");
+const { retargetIssue, retargetSeries } = require("./reminders");
 const { cadenceSummary } = require("./series");
 const { statusLabel } = require("./work");
 
@@ -392,6 +393,9 @@ function noteUploaded(store, item, saved) {
         };
       }
     }
+    if (saved && saved.id != null && saved.id !== item.seriesId) {
+      return retargetSeries(next, item.seriesId, saved.id);
+    }
     return next;
   }
   const issue = findIssue(next, item.issueId);
@@ -421,6 +425,9 @@ function noteUploaded(store, item, saved) {
       }
     }
     created.pending = next.queue.some((entry) => entry.issueId === filed.id);
+    if (filed.id !== item.issueId) {
+      return retargetIssue(next, item.issueId, filed.id);
+    }
     return next;
   }
   if (item.kind === "comment" || item.kind === "uncomment") {

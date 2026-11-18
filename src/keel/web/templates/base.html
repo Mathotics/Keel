@@ -106,5 +106,9 @@
       <a class="keel-footer__copyright" href="/license">{{ copyright_notice }}</a>
       <p class="keel-footer__version">Keel {{ version }}</p>
     </footer>
+    {% if current_user %}
+    <div id="keel-reminders" class="keel-reminder-stack" hidden></div>
+    <script src="/assets/js/reminders.js" defer></script>
+    {% endif %}
   </body>
 </html>

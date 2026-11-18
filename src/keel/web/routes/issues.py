@@ -41,6 +41,7 @@ from keel.web.paging import (
     page_rows,
     table_pagers,
 )
+from keel.web.routes.reminders import issue_editor
 
 router = APIRouter(prefix="/issues")
 
@@ -192,6 +193,11 @@ def issue_page(
             ),
             can_manage_dependencies=access_service.holds_project(
                 session, chrome.access, project.id, Permission.MANAGE_DEPENDENCIES
+            ),
+            reminder_form=issue_editor(
+                session,
+                chrome.current_user.id,  # type: ignore[union-attr]
+                issue.id,
             ),
         ),
     )

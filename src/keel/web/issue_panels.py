@@ -9,6 +9,7 @@ PANELS: tuple[str, ...] = (
     "description",
     "definition_of_done",
     "children",
+    "reminders",
     "dependencies",
     "history",
     "comments",
