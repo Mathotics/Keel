@@ -27,6 +27,7 @@ $GitAliases = [ordered]@{
     conflicts         = "diff --name-only --diff-filter=U"
     oops              = "reset --soft HEAD~1"
     purge             = "clean -fdx -e .venv/ -e venv/ -e user/"
+    "prune-worktrees" = '!f() { bash "$(git rev-parse --show-toplevel)/scripts/prune-worktrees.sh" "$@"; }; f'
 }
 foreach ($name in $GitAliases.Keys) {
     git config --local "alias.$name" $GitAliases[$name]
