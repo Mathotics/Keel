@@ -50,6 +50,14 @@ Branch from `main` and name the branch after the Keel key, for example `KEEL-45`
 
 `--force` discards uncommitted changes and deletes a branch that is not fully merged. A remote branch is left in place.
 
+[`scripts/prune-worktrees.ps1`](../scripts/prune-worktrees.ps1) (and the `.bat` and `.sh` siblings) removes managed worktrees and local branches that are already merged into the default branch:
+
+```powershell
+.\scripts\prune-worktrees.ps1 --dry-run
+```
+
+`--stale` also selects worktrees and branches whose latest commit is at least 90 days old. `--force` discards uncommitted changes and deletes an unmerged branch selected by `--stale`. Onboarding adds the `prune-worktrees` git alias. Remote branches are left in place.
+
 ## Make the change
 
 A few rules hold across the codebase:

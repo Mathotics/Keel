@@ -30,7 +30,7 @@ Keel is a self-hosted issue tracker. A server can have multiple owners, and each
 
 You need **Python 3.12 or newer** and **Git**. On Windows, `py -3.12` selects that interpreter. On macOS or Linux, `python3.12` does. Set `PYTHON` to a Python 3.12 interpreter when the default `python` is older. `PYTHON` is the executable path, not a command with arguments.
 
-Clone the repository and run the onboard script for your system. It creates `.venv`, installs Keel with the development tools, checks the Poe tasks, installs git pre-commit hooks, and copies `.env.example` to `.env` when that file is missing. It also sets local git aliases: `graph`, `unstage`, `last`, `compare`, `unique-commits`, `missing-commits`, `conflicts`, `oops`, and `purge`.
+Clone the repository and run the onboard script for your system. It creates `.venv`, installs Keel with the development tools, checks the Poe tasks, installs git pre-commit hooks, and copies `.env.example` to `.env` when that file is missing. It also sets local git aliases: `graph`, `unstage`, `last`, `compare`, `unique-commits`, `missing-commits`, `conflicts`, `oops`, `purge`, and `prune-worktrees`.
 
 ```powershell
 git clone https://github.com/Mathotics/Keel.git
