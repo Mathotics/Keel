@@ -20,6 +20,7 @@ from keel.db.models.notice import Notice, NotificationPreference
 from keel.db.models.password_reset import PasswordResetToken
 from keel.db.models.phone_device import PhoneDevice, PhoneTopic
 from keel.db.models.project import Project
+from keel.db.models.reminder import ReminderIssueState, ReminderRule
 from keel.db.models.request_log import RequestLog
 from keel.db.models.series import Series, SeriesItem, SeriesSkip
 from keel.db.models.sprint import Sprint
@@ -49,6 +50,8 @@ __all__ = [
     "PhoneDevice",
     "PhoneTopic",
     "Project",
+    "ReminderIssueState",
+    "ReminderRule",
     "RequestLog",
     "Series",
     "SeriesItem",

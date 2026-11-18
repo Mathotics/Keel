@@ -1,0 +1,95 @@
+<form class="keel-form keel-form--stacked" method="post" action="{{ reminder_form.action }}">
+  <input type="hidden" name="base_updated_at" value="{{ reminder_form.base_updated_at }}"/>
+  <fieldset>
+    <legend>Before the start</legend>
+    {% for row in reminder_form.start_rows %}
+    <p data-keel-offset-row>
+      <label>
+        Amount
+        <input name="start_amount" type="number" min="1" inputmode="numeric" value="{{ row.amount }}"/>
+      </label>
+      <label>
+        Unit
+        <select name="start_unit">
+          {% for unit in reminder_form.units %}
+          <option value="{{ unit }}"{% if row.unit == unit %} selected{% endif %}>{{ unit }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </p>
+    {% endfor %}
+    <p><button type="button" data-keel-add-offset="start">Add another</button></p>
+    <p>
+      <label>
+        <input type="checkbox" name="at_start" value="1"{% if reminder_form.at_start %} checked{% endif %}/>
+        At the start
+      </label>
+    </p>
+  </fieldset>
+  <fieldset>
+    <legend>Before the due time</legend>
+    {% for row in reminder_form.due_rows %}
+    <p data-keel-offset-row>
+      <label>
+        Amount
+        <input name="due_amount" type="number" min="1" inputmode="numeric" value="{{ row.amount }}"/>
+      </label>
+      <label>
+        Unit
+        <select name="due_unit">
+          {% for unit in reminder_form.units %}
+          <option value="{{ unit }}"{% if row.unit == unit %} selected{% endif %}>{{ unit }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </p>
+    {% endfor %}
+    <p><button type="button" data-keel-add-offset="due">Add another</button></p>
+    <p>
+      <label>
+        <input type="checkbox" name="at_due" value="1"{% if reminder_form.at_due %} checked{% endif %}/>
+        At the due time
+      </label>
+    </p>
+  </fieldset>
+  <fieldset>
+    <legend>Overdue</legend>
+    <p>
+      <label>
+        Repeat
+        <select name="overdue_kind">
+        <option value="off"{% if reminder_form.overdue_kind == "off" %} selected{% endif %}>Off</option>
+        <option value="every_n"{% if reminder_form.overdue_kind == "every_n" %} selected{% endif %}>Every</option>
+        <option value="daily_at"{% if reminder_form.overdue_kind == "daily_at" %} selected{% endif %}>Every day at</option>
+        </select>
+      </label>
+    </p>
+    <p>
+      <label>
+        Amount
+        <input name="overdue_amount" type="number" min="1" inputmode="numeric" value="{{ reminder_form.overdue_amount }}"/>
+      </label>
+      <label>
+        Unit
+        <select name="overdue_unit">
+          {% for unit in reminder_form.units %}
+          <option value="{{ unit }}"{% if reminder_form.overdue_unit == unit %} selected{% endif %}>{{ unit }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </p>
+    <p>
+      <label>
+        Time
+        <input name="overdue_clock" type="time" value="{{ reminder_form.overdue_clock }}"/>
+      </label>
+    </p>
+  </fieldset>
+  <p class="keel-form-actions"><button class="keel-primary" type="submit">Save reminders</button></p>
+</form>
+{% if reminder_form.reset_action %}
+<form class="keel-form" method="post" action="{{ reminder_form.reset_action }}">
+  <input type="hidden" name="base_updated_at" value="{{ reminder_form.base_updated_at }}"/>
+  <button type="submit">{{ reminder_form.reset_label }}</button>
+</form>
+{% endif %}

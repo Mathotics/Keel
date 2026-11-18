@@ -673,6 +673,17 @@
       {% endif %}
       {% endcall %}
 
+      {% call issue_panel("reminders", "Reminders") %}
+      <p class="keel-note">{{ reminder_form.note }}</p>
+      {% if reminder_form.start_missing %}
+      <p class="keel-note">There is no start time, so start reminders wait until there is one.</p>
+      {% endif %}
+      {% if reminder_form.due_missing %}
+      <p class="keel-note">There is no due time, so due and overdue reminders wait until there is one.</p>
+      {% endif %}
+      {% include "_reminder_form.html" %}
+      {% endcall %}
+
       {% if can_delete_issue %}
       <form class="keel-form keel-form--danger" method="post" action="/web/issues/{{ issue.id }}/delete"
             onsubmit="return confirm('Delete {{ issue_key }}?{% if series and series_item %} This item is removed from this occurrence only.{% elif series %} This occurrence and its scheduled items will not come back.{% endif %}');">

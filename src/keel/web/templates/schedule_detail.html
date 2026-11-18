@@ -39,4 +39,10 @@
           <p class="keel-form-actions"><button class="keel-primary" type="submit">Save recipe</button></p>
         </form>
       </div>
+
+      <div class="keel-panel">
+        <h2>Reminders</h2>
+        <p class="keel-note">{{ reminder_form.note }}</p>
+        {% include "_reminder_form.html" %}
+      </div>
 {% endblock %}

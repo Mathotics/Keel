@@ -22,6 +22,7 @@ from keel.services.notifications import PreferenceChoice
 from keel.version import package_version
 from keel.web.context import ChromeDep, SessionDep, get_templates, page_context
 from keel.web.paging import DEFAULT_PAGE_SIZE, PagerRequest, one_pager, page_rows
+from keel.web.routes.reminders import profile_editor
 
 router = APIRouter()
 SEE_OTHER = 303
@@ -184,6 +185,7 @@ def profile_page(
                 session,
                 fresh.id,
             ),
+            reminder_form=profile_editor(session, fresh.id),
             **_phone_context(session, fresh.id),
         ),
     )

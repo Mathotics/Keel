@@ -44,6 +44,26 @@ import { NEEDS_CONNECTION as ACCOUNT_OFFLINE, deviceWhen, isThisPhone, preparePa
 import { PHONE_NOTE, appBarSlots, bellState, mergeInbox, noticeCacheKey, noticeList, openNotice, preferenceBody, preferenceRows, togglePreference, viewedNotices, withoutNotice } from "./src/notifications";
 import { phoneDelivery, phoneSetup, pushIsFresh, pushIssueId } from "./src/phone";
 import {
+  absorbRules,
+  bag,
+  bodyFromForm,
+  chooseReminderPhone,
+  chooseReminderServer,
+  deleteRule,
+  firesForIssues,
+  formFromRule,
+  formatWall,
+  markDelivered,
+  parseWall,
+  putRule,
+  queueState,
+  reminderConflict,
+  resolveRule,
+  savedIssues,
+  snoozeStamp,
+  unseenCatchUps,
+} from "./src/reminders";
+import {
   CADENCES,
   CURRENCIES,
   NEEDS_CONNECTION as PROJECT_OFFLINE,
@@ -174,6 +194,9 @@ export default function App() {
   const [notices, setNotices] = useState([]);
   const [noticeError, setNoticeError] = useState("");
   const [phoneAlert, setPhoneAlert] = useState(phoneSetup(null));
+  const [reminderNote, setReminderNote] = useState("");
+  const [snoozeIssueId, setSnoozeIssueId] = useState(null);
+  const [snoozeUntil, setSnoozeUntil] = useState("");
   const [settingsProjectId, setSettingsProjectId] = useState(null);
   const [settingsProject, setSettingsProject] = useState(null);
   const [settingsLink, setSettingsLink] = useState("loading");
@@ -217,6 +240,9 @@ export default function App() {
   const phaseRef = useRef("booting");
   const openedPushRef = useRef(false);
   const libraryRef = useRef(emptyStore());
+  const armChain = useRef(Promise.resolve());
+  const reminderAsked = useRef(null);
+  const applyReminderRef = useRef(async () => null);
   const libraryGen = useRef(0);
   const librarySyncedAt = useRef(0);
   const syncTail = useRef(Promise.resolve());
@@ -317,6 +343,9 @@ export default function App() {
     const sub = AppState.addEventListener("change", (next) => {
       if (next === "active") {
         probeRef.current();
+        if (libraryRef.current) {
+          armReminders(libraryRef.current);
+        }
       }
       if (next !== "active" || prompting.current) {
         return;
@@ -616,13 +645,170 @@ export default function App() {
     libraryGen.current += 1;
     libraryRef.current = store;
     setLibrary(store);
+    armReminders(store);
   }
 
   async function persistLibrary(userId, store) {
-    adoptLibrary(store);
-    if (userId) {
-      await AsyncStorage.setItem(storeKey(userId), JSON.stringify(store));
+    const current = libraryRef.current;
+    const delivered = current && current.reminders && current.reminders.delivered;
+    let next = store;
+    if (delivered && next) {
+      next = JSON.parse(JSON.stringify(next));
+      next.reminders = next.reminders || {
+        defaultRule: null,
+        seriesRules: [],
+        issueRules: [],
+        states: [],
+        queue: [],
+        delivered: {},
+      };
+      next.reminders.delivered = { ...delivered, ...(next.reminders.delivered || {}) };
     }
+    adoptLibrary(next);
+    if (userId) {
+      await AsyncStorage.setItem(storeKey(userId), JSON.stringify(next));
+    }
+  }
+
+  function armReminders(store) {
+    if (!store) {
+      return;
+    }
+    const ticket = libraryGen.current;
+    const snapshot = JSON.parse(JSON.stringify(store));
+    armChain.current = armChain.current.catch(() => {}).then(() => schedulePhoneReminders(snapshot, ticket));
+  }
+
+  async function schedulePhoneReminders(store, ticket) {
+    let Notifications;
+    try {
+      Notifications = require("expo-notifications");
+    } catch {
+      return;
+    }
+    try {
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("keel-reminders", {
+          name: "Reminders",
+          importance: Notifications.AndroidImportance.HIGH,
+        });
+        if (Notifications.setNotificationCategoryAsync) {
+          await Notifications.setNotificationCategoryAsync("reminder", [
+            { identifier: "snooze", buttonTitle: "Snooze", options: { opensAppToForeground: true } },
+            {
+              identifier: "dismiss",
+              buttonTitle: "Dismiss",
+              options: { isDestructive: true, opensAppToForeground: false },
+            },
+          ]);
+        }
+      }
+      let permission = reminderAsked.current;
+      if (!permission) {
+        permission = await Notifications.getPermissionsAsync();
+        if (!permission || permission.status !== "granted") {
+          permission = await Notifications.requestPermissionsAsync();
+        }
+        reminderAsked.current = permission;
+      }
+      if (!permission || permission.status !== "granted") {
+        setReminderNote("Notifications are blocked. Allow them for Keel in Android settings. If exact alarms are off, reminders may be late.");
+        return;
+      }
+      setReminderNote("If exact alarms are off for Keel, reminders may be late.");
+      if (libraryGen.current !== ticket) {
+        return;
+      }
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      await Promise.all(
+        (scheduled || [])
+          .filter((item) => String(item.identifier || "").startsWith("reminder-"))
+          .map((item) => Notifications.cancelScheduledNotificationAsync(item.identifier)),
+      );
+      const reminders = bag(store);
+      const now = new Date();
+      const fires = firesForIssues(savedIssues(store), reminders, now, true);
+      const fresh = unseenCatchUps(fires, reminders);
+      if (fresh.length && libraryGen.current === ticket) {
+        const marked = markDelivered(store, fresh);
+        libraryRef.current = marked;
+        setLibrary(marked);
+        const person = accountRef.current;
+        if (person && person.userId) {
+          await AsyncStorage.setItem(storeKey(person.userId), JSON.stringify(marked));
+        }
+      }
+      const triggerFor = (date) => {
+        if (Notifications.SchedulableTriggerInputTypes && Notifications.SchedulableTriggerInputTypes.DATE) {
+          return {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date,
+            channelId: "keel-reminders",
+          };
+        }
+        return { date, channelId: "keel-reminders" };
+      };
+      const upcoming = fires.filter((fire) => !fire.catch_up && parseWall(fire.at) > now);
+      const soon = new Date(Date.now() + 1500);
+      const shown = fresh.map((fire, index) => ({
+        ...fire,
+        at: formatWall(soon),
+        slot: index,
+      }));
+      for (const fire of shown.concat(upcoming)) {
+        if (libraryGen.current !== ticket) {
+          return;
+        }
+        const when = fire.slot == null ? parseWall(fire.at) : soon;
+        if (!when) {
+          continue;
+        }
+        await Notifications.scheduleNotificationAsync({
+          identifier: `reminder-${fire.issue_id}-${fire.at}-${fire.slot == null ? "plan" : `catch-${fire.slot}`}`,
+          content: {
+            title: fire.issue_key || "Reminder",
+            body: [fire.issue_title, (fire.reasons || []).join(", ")].filter(Boolean).join("\n"),
+            data: { kind: "reminder", issueId: fire.issue_id },
+            categoryIdentifier: "reminder",
+          },
+          trigger: triggerFor(when),
+        });
+      }
+    } catch {
+      return;
+    }
+  }
+
+  async function applyReminder(action) {
+    const person = accountRef.current;
+    if (!person) {
+      return "Sign in.";
+    }
+    const current = libraryRef.current;
+    const now = formatWall(new Date());
+    let next = current;
+    if (action.type === "save") {
+      next = putRule(current, action.scope, action.ids, action.body, now);
+    } else if (action.type === "reset") {
+      next = deleteRule(current, action.scope, action.ids);
+    } else if (action.type === "choose-phone") {
+      next = chooseReminderPhone(current, action.queueId);
+    } else if (action.type === "choose-server") {
+      next = chooseReminderServer(current, action.queueId);
+    } else if (action.type === "snooze") {
+      const until = snoozeStamp(action.until);
+      if (!until) {
+        return "Choose a time.";
+      }
+      next = queueState(current, action.issueId, "snooze", { until, now });
+    } else if (action.type === "dismiss") {
+      next = queueState(current, action.issueId, "dismiss", { now });
+    } else if (action.type === "resume") {
+      next = queueState(current, action.issueId, "resume", { now });
+    }
+    await persistLibrary(person.userId, next);
+    scheduleSync(person, next);
+    return null;
   }
 
   function knownOffline() {
@@ -778,6 +964,28 @@ export default function App() {
       return undefined;
     }
     function openIssue(response) {
+      const data = response
+        && response.notification
+        && response.notification.request
+        && response.notification.request.content
+        && response.notification.request.content.data;
+      if (data && data.kind === "reminder") {
+        const reminderId = Number(data.issueId);
+        const action = response.actionIdentifier;
+        if (action === "dismiss" && Number.isInteger(reminderId)) {
+          applyReminderRef.current({ type: "dismiss", issueId: reminderId });
+          return;
+        }
+        if (action === "snooze" && Number.isInteger(reminderId)) {
+          setSnoozeIssueId(reminderId);
+          setSnoozeUntil("");
+        }
+        if (Number.isInteger(reminderId)) {
+          setIssueId(reminderId);
+          setPhase("issue");
+        }
+        return;
+      }
       const issueId = pushIssueId(response);
       if (!issueId) {
         return;
@@ -902,6 +1110,13 @@ export default function App() {
     for (const list of lists) {
       if (list) {
         nextStore = absorbIssues(nextStore, list.id, list.issues);
+      }
+    }
+    try {
+      nextStore = absorbRules(nextStore, await client.read("/api/v1/reminders"));
+    } catch (err) {
+      if (err.status === 401) {
+        throw err;
       }
     }
     if (started !== libraryGen.current) {
@@ -2777,6 +2992,7 @@ export default function App() {
     }
   }
 
+  applyReminderRef.current = applyReminder;
   const tracked = notePhase(historyRef.current, phaseTrack.current, phase, restoringRef.current);
   historyRef.current = tracked.history;
   phaseTrack.current = tracked.previous;
@@ -3325,6 +3541,9 @@ export default function App() {
           onSprints={openSprints}
           onSchedules={openSchedules}
           recipe={recipe}
+          reminders={library.reminders}
+          reminderNote={reminderNote}
+          onReminder={applyReminder}
           scope={recipeScope}
           series={openSeries}
         />
@@ -3679,6 +3898,8 @@ export default function App() {
             setTone("error");
             setMessage("Sign in.");
           }}
+          reminderNote={reminderNote}
+          onReminder={applyReminder}
           library={library}
         />
       ) : null}
@@ -3704,6 +3925,9 @@ export default function App() {
           onSaveProfile={saveProfile}
           onSignOut={onSignOut}
           phoneAlert={phoneAlert}
+          reminders={library.reminders}
+          reminderNote={reminderNote}
+          onReminder={applyReminder}
         />
       ) : null}
       {phase === "settings" && account ? (
@@ -3829,6 +4053,39 @@ export default function App() {
           }}
         />
       ) : null}
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setSnoozeIssueId(null)}
+        transparent
+        visible={snoozeIssueId != null}
+      >
+        <View style={styles.dropdownLayer}>
+          <Pressable accessibilityLabel="Close" onPress={() => setSnoozeIssueId(null)} style={styles.dropdownScrim} />
+          <View style={styles.calendarSheet}>
+            <Text style={styles.sectionHeading}>Snooze overdue</Text>
+            <DateTimeField label="Until" value={snoozeUntil} onChange={setSnoozeUntil} />
+            <View style={styles.calendarActions}>
+              <TextButton label="Cancel" onPress={() => setSnoozeIssueId(null)} disabled={false} />
+              <TextButton
+                label="Snooze"
+                disabled={false}
+                onPress={async () => {
+                  const failure = await applyReminder({
+                    type: "snooze",
+                    issueId: snoozeIssueId,
+                    until: snoozeUntil,
+                  });
+                  if (failure) {
+                    Alert.alert("Snooze", failure);
+                    return;
+                  }
+                  setSnoozeIssueId(null);
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -4706,6 +4963,9 @@ function SeriesScreen({
   onFind,
   onSettings,
   onSignOut,
+  reminders,
+  reminderNote,
+  onReminder,
 }) {
   const [formError, setFormError] = useState("");
   const pending = mode === "pending";
@@ -4768,6 +5028,43 @@ function SeriesScreen({
           setFormError(failure || "");
         }}
       />
+      ) : null}
+      {series && series.id ? (
+        <ReminderEditor
+          busy={busy}
+          canReset={resolveRule({ id: 0, series_id: series.id }, bag({ reminders })).source === "series"}
+          conflict={reminderConflict(bag({ reminders }), "series", { seriesId: series.id })}
+          hint="Each occurrence uses its own start and due. A missing date skips that reminder."
+          note={reminderNote}
+          onChoosePhone={() => {
+            const conflict = reminderConflict(bag({ reminders }), "series", { seriesId: series.id });
+            if (conflict) {
+              onReminder({ type: "choose-phone", queueId: conflict.id });
+            }
+          }}
+          onChooseServer={() => {
+            const conflict = reminderConflict(bag({ reminders }), "series", { seriesId: series.id });
+            if (conflict) {
+              onReminder({ type: "choose-server", queueId: conflict.id });
+            }
+          }}
+          onReset={() => onReminder({ type: "reset", scope: "series", ids: { seriesId: series.id } })}
+          onSave={async (form) => {
+            const built = bodyFromForm(form);
+            if (built.error) {
+              return built.error;
+            }
+            return onReminder({
+              type: "save",
+              scope: "series",
+              ids: { seriesId: series.id },
+              body: built.body,
+            });
+          }}
+          rule={(resolveRule({ id: 0, series_id: series.id }, bag({ reminders })).rule)}
+          source={resolveRule({ id: 0, series_id: series.id }, bag({ reminders })).source}
+          title="Reminders"
+        />
       ) : null}
     </ScrollView>
   );
@@ -6034,6 +6331,8 @@ function IssueDetail({
   onRemoveComment,
   onRepeat,
   onEditSeries,
+  reminderNote,
+  onReminder,
 }) {
   const [stack, setStack] = useState([issueId]);
   const [page, setPage] = useState(null);
@@ -6471,6 +6770,19 @@ function IssueDetail({
           {page.complete && !(page.seriesId || (saved && saved.raw && saved.raw.series_id)) && Number(currentId) > 0 ? (
             <PrimaryButton label="Make this repeating" onPress={() => onRepeat(page)} disabled={false} />
           ) : null}
+          <IssueReminder
+            closed={
+              (saved && saved.raw && (saved.raw.status === "done" || saved.raw.status === "cancelled"))
+              || (page && (page.status === "done" || page.status === "cancelled"))
+            }
+            issueId={Number(currentId)}
+            library={library}
+            missingDue={saved && saved.raw ? !saved.raw.due_at : !page.due || page.due === "None"}
+            missingStart={saved && saved.raw ? !saved.raw.start_at : !page.start || page.start === "None"}
+            note={reminderNote}
+            onReminder={onReminder}
+            seriesId={(saved && saved.raw && saved.raw.series_id) || page.seriesId || null}
+          />
           <LinkGroup
             title="Blocks"
             items={page.blocks}
@@ -6997,6 +7309,257 @@ function TextButton({ label, onPress, disabled, accessibilityLabel }) {
   );
 }
 
+const REMINDER_SOURCE = {
+  issue: "Using this issue's reminder.",
+  series: "Using the series reminder.",
+  default: "Using your default reminder.",
+  none: "No reminder is set.",
+};
+
+function ReminderOffset({ row, onChange, disabled }) {
+  return (
+    <View>
+      <Field
+        label="Amount"
+        keyboardType="number-pad"
+        value={row.amount === 0 ? "0" : String(row.amount || "")}
+        onChange={(amount) => onChange({ amount })}
+        disabled={disabled}
+      />
+      <View style={styles.toolbarActions}>
+        {["minute", "hour", "day"].map((unit) => (
+          <TextButton
+            key={unit}
+            label={row.unit === unit ? `● ${unit}` : unit}
+            onPress={() => onChange({ unit })}
+            disabled={disabled}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function ReminderEditor({
+  title,
+  source,
+  rule,
+  note,
+  hint,
+  missingStart,
+  missingDue,
+  closed,
+  conflict,
+  busy,
+  canReset,
+  showResume,
+  onSave,
+  onReset,
+  onChoosePhone,
+  onChooseServer,
+  onResume,
+}) {
+  const [form, setForm] = useState(() => formFromRule(rule));
+  const [error, setError] = useState("");
+  const ruleKey = JSON.stringify(rule || null);
+  useEffect(() => {
+    setForm(formFromRule(rule));
+  }, [ruleKey]);
+
+  function setRows(which, index, patch) {
+    setForm((current) => ({
+      ...current,
+      [which]: current[which].map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)),
+    }));
+  }
+
+  return (
+    <View>
+      <Text style={styles.sectionHeading}>{title}</Text>
+      <Text style={styles.message}>{REMINDER_SOURCE[source] || REMINDER_SOURCE.none}</Text>
+      {hint ? <Text style={styles.message}>{hint}</Text> : null}
+      {missingStart ? <Text style={styles.message}>No start time, so start reminders stay off.</Text> : null}
+      {missingDue ? <Text style={styles.message}>No due time, so due and overdue reminders stay off.</Text> : null}
+      {closed ? <Text style={styles.message}>This issue is closed, so reminders stay quiet until it is reopened.</Text> : null}
+      {note ? <Text style={styles.message}>{note}</Text> : null}
+      {conflict ? (
+        <View>
+          <Text style={styles.error}>This reminder changed on the server. Keep the phone copy or the server copy.</Text>
+          <View style={styles.toolbarActions}>
+            <TextButton label="Keep phone" onPress={onChoosePhone} disabled={busy} />
+            <TextButton label="Keep server" onPress={onChooseServer} disabled={busy} />
+          </View>
+        </View>
+      ) : null}
+      <Text style={styles.label}>Before start</Text>
+      {form.startRows.map((row, index) => (
+        <ReminderOffset
+          key={`start-${index}`}
+          disabled={busy}
+          row={row}
+          onChange={(patch) => setRows("startRows", index, patch)}
+        />
+      ))}
+      <TextButton
+        label="Add start offset"
+        disabled={busy}
+        onPress={() => setForm((current) => ({
+          ...current,
+          startRows: current.startRows.concat({ amount: "", unit: "hour" }),
+        }))}
+      />
+      <View style={styles.projectSwitch}>
+        <Text style={styles.choiceText}>At start</Text>
+        <Switch
+          accessibilityLabel="At start"
+          disabled={busy}
+          onValueChange={(atStart) => setForm((current) => ({ ...current, atStart }))}
+          thumbColor={form.atStart ? "#FFFFFF" : "#8AA0B2"}
+          trackColor={{ false: "#D5E2EC", true: "#0068B0" }}
+          value={form.atStart}
+        />
+      </View>
+      <Text style={styles.label}>Before due</Text>
+      {form.dueRows.map((row, index) => (
+        <ReminderOffset
+          key={`due-${index}`}
+          disabled={busy}
+          row={row}
+          onChange={(patch) => setRows("dueRows", index, patch)}
+        />
+      ))}
+      <TextButton
+        label="Add due offset"
+        disabled={busy}
+        onPress={() => setForm((current) => ({
+          ...current,
+          dueRows: current.dueRows.concat({ amount: "", unit: "hour" }),
+        }))}
+      />
+      <View style={styles.projectSwitch}>
+        <Text style={styles.choiceText}>At due</Text>
+        <Switch
+          accessibilityLabel="At due"
+          disabled={busy}
+          onValueChange={(atDue) => setForm((current) => ({ ...current, atDue }))}
+          thumbColor={form.atDue ? "#FFFFFF" : "#8AA0B2"}
+          trackColor={{ false: "#D5E2EC", true: "#0068B0" }}
+          value={form.atDue}
+        />
+      </View>
+      <Text style={styles.label}>Overdue</Text>
+      <View style={styles.toolbarActions}>
+        {[
+          ["off", "Off"],
+          ["every_n", "Every"],
+          ["daily_at", "Daily at"],
+        ].map(([kind, label]) => (
+          <TextButton
+            key={kind}
+            label={form.overdueKind === kind ? `● ${label}` : label}
+            disabled={busy}
+            onPress={() => setForm((current) => ({ ...current, overdueKind: kind }))}
+          />
+        ))}
+      </View>
+      {form.overdueKind === "every_n" ? (
+        <View>
+          <Field
+            label="Repeat amount"
+            keyboardType="number-pad"
+            value={form.overdueAmount}
+            onChange={(overdueAmount) => setForm((current) => ({ ...current, overdueAmount }))}
+            disabled={busy}
+          />
+          <View style={styles.toolbarActions}>
+            {["minute", "hour", "day"].map((unit) => (
+              <TextButton
+                key={unit}
+                label={form.overdueUnit === unit ? `● ${unit}` : unit}
+                disabled={busy}
+                onPress={() => setForm((current) => ({ ...current, overdueUnit: unit }))}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+      {form.overdueKind === "daily_at" ? (
+        <Field
+          label="Time"
+          value={form.overdueClock}
+          onChange={(overdueClock) => setForm((current) => ({ ...current, overdueClock }))}
+          disabled={busy}
+          placeholder="09:00"
+        />
+      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <PrimaryButton
+        label="Save reminder"
+        disabled={busy}
+        onPress={async () => {
+          const failure = await onSave(form);
+          setError(failure || "");
+        }}
+      />
+      {canReset ? <TextButton label="Reset reminder" onPress={onReset} disabled={busy} /> : null}
+      {showResume ? <TextButton label="Turn overdue back on" onPress={onResume} disabled={busy} /> : null}
+    </View>
+  );
+}
+
+function IssueReminder({
+  issueId,
+  seriesId,
+  library,
+  note,
+  missingStart,
+  missingDue,
+  closed,
+  onReminder,
+}) {
+  if (!Number.isInteger(issueId)) {
+    return null;
+  }
+  const reminders = bag(library);
+  const resolved = resolveRule({ id: issueId, series_id: seriesId || null }, reminders);
+  const conflict = reminderConflict(reminders, "issue", { issueId });
+  const state = (reminders.states || []).find((row) => row.issue_id === issueId);
+  return (
+    <ReminderEditor
+      busy={false}
+      canReset={resolved.source === "issue"}
+      closed={closed}
+      conflict={conflict}
+      missingDue={missingDue}
+      missingStart={missingStart}
+      note={note}
+      onChoosePhone={() => {
+        if (conflict) {
+          onReminder({ type: "choose-phone", queueId: conflict.id });
+        }
+      }}
+      onChooseServer={() => {
+        if (conflict) {
+          onReminder({ type: "choose-server", queueId: conflict.id });
+        }
+      }}
+      onReset={() => onReminder({ type: "reset", scope: "issue", ids: { issueId } })}
+      onResume={() => onReminder({ type: "resume", issueId })}
+      onSave={async (form) => {
+        const built = bodyFromForm(form);
+        if (built.error) {
+          return built.error;
+        }
+        return onReminder({ type: "save", scope: "issue", ids: { issueId }, body: built.body });
+      }}
+      rule={resolved.rule}
+      showResume={Boolean(state && state.overdue_dismissed)}
+      source={resolved.source}
+      title="Reminders"
+    />
+  );
+}
+
 function AccountScreen({
   view,
   link,
@@ -7010,6 +7573,9 @@ function AccountScreen({
   onRevoke,
   onSignOut,
   phoneAlert,
+  reminders,
+  reminderNote,
+  onReminder,
 }) {
   const profile = view && view.profile;
   const [displayName, setDisplayName] = useState(profile ? profile.display_name : "");
@@ -7046,6 +7612,35 @@ function AccountScreen({
       {link === "loading" || (refreshing && !profile) ? <ActivityIndicator color="#0068B0" /> : null}
       {link === "offline" ? <Text style={styles.message}>{ACCOUNT_OFFLINE}</Text> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      <ReminderEditor
+        busy={busy}
+        canReset={Boolean(reminders && reminders.defaultRule)}
+        conflict={reminderConflict(bag({ reminders }), "default", {})}
+        note={reminderNote}
+        onChoosePhone={() => {
+          const conflict = reminderConflict(bag({ reminders }), "default", {});
+          if (conflict) {
+            onReminder({ type: "choose-phone", queueId: conflict.id });
+          }
+        }}
+        onChooseServer={() => {
+          const conflict = reminderConflict(bag({ reminders }), "default", {});
+          if (conflict) {
+            onReminder({ type: "choose-server", queueId: conflict.id });
+          }
+        }}
+        onReset={() => onReminder({ type: "reset", scope: "default", ids: {} })}
+        onSave={async (form) => {
+          const built = bodyFromForm(form);
+          if (built.error) {
+            return built.error;
+          }
+          return onReminder({ type: "save", scope: "default", ids: {}, body: built.body });
+        }}
+        rule={reminders && reminders.defaultRule}
+        source={reminders && reminders.defaultRule ? "default" : "none"}
+        title="Reminders"
+      />
       {profile ? (
         <View>
           <Text style={styles.sectionHeading}>Profile</Text>

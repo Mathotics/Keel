@@ -374,11 +374,13 @@ async function send(origin, token, method, path, payload) {
   if (response.status === 401) {
     const error = new Error("Sign in.");
     error.status = 401;
+    error.body = body;
     throw error;
   }
   if (!response.ok && response.status !== 204) {
     const error = new Error(detailMessage(body, FAILED));
     error.status = response.status;
+    error.body = body;
     throw error;
   }
   if (response.status === 204) {
