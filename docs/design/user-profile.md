@@ -26,7 +26,7 @@ These are not profile fields:
 * Two-factor secrets. A second factor is out of scope.
 * `password_hash`, session tokens, and API token secrets.
 
-`KEEL_DEFAULT_USER`, when set, still names the first person on an empty database and leaves the password unset. When it is unset and `KEEL_SEED_SIGN_IN` is true (the default), that first person is username `keel` with password `keel`. That password is shorter than 12 characters and matches the username; it is the only password created that way. Changing it, and every other password, still follows the rules above. A database that already has a person is not given this account. Production sets `KEEL_SEED_SIGN_IN` false so a rebuilt empty database does not receive it either.
+`KEEL_DEFAULT_USER`, when set, still names the first person on an empty database and leaves the password unset. When it is unset and `KEEL_SEED_SIGN_IN` is true (the default), that first person is username `keel` with password `keel`. That password is shorter than 12 characters and matches the username; it is the only password created that way. Changing it, and every other password, still follows the rules above. A database that already has a person is not given this account. Production and the Docker image set `KEEL_SEED_SIGN_IN` false so a rebuilt empty database does not receive it. A local install still defaults to true.
 
 ## Credentials stored beside the profile
 

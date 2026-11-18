@@ -291,7 +291,7 @@ Any machine with Docker builds and runs Keel from this repository ([Docker conta
 docker compose up -d --build
 ```
 
-Compose builds the image, stores SQLite in a named volume, applies migrations, and serves on port 8000. Open `http://127.0.0.1:8000/login`. A new volume signs in as username `keel` and password `keel`. Change that password from the profile page before anyone else can reach the port. Pass `--build` again after the source, the Dockerfile, or the entrypoint changes.
+Compose builds the image, stores SQLite in a named volume, applies migrations, and serves on port 8000. Pass `--build` again after the source, the Dockerfile, or the entrypoint changes.
 
 The image sets:
 
@@ -301,12 +301,17 @@ The image sets:
 | `KEEL_PORT` | `8000` |
 | `KEEL_RELOAD` | `false` |
 | `KEEL_DATABASE_URL` | `sqlite+pysqlite:////data/keel.db` |
+| `KEEL_SEED_SIGN_IN` | `false` |
 
-`/data` is the volume. Keep the database file on that volume so replacing the container keeps it. The image leaves `KEEL_SEED_SIGN_IN` at its default, so a new volume gets the built-in account. Set `KEEL_SEED_SIGN_IN=false` and `KEEL_DEFAULT_USER` when a fresh volume should skip that account, then set a password before signing in:
+A fresh volume does not get the built-in username `keel` with password `keel`. That account stays the default only when Keel runs outside this image and `KEEL_SEED_SIGN_IN` is left at true. Inside the container the process user is `keel`, so an empty database creates that name with no password and makes that person Owner. The login page says no password is set yet until you set one. The password has to be at least 12 characters and must not be the username:
 
 ```powershell
-docker compose exec keel keel users set-password "The Display Name" --password "at least 12 characters"
+docker compose exec keel keel users set-password keel --password "at least 12 characters"
 ```
+
+Then open `http://127.0.0.1:8000/login`. To name the first person something other than the process user, set `KEEL_DEFAULT_USER` before the first start. That person also has no password until `keel users set-password`. A volume that already has people is left as it is. A volume created by an older image may still have the built-in password; change it with the same command before exposing the port.
+
+`/data` is the volume. Keep the database file on that volume so replacing the container keeps it.
 
 The container runs `keel db upgrade` and then `keel serve`. Other CLI commands run as given:
 
