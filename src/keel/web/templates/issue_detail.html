@@ -166,23 +166,23 @@
 
       {% call issue_panel('description', 'Description') %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/description"{% if not can_edit_issue %} inert{% endif %}>
-        <p>
+        <div class="keel-field">
           <label class="keel-visually-hidden" for="issue-description">Description</label>
           {% with field_id="issue-description", name="description", rows=6, value=issue.description, placeholder="Write a description…", controls=true %}
           {% include "_markdown_field.html" %}
           {% endwith %}
-        </p>
+        </div>
       </form>
       {% endcall %}
 
       {% call issue_panel('definition_of_done', 'Definition of Done') %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/definition-of-done"{% if not can_edit_issue %} inert{% endif %}>
-        <p>
+        <div class="keel-field">
           <label class="keel-visually-hidden" for="issue-definition-of-done">Definition of Done</label>
           {% with field_id="issue-definition-of-done", name="definition_of_done", rows=6, value=issue.definition_of_done, placeholder="Write the definition of done…", controls=true %}
           {% include "_markdown_field.html" %}
           {% endwith %}
-        </p>
+        </div>
       </form>
       {% endcall %}
 
@@ -663,12 +663,12 @@
       {% with pager=comments_pager %}{% include "_pager.html" %}{% endwith %}
       {% if can_comment %}
       <form class="keel-form keel-form--stacked" method="post" action="/web/issues/{{ issue.id }}/comments">
-        <p>
+        <div class="keel-field">
           <label for="issue-comment">Comment</label>
           {% with field_id="issue-comment", name="body", rows=4, value="", required=true, placeholder="Add your comment here…", controls=true, submit_label="Add comment" %}
           {% include "_markdown_field.html" %}
           {% endwith %}
-        </p>
+        </div>
       </form>
       {% endif %}
       {% endcall %}

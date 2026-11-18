@@ -1,7 +1,7 @@
 # Issue definition of done
 
 * **Status:** Accepted
-* **Date:** 2026-11-16
+* **Date:** 2026-11-18
 
 ## Background
 
@@ -50,8 +50,8 @@ Acceptance criteria end up buried in the description, in a comment, or in someon
 
 * **Must** store `definition_of_done` as `TEXT`, not null, defaulting to the empty string, and **Must** backfill existing issues to empty.
 * **Must** strip leading and trailing whitespace on create and update, matching Description.
-* **Must** treat empty as "not set": the panel shows the editor and its placeholder.
-* **Must** keep the source in the editor, which is the only display of the field, so it still works without JavaScript. Preview renders that source. There is no second rendered block above the editor ([ADR 017](markdown-descriptions-and-comments.md)).
+* **Must** treat empty as "not set": the panel shows the placeholder, and clicking it opens the editor.
+* **Must** rest the field on the rendered text, and open the editor when that text is clicked. Check and Cancel close the editor. The source stays in the textarea, so it still works without JavaScript. There is no second rendered block above the open editor, and no Edit or Add disclosure ([ADR 017](markdown-descriptions-and-comments.md), [Markdown editor behavior](markdown-editor-behavior.md)).
 * **Must** place the panel directly after Description and before Location, and **Must** make it foldable on the same `keel_issue_panels` cookie under the key `definition_of_done` ([Foldable issue panels](foldable-issue-panels.md)).
 * **Must Not** give the panel a row count; it holds one body, not a list.
 * **Must** accept `definition_of_done` on the issue create and patch bodies, and **Must** return it on every issue read. An absent PATCH key leaves the stored text alone.
@@ -66,7 +66,7 @@ Acceptance criteria end up buried in the description, in a comment, or in someon
 
 * **Good:** Acceptance criteria get a stable home, and *Done* becomes checkable per issue without changing the shared workflow.
 * **Good:** Nothing new to learn. The field is Description's twin in storage, rendering, editing, history, and search, so the existing Markdown and panel machinery carries it.
-* **Bad:** The issue page grows another panel, which lengthens the scroll for issues that will never use the field. Folding is the mitigation, and an empty panel stays one line plus its edit control.
+* **Bad:** The issue page grows another panel, which lengthens the scroll for issues that will never use the field. Folding is the mitigation, and an empty panel stays the placeholder, which opens the editor when clicked.
 * **Bad:** A repeating job has to restate its criteria on every copy until the recipe gains the field.
 * **Risk:** Two free-text bodies invite the question of which one a note belongs in, and criteria already written into descriptions are not migrated. Accepted: nothing breaks, and the old text stays where it is until someone moves it.
 * **Risk:** Find now matches text that used to be invisible to it, so a query can return more issues than before. Accepted; it is the same contract Description already has.

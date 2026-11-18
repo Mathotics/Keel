@@ -1777,6 +1777,46 @@ body {
   display: none;
 }
 
+.keel-md__face {
+  display: none;
+}
+
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) {
+  border: 0;
+  background: transparent;
+}
+
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__bar,
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-description,
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__preview,
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__hint {
+  display: none;
+}
+
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__face {
+  display: block;
+  margin: 0;
+  padding: 0.15rem 0.2rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+}
+
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__face:hover,
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__face:focus-visible {
+  background: var(--keel-sheet);
+}
+
+[data-keel-md] .keel-md[data-keel-md-rest]:not(.is-editing) .keel-md__face:focus-visible {
+  outline: 2px solid var(--keel-blue);
+  outline-offset: 2px;
+}
+
+.keel-md__placeholder {
+  margin: 0;
+  color: var(--keel-blue);
+  opacity: 0.55;
+}
+
 .keel-md__hint {
   display: flex;
   align-items: center;
@@ -1908,41 +1948,55 @@ body {
    the paragraph around it, and it is not bold unless the source marks it
    with **. */
 .keel-md__preview h1,
+.keel-md__face h1,
 .keel-md__preview h2,
+.keel-md__face h2,
 .keel-md__preview h3,
+.keel-md__face h3,
 .keel-md__preview h4,
+.keel-md__face h4,
 .keel-md__preview h5,
-.keel-md__preview h6 {
+.keel-md__face h5,
+.keel-md__preview h6,
+.keel-md__face h6 {
   font-weight: 400;
   line-height: 1.25;
 }
 
-.keel-md__preview h1 {
+.keel-md__preview h1,
+.keel-md__face h1 {
   font-size: 1.75rem;
 }
 
-.keel-md__preview h2 {
+.keel-md__preview h2,
+.keel-md__face h2 {
   font-size: 1.4rem;
 }
 
-.keel-md__preview h3 {
+.keel-md__preview h3,
+.keel-md__face h3 {
   font-size: 1.2rem;
 }
 
-.keel-md__preview h4 {
+.keel-md__preview h4,
+.keel-md__face h4 {
   font-size: 1.05rem;
 }
 
-.keel-md__preview h5 {
+.keel-md__preview h5,
+.keel-md__face h5 {
   font-size: 1rem;
 }
 
-.keel-md__preview h6 {
+.keel-md__preview h6,
+.keel-md__face h6 {
   font-size: 0.95rem;
 }
 
 .keel-md__preview strong,
-.keel-md__preview b {
+.keel-md__face strong,
+.keel-md__preview b,
+.keel-md__face b {
   font-weight: 700;
 }
 
