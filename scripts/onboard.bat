@@ -38,6 +38,8 @@ git config --local alias.oops "reset --soft HEAD~1"
 if errorlevel 1 exit /b 1
 git config --local alias.purge "clean -fdx -e .venv/ -e venv/ -e user/"
 if errorlevel 1 exit /b 1
+git config --local alias.prune-worktrees "!f() { bash \"$(git rev-parse --show-toplevel)/scripts/prune-worktrees.sh\" \"$@\"; }; f"
+if errorlevel 1 exit /b 1
 
 set "MIN_PY=3.12"
 set "PY_EXE="

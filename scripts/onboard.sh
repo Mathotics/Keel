@@ -33,6 +33,7 @@ git config --local alias.missing-commits "log ..main --format='%C(green)%as %C(y
 git config --local alias.conflicts "diff --name-only --diff-filter=U"
 git config --local alias.oops "reset --soft HEAD~1"
 git config --local alias.purge "clean -fdx -e .venv/ -e venv/ -e user/"
+git config --local alias.prune-worktrees '!f() { bash "$(git rev-parse --show-toplevel)/scripts/prune-worktrees.sh" "$@"; }; f'
 
 MIN_PY="3.12"
 
