@@ -12,7 +12,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     KEEL_PORT=8000 \
     KEEL_RELOAD=false \
     KEEL_LOG_LEVEL=info \
-    KEEL_DATABASE_URL=sqlite+pysqlite:////data/keel.db
+    KEEL_DATABASE_URL=sqlite+pysqlite:////data/keel.db \
+    KEEL_SEED_SIGN_IN=false
 
 WORKDIR /app
 
