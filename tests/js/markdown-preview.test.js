@@ -263,6 +263,44 @@ test("preview unbold leaves text already written and only turns the mark off aft
   assert.equal(box.textarea.value, "hello **world**");
 });
 
+test("a resting field opens the editor on the text and closes it from cancel", async () => {
+  const dom = new JSDOM(
+    `<!doctype html><body><form>
+      <span class="keel-md" data-keel-markdown data-keel-md-rest>
+        <div class="keel-md__face keel-markdown" data-keel-md-face tabindex="0"><p>See <a href="https://example.com/docs">docs</a></p></div>
+        <span class="keel-md__bar">
+          <button type="button" data-keel-md-tab="write">Write</button>
+          <button type="button" data-keel-md-tab="preview">Preview</button>
+          <button type="button" data-keel-md="bold">B</button>
+        </span>
+        <textarea>See [docs](https://example.com/docs)</textarea>
+        <span class="keel-md__preview keel-markdown" hidden></span>
+        <button class="keel-md__cancel" type="reset">Cancel</button>
+        <button class="keel-md__save" type="submit">Save</button>
+      </span>
+    </form></body>`,
+    { url: "http://127.0.0.1/", pretendToBeVisual: true, runScripts: "dangerously" },
+  );
+  const { window } = dom;
+  for (const file of ["assets/js/markdown-source.js", "assets/js/markdown-field.js"]) {
+    const script = window.document.createElement("script");
+    script.textContent = fs.readFileSync(path.join(root, file), "utf8");
+    window.document.body.appendChild(script);
+  }
+  const editor = window.document.querySelector("[data-keel-markdown]");
+  const face = editor.querySelector("[data-keel-md-face]");
+  assert.equal(editor.classList.contains("is-editing"), false);
+  face.querySelector("a").click();
+  assert.equal(editor.classList.contains("is-editing"), false);
+  face.click();
+  assert.equal(editor.classList.contains("is-editing"), true);
+  editor.querySelector(".keel-md__cancel").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(editor.classList.contains("is-editing"), false);
+  face.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  assert.equal(editor.classList.contains("is-editing"), true);
+});
+
 test("check stays inactive until the text differs from what was loaded", () => {
   const { editor, textarea } = boot("Saved coats");
   const save = editor.querySelector(".keel-md__save");

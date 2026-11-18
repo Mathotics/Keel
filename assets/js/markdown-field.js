@@ -2,8 +2,11 @@
 // shows that source rendered and still accepts edits, which are written back
 // into the source. The toolbar toggles the same syntax the server renders,
 // and a button stays highlighted while the caret is in that formatting.
-// Without this script the textarea and the "Markdown is supported" note stay,
-// and the bar stays hidden.
+// A field with Check and Cancel rests on the rendered text. Clicking that
+// text opens this editor, and Check or Cancel closes it. The rendered text
+// is not shown above the open editor. Without this script the textarea and
+// the "Markdown is supported" note stay, and the bar and the resting text
+// stay hidden.
 (() => {
   const editors = document.querySelectorAll("[data-keel-markdown]");
   if (!editors.length) {
@@ -50,6 +53,22 @@
         }
       });
     }
+    const face = editor.querySelector("[data-keel-md-face]");
+    if (face) {
+      face.addEventListener("click", (event) => {
+        if (event.target.closest && event.target.closest("a")) {
+          return;
+        }
+        openEditor(editor, textarea);
+      });
+      face.addEventListener("keydown", (event) => {
+        if (event.target !== face || (event.key !== "Enter" && event.key !== " ")) {
+          return;
+        }
+        event.preventDefault();
+        openEditor(editor, textarea);
+      });
+    }
     const form = editor.closest("form");
     if (form && editor.querySelector(".keel-md__save")) {
       form.addEventListener("submit", () => {
@@ -59,7 +78,9 @@
       });
       form.addEventListener("reset", () => {
         window.setTimeout(() => {
-          if (editor.classList.contains("is-preview")) {
+          if (editor.hasAttribute("data-keel-md-rest")) {
+            closeEditor(editor);
+          } else if (editor.classList.contains("is-preview")) {
             showPreview(editor, textarea, preview);
           }
           refreshSave(editor, textarea);
@@ -141,6 +162,21 @@
       });
     }
     refreshState(editor);
+  }
+
+  function openEditor(editor, textarea) {
+    editor.classList.add("is-editing");
+    showWrite(editor, textarea);
+  }
+
+  function closeEditor(editor) {
+    editor.classList.remove("is-editing", "is-preview");
+    const preview = editor.querySelector(".keel-md__preview");
+    if (preview) {
+      preview.hidden = true;
+      preview.contentEditable = "false";
+    }
+    markTabs(editor, "write");
   }
 
   function showWrite(editor, textarea) {

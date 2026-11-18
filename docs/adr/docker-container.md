@@ -1,7 +1,7 @@
 # Docker container
 
 * **Status:** Accepted
-* **Date:** 2026-10-28
+* **Date:** 2026-11-18
 
 ## Background
 
@@ -21,6 +21,7 @@ Someone who is not on the Raspberry Pi cannot deploy Keel without reconstructing
 - Keep the SQLite file across container replacement.
 - Apply migrations before `keel serve`, using the same CLI the Pi uses.
 - Leave the Raspberry Pi on systemd.
+- A fresh container has no account with a known password.
 
 ## Scope and Deliverables
 
@@ -38,7 +39,7 @@ Someone who is not on the Raspberry Pi cannot deploy Keel without reconstructing
 - Publishing the image to a registry.
 - TLS, a reverse proxy, or binding host port 80.
 - A second database engine, or more than one container writing the same SQLite file.
-- Changing sign-in, schema, or application behavior.
+- Changing the application default for seed sign-in, the schema, or sign-in behavior outside this image.
 
 ### Deliverables
 
@@ -64,14 +65,15 @@ Someone who is not on the Raspberry Pi cannot deploy Keel without reconstructing
 * **Must Not** push the image to a registry.
 * **Must Not** change `scripts/deploy-prod.sh`, the systemd unit, or the Pi env file.
 * **Must Not** run two app containers on one database file.
+* **Must** set `KEEL_SEED_SIGN_IN=false` in the image and in Compose. A fresh volume then has no account with a known password. The application default stays true for installs that are not this image.
 * **May** bind-mount a host directory on `/data` when that directory is writable by the `keel` user.
-* **May** set `KEEL_SEED_SIGN_IN=false` and `KEEL_DEFAULT_USER` for a fresh volume that should skip the built-in account.
+* **May** set `KEEL_DEFAULT_USER` before the first start to name the first person. That password stays unset until `keel users set-password`.
 
 ## Consequences
 
 * **Good:** Another machine can run Keel with Docker Compose and keep its data in a volume. Schema upgrades happen at start, with the same command production already uses. The Pi path is untouched.
 * **Bad:** Each environment builds the image itself. There is no prebuilt artifact to pull. The image contains the source tree because path resolution depends on it.
-* **Risk:** A bind-mounted `/data` owned by another user makes the process fail at startup. SQLite allows one writer; a second container on the same file will corrupt it. A fresh volume still receives username `keel` and password `keel` unless seed sign-in is turned off, so a published port is only safe after that password changes.
+* **Risk:** A bind-mounted `/data` owned by another user makes the process fail at startup. SQLite allows one writer; a second container on the same file will corrupt it. A fresh volume creates the process user with no password, so sign-in waits on `keel users set-password`. A volume that already has a person keeps that person, including a built-in password from an older image.
 
 ## System Design
 
@@ -81,7 +83,7 @@ The image is one Python 3.12 process. Compose builds it from the repository root
 
 The Image workflow checks out the repo, runs `docker build`, starts the image, and requests `GET /health`. It does not log in to a registry and it is not the workflow Deploy waits for.
 
-Sign-in on an empty volume follows the existing settings. The built-in account is created when `KEEL_SEED_SIGN_IN` is left at its default. A volume that already has a person is left alone.
+Sign-in on an empty volume does not use the built-in password. The image sets `KEEL_SEED_SIGN_IN=false`, so the first person is the process user and has no password until the operator sets one. A volume that already has a person is left alone. Installs outside this image still default to the built-in account.
 
 ### UML Diagrams
 

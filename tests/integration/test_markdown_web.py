@@ -18,6 +18,7 @@ def test_markdown_fields_share_one_editor(client: TestClient) -> None:
     assert create.text.count("data-keel-markdown") == 2
     assert "Markdown is supported." in create.text
     assert "keel-md__save" not in create.text
+    assert "data-keel-md-rest" not in create.text
     assert 'name="description"' in create.text
     assert 'name="definition_of_done"' in create.text
     assert "/assets/js/markdown-source.js" in create.text
@@ -25,6 +26,8 @@ def test_markdown_fields_share_one_editor(client: TestClient) -> None:
 
     page = client.get(f"/issues/{issue['key']}")
     assert page.text.count("data-keel-markdown") == 3
+    assert page.text.count("data-keel-md-rest") == 3
+    assert page.text.count("data-keel-md-face") == 3
     assert 'name="body"' in page.text
     assert "Add your comment here…" in page.text
     assert page.text.count('aria-label="Cancel"') == 3

@@ -1,7 +1,7 @@
 # Markdown editor behavior
 
 * **Status:** Accepted
-* **Date:** 2026-11-16
+* **Date:** 2026-11-18
 
 ## Background
 
@@ -10,6 +10,8 @@
 ## Problem Statement
 
 The editor has many caret, selection, and tab-switch cases. Implementing from a one-paragraph amendment kept reintroducing bugs that had already been rejected. This feature needs an explicit behavior catalog before the next code pass.
+
+KEEL-222 asks for a quieter idle state on the fields that save with Check and Cancel. An earlier pass drew the rendered note above the open editor and offered Edit and Add disclosures. That layout was removed because it read as two copies of the same field. The idle state here replaces the editor until the reader clicks the text. It does not stack a copy above the editor, and it does not bring those disclosures back.
 
 ## Objective(s)
 
@@ -43,7 +45,9 @@ The editor has many caret, selection, and tab-switch cases. Implementing from a 
 ### Where the editor appears
 
 * **Must** use this editor for every web text field that supports Markdown.
-* **Must** make that editor the only display of the field. No rendered copy above the editor, and no Edit or Add disclosure. Posted comments stay in the thread, because a posted comment is not the field being edited.
+* **Must** rest a field that has Check and Cancel on the rendered text alone. The toolbar, the Write and Preview tabs, the note, and the buttons stay hidden until the reader edits. Clicking that text opens this same editor. A click on a link in the text follows the link. Enter or Space on the resting text opens the editor. Check and Cancel close it again and show the rendered text. Check still saves, and Cancel still restores the loaded text. The rendered text is not shown above the open editor. There is no Edit or Add disclosure.
+* **Must** leave a field without Check and Cancel in the editor, including description and definition of done on Create.
+* **Must** keep posted comments in the thread. A posted comment is not the field being edited.
 * **Must Not** put this editor on a plain text field. Title and the other fields that do not support Markdown stay plain.
 * **Must Not** change the phone app as part of this record.
 
@@ -57,7 +61,7 @@ The editor has many caret, selection, and tab-switch cases. Implementing from a 
 * **Must** make Cancel restore the loaded text.
 * **Must** save that field only from Check. Leaving the editor, or clicking outside it, does not save.
 * **Must** omit Check and Cancel when the field does neither of those things, including a Markdown field that only posts with a larger form such as Create. A reset control inside that form would wipe the whole form.
-* **Must** keep the textarea, the note, and Check and Cancel usable when JavaScript does not run, and **Must** hide the toolbar in that case.
+* **Must** keep the textarea, the note, and Check and Cancel usable when JavaScript does not run, **Must** hide the toolbar in that case, and **Must** hide the resting rendered text so the textarea is the field.
 
 ### Preview and the source
 
@@ -157,7 +161,8 @@ A highlight that covers several lines uses the same rule on each line. Several h
 * **Must Not** ask the browser whether the caret is bold. A heading's weight made Bold look pressed, and turning that off did not survive a return to Write.
 * **Must Not** flatten every heading to the same size and weight as body text.
 * **Must Not** save a Markdown field because it lost focus.
-* **Must Not** show a second rendered copy of a Markdown field above its editor.
+* **Must Not** show the editor and a rendered copy of that same field at the same time.
+* **Must Not** bring back an Edit or Add disclosure on a Markdown field.
 * **Must Not** put Check and Cancel on a Markdown field that neither saved on click-outside nor had its own submit or Add comment button.
 
 ## Consequences

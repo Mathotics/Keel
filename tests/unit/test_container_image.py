@@ -21,6 +21,7 @@ def test_image_installs_the_tree_keel_paths_reads() -> None:
     assert "VOLUME /data" in dockerfile
     assert "sqlite+pysqlite:////data/keel.db" in dockerfile
     assert "KEEL_HOST=0.0.0.0" in dockerfile
+    assert "KEEL_SEED_SIGN_IN=false" in dockerfile
     assert "/health" in dockerfile
 
 
@@ -40,6 +41,7 @@ def test_compose_publishes_the_data_volume() -> None:
     assert "keel-data:/data" in compose
     assert '"8000:8000"' in compose
     assert "KEEL_HOST: 0.0.0.0" in compose
+    assert 'KEEL_SEED_SIGN_IN: "false"' in compose
 
 
 def test_image_build_omits_secrets_and_keeps_shell_scripts_lf() -> None:
