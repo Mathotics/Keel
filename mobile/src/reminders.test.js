@@ -9,6 +9,7 @@ const {
   deleteRule,
   planFires,
   putRule,
+  reminderIsOn,
   retargetIssue,
   uploadReminderQueue,
 } = require("./reminders");
@@ -52,6 +53,15 @@ test("turning off a reminder that was never uploaded does not call the server", 
   const cleared = deleteRule(saved, "default", {});
   assert.equal(cleared.reminders.defaultRule, null);
   assert.equal(cleared.reminders.queue.length, 0);
+});
+
+test("an issue shows reminders on only when its effective rule would fire", () => {
+  const quiet = { projects: {}, people: [], labels: [], queue: [] };
+  assert.equal(reminderIsOn({ id: 7, series_id: null }, quiet.reminders), false);
+  const inherited = putRule(quiet, "default", {}, { at_due: true }, "2026-11-18T09:00:00");
+  assert.equal(reminderIsOn({ id: 7, series_id: null }, inherited.reminders), true);
+  const own = putRule(inherited, "issue", { issueId: 7 }, { at_start: false, at_due: false }, "2026-11-18T09:05:00");
+  assert.equal(reminderIsOn({ id: 7, series_id: null }, own.reminders), false);
 });
 
 test("a conflict keeps the phone copy until the person picks the server stamp", async () => {

@@ -692,6 +692,11 @@ function unseenCatchUps(fires, reminders) {
   return fires.filter((fire) => fire.catch_up && !delivered[deliveryKey(fire)]);
 }
 
+function reminderIsOn(issue, reminders) {
+  const resolved = resolveRule(issue, reminders || emptyBag());
+  return !blankRule(resolved.rule);
+}
+
 function reminderConflict(reminders, scope, ids) {
   const put = queueId(scope, ids, "put");
   const removed = queueId(scope, ids, "delete");
@@ -781,6 +786,7 @@ module.exports = {
   putRule,
   queueState,
   reminderConflict,
+  reminderIsOn,
   resolveRule,
   retargetIssue,
   retargetSeries,

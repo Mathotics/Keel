@@ -58,6 +58,7 @@ import {
   putRule,
   queueState,
   reminderConflict,
+  reminderIsOn,
   resolveRule,
   savedIssues,
   snoozeStamp,
@@ -6338,6 +6339,7 @@ function IssueDetail({
   const [page, setPage] = useState(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [childTitle, setChildTitle] = useState("");
   const [addingChild, setAddingChild] = useState(false);
   const addingChildLock = useRef(false);
@@ -6356,10 +6358,12 @@ function IssueDetail({
   useEffect(() => {
     setStack([issueId]);
     setEditing(false);
+    setRemindersOpen(false);
   }, [issueId]);
 
   useEffect(() => {
     setEditing(false);
+    setRemindersOpen(false);
     setChildTitle("");
     childSentTitle.current = "";
     childKey.current = newClientKey();
@@ -6438,6 +6442,11 @@ function IssueDetail({
   }, [account.origin, account.token, currentId, holdOffline]);
 
   function goBack() {
+    if (remindersOpen) {
+      setRemindersOpen(false);
+      setError("");
+      return true;
+    }
     if (editing) {
       if (leavingEdit.current) {
         return true;
@@ -6616,9 +6625,38 @@ function IssueDetail({
     }
   }
 
+  const remindersOn = saved && saved.raw
+    ? reminderIsOn(
+      {
+        id: Number(currentId),
+        series_id: saved.raw.series_id || (page && page.seriesId) || null,
+      },
+      bag(library),
+    )
+    : false;
+
   return (
     <ScrollView contentContainerStyle={styles.workContent} style={styles.work}>
-      {editing && saved && saved.raw ? (
+      {remindersOpen && page ? (
+        <View>
+          <Text style={styles.issueKey}>{page.key || "New"}</Text>
+          <Text style={styles.detailTitle}>{page.title}</Text>
+          <IssueReminder
+            closed={
+              (saved && saved.raw && (saved.raw.status === "done" || saved.raw.status === "cancelled"))
+              || (page && (page.status === "done" || page.status === "cancelled"))
+            }
+            issueId={Number(currentId)}
+            library={library}
+            missingDue={saved && saved.raw ? !saved.raw.due_at : !page.due || page.due === "None"}
+            missingStart={saved && saved.raw ? !saved.raw.start_at : !page.start || page.start === "None"}
+            note={reminderNote}
+            onReminder={onReminder}
+            seriesId={(saved && saved.raw && saved.raw.series_id) || page.seriesId || null}
+          />
+        </View>
+      ) : null}
+      {editing && !remindersOpen && saved && saved.raw ? (
         <EditIssue
           account={account}
           issue={saved.raw}
@@ -6667,7 +6705,7 @@ function IssueDetail({
       ) : null}
       {page === null && !error ? <ActivityIndicator color="#0068B0" /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      {!editing && page ? (
+      {!editing && !remindersOpen && page ? (
         <View>
           {saved && saved.pending && !(saved.conflict) ? (
             <Text style={styles.pending}>{NOT_ON_SERVER}</Text>
@@ -6678,6 +6716,12 @@ function IssueDetail({
           {saved && saved.raw && !(saved.conflict) ? (
             <View style={styles.toolbarActions}>
               <TextButton label="Edit" onPress={() => setEditing(true)} disabled={false} />
+              <TextButton
+                accessibilityLabel={remindersOn ? "Reminders are on" : "Reminders are off"}
+                label={remindersOn ? "Reminders on" : "Reminders"}
+                onPress={() => setRemindersOpen(true)}
+                disabled={false}
+              />
               <TextButton label="Delete" onPress={askDelete} disabled={false} />
             </View>
           ) : null}
@@ -6770,19 +6814,6 @@ function IssueDetail({
           {page.complete && !(page.seriesId || (saved && saved.raw && saved.raw.series_id)) && Number(currentId) > 0 ? (
             <PrimaryButton label="Make this repeating" onPress={() => onRepeat(page)} disabled={false} />
           ) : null}
-          <IssueReminder
-            closed={
-              (saved && saved.raw && (saved.raw.status === "done" || saved.raw.status === "cancelled"))
-              || (page && (page.status === "done" || page.status === "cancelled"))
-            }
-            issueId={Number(currentId)}
-            library={library}
-            missingDue={saved && saved.raw ? !saved.raw.due_at : !page.due || page.due === "None"}
-            missingStart={saved && saved.raw ? !saved.raw.start_at : !page.start || page.start === "None"}
-            note={reminderNote}
-            onReminder={onReminder}
-            seriesId={(saved && saved.raw && saved.raw.series_id) || page.seriesId || null}
-          />
           <LinkGroup
             title="Blocks"
             items={page.blocks}
