@@ -13,6 +13,7 @@ from keel.api.v1 import (
     profile,
     projects,
     recovery,
+    reminders,
     series,
     sprints,
     users,
@@ -25,6 +26,7 @@ router.include_router(users.router)
 router.include_router(access.router)
 router.include_router(profile.router)
 router.include_router(notifications.router)
+router.include_router(reminders.router)
 router.include_router(projects.router)
 router.include_router(issues.router)
 router.include_router(labels.router)

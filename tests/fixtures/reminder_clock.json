@@ -1,0 +1,185 @@
+[
+  {
+    "name": "a future due lead and the due moment",
+    "now": "2026-11-18T09:00:00",
+    "due_at": "2026-11-18T17:00:00",
+    "rule": {
+      "due_offsets": [{"amount": 1, "unit": "hour"}],
+      "at_due": true
+    },
+    "fires": [
+      {"at": "2026-11-18T16:00:00", "reasons": ["Due in 1 hour"], "catch_up": false},
+      {"at": "2026-11-18T17:00:00", "reasons": ["Due now"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "a passed lead is skipped until the device asks to catch up",
+    "now": "2026-11-18T16:30:00",
+    "due_at": "2026-11-18T17:00:00",
+    "rule": {
+      "due_offsets": [{"amount": 1, "unit": "hour"}],
+      "at_due": true
+    },
+    "fires": [
+      {"at": "2026-11-18T17:00:00", "reasons": ["Due now"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "catch-up shows a passed lead once",
+    "now": "2026-11-18T16:30:00",
+    "due_at": "2026-11-18T17:00:00",
+    "catch_up": true,
+    "rule": {
+      "due_offsets": [{"amount": 1, "unit": "hour"}],
+      "at_due": true
+    },
+    "fires": [
+      {"at": "2026-11-18T16:00:00", "reasons": ["Due in 1 hour"], "catch_up": true},
+      {"at": "2026-11-18T17:00:00", "reasons": ["Due now"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "a closed issue schedules nothing",
+    "now": "2026-11-18T09:00:00",
+    "due_at": "2026-11-18T17:00:00",
+    "closed": true,
+    "rule": {"at_due": true},
+    "fires": []
+  },
+  {
+    "name": "a missing due time skips due and overdue",
+    "now": "2026-11-18T09:00:00",
+    "rule": {
+      "at_due": true,
+      "overdue": {"kind": "every_n", "amount": 30, "unit": "minute"}
+    },
+    "fires": []
+  },
+  {
+    "name": "start leads and the start moment",
+    "now": "2026-11-18T09:00:00",
+    "start_at": "2026-11-20T09:00:00",
+    "rule": {
+      "start_offsets": [{"amount": 1, "unit": "day"}],
+      "at_start": true
+    },
+    "fires": [
+      {"at": "2026-11-19T09:00:00", "reasons": ["Starts in 1 day"], "catch_up": false},
+      {"at": "2026-11-20T09:00:00", "reasons": ["Starts now"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "overdue starts one interval after due",
+    "now": "2026-11-18T09:00:00",
+    "due_at": "2026-11-18T17:00:00",
+    "overdue_limit": 3,
+    "rule": {"overdue": {"kind": "every_n", "amount": 30, "unit": "minute"}},
+    "fires": [
+      {"at": "2026-11-18T17:30:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-18T18:00:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-18T18:30:00", "reasons": ["Overdue"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "a new rule on an already overdue issue waits for the next interval",
+    "now": "2026-11-18T10:00:00",
+    "due_at": "2026-11-18T09:00:00",
+    "overdue_limit": 3,
+    "rule": {"overdue": {"kind": "every_n", "amount": 30, "unit": "minute"}},
+    "fires": [
+      {"at": "2026-11-18T10:30:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-18T11:00:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-18T11:30:00", "reasons": ["Overdue"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "catch-up shows one overdue notice then continues from now",
+    "now": "2026-11-18T10:00:00",
+    "due_at": "2026-11-18T09:00:00",
+    "catch_up": true,
+    "overdue_limit": 2,
+    "rule": {"overdue": {"kind": "every_n", "amount": 30, "unit": "minute"}},
+    "fires": [
+      {"at": "2026-11-18T10:00:00", "reasons": ["Overdue"], "catch_up": true},
+      {"at": "2026-11-18T10:30:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-18T11:00:00", "reasons": ["Overdue"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "a daily clock lands on the next day when due is that time",
+    "now": "2026-11-18T08:00:00",
+    "due_at": "2026-11-18T09:00:00",
+    "overdue_limit": 2,
+    "rule": {"overdue": {"kind": "daily_at", "minute_of_day": 540}},
+    "fires": [
+      {"at": "2026-11-19T09:00:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-20T09:00:00", "reasons": ["Overdue"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "a passed daily clock catches up once",
+    "now": "2026-11-18T10:00:00",
+    "due_at": "2026-11-17T09:00:00",
+    "catch_up": true,
+    "overdue_limit": 2,
+    "rule": {"overdue": {"kind": "daily_at", "minute_of_day": 540}},
+    "fires": [
+      {"at": "2026-11-18T10:00:00", "reasons": ["Overdue"], "catch_up": true},
+      {"at": "2026-11-19T09:00:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-20T09:00:00", "reasons": ["Overdue"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "snooze holds overdue until the chosen time",
+    "now": "2026-11-18T10:00:00",
+    "due_at": "2026-11-18T09:00:00",
+    "snooze_until": "2026-11-18T12:00:00",
+    "overdue_limit": 2,
+    "rule": {"overdue": {"kind": "every_n", "amount": 1, "unit": "hour"}},
+    "fires": [
+      {"at": "2026-11-18T12:00:00", "reasons": ["Overdue"], "catch_up": false},
+      {"at": "2026-11-18T13:00:00", "reasons": ["Overdue"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "dismiss stops overdue and leaves the due moment",
+    "now": "2026-11-18T09:00:00",
+    "due_at": "2026-11-18T17:00:00",
+    "overdue_dismissed": true,
+    "rule": {
+      "at_due": true,
+      "overdue": {"kind": "every_n", "amount": 1, "unit": "hour"}
+    },
+    "fires": [
+      {"at": "2026-11-18T17:00:00", "reasons": ["Due now"], "catch_up": false}
+    ]
+  },
+  {
+    "name": "start and due on the same minute share one notification",
+    "now": "2026-11-18T09:00:00",
+    "start_at": "2026-11-18T12:00:00",
+    "due_at": "2026-11-18T12:00:00",
+    "rule": {"at_start": true, "at_due": true},
+    "fires": [
+      {
+        "at": "2026-11-18T12:00:00",
+        "reasons": ["Starts now", "Due now"],
+        "catch_up": false
+      }
+    ]
+  },
+  {
+    "name": "a rule saved after a lead passed does not catch that lead up",
+    "now": "2026-11-18T16:30:00",
+    "due_at": "2026-11-18T17:00:00",
+    "catch_up": true,
+    "rule_updated_at": "2026-11-18T16:30:00",
+    "rule": {
+      "due_offsets": [{"amount": 1, "unit": "hour"}],
+      "at_due": true
+    },
+    "fires": [
+      {"at": "2026-11-18T17:00:00", "reasons": ["Due now"], "catch_up": false}
+    ]
+  }
+]

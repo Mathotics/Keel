@@ -16,7 +16,8 @@
     },
     "android": {
       "package": "com.keel.shell",
-      "versionCode": 36,
+      "versionCode": 42,
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
       "adaptiveIcon": {
         "backgroundColor": "#0068B0",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -95,6 +95,11 @@
         </form>
       </div>
       <div class="keel-panel">
+        <h2>Reminders</h2>
+        <p class="keel-note">{{ reminder_form.note }}</p>
+        {% include "_reminder_form.html" %}
+      </div>
+      <div class="keel-panel">
         <h2>Password</h2>
         <form class="keel-form keel-form--stacked" method="post" action="/web/profile/password">
           <div class="keel-fields">
