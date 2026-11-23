@@ -6,15 +6,17 @@ from types import SimpleNamespace
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Depends, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from keel.domain.access import Permission
 from keel.domain.errors import DomainError, NotFoundError
 from keel.schemas.reminder import OffsetBody, RuleBody, RuleRead, RuleWrite
 from keel.services import issues as issue_service
 from keel.services import reminders as reminder_service
 from keel.web.context import Chrome, ChromeDep, SessionDep
+from keel.web.guards import require_issue, require_series
 
 router = APIRouter()
 
@@ -115,7 +117,10 @@ def save_profile_reminders(
     return _back("/profile", notice="Reminders saved.")
 
 
-@router.post("/web/schedules/{series_id}/reminder")
+@router.post(
+    "/web/schedules/{series_id}/reminder",
+    dependencies=[Depends(require_series(Permission.VIEW_SCHEDULES))],
+)
 def save_series_reminders(
     series_id: int,
     session: SessionDep,
@@ -153,7 +158,10 @@ def save_series_reminders(
     )
 
 
-@router.post("/web/schedules/{series_id}/reminder/reset")
+@router.post(
+    "/web/schedules/{series_id}/reminder/reset",
+    dependencies=[Depends(require_series(Permission.VIEW_SCHEDULES))],
+)
 def reset_series_reminders(
     series_id: int,
     session: SessionDep,
@@ -191,7 +199,10 @@ def reset_series_reminders(
     return _back(path, notice="Using your default.")
 
 
-@router.post("/web/issues/{issue_id}/reminder")
+@router.post(
+    "/web/issues/{issue_id}/reminder",
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def save_issue_reminders(
     issue_id: int,
     session: SessionDep,
@@ -229,7 +240,10 @@ def save_issue_reminders(
     )
 
 
-@router.post("/web/issues/{issue_id}/reminder/reset")
+@router.post(
+    "/web/issues/{issue_id}/reminder/reset",
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def reset_issue_reminders(
     issue_id: int,
     session: SessionDep,

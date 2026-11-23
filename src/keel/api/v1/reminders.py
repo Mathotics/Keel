@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
 from keel.api.v1.deps import SessionDep
-from keel.api.v1.guards import AccessDep, guard_issue, guard_series
+from keel.api.v1.guards import AccessDep, require_issue, require_series
 from keel.domain.access import Permission
 from keel.schemas.reminder import (
     BundleRead,
@@ -55,26 +55,32 @@ def write_default(
     return reminder_service.save_default(session, _user(access), payload)
 
 
-@router.get("/series/{series_id}/reminder", response_model=RuleSlot)
+@router.get(
+    "/series/{series_id}/reminder",
+    response_model=RuleSlot,
+    dependencies=[Depends(require_series(Permission.VIEW_SCHEDULES))],
+)
 def read_series_rule(
     series_id: int,
     session: SessionDep,
     access: AccessDep,
 ) -> RuleSlot:
-    guard_series(session, access, series_id, Permission.VIEW_SCHEDULES)
     return RuleSlot(
         rule=reminder_service.get_series_rule(session, _user(access), series_id)
     )
 
 
-@router.put("/series/{series_id}/reminder", response_model=RuleRead)
+@router.put(
+    "/series/{series_id}/reminder",
+    response_model=RuleRead,
+    dependencies=[Depends(require_series(Permission.VIEW_SCHEDULES))],
+)
 def write_series_rule(
     series_id: int,
     payload: RuleWrite,
     session: SessionDep,
     access: AccessDep,
 ) -> RuleRead:
-    guard_series(session, access, series_id, Permission.VIEW_SCHEDULES)
     return reminder_service.save_series_rule(
         session,
         _user(access),
@@ -83,14 +89,17 @@ def write_series_rule(
     )
 
 
-@router.delete("/series/{series_id}/reminder", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/series/{series_id}/reminder",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_series(Permission.VIEW_SCHEDULES))],
+)
 def remove_series_rule(
     series_id: int,
     session: SessionDep,
     access: AccessDep,
     base_updated_at: datetime | None = None,
 ) -> Response:
-    guard_series(session, access, series_id, Permission.VIEW_SCHEDULES)
     reminder_service.delete_series_rule(
         session,
         _user(access),
@@ -100,36 +109,45 @@ def remove_series_rule(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/issues/{issue_id}/reminder", response_model=EffectiveRead)
+@router.get(
+    "/issues/{issue_id}/reminder",
+    response_model=EffectiveRead,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def read_issue_rule(
     issue_id: int,
     session: SessionDep,
     access: AccessDep,
 ) -> EffectiveRead:
-    guard_issue(session, access, issue_id, Permission.VIEW_ISSUES)
     issue = issue_service.get_issue(session, issue_id)
     return reminder_service.effective_issue(session, _user(access), issue)
 
 
-@router.put("/issues/{issue_id}/reminder", response_model=RuleRead)
+@router.put(
+    "/issues/{issue_id}/reminder",
+    response_model=RuleRead,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def write_issue_rule(
     issue_id: int,
     payload: RuleWrite,
     session: SessionDep,
     access: AccessDep,
 ) -> RuleRead:
-    guard_issue(session, access, issue_id, Permission.VIEW_ISSUES)
     return reminder_service.save_issue_rule(session, _user(access), issue_id, payload)
 
 
-@router.delete("/issues/{issue_id}/reminder", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/issues/{issue_id}/reminder",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def remove_issue_rule(
     issue_id: int,
     session: SessionDep,
     access: AccessDep,
     base_updated_at: datetime | None = None,
 ) -> Response:
-    guard_issue(session, access, issue_id, Permission.VIEW_ISSUES)
     reminder_service.delete_issue_rule(
         session,
         _user(access),
@@ -139,14 +157,17 @@ def remove_issue_rule(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.put("/issues/{issue_id}/reminder/snooze", response_model=StateRead)
+@router.put(
+    "/issues/{issue_id}/reminder/snooze",
+    response_model=StateRead,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def snooze_issue(
     issue_id: int,
     payload: SnoozeWrite,
     session: SessionDep,
     access: AccessDep,
 ) -> StateRead:
-    guard_issue(session, access, issue_id, Permission.VIEW_ISSUES)
     return reminder_service.snooze(
         session,
         _user(access),
@@ -156,26 +177,32 @@ def snooze_issue(
     )
 
 
-@router.post("/issues/{issue_id}/reminder/dismiss-overdue", response_model=StateRead)
+@router.post(
+    "/issues/{issue_id}/reminder/dismiss-overdue",
+    response_model=StateRead,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def dismiss_issue(
     issue_id: int,
     session: SessionDep,
     access: AccessDep,
     payload: StateWrite | None = None,
 ) -> StateRead:
-    guard_issue(session, access, issue_id, Permission.VIEW_ISSUES)
     base = None if payload is None else payload.base_updated_at
     return reminder_service.dismiss_overdue(session, _user(access), issue_id, base)
 
 
-@router.post("/issues/{issue_id}/reminder/resume-overdue", response_model=StateRead)
+@router.post(
+    "/issues/{issue_id}/reminder/resume-overdue",
+    response_model=StateRead,
+    dependencies=[Depends(require_issue(Permission.VIEW_ISSUES))],
+)
 def resume_issue(
     issue_id: int,
     session: SessionDep,
     access: AccessDep,
     payload: StateWrite | None = None,
 ) -> StateRead:
-    guard_issue(session, access, issue_id, Permission.VIEW_ISSUES)
     base = None if payload is None else payload.base_updated_at
     return reminder_service.resume_overdue(session, _user(access), issue_id, base)
 
